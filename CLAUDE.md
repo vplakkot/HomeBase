@@ -25,7 +25,8 @@ learning a maintainable process as much as shipping.
 
 ## Definition of Done
 Every pull request must satisfy all of these:
-- [ ] Linked to a Ready requirement or a bug issue
+- [ ] Linked to a GitHub issue — a feature from a Ready requirement, a bug,
+      or a chore
 - [ ] Every acceptance criterion has a passing test
 - [ ] All automated checks pass
 - [ ] Verified on the preview link
@@ -33,7 +34,8 @@ Every pull request must satisfy all of these:
 - [ ] Database changes are migrations
 - [ ] No secrets in code
 - [ ] A lesson doc added or updated in docs/lessons/ for anything new
-- [ ] Notion requirement status updated (my task)
+- [ ] Notion requirement status updated, when the issue traces to a Notion
+      requirement (my task) — not applicable to bug or chore issues
 
 ## Working style
 - Restate what you understood before starting, and wait for confirmation.
