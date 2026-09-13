@@ -19,6 +19,9 @@ learning a maintainable process as much as shipping.
 - Ask before adding a dependency or changing architecture.
 - Explain changes in plain language. Assume I am learning, not reviewing
   as an expert.
+- docs/architecture.md must be updated in the same pull request whenever
+  the structure changes: a new external service, a new data model, or a
+  change in how pieces connect.
 
 ## Definition of Done
 Every pull request must satisfy all of these:
