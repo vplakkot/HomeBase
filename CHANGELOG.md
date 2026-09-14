@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Integrate Sentry error tracking for both browser and server errors, DSN
+  read from NEXT_PUBLIC_SENTRY_DSN. Adds a /sentry-test page with two
+  deliberate test errors, to be removed after confirming it works. (#19)
 - Show the running build's git ref and commit hash in small text at the
   bottom of the homepage, read from Vercel's build-time environment
   variables. (#17)

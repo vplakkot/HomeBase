@@ -86,6 +86,17 @@ live by looking at the page itself. See
 limitation worth knowing (it shows the branch that built the code, not
 the release tag).
 
+## Error tracking
+
+A third external service, **Sentry**, is now wired in: errors from both
+the browser and the server are reported to it automatically, via
+`instrumentation-client.ts`, `sentry.server.config.ts`,
+`sentry.edge.config.ts`, and `instrumentation.ts` (which connects Next.js's
+own error hook to Sentry). Configuration is a single environment variable,
+`NEXT_PUBLIC_SENTRY_DSN`. See
+[lesson 05](lessons/05-sentry-error-tracking.md) for what Sentry is, what a
+DSN is, and what actually shows up when an error fires.
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
