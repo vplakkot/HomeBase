@@ -1,0 +1,91 @@
+# Lesson 03: Tags, releases, and why "build" and "promote" are different steps
+
+A new workflow ([`.github/workflows/promote.yml`](../../.github/workflows/promote.yml))
+only assigns the production domain when a version tag is pushed. This
+explains the pieces behind that: what a tag is, what a release is, and why
+"build" and "promote" are two separate steps instead of one.
+
+## What a git tag is
+
+A commit is a snapshot of the code. A branch (like `main`) is a
+moving label — it always points at the latest commit pushed to it. A
+**tag** is the opposite: a label that points at one specific commit and
+never moves again, even after `main` keeps changing.
+
+`v1.0.0` is a typical tag name. The `v*` in the workflow's trigger means
+"any tag starting with `v`" — so `v1.0.0`, `v1.2.3`, `v2.0.0-beta` would
+all match.
+
+```bash
+git tag v1.0.0        # label the current commit
+git push origin v1.0.0  # send that label to GitHub
+```
+
+Pushing a tag is a deliberate act — nothing creates one automatically. That
+deliberateness is the whole point here: it's the moment we're choosing to
+say "this exact commit is what should be live," as opposed to every merge
+to `main` being an implicit vote for going live.
+
+## What a GitHub release is
+
+A **release** is a tag plus extra packaging on GitHub's side — release
+notes, a title, and optionally file attachments. Every release points to a
+tag, but not every tag has to become a release. For this workflow, only the
+tag matters (the `push: tags: v*` trigger fires on the tag itself); writing
+a GitHub release around that tag is optional polish for communicating what
+changed, not something the workflow depends on.
+
+## Why "build" and "promote" are separate steps
+
+Vercel is connected to this repo so that every merge to `main` triggers a
+build automatically. Normally, Vercel would also point the production
+domain at that new build right away. This project has that automatic step
+turned off ("Auto-assign Custom Production Domains" is disabled in Vercel's
+project settings), so a merge to `main` produces a fully built, working
+deployment — reachable at its own unique Vercel URL — that visitors on the
+production domain still won't see, because nothing has pointed the domain
+at it yet.
+
+**Promoting** is the second, separate step: taking a deployment that
+already exists and already built successfully, and telling Vercel "make
+this the one the production domain shows."
+
+Splitting these into two steps means a bad merge to `main` can sit there,
+built but harmless, for as long as needed — nobody sees it until a tag
+says otherwise. It also means production only changes on a version bump we
+chose on purpose, not on every commit that happened to land on `main`
+first.
+
+```mermaid
+sequenceDiagram
+    participant Dev as You
+    participant GitHub
+    participant Vercel
+
+    Dev->>GitHub: merge PR into main
+    GitHub->>Vercel: notify: main changed
+    Vercel->>Vercel: build the app
+    Note over Vercel: Built, but production domain<br/>still points at the old deployment
+
+    Dev->>GitHub: git push origin v1.0.0
+    GitHub->>GitHub: run promote.yml
+    GitHub->>Vercel: find latest production build, promote it
+    Vercel->>Vercel: point production domain at that build
+    Note over Vercel: Now live
+```
+
+## What the workflow actually does
+
+1. Triggers when a tag matching `v*` is pushed.
+2. Asks the Vercel API for the most recent deployment built from `main`
+   (the "production target" — this is Vercel's own label for
+   `main`-branch builds, separate from whether the domain has been
+   assigned to it yet).
+3. Runs `vercel promote <that deployment> --yes`, using the Vercel CLI, to
+   assign the production domain to it.
+
+Authentication uses a token stored as a GitHub secret
+(`VERCEL_TOKEN`, alongside `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` to
+identify which Vercel project to act on) — never written in the workflow
+file itself. GitHub injects secrets into the job as environment variables
+at run time and masks them in the logs.

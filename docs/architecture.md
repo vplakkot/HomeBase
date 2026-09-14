@@ -59,6 +59,25 @@ page needs interactivity (a button that reacts to clicks, for example),
 that specific piece would be marked a "Client Component" and would run in
 the browser too — but nothing in this app does that yet.
 
+## Deployment
+
+Two external services are now part of getting code live: **GitHub Actions**
+(covered in [lesson 02](lessons/02-github-actions.md)) runs checks on every
+pull request, and **Vercel** builds and hosts the app.
+
+Vercel builds automatically on every merge to `main`, but does not
+automatically point the production domain at that build — that's a
+deliberate setting ("Auto-assign Custom Production Domains" is disabled).
+A separate GitHub Actions workflow
+([`.github/workflows/promote.yml`](../.github/workflows/promote.yml)) only
+assigns the production domain when a version tag (`v*`) is pushed, by
+finding the latest build and running the Vercel CLI's `promote` command on
+it. See [lesson 03](lessons/03-tags-releases-promote.md) for the full
+build-vs-promote explanation and a diagram of that flow.
+
+In short: merging to `main` builds; pushing a tag is what actually goes
+live.
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
