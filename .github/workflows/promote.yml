@@ -12,6 +12,20 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      - name: Check Vercel authentication
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          if ! vercel whoami --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"; then
+            echo "::error::VERCEL_TOKEN could not authenticate as a user." \
+              "This usually means the token is scoped too narrowly (e.g. to" \
+              "a single project) rather than to the full account. Regenerate" \
+              "it at vercel.com/account/tokens without a project restriction" \
+              "and update the VERCEL_TOKEN secret." >&2
+            exit 1
+          fi
+
       - name: Find latest production deployment
         id: find
         env:

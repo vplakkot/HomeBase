@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a vercel whoami diagnostic step to the promote workflow, so an
+  auth/scope problem with VERCEL_TOKEN surfaces its own clear error
+  instead of being buried inside vercel promote's failure. (#15)
 - Fix promote workflow failing with "User not found (404)" by passing
   --scope explicitly to vercel promote. (#13)
 - Add GitHub Actions workflow that promotes the latest production build to
