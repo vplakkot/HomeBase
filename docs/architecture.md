@@ -78,6 +78,14 @@ build-vs-promote explanation and a diagram of that flow.
 In short: merging to `main` builds; pushing a tag is what actually goes
 live.
 
+The homepage itself reads two of Vercel's build-time environment
+variables (`VERCEL_GIT_COMMIT_REF`, `VERCEL_GIT_COMMIT_SHA`) and displays
+them as small text, so it's possible to confirm which commit is actually
+live by looking at the page itself. See
+[lesson 04](lessons/04-build-time-env-vars.md) for how that works and a
+limitation worth knowing (it shows the branch that built the code, not
+the release tag).
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
