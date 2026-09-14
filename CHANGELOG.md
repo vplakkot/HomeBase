@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix promote workflow failing with "User not found (404)" by passing
+  --scope explicitly to vercel promote. (#13)
 - Add GitHub Actions workflow that promotes the latest production build to
   the production domain only when a version tag (v*) is pushed, using the
   Vercel CLI. (#11)

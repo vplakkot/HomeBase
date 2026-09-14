@@ -89,3 +89,25 @@ Authentication uses a token stored as a GitHub secret
 identify which Vercel project to act on) — never written in the workflow
 file itself. GitHub injects secrets into the job as environment variables
 at run time and masks them in the logs.
+
+## A real failure: "User not found (404)"
+
+The first real tag push (`v.0.0.1`) hit this on the promote step:
+
+```
+Run vercel promote "https://home-base-3suw32j67-home-base12.vercel.app" --token="$VERCEL_TOKEN" --yes
+Error: User not found. (404)
+```
+
+The lookup step worked fine — it found the right deployment. The failure
+was specifically the Vercel CLI not knowing *which account or team* to act
+as. Setting `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` as environment
+variables is enough for some Vercel CLI commands (like `vercel deploy`) to
+infer that automatically, but `vercel promote` needed it spelled out
+explicitly with a `--scope` flag pointing at the org ID. The fix was
+adding `--scope="$VERCEL_ORG_ID"` to the promote command.
+
+The lesson: environment-variable-based project linking isn't guaranteed to
+apply the same way across every Vercel CLI subcommand — when a command
+touches account/team-scoped resources, pass the scope explicitly rather
+than relying on it being inferred.
