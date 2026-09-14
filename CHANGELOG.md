@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Show the running build's git ref and commit hash in small text at the
+  bottom of the homepage, read from Vercel's build-time environment
+  variables. (#17)
 - Add a vercel whoami diagnostic step to the promote workflow, so an
   auth/scope problem with VERCEL_TOKEN surfaces its own clear error
   instead of being buried inside vercel promote's failure. (#15)
