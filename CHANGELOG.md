@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Remove the deliberate Sentry test route now that error reporting is
+  confirmed working in both the browser and the server. (#21)
 - Integrate Sentry error tracking for both browser and server errors, DSN
   read from NEXT_PUBLIC_SENTRY_DSN. Adds a /sentry-test page with two
   deliberate test errors, to be removed after confirming it works. (#19)
