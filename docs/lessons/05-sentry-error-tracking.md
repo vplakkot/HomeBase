@@ -39,10 +39,9 @@ by design.
 
 ## What shows up when an error fires
 
-Two deliberate test errors exist at [`/sentry-test`](../../app/sentry-test/page.tsx)
-(covered below) to confirm this works before relying on it. When either
-fires, expect a new **Issue** to appear in the Sentry project's dashboard
-within a few seconds, showing:
+When an error fires (the deliberate test errors described below did
+exactly this to confirm the setup worked), expect a new **Issue** to
+appear in the Sentry project's dashboard within a few seconds, showing:
 
 - The error message and full stack trace, pointing at the exact file and
   line that threw
@@ -84,20 +83,42 @@ Three small config files do the actual reporting:
   `onRequestError` so that when a route handler or page throws on the
   server, Sentry hears about it automatically
 
-## The deliberate test errors — and removing them later
+## The deliberate test errors (removed)
 
-[`/sentry-test`](../../app/sentry-test/page.tsx) has two buttons:
+A `/sentry-test` page briefly existed with two buttons — one throwing
+directly in the browser, one calling an API route that threw on the
+server — to confirm both reporting paths worked before trusting them. Both
+were confirmed working (two Issues showed up correctly in Sentry's
+dashboard), so the page and its route were deleted (#21) — their only job
+was that one-time confirmation, and leaving a page that deliberately
+crashes sitting in the app isn't something to keep around.
 
-- **Throw client error** — throws directly in the browser, to confirm the
-  browser-side reporting path
-- **Throw server error** — calls
-  [`/api/sentry-test`](../../app/api/sentry-test/route.ts), which throws
-  on the server, to confirm the server-side reporting path
+**If you ever need to re-test** (after a Sentry SDK upgrade, a DSN
+change, or anything else that touches this setup), add it back
+temporarily:
 
-Once you've clicked both and confirmed two new Issues showed up in
-Sentry's dashboard, this page and its API route are no longer needed —
-delete `app/sentry-test/` and `app/api/sentry-test/` (and their test file,
-`app/sentry-test/page.test.tsx`).
+```tsx
+// app/sentry-test/page.tsx
+"use client";
+
+export default function SentryTestPage() {
+  return (
+    <button onClick={() => { throw new Error("Sentry test"); }}>
+      Throw test error
+    </button>
+  );
+}
+```
+
+```ts
+// app/api/sentry-test/route.ts
+export function GET() {
+  throw new Error("Sentry test: server-side");
+}
+```
+
+Visit `/sentry-test` (browser case) and `/api/sentry-test` (server case),
+confirm both show up in Sentry, then delete both files again.
 
 ## What's not included
 
