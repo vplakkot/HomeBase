@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a pr-reviewer Claude Code subagent that reviews a PR against its
+  linked issue and CLAUDE.md's Definition of Done on request. Advisory
+  only — no ability to merge, push, or edit code. (#25)
 - Remove the deliberate Sentry test route now that error reporting is
   confirmed working in both the browser and the server. (#21)
 - Integrate Sentry error tracking for both browser and server errors, DSN
