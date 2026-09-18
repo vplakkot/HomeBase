@@ -5,9 +5,23 @@ HomeBase: a household management app for couples. Solo project. The goal is
 learning a maintainable process as much as shipping.
 
 ## Where things live
-- Requirements, decisions, architecture: Notion (linked from README)
-- Work items: GitHub issues, one per feature or bug
+- Requirements, decisions, architecture: Notion (HomeBase HQ, linked from README)
+- Work items: GitHub issues, one per feature or bug. Feature issues are
+  created by you from Ready requirements (see Picking up work)
 - Code, history, truth: this repo
+
+## Picking up work
+When I say "next requirement":
+1. In Notion (HomeBase HQ → Requirements), check requirements that are
+   In progress. If a requirement's pull request has merged, set it to Done.
+2. Find the Ready requirement in the current milestone with the lowest ID.
+3. If its Github Issue field is empty, create the GitHub issue: title = the
+   requirement name, body = REQ ID and Notion link, milestone = the
+   requirement's Milestone. Write the issue URL back to its Github Issue field.
+4. Set the requirement to In progress.
+5. The Notion page is the spec: acceptance criteria, out of scope, and
+   decisions. Don't copy it elsewhere. Ask if anything is unclear.
+6. Restate your plan and wait for my go-ahead.
 
 ## Rules
 - Never commit to main. Always a branch, then a pull request.
@@ -38,8 +52,8 @@ Every pull request must satisfy all of these:
 - [ ] Database changes are migrations
 - [ ] No secrets in code
 - [ ] A lesson doc added or updated in docs/lessons/ for anything new
-- [ ] Notion requirement status updated, when the issue traces to a Notion
-      requirement (my task) — not applicable to bug or chore issues
+- [ ] Notion requirement set to Done once merged (you do this; see Picking
+      up work) — not applicable to bug or chore issues
 
 ## Working style
 - Restate what you understood before starting, and wait for confirmation.
