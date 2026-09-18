@@ -1,8 +1,8 @@
 # Architecture (as of v0.0.1)
 
 This describes how HomeBase is put together today. At this stage the app is
-a single page that says "HomeBase" — there's no database, no login, no
-styling. This doc will grow as those pieces are added; see the "Not yet
+a homepage plus a sign-up page — there's a database now, but no sign-in
+yet and no styling. This doc will grow as those pieces are added; see the "Not yet
 built" section below for what's intentionally missing right now.
 
 ## What happens when a browser requests "/"
@@ -100,19 +100,63 @@ own error hook to Sentry). Configuration is a single environment variable,
 [lesson 05](lessons/05-sentry-error-tracking.md) for what Sentry is, what a
 DSN is, and what actually shows up when an error fires.
 
+## Data and sign-up
+
+A fourth external service, **Supabase**, now holds the data and the
+accounts: a Postgres database plus an Auth service, reached through
+`@supabase/supabase-js` and `@supabase/ssr`
+([`lib/supabase/server.ts`](../lib/supabase/server.ts)). Database
+structure lives in `supabase/migrations/` and is applied with the Supabase
+CLI (`npx supabase db push`), never by hand in the dashboard. See
+[lesson 07](lessons/07-supabase-auth-and-migrations.md) for what Supabase
+is, how migrations work, and the reasoning below in full.
+
+Three tables so far: `households`, `roles` (Admin and Member as rows), and
+`household_members`, which links a user to the household with a role. All
+three have row-level security switched on with no policies yet, so the API
+can neither read nor write them until REQ-12 adds policies. The one thing
+a signed-out visitor can ask is `household_exists()`, a function that
+returns only true or false.
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Page as app/sign-up/page.tsx
+    participant Action as app/sign-up/actions.ts
+    participant Auth as Supabase Auth
+    participant DB as Postgres trigger
+
+    Browser->>Page: GET /sign-up
+    Page->>DB: household_exists()?
+    alt no household yet
+        Page-->>Browser: sign-up form
+        Browser->>Action: submit email + password
+        Action->>Auth: signUp()
+        Auth->>DB: insert into auth.users
+        DB->>DB: create household, add user as Admin
+        Action-->>Browser: redirect to /
+    else household exists
+        Page-->>Browser: "Sign-up is closed" + link to /sign-in
+    end
+```
+
+The rule "only the first sign-up creates a household" is enforced by that
+trigger inside the database, not by the page. The page hides the form as a
+courtesy once a household exists, but a request sent straight to Supabase's
+sign-up endpoint hits the same trigger and is refused just the same.
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
 
-- **No `components/` folder** — there's only one page, so there's nothing
-  yet to share between pages.
-- **No data fetching** — the page doesn't read from a database or any
-  external API; "HomeBase" is a hardcoded string.
-- **No state** — nothing on the page changes after it loads; there's no
-  interactivity to track.
+- **No `components/` folder** — the sign-up form lives next to its page;
+  nothing is shared between pages yet.
+- **Almost no state** — the only interactivity is the sign-up form's
+  pending/error state; nothing else changes after a page loads.
 - **No styling** — plain, unstyled HTML.
-- **No auth** — there's no concept of a logged-in user yet; anyone who
-  loads the page sees the same thing.
+- **No sign-in yet** — accounts and the household exist (above), but
+  `/sign-in` is a placeholder until REQ-11, and there are no permissions
+  until REQ-12.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.
