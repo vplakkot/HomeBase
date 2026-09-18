@@ -34,6 +34,15 @@ builds a client for server code, and it uses `@supabase/ssr` so the login
 session travels in a cookie the way a normal website's does, instead of
 living only in browser memory.
 
+One ordering detail in that file cost a red CI run. GitHub Actions builds
+the app with **no** Supabase env vars — they live only in Vercel, on
+purpose. `next build` tries to pre-render every page it can, and a page
+becomes "dynamic" (skipped by pre-rendering) the moment it calls
+`cookies()`. The first version checked the env vars *before* calling
+`cookies()`, so the build hit the "missing env" error while still trying to
+pre-render `/`. Locally it passed only because `.env.local` existed.
+Calling `cookies()` first fixes it, and a test now pins that order.
+
 ## Migrations: database changes that travel through git
 
 A **migration** is a file of SQL that changes the database's *structure*

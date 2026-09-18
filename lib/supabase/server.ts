@@ -2,6 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export async function createClient() {
+  // cookies() first: it marks the page dynamic, so `next build` (which has
+  // no Supabase env vars in CI) stops trying to prerender before the check.
+  const cookieStore = await cookies();
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) {
@@ -9,8 +13,6 @@ export async function createClient() {
       "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
     );
   }
-
-  const cookieStore = await cookies();
 
   return createServerClient(url, key, {
     cookies: {
