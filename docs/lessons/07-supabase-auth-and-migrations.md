@@ -74,6 +74,16 @@ the recipe can make the same cake.
 For now `db push` is a manual step. Wiring it into the release workflow is
 a separate concern for later.
 
+One trap next to it: `supabase config push` looks like the same idea for
+*settings* (auth toggles, URLs, pool sizes) instead of tables — but the
+`config.toml` that `supabase init` writes declares a default for nearly
+every setting, and a push writes *every declared value*. Running the
+read-only `npx supabase config diff` showed 13 differences against this
+project, including switching off MFA and SMS that were set up on purpose.
+So: `config diff` before ever considering `config push`, and until the
+file is trimmed to only the settings we mean to manage, project settings
+change in the dashboard.
+
 ## The data model
 
 ```mermaid
@@ -170,9 +180,26 @@ Users). Deleting a user cascades to their `household_members` row; delete
 the leftover `households` row too. That is changing *data*, not structure,
 so it's allowed by hand. A second project for dev can come later.
 
-**Email confirmation.** Supabase Auth has a "Confirm email" setting. With
-it on, sign-up creates the user (and so the household — the trigger runs
-either way) but no session until the link in the email is clicked. For a
-two-person household app that step is friction with no upside; turning it
-off is an auth setting, not a structure change, and REQ-11's sign-in flow
-assumes it's off.
+**Test emails must be real mailboxes.** Supabase's hosted Auth refused
+both `first-admin@example.com` (a reserved documentation domain) and
+`first-admin@homebase-test.app` (a made-up domain) with "Email address is
+invalid" — it checks that the domain can actually receive mail, not just
+that the address is well-formed. The sign-up form showed that message
+inline, which was the first real proof the error path works. So a test
+account needs an address you control; a `+tag` on your own mailbox (for
+example `you+homebase-test@gmail.com`) keeps it clearly test data while
+still being deliverable. The unit tests keep using `@example.com` because
+they never reach Supabase.
+
+**Email confirmation.** Supabase Auth has a "Confirm email" setting. It
+is a *project* setting, not an account one: open the project, then
+Authentication → Sign In / Providers → expand the Email row. With it on, sign-up has to
+*send* an email before anything else happens — and Supabase's built-in
+sender allows only a handful of messages per hour, so the very first
+deliverable test address came back with `email rate limit exceeded` and no
+user was created. Even when the mail does go out, there is no session
+until the link in it is clicked. For a two-person household app that step
+is friction with no upside; turning it off is an auth setting, not a
+structure change, and REQ-11's sign-in flow assumes it's off. With it off,
+sign-up creates the user, the trigger creates the household, and the
+person is signed in immediately.
