@@ -40,6 +40,11 @@
 - Commit `.claude/launch.json`, the Claude desktop app's config for
   starting the dev server (`npm run dev`, port 3000) in its browser pane.
   Tool config only; nothing in the app, Vercel, or CI reads it. (#38)
+- Add `.claude/settings.json` allowing Claude Code to run
+  `npx supabase db push` without a prompt, and explicitly denying
+  `npx supabase config push` (which would overwrite hand-tuned project
+  settings). Migrations stay reviewed in their PR; only the button press
+  moves. (#42)
 
 ## 0.0.5 - 2026-09-18
 
