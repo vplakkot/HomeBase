@@ -1,7 +1,22 @@
 -- After the first sign-up, the only way into the household is an account
--- an admin created. Such accounts carry app_metadata that only the
--- server-side key can write (self sign-ups cannot set app_metadata), so
--- the trigger can tell the two apart and keep refusing self sign-ups.
+-- an admin has invited by email. The signal has to exist BEFORE the user
+-- row does: Supabase's admin API inserts the row first and applies
+-- app_metadata afterwards, so an AFTER INSERT trigger can't rely on a
+-- flag there. An invitation row written beforehand is what the trigger
+-- checks; only someone holding manage_members can write one.
+
+create table public.member_invitations (
+  email text primary key check (email = lower(email)),
+  role_id uuid references public.roles (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.member_invitations enable row level security;
+
+create policy "manage invitations"
+  on public.member_invitations for all to authenticated
+  using ((select public.has_permission('manage_members')))
+  with check ((select public.has_permission('manage_members')));
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -13,7 +28,7 @@ declare
   existing_household_id uuid;
   new_household_id uuid;
   role_to_grant uuid;
-  requested_role text;
+  invitation public.member_invitations%rowtype;
 begin
   select id into existing_household_id from public.households limit 1;
 
@@ -29,21 +44,24 @@ begin
     return new;
   end if;
 
-  if coalesce(new.raw_app_meta_data->>'created_by_admin', '') <> 'true' then
+  select * into invitation
+  from public.member_invitations
+  where email = lower(new.email);
+
+  if not found then
     raise exception 'Sign-up is closed: the household already exists';
   end if;
 
-  -- The role an admin-created account starts with; Member unless the
-  -- admin chose otherwise. The name is data here, not a rule.
-  requested_role := coalesce(new.raw_app_meta_data->>'household_role', 'Member');
-
-  select id into role_to_grant from public.roles where name = requested_role;
+  role_to_grant := invitation.role_id;
   if role_to_grant is null then
-    raise exception 'Unknown role: %', requested_role;
+    -- Member unless the admin chose a role. The name is data here, not a rule.
+    select id into role_to_grant from public.roles where name = 'Member';
   end if;
 
   insert into public.household_members (user_id, household_id, role_id)
   values (new.id, existing_household_id, role_to_grant);
+
+  delete from public.member_invitations where email = invitation.email;
 
   return new;
 end;

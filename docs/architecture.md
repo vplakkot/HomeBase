@@ -162,14 +162,16 @@ courtesy once a household exists, but a request sent straight to Supabase's
 sign-up endpoint hits the same trigger and is refused just the same.
 
 After that first sign-up, accounts are created by an admin from the
-console (`app/admin/`): a Server Action uses the server-only
-`SUPABASE_SECRET_KEY` ([`lib/supabase/admin.ts`](../lib/supabase/admin.ts))
-to create the user with a temporary password and two `app_metadata` flags
-that only that key can write — `created_by_admin`, which the trigger
-requires before granting a membership (Member by default), and
-`must_set_password`, which the proxy reads from the login token to send
-the person to `/set-password` before anything else. No email is sent. See
-[lesson 11](lessons/11-creating-accounts-for-others.md).
+console (`app/admin/`). The Server Action first writes the email into a
+`member_invitations` table (only `manage_members` holders may, by RLS),
+then uses the server-only `SUPABASE_SECRET_KEY`
+([`lib/supabase/admin.ts`](../lib/supabase/admin.ts)) to create the user
+with a temporary password. The trigger admits the new user only because
+that invitation exists, grants the invited role (Member by default), and
+deletes the invitation. A `must_set_password` flag in `app_metadata` —
+which only the secret key can write — is read by the proxy from the login
+token to send the person to `/set-password` before anything else. No
+email is sent. See [lesson 11](lessons/11-creating-accounts-for-others.md).
 
 ## Sign-in and sessions
 

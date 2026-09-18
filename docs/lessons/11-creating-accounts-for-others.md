@@ -29,22 +29,40 @@ person — so it's `createUser()` with `email_confirm: true` (there is no
 confirmation to wait for) and the temporary password the admin typed.
 A test asserts `inviteUserByEmail` is never called.
 
-## `app_metadata` is the trust boundary
+## The signal has to exist before the account does
 
 A Supabase account carries two bags of metadata:
 
 - `user_metadata` — the person can change it themselves (their name).
 - `app_metadata` — **only the secret key can write it.**
 
-That asymmetry is what lets the database tell an admin-created account
-from a self sign-up. The migration
+The first design used that asymmetry directly: the admin would set
+`created_by_admin: true` in `app_metadata`, and REQ-10's trigger — which
+fires *after* a row is inserted into `auth.users` — would accept any new
+user carrying the flag. It failed on the very first try with "Database
+error creating new user". Reading the Auth server's source explained
+why: the admin API inserts the user row **first** and applies
+`app_metadata` in a *second* statement inside the same transaction. The
+trigger ran between the two, saw no flag, refused, and the whole
+transaction rolled back. `user_metadata`, by contrast, is passed into
+the insert itself — but anyone can set that, so it can't be trusted.
+
+The fix is to write the trusted signal **before** the account exists.
+The migration
 [`20260918180000_admin_created_members.sql`](../../supabase/migrations/20260918180000_admin_created_members.sql)
-rewrites REQ-10's trigger: the very first user still creates the
-household and becomes Admin; after that, a new account is accepted only
-if its `app_metadata` says `created_by_admin: true`, and it gets the
-Member role unless a `household_role` was chosen. A self sign-up can't
-forge that flag, so "sign-up is closed" still holds exactly as before.
-The role default sits in SQL as data; app code still names no roles.
+adds a `member_invitations` table (one row per invited email, optional
+role) that only `manage_members` holders may write — row-level security
+enforces that, using the same `has_permission` gate as everything else.
+The admin action inserts the invitation, *then* creates the account. The
+rewritten trigger accepts a new user only if an invitation for their
+email exists, grants the invited role (Member unless the admin chose
+one), and deletes the invitation so it can't be used twice. No
+invitation — as with any self sign-up — and it raises "Sign-up is
+closed" exactly as before. If Supabase refuses the account for some
+other reason, the action deletes the invitation it just wrote.
+
+`app_metadata` still carries `must_set_password`, because that flag is
+read later, from the login token, where post-insert is no problem.
 
 Because these are real inserts into `household_members`, the guards from
 REQ-12 apply to them: a third Admin is refused by the holder-limit

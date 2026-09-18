@@ -13,13 +13,24 @@ vi.mock("next/navigation", () => ({
 
 function given({
   permission = true,
+  inviteError = null,
   createError = null,
 }: {
   permission?: boolean;
+  inviteError?: { code?: string; message: string } | null;
   createError?: { message: string } | null;
 } = {}) {
+  const invitations = {
+    insert: vi.fn().mockResolvedValue({ error: inviteError }),
+    delete: vi.fn(() => ({ eq: deleteEq })),
+  };
+  const deleteEq = vi.fn().mockResolvedValue({ error: null });
   vi.mocked(createClient).mockResolvedValue({
     rpc: vi.fn().mockResolvedValue({ data: permission, error: null }),
+    from: vi.fn((table: string) => {
+      if (table !== "member_invitations") throw new Error(`unexpected table ${table}`);
+      return invitations;
+    }),
   } as unknown as Awaited<ReturnType<typeof createClient>>);
   const admin = {
     auth: {
@@ -32,7 +43,7 @@ function given({
   vi.mocked(createAdminClient).mockReturnValue(
     admin as unknown as ReturnType<typeof createAdminClient>,
   );
-  return admin;
+  return { admin, invitations, deleteEq };
 }
 
 function form(fields: Record<string, string>) {
@@ -43,7 +54,7 @@ function form(fields: Record<string, string>) {
   return data;
 }
 
-const valid = { name: "Sam", email: "sam@example.com", temporaryPassword: "Temp-Pass-1!" };
+const valid = { name: "Sam", email: "Sam@Example.com ", temporaryPassword: "Temp-Pass-1!" };
 
 describe("createMember", () => {
   beforeEach(() => {
@@ -52,40 +63,56 @@ describe("createMember", () => {
   });
 
   it("requires a name, an email and a temporary password", async () => {
-    const admin = given();
+    const { admin, invitations } = given();
     const state = await createMember({}, form({ ...valid, email: "" }));
     expect(state.error).toBe("Name, email and a temporary password are all required.");
+    expect(invitations.insert).not.toHaveBeenCalled();
     expect(admin.auth.admin.createUser).not.toHaveBeenCalled();
   });
 
   it("refuses anyone without the manage_members permission", async () => {
-    const admin = given({ permission: false });
+    const { admin, invitations } = given({ permission: false });
     await expect(createMember({}, form(valid))).rejects.toThrow("REDIRECT:/");
+    expect(invitations.insert).not.toHaveBeenCalled();
     expect(admin.auth.admin.createUser).not.toHaveBeenCalled();
   });
 
-  it("creates the account marked as admin-created, confirmed, and needing a new password", async () => {
-    const admin = given();
+  it("writes the invitation first, lowercased, then creates the account", async () => {
+    const { admin, invitations } = given();
     const state = await createMember({}, form(valid));
     expect(state).toEqual({ created: "sam@example.com" });
+    expect(invitations.insert).toHaveBeenCalledWith({ email: "sam@example.com" });
+    expect(invitations.insert.mock.invocationCallOrder[0]).toBeLessThan(
+      admin.auth.admin.createUser.mock.invocationCallOrder[0],
+    );
     expect(admin.auth.admin.createUser).toHaveBeenCalledWith({
       email: "sam@example.com",
       password: "Temp-Pass-1!",
       email_confirm: true,
       user_metadata: { name: "Sam" },
-      app_metadata: { created_by_admin: true, must_set_password: true },
+      app_metadata: { must_set_password: true },
     });
   });
 
   it("never sends an email: it creates the user directly rather than inviting", async () => {
-    const admin = given();
+    const { admin } = given();
     await createMember({}, form(valid));
     expect(admin.auth.admin.inviteUserByEmail).not.toHaveBeenCalled();
   });
 
-  it("shows why Supabase refused, for example a duplicate email", async () => {
-    given({ createError: { message: "A user with this email address has already been registered" } });
+  it("stops if the invitation can't be written, and explains a duplicate", async () => {
+    const { admin } = given({ inviteError: { code: "23505", message: "duplicate key value" } });
+    const state = await createMember({}, form(valid));
+    expect(state.error).toBe("An invitation for that email is already waiting to be used.");
+    expect(admin.auth.admin.createUser).not.toHaveBeenCalled();
+  });
+
+  it("removes the invitation again if Supabase refuses the account", async () => {
+    const { deleteEq } = given({
+      createError: { message: "A user with this email address has already been registered" },
+    });
     const state = await createMember({}, form(valid));
     expect(state.error).toBe("A user with this email address has already been registered");
+    expect(deleteEq).toHaveBeenCalledWith("email", "sam@example.com");
   });
 });

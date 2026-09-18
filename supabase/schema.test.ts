@@ -112,6 +112,12 @@ describe("permissions and row-level security migration", () => {
 describe("admin-created members migration", () => {
   const migration = readMigration("20260918180000");
 
+  it("adds an invitations table that only manage_members holders may touch", () => {
+    expect(migration).toMatch(/create table public\.member_invitations \(\s*email text primary key check \(email = lower\(email\)\)/);
+    expect(migration).toMatch(/alter table public\.member_invitations enable row level security/);
+    expect(migration).toMatch(/on public\.member_invitations for all to authenticated\s+using \(\(select public\.has_permission\('manage_members'\)\)\)/);
+  });
+
   it("replaces the sign-up trigger function rather than adding a second one", () => {
     expect(migration).toMatch(/create or replace function public\.handle_new_user\(\)/);
     expect(migration).not.toMatch(/create trigger/);
@@ -121,13 +127,18 @@ describe("admin-created members migration", () => {
     expect(migration).toMatch(/if existing_household_id is null then[\s\S]*?insert into public\.households default values[\s\S]*?where name = 'Admin'/);
   });
 
-  it("refuses a self sign-up once the household exists", () => {
-    expect(migration).toMatch(/raw_app_meta_data->>'created_by_admin', ''\) <> 'true' then\s+raise exception 'Sign-up is closed/);
+  it("admits a new user only if an invitation for their email exists, then uses it up", () => {
+    expect(migration).toMatch(/from public\.member_invitations\s+where email = lower\(new\.email\)/);
+    expect(migration).toMatch(/if not found then\s+raise exception 'Sign-up is closed/);
+    expect(migration).toMatch(/delete from public\.member_invitations where email = invitation\.email/);
   });
 
-  it("lets an admin-created account in, as Member unless a role was chosen", () => {
-    expect(migration).toMatch(/coalesce\(new\.raw_app_meta_data->>'household_role', 'Member'\)/);
-    expect(migration).toMatch(/raise exception 'Unknown role: %'/);
+  it("grants the invited role, Member unless the admin chose one", () => {
+    expect(migration).toMatch(/role_to_grant := invitation\.role_id;\s+if role_to_grant is null then[\s\S]*?where name = 'Member'/);
     expect(migration).toMatch(/values \(new\.id, existing_household_id, role_to_grant\)/);
+  });
+
+  it("does not rely on app_metadata at insert time", () => {
+    expect(migration).not.toMatch(/raw_app_meta_data/);
   });
 });
