@@ -35,6 +35,15 @@ set without either attribute so nobody adds one by accident.
 
 The cookie is `httpOnly` (JavaScript in the page can't read or forge it)
 and only ever holds the word `admin`; anything else reads as member view.
+Signing out deletes it too, so signing back in — a new session by any
+definition — always starts in member view.
+
+One honest caveat: a browser set to "continue where you left off" (and
+some installed-app shells) can restore session cookies after a restart,
+so admin mode may occasionally survive a close-and-reopen. For a
+two-person household app that is acceptable; the alternative — an
+expiry — would turn "each session" into "every N hours", which is a
+different rule. If it ever matters, that is the knob.
 
 ## Refusing by URL
 
