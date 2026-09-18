@@ -111,11 +111,21 @@ CLI (`npx supabase db push`), never by hand in the dashboard. See
 [lesson 07](lessons/07-supabase-auth-and-migrations.md) for what Supabase
 is, how migrations work, and the reasoning below in full.
 
-Three tables so far: `households`, `roles` (Admin and Member as rows), and
-`household_members`, which links a user to the household with a role. All
-three have row-level security switched on with no policies yet, so the API
-can neither read nor write them until REQ-12 adds policies. The one thing
-a signed-out visitor can ask is `household_exists()`, a function that
+Four tables: `households`; `roles` (Admin and Member as rows, each with a
+`max_holders` limit — 2 for Admin); `role_permissions`, the keys each
+role holds (`use_modules`, `manage_members`, `manage_roles`); and
+`household_members`, which links a user to the household with a role.
+
+Row-level security policies decide who may do what, and every policy asks
+one of two `security definer` helpers — `is_member()` or
+`has_permission('…')` — never a role's name: any member reads all
+household data; changing memberships needs `manage_members`; changing
+roles or their permissions needs `manage_roles`. A trigger refuses a
+membership that would push a role past its `max_holders`. App code uses
+the same `has_permission` over RPC
+([`lib/auth/permissions.ts`](../lib/auth/permissions.ts)) to decide what
+to show. See [lesson 09](lessons/09-permissions-as-data-and-rls.md). The
+one thing a signed-out visitor can ask is `household_exists()`, which
 returns only true or false.
 
 ```mermaid

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Roles and permissions stored as data: a `role_permissions` table holds
+  each role's keys (`use_modules`, `manage_members`, `manage_roles`), and
+  row-level security policies now gate every table on `is_member()` or
+  `has_permission(...)` — never on a role name — so a future role is new
+  rows, not new code. Any member reads all household data; changing
+  memberships or roles needs the matching permission. Roles carry a
+  `max_holders` limit (2 for Admin) enforced by a trigger. App code gets
+  `hasPermission()`, first used on the home page, and a test that fails
+  if any app code compares against a role name. (#39)
 - Sign in with email and password, and sign out. A new `proxy.ts` runs
   before every page: it refreshes the Supabase session and sends
   signed-out visitors to `/sign-in` (only `/sign-in` and `/sign-up` stay
