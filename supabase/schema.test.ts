@@ -108,3 +108,37 @@ describe("permissions and row-level security migration", () => {
     expect(sql).toMatch(/create function public\.has_permission\(permission text\)[\s\S]*?security definer[\s\S]*?set search_path = ''/);
   });
 });
+
+describe("admin-created members migration", () => {
+  const migration = readMigration("20260918180000");
+
+  it("adds an invitations table that only manage_members holders may touch", () => {
+    expect(migration).toMatch(/create table public\.member_invitations \(\s*email text primary key check \(email = lower\(email\)\)/);
+    expect(migration).toMatch(/alter table public\.member_invitations enable row level security/);
+    expect(migration).toMatch(/on public\.member_invitations for all to authenticated\s+using \(\(select public\.has_permission\('manage_members'\)\)\)/);
+  });
+
+  it("replaces the sign-up trigger function rather than adding a second one", () => {
+    expect(migration).toMatch(/create or replace function public\.handle_new_user\(\)/);
+    expect(migration).not.toMatch(/create trigger/);
+  });
+
+  it("still creates the household and its Admin for the very first user", () => {
+    expect(migration).toMatch(/if existing_household_id is null then[\s\S]*?insert into public\.households default values[\s\S]*?where name = 'Admin'/);
+  });
+
+  it("admits a new user only if an invitation for their email exists, then uses it up", () => {
+    expect(migration).toMatch(/from public\.member_invitations\s+where email = lower\(new\.email\)/);
+    expect(migration).toMatch(/if not found then\s+raise exception 'Sign-up is closed/);
+    expect(migration).toMatch(/delete from public\.member_invitations where email = invitation\.email/);
+  });
+
+  it("grants the invited role, Member unless the admin chose one", () => {
+    expect(migration).toMatch(/role_to_grant := invitation\.role_id;\s+if role_to_grant is null then[\s\S]*?where name = 'Member'/);
+    expect(migration).toMatch(/values \(new\.id, existing_household_id, role_to_grant\)/);
+  });
+
+  it("does not rely on app_metadata at insert time", () => {
+    expect(migration).not.toMatch(/raw_app_meta_data/);
+  });
+});

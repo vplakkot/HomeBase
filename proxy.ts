@@ -36,7 +36,13 @@ export async function proxy(request: NextRequest) {
   // getClaims() verifies the token's signature; getSession() would trust
   // whatever the cookie claims, which is exactly what a forged cookie wants.
   const { data } = await supabase.auth.getClaims();
-  const target = redirectFor(request.nextUrl.pathname, Boolean(data?.claims));
+  const claims = data?.claims;
+  const mustSetPassword = claims?.app_metadata?.must_set_password === true;
+  const target = redirectFor(
+    request.nextUrl.pathname,
+    Boolean(claims),
+    mustSetPassword,
+  );
   if (!target) {
     return response;
   }

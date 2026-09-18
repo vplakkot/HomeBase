@@ -45,4 +45,13 @@ describe("AdminPage", () => {
     expect(screen.getByRole("heading", { name: "Members" })).toBeDefined();
     expect(screen.getByRole("link", { name: "Back to home" }).getAttribute("href")).toBe("/");
   });
+
+  it("offers the create-member form: name, email, temporary password", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    expect(screen.getByLabelText("Name")).toBeDefined();
+    expect(screen.getByLabelText("Email")).toBeDefined();
+    expect(screen.getByLabelText("Temporary password")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Create member" })).toBeDefined();
+  });
 });
