@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Lesson 07: document how to amend a migration that has already been
+  applied to the hosted project but hasn't merged yet (edit the file,
+  `supabase migration repair --status reverted`, then `db push`), the
+  conditions that make it safe, and the #51 example. Docs only. (#54)
 - Admin creates a member account: a form on the admin console takes a
   name, email and temporary password and creates the account directly —
   no email is sent. A new `member_invitations` table (writable only with
