@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Sign in with email and password, and sign out. A new `proxy.ts` runs
+  before every page: it refreshes the Supabase session and sends
+  signed-out visitors to `/sign-in` (only `/sign-in` and `/sign-up` stay
+  reachable). Every sign-in failure shows the same message so the form
+  can't be used to find out which emails have accounts. Sign-out ends
+  this device's session only; other devices stay signed in. The home
+  page now shows who is signed in and a sign-out button. (#35)
 - First sign-up creates the household and makes that person its Admin;
   from then on sign-up is closed and the app only offers sign-in. This
   brings Supabase (Postgres + Auth) into the code for the first time: the

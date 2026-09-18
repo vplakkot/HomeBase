@@ -1,8 +1,27 @@
-export default function SignInPage() {
+import Link from "next/link";
+import { householdExists } from "../../lib/household";
+import { createClient } from "../../lib/supabase/server";
+import { SignInForm } from "./sign-in-form";
+
+export default async function SignInPage() {
+  const supabase = await createClient();
+
+  if (!(await householdExists(supabase))) {
+    return (
+      <>
+        <h1>No household yet</h1>
+        <p>Nobody has signed up. The first person to do so creates the household.</p>
+        <p>
+          <Link href="/sign-up">Create your household</Link>
+        </p>
+      </>
+    );
+  }
+
   return (
     <>
       <h1>Sign in</h1>
-      <p>Signing in with a password is coming next.</p>
+      <SignInForm />
     </>
   );
 }

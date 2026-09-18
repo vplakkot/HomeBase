@@ -1,8 +1,8 @@
 # Architecture (as of v0.0.1)
 
 This describes how HomeBase is put together today. At this stage the app is
-a homepage plus a sign-up page — there's a database now, but no sign-in
-yet and no styling. This doc will grow as those pieces are added; see the "Not yet
+a signed-in homepage plus sign-up and sign-in pages — there's a database
+and accounts now, but no permissions yet and no styling. This doc will grow as those pieces are added; see the "Not yet
 built" section below for what's intentionally missing right now.
 
 ## What happens when a browser requests "/"
@@ -145,18 +145,53 @@ trigger inside the database, not by the page. The page hides the form as a
 courtesy once a household exists, but a request sent straight to Supabase's
 sign-up endpoint hits the same trigger and is refused just the same.
 
+## Sign-in and sessions
+
+Signing in (`app/sign-in/`) calls Supabase Auth with the email and
+password; on success Supabase issues an access token and a refresh token,
+which `@supabase/ssr` stores in cookies. From then on, one file runs
+before every page:
+[`proxy.ts`](../proxy.ts) — Next.js's request interceptor (formerly
+`middleware.ts`). It refreshes the session if needed and applies the
+routing rule in [`lib/auth/routing.ts`](../lib/auth/routing.ts): signed
+out → `/sign-in` (except `/sign-in` and `/sign-up` themselves); signed in
+→ everything else. See [lesson 08](lessons/08-sessions-and-the-proxy.md)
+for what a session is, why the check verifies the token's signature rather
+than trusting the cookie, and the devices-are-independent rules.
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Proxy as proxy.ts
+    participant Page as app/page.tsx
+    participant Auth as Supabase Auth
+
+    Browser->>Proxy: GET / (cookies: none)
+    Proxy->>Proxy: getClaims() → no user
+    Proxy-->>Browser: 307 → /sign-in
+
+    Browser->>Auth: sign-in action: signInWithPassword()
+    Auth-->>Browser: Set-Cookie: access + refresh tokens
+    Browser->>Proxy: GET / (cookies: tokens)
+    Proxy->>Proxy: getClaims() → verified user
+    Proxy->>Page: render
+    Page-->>Browser: "Signed in as …" + Sign out
+```
+
+Sign-out (`app/sign-out/actions.ts`) ends this device's session only and
+sends the visitor back to `/sign-in`.
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
 
-- **No `components/` folder** — the sign-up form lives next to its page;
-  nothing is shared between pages yet.
-- **Almost no state** — the only interactivity is the sign-up form's
+- **No `components/` folder** — the sign-up and sign-in forms live next
+  to their pages; nothing is shared between pages yet.
+- **Almost no state** — the only interactivity is the two forms'
   pending/error state; nothing else changes after a page loads.
 - **No styling** — plain, unstyled HTML.
-- **No sign-in yet** — accounts and the household exist (above), but
-  `/sign-in` is a placeholder until REQ-11, and there are no permissions
-  until REQ-12.
+- **No permissions yet** — everyone signed in sees the same thing until
+  REQ-12 adds roles' permissions and row-level security policies.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.

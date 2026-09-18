@@ -4,10 +4,21 @@ import { createClient } from "../lib/supabase/server";
 import HomePage from "./page";
 
 vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn((url: string) => {
+    throw new Error(`REDIRECT:${url}`);
+  }),
+}));
 
-function givenHouseholdExists(exists: boolean) {
+function givenSignedIn(email: string | null) {
   vi.mocked(createClient).mockResolvedValue({
-    rpc: vi.fn().mockResolvedValue({ data: exists, error: null }),
+    auth: {
+      getClaims: vi.fn().mockResolvedValue({
+        data: email === null ? null : { claims: { email, sub: "user-1" } },
+        error: null,
+      }),
+    },
   } as unknown as Awaited<ReturnType<typeof createClient>>);
 }
 
@@ -17,32 +28,26 @@ describe("HomePage", () => {
     vi.unstubAllEnvs();
   });
 
-  it("shows HomeBase", async () => {
-    givenHouseholdExists(false);
+  it("shows HomeBase and who is signed in", async () => {
+    givenSignedIn("member@example.com");
     render(await HomePage());
     expect(screen.getByRole("heading", { name: "HomeBase" })).toBeDefined();
+    expect(screen.getByText("Signed in as member@example.com")).toBeDefined();
   });
 
-  it("offers creating the household while none exists", async () => {
-    givenHouseholdExists(false);
+  it("offers sign-out", async () => {
+    givenSignedIn("member@example.com");
     render(await HomePage());
-    const link = screen.getByRole("link", { name: "Create your household" });
-    expect(link.getAttribute("href")).toBe("/sign-up");
-    expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeDefined();
   });
 
-  it("offers only sign-in once the household exists", async () => {
-    givenHouseholdExists(true);
-    render(await HomePage());
-    const link = screen.getByRole("link", { name: "Sign in" });
-    expect(link.getAttribute("href")).toBe("/sign-in");
-    expect(
-      screen.queryByRole("link", { name: "Create your household" }),
-    ).toBeNull();
+  it("sends a signed-out visitor to sign-in", async () => {
+    givenSignedIn(null);
+    await expect(HomePage()).rejects.toThrow("REDIRECT:/sign-in");
   });
 
   it("falls back to placeholder build info when Vercel env vars are unset", async () => {
-    givenHouseholdExists(false);
+    givenSignedIn("member@example.com");
     vi.stubEnv("VERCEL_GIT_COMMIT_REF", "");
     vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "");
     render(await HomePage());
@@ -50,7 +55,7 @@ describe("HomePage", () => {
   });
 
   it("shows the ref and short commit hash when Vercel env vars are set", async () => {
-    givenHouseholdExists(false);
+    givenSignedIn("member@example.com");
     vi.stubEnv("VERCEL_GIT_COMMIT_REF", "main");
     vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "abcdef1234567890");
     render(await HomePage());
