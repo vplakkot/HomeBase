@@ -12,9 +12,12 @@ moving label — it always points at the latest commit pushed to it. A
 **tag** is the opposite: a label that points at one specific commit and
 never moves again, even after `main` keeps changing.
 
-`v1.0.0` is a typical tag name. The `v*` in the workflow's trigger means
-"any tag starting with `v`" — so `v1.0.0`, `v1.2.3`, `v2.0.0-beta` would
-all match.
+`v1.0.0` is a typical tag name. The workflow's trigger is
+`v[0-9]+.[0-9]+.[0-9]+` — a strict pattern requiring `v` followed by
+exactly three dot-separated groups of digits, so `v1.0.0` and `v1.2.3`
+match, but `v2.0.0-beta`, `vfoo`, or a typo like `v.0.0.1` (an extra dot
+right after `v`) do not. See "Tightening the trigger" below for why this
+got stricter than a plain `v*`.
 
 ```bash
 git tag v1.0.0        # label the current commit
@@ -31,8 +34,8 @@ to `main` being an implicit vote for going live.
 A **release** is a tag plus extra packaging on GitHub's side — release
 notes, a title, and optionally file attachments. Every release points to a
 tag, but not every tag has to become a release. For this workflow, only the
-tag matters (the `push: tags: v*` trigger fires on the tag itself); writing
-a GitHub release around that tag is optional polish for communicating what
+tag matters (the trigger fires on the tag itself); writing a GitHub
+release around that tag is optional polish for communicating what
 changed, not something the workflow depends on.
 
 ## Why "build" and "promote" are separate steps
@@ -76,7 +79,7 @@ sequenceDiagram
 
 ## What the workflow actually does
 
-1. Triggers when a tag matching `v*` is pushed.
+1. Triggers when a tag matching `v[0-9]+.[0-9]+.[0-9]+` is pushed.
 2. Asks the Vercel API for the most recent deployment built from `main`
    (the "production target" — this is Vercel's own label for
    `main`-branch builds, separate from whether the domain has been
@@ -141,3 +144,36 @@ dedicated `vercel whoami` step was added to the workflow, running before
 anything else: it isolates "can this token authenticate as a user at
 all?" as its own question, with its own direct error, instead of that
 check being buried inside a more complex command's failure.
+
+## Tightening the trigger
+
+The very first tag ever pushed, `v.0.0.1`, had a typo — an extra dot
+right after `v`. It still triggered the workflow, because `v*` means
+"starts with `v`," and `v.0.0.1` does. The workflow ran fine (the typo
+didn't break anything downstream), but it was luck, not correctness: a
+looser pattern than intended just happened not to matter that time.
+
+The trigger is now `v[0-9]+.[0-9]+.[0-9]+`, which only matches a real
+`v<major>.<minor>.<patch>` shape. A typo like `v.0.0.1`, an accidental
+non-release tag, or a pre-release suffix like `v1.0.0-rc1` won't trigger
+a promotion anymore — which is the point: this workflow moves the
+production domain, so it should only ever fire on something that's
+unambiguously a real version.
+
+## The tag now matches a version the code already states
+
+Every tag pushed before this point (`v0.0.1`, `v0.0.2`, `v0.0.3`) was
+picked after the fact — nothing in the actual code said "this is
+0.0.3," the number only existed in the git tag itself. `package.json`
+had sat at `0.1.0` the entire time, unrelated to any of them.
+
+Going forward, the order is reversed: `package.json`'s `version` field
+and this changelog get bumped together, in the pull request, *before*
+anything is tagged. That PR merges to `main` like any other. Only then
+does a tag get pushed — and by that point, the code already agrees with
+the tag about what version it is. If you ever open `package.json` on a
+running deployment, its `version` field is a second, code-level way to
+know what release it's supposed to be — independent of
+[the branch-name limitation](04-build-time-env-vars.md) in the on-page
+build info, which still shows `main` rather than the tag, since building
+still happens on merge, before the tag exists.

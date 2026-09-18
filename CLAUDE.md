@@ -22,6 +22,10 @@ learning a maintainable process as much as shipping.
 - docs/architecture.md must be updated in the same pull request whenever
   the structure changes: a new external service, a new data model, or a
   change in how pieces connect.
+- Releases: bump package.json's version and add its CHANGELOG.md section
+  in the pull request itself, merge to main, then push the matching
+  vX.Y.Z tag. The tag never gets created before the code it points to
+  already states that version.
 
 ## Definition of Done
 Every pull request must satisfy all of these:
