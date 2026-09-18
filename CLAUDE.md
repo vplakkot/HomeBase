@@ -40,6 +40,13 @@ When I say "next requirement":
   in the pull request itself, merge to main, then push the matching
   vX.Y.Z tag. The tag never gets created before the code it points to
   already states that version.
+- Merging: once every Definition of Done item is satisfied and the
+  pr-reviewer agent's verdict on the pull request is "Ready to merge",
+  merge it without asking me, then tell me what was merged. If I say
+  "wait" on a pull request, hold it until I say otherwise. Release pull
+  requests (the ones that bump package.json's version) and the tag push
+  that follows them still wait for my go-ahead, because that is what puts
+  code on the production domain.
 
 ## Definition of Done
 Every pull request must satisfy all of these:
@@ -47,7 +54,8 @@ Every pull request must satisfy all of these:
       or a chore
 - [ ] Every acceptance criterion has a passing test
 - [ ] All automated checks pass
-- [ ] Verified on the preview link
+- [ ] Verified in a browser — locally by you, and on the preview link by me
+      whenever I choose to (it sits behind Vercel's login, so you can't)
 - [ ] CHANGELOG.md updated
 - [ ] Database changes are migrations
 - [ ] No secrets in code

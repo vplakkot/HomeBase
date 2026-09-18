@@ -40,6 +40,12 @@
 - Commit `.claude/launch.json`, the Claude desktop app's config for
   starting the dev server (`npm run dev`, port 3000) in its browser pane.
   Tool config only; nothing in the app, Vercel, or CI reads it. (#38)
+- CLAUDE.md: Claude merges its own pull requests once every Definition of
+  Done item is met and the pr-reviewer agent's verdict is "Ready to
+  merge", and says what it merged; "wait" on a PR holds it. Release PRs
+  and the tag push still wait for Vin's go-ahead. The "verified on the
+  preview link" item now says who verifies where, since the preview sits
+  behind Vercel's login. (#44)
 - Add `.claude/settings.json` allowing Claude Code to run
   `npx supabase db push` without a prompt, and explicitly denying
   `npx supabase config push` (which would overwrite hand-tuned project
