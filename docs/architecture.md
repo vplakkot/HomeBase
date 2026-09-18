@@ -71,9 +71,12 @@ deliberate setting ("Auto-assign Custom Production Domains" is disabled).
 A separate GitHub Actions workflow
 ([`.github/workflows/promote.yml`](../.github/workflows/promote.yml)) only
 assigns the production domain when a version tag (`v*`) is pushed, by
-finding the latest build and running the Vercel CLI's `promote` command on
-it. See [lesson 03](lessons/03-tags-releases-promote.md) for the full
-build-vs-promote explanation and a diagram of that flow.
+finding the build made from the exact commit the tag points to and running
+the Vercel CLI's `promote` command on it — not just whatever Vercel
+considers the latest build, since `main` may have moved on since the tag
+was cut. If no build exists for that commit, the workflow fails loudly and
+leaves production untouched. See [lesson 03](lessons/03-tags-releases-promote.md)
+for the full build-vs-promote explanation and a diagram of that flow.
 
 In short: merging to `main` builds; pushing a tag is what actually goes
 live.

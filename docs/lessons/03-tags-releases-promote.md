@@ -72,7 +72,7 @@ sequenceDiagram
 
     Dev->>GitHub: git push origin v1.0.0
     GitHub->>GitHub: run promote.yml
-    GitHub->>Vercel: find latest production build, promote it
+    GitHub->>Vercel: find the build made from the tagged commit, promote it
     Vercel->>Vercel: point production domain at that build
     Note over Vercel: Now live
 ```
@@ -80,10 +80,13 @@ sequenceDiagram
 ## What the workflow actually does
 
 1. Triggers when a tag matching `v[0-9]+.[0-9]+.[0-9]+` is pushed.
-2. Asks the Vercel API for the most recent deployment built from `main`
-   (the "production target" — this is Vercel's own label for
-   `main`-branch builds, separate from whether the domain has been
-   assigned to it yet).
+2. Asks the Vercel API for production-target deployments (the "production
+   target" is Vercel's own label for `main`-branch builds, separate from
+   whether the domain has been assigned to one yet), and picks out the one
+   whose commit SHA matches the commit the tag points to. If none matches,
+   the workflow fails and production is left as it was — see "The promote
+   step must target the tagged commit" below for why this isn't just "the
+   latest one."
 3. Runs `vercel promote <that deployment> --yes`, using the Vercel CLI, to
    assign the production domain to it.
 
@@ -177,3 +180,31 @@ know what release it's supposed to be — independent of
 [the branch-name limitation](04-build-time-env-vars.md) in the on-page
 build info, which still shows `main` rather than the tag, since building
 still happens on merge, before the tag exists.
+
+## The promote step must target the tagged commit
+
+The workflow originally asked Vercel for "the most recent production-target
+deployment" and promoted whatever came back — on the assumption that the
+release PR's merge to `main` would always be the newest build by the time
+its tag was pushed.
+
+That assumption breaks the moment a second PR merges to `main` *after* the
+release PR but *before* its tag is pushed — an easy thing to do by
+accident, since nothing stops other merges from landing in that window.
+"Latest" would then point at that second, un-released commit, and pushing
+the release tag would put unreleased code on the production domain even
+though the tag's own commit was never asked for.
+
+The fix: instead of taking the first deployment the Vercel API returns,
+the workflow now asks for a page of recent production-target deployments
+and filters them down to the one whose `meta.githubCommitSha` equals
+`$GITHUB_SHA` — which GitHub Actions sets to the commit the pushed tag
+points to, not whatever commit `main` happens to be at when the workflow
+runs. If no deployment matches, the job fails with `::error::` and exits
+non-zero rather than falling back to "closest guess" — production stays on
+whatever it was already running.
+
+This is also why the lookup step now asks for `limit=100` instead of
+`limit=1`: it needs enough recent history to have a real chance of
+containing the tagged commit's build, since that commit is no longer
+guaranteed to be the newest one.

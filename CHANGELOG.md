@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Fix the promote workflow to find the Vercel build made from the exact
+  commit a release tag points to, instead of whatever build Vercel
+  considers "latest" — which could be a newer, unreleased commit on
+  `main` if one merged after the release PR but before its tag was
+  pushed. It now fails loudly and leaves production unchanged if no
+  build exists for the tagged commit. (#31)
 - Add a "Picking up work" section to CLAUDE.md: when asked for the next
   requirement, create its GitHub issue from the Ready Notion requirement,
   set it In progress, and mark it Done once merged. Also names the HomeBase

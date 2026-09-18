@@ -44,3 +44,28 @@ describe("promote.yml tag trigger", () => {
     },
   );
 });
+
+// The workflow used to promote whatever Vercel considered the "latest"
+// production-target build, which is wrong once main has moved on past the
+// tagged commit by the time the tag is pushed (see docs/lessons/03-tags-
+// releases-promote.md, "The promote step must target the tagged commit").
+// It now filters candidate deployments down to the one whose commit SHA
+// matches the commit the tag points to, and fails loudly instead of
+// silently falling back to an unrelated deployment.
+describe("promote.yml deployment lookup", () => {
+  const workflow = readFileSync(join(__dirname, "promote.yml"), "utf-8");
+
+  it("filters deployments by the tagged commit's SHA", () => {
+    expect(workflow).toContain("githubCommitSha");
+    expect(workflow).toContain("$GITHUB_SHA");
+  });
+
+  it("does not just take the first/latest deployment unfiltered", () => {
+    expect(workflow).not.toContain(".deployments[0].url");
+  });
+
+  it("fails the job instead of promoting a fallback when no match is found", () => {
+    expect(workflow).toMatch(/if \[ -z "\$url" \]/);
+    expect(workflow).toContain("exit 1");
+  });
+});
