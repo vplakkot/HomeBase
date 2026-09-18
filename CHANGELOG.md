@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Admin console: members and roles. The console lists every member with
+  name, email and role (names and emails come from Supabase's private
+  `auth.users` through a `security definer` function that returns rows
+  only to `manage_members` holders), lets the admin change a role from a
+  dropdown fed by the `roles` table, and reset a member's password to a
+  temporary one that must be changed at next sign-in (Supabase signs them
+  out everywhere). Roles gain a `min_holders` floor (Admin: 1) enforced by
+  a trigger, so the only admin cannot demote themselves. Role changes
+  apply on the member's next page load because permissions are read from
+  the database on every request. (#53)
 - Lesson 07: document how to amend a migration that has already been
   applied to the hosted project but hasn't merged yet (edit the file,
   `supabase migration repair --status reverted`, then `db push`), the

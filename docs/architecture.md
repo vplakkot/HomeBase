@@ -173,6 +173,18 @@ which only the secret key can write — is read by the proxy from the login
 token to send the person to `/set-password` before anything else. No
 email is sent. See [lesson 11](lessons/11-creating-accounts-for-others.md).
 
+The console then lists every member — name and email come from the
+private `auth.users` table through `household_members_overview()`, a
+`security definer` function that returns rows only to `manage_members`
+holders — with a role dropdown fed from the `roles` table and a
+password-reset form. Role changes are plain updates to
+`household_members`, guarded by RLS and by two triggers reading the role's
+`max_holders` and `min_holders` (Admin: at most 2, at least 1), so the
+only admin cannot demote themselves. A reset sets a temporary password and
+`must_set_password` through the secret key; Supabase signs the member out
+everywhere, and their next sign-in lands on `/set-password`. See
+[lesson 12](lessons/12-the-member-ledger.md).
+
 ## Sign-in and sessions
 
 Signing in (`app/sign-in/`) calls Supabase Auth with the email and

@@ -142,3 +142,26 @@ describe("admin-created members migration", () => {
     expect(migration).not.toMatch(/raw_app_meta_data/);
   });
 });
+
+describe("members overview and minimum holders migration", () => {
+  const migration = readMigration("20260918200000");
+
+  it("reads names and emails from auth.users on the caller's behalf, only for manage_members holders", () => {
+    expect(migration).toMatch(/create function public\.household_members_overview\(\)[\s\S]*?security definer[\s\S]*?set search_path = ''/);
+    expect(migration).toMatch(/join auth\.users u on u\.id = hm\.user_id/);
+    expect(migration).toMatch(/where \(select public\.has_permission\('manage_members'\)\)/);
+    expect(migration).toContain("grant execute on function public.household_members_overview() to authenticated, service_role");
+    expect(migration).not.toMatch(/to anon/);
+  });
+
+  it("stores the floor on a role as data, like the ceiling", () => {
+    expect(migration).toMatch(/add column min_holders integer/);
+    expect(migration).toMatch(/update public\.roles set min_holders = 1 where name = 'Admin'/);
+  });
+
+  it("refuses a change or removal that would leave a role below its floor", () => {
+    expect(migration).toMatch(/create trigger enforce_role_holder_minimum\s+before update of role_id or delete on public\.household_members/);
+    expect(migration).toMatch(/if remaining < minimum then\s+raise exception 'This role must keep at least % holder\(s\)'/);
+    expect(migration).toMatch(/and user_id <> old\.user_id/);
+  });
+});
