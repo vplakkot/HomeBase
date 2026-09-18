@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add a "Picking up work" section to CLAUDE.md: when asked for the next
+  requirement, create its GitHub issue from the Ready Notion requirement,
+  set it In progress, and mark it Done once merged. Also names the HomeBase
+  HQ Notion page directly. (#29)
+
 ## 0.0.5 - 2026-09-18
 
 - Tighten the promote workflow's tag trigger to real semantic version tags
