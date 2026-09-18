@@ -144,11 +144,12 @@ Two details in that function worth knowing:
   caller could in theory create a same-named table somewhere the function
   would find first. Belt and braces for any `security definer` function.
 
-One consequence for the app: when the trigger refuses a sign-up, Supabase
-reports it as a generic "Database error saving new user" — it does not
-pass our message through. So [`app/sign-up/actions.ts`](../../app/sign-up/actions.ts)
-re-checks whether a household exists after an error and shows the real
-reason.
+Seen live: a sign-up sent straight to Supabase's `/auth/v1/signup`
+endpoint, bypassing the app, came back `HTTP 500` with
+`{"code":"P0001","message":"Sign-up is closed: the household already exists"}`
+— the trigger's own message. The app doesn't rely on that wording, though:
+[`app/sign-up/actions.ts`](../../app/sign-up/actions.ts) re-checks whether
+a household exists after any sign-up error and shows its own explanation.
 
 ## Row-level security, switched on with no policies
 
