@@ -40,6 +40,12 @@
 - Commit `.claude/launch.json`, the Claude desktop app's config for
   starting the dev server (`npm run dev`, port 3000) in its browser pane.
   Tool config only; nothing in the app, Vercel, or CI reads it. (#38)
+- Apply migrations automatically: a new GitHub Actions workflow runs
+  `supabase db push` against the hosted project whenever a push to `main`
+  touches `supabase/migrations/**`, one run at a time, using two
+  repository secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`).
+  A structural test pins that it only ever runs for `main`, never carries
+  a literal password, and never touches project config. (#43)
 - CLAUDE.md: Claude merges its own pull requests once every Definition of
   Done item is met and the pr-reviewer agent's verdict is "Ready to
   merge", and says what it merged; "wait" on a PR holds it. Release PRs

@@ -80,8 +80,18 @@ Analogy: migrations are the recipe, the database is the cake. You never
 poke the cake directly; you change the recipe and bake again. Anyone with
 the recipe can make the same cake.
 
-For now `db push` is a manual step. Wiring it into the release workflow is
-a separate concern for later.
+`db push` started as a manual step — someone ran it after each merge,
+which meant the code could reach previews and production before the
+tables it needed existed. It is now automatic:
+[`.github/workflows/migrate.yml`](../../.github/workflows/migrate.yml)
+runs `db push` whenever a push to `main` touches `supabase/migrations/**`,
+one run at a time, authenticating with two repository secrets
+(`SUPABASE_ACCESS_TOKEN`, a personal token from the Supabase account
+page, and `SUPABASE_DB_PASSWORD`, the project's database password). The
+migration file is still reviewed in its pull request; the workflow only
+replaces the button press, and a structural test pins that it can never
+run for anything but `main`, never uses a literal password, and never
+touches project settings (`config push`).
 
 One trap next to it: `supabase config push` looks like the same idea for
 *settings* (auth toggles, URLs, pool sizes) instead of tables — but the

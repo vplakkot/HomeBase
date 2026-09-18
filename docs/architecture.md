@@ -81,6 +81,12 @@ for the full build-vs-promote explanation and a diagram of that flow.
 In short: merging to `main` builds; pushing a tag is what actually goes
 live.
 
+Database structure follows the same path with one more workflow:
+[`.github/workflows/migrate.yml`](../.github/workflows/migrate.yml)
+applies any new file in `supabase/migrations/` to the hosted Supabase
+project as soon as it lands on `main`, so the schema is never behind the
+code that needs it. See [lesson 07](lessons/07-supabase-auth-and-migrations.md).
+
 The homepage itself reads two of Vercel's build-time environment
 variables (`VERCEL_GIT_COMMIT_REF`, `VERCEL_GIT_COMMIT_SHA`) and displays
 them as small text, so it's possible to confirm which commit is actually
