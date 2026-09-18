@@ -103,6 +103,30 @@ So: `config diff` before ever considering `config push`, and until the
 file is trimmed to only the settings we mean to manage, project settings
 change in the dashboard.
 
+### Amending a migration that already ran but hasn't merged
+
+A migration on `main` is frozen: the workflow has run it, and changing the
+result means a *new* file. A migration on an unmerged branch is different.
+Because every feature is verified against the live project before it
+merges, its migration has usually already been applied there — and if
+review finds it wrong, the file can still be corrected in place: edit it,
+run `npx supabase migration repair --status reverted <version> --linked`
+(the version is the file's timestamp prefix) so the CLI's ledger forgets
+the old version ever ran, then `npx supabase db push --linked` to apply
+the amended file. The recipe changed before anyone else baked from it.
+
+Three conditions. Only for migrations not yet on `main`. The amended SQL
+must tolerate whatever the first version already did — `create or
+replace` for functions, and never re-create a table or policy the first
+version made unless the amendment drops it first. And after merge the
+auto-migrate workflow sees the ledger as up to date, so it does nothing.
+
+Seen once already: the first
+[`20260918180000_admin_created_members.sql`](../../supabase/migrations/20260918180000_admin_created_members.sql)
+(#51) checked `app_metadata` in an `AFTER INSERT` trigger, but Supabase's
+admin API only writes `app_metadata` after the insert, so the trigger
+never saw it. The amended version checks a `member_invitations` table.
+
 ## The data model
 
 ```mermaid
