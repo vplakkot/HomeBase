@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../lib/supabase/server";
 import AdminPage from "./page";
@@ -10,17 +10,36 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+const roles = [
+  { id: "role-a", name: "Chief" },
+  { id: "role-b", name: "Helper" },
+];
+const members = [
+  { user_id: "u1", name: null, email: "first@example.com", role_id: "role-a", role_name: "Chief" },
+  { user_id: "u2", name: "Sam", email: "sam@example.com", role_id: "role-b", role_name: "Helper" },
+];
+
 function given({ signedIn, permissions = [] }: { signedIn: boolean; permissions?: string[] }) {
   vi.mocked(createClient).mockResolvedValue({
     auth: {
       getClaims: vi.fn().mockResolvedValue({
-        data: signedIn ? { claims: { sub: "user-1" } } : null,
+        data: signedIn ? { claims: { sub: "u1" } } : null,
         error: null,
       }),
     },
-    rpc: vi.fn(async (_fn: string, args: { permission: string }) => ({
-      data: permissions.includes(args.permission),
-      error: null,
+    rpc: vi.fn(async (fn: string, args?: { permission: string }) => {
+      if (fn === "has_permission") {
+        return { data: permissions.includes(args?.permission ?? ""), error: null };
+      }
+      if (fn === "household_members_overview") {
+        return { data: members, error: null };
+      }
+      throw new Error(`unexpected rpc ${fn}`);
+    }),
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        order: vi.fn().mockResolvedValue({ data: roles, error: null }),
+      })),
     })),
   } as unknown as Awaited<ReturnType<typeof createClient>>);
 }
@@ -38,20 +57,33 @@ describe("AdminPage", () => {
     await expect(AdminPage()).rejects.toThrow("REDIRECT:/");
   });
 
-  it("opens for someone who may manage members", async () => {
+  it("lists every member with name, email and role", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());
-    expect(screen.getByRole("heading", { name: "Admin console" })).toBeDefined();
-    expect(screen.getByRole("heading", { name: "Members" })).toBeDefined();
-    expect(screen.getByRole("link", { name: "Back to home" }).getAttribute("href")).toBe("/");
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByText("—")).toBeDefined();
+    expect(within(rows[0]).getByText("first@example.com")).toBeDefined();
+    expect(within(rows[1]).getByText("Sam")).toBeDefined();
+    expect(within(rows[1]).getByText("sam@example.com")).toBeDefined();
+    const samRole = screen.getByRole("combobox", { name: "Role for Sam" }) as HTMLSelectElement;
+    expect(samRole.value).toBe("role-b");
+    expect(within(samRole).getAllByRole("option").map((o) => o.textContent)).toEqual(["Chief", "Helper"]);
   });
 
-  it("offers the create-member form: name, email, temporary password", async () => {
+  it("offers a role change and a password reset for each member", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    expect(screen.getAllByRole("button", { name: "Save role" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Reset password" })).toHaveLength(2);
+    expect(screen.getByRole("textbox", { name: "Temporary password for Sam" })).toBeDefined();
+  });
+
+  it("still offers the create-member form", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());
     expect(screen.getByLabelText("Name")).toBeDefined();
     expect(screen.getByLabelText("Email")).toBeDefined();
-    expect(screen.getByLabelText("Temporary password")).toBeDefined();
     expect(screen.getByRole("button", { name: "Create member" })).toBeDefined();
   });
 });

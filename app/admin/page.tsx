@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { listMembers, listRoles } from "../../lib/auth/members";
 import { hasPermission } from "../../lib/auth/permissions";
 import { createClient } from "../../lib/supabase/server";
 import { CreateMemberForm } from "./create-member-form";
+import { ResetPasswordForm } from "./reset-password-form";
+import { RoleForm } from "./role-form";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -14,11 +17,51 @@ export default async function AdminPage() {
     redirect("/");
   }
 
+  const [members, roles] = await Promise.all([
+    listMembers(supabase),
+    listRoles(supabase),
+  ]);
+
   return (
     <>
       <h1>Admin console</h1>
       <section aria-labelledby="members-heading">
         <h2 id="members-heading">Members</h2>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Email</th>
+              <th scope="col">Role</th>
+              <th scope="col">Password</th>
+            </tr>
+          </thead>
+          <tbody>
+            {members.map((member) => {
+              const who = member.name ?? member.email;
+              return (
+                <tr key={member.user_id}>
+                  <td>{member.name ?? "—"}</td>
+                  <td>{member.email}</td>
+                  <td>
+                    <RoleForm
+                      userId={member.user_id}
+                      roleId={member.role_id}
+                      roles={roles}
+                      label={`Role for ${who}`}
+                    />
+                  </td>
+                  <td>
+                    <ResetPasswordForm
+                      userId={member.user_id}
+                      label={`Temporary password for ${who}`}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
         <h3>Create a member account</h3>
         <CreateMemberForm />
       </section>
