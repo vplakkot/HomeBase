@@ -40,6 +40,11 @@
 - Commit `.claude/launch.json`, the Claude desktop app's config for
   starting the dev server (`npm run dev`, port 3000) in its browser pane.
   Tool config only; nothing in the app, Vercel, or CI reads it. (#38)
+- CLAUDE.md: Claude merges its own pull requests once every Definition of
+  Done item is met and the pr-reviewer agent has reviewed them, and says
+  what it merged; "wait" on a PR holds it. The "verified on the preview
+  link" item now says who verifies where, since the preview sits behind
+  Vercel's login. (#44)
 
 ## 0.0.5 - 2026-09-18
 
