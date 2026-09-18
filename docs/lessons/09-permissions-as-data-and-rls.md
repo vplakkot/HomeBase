@@ -75,7 +75,12 @@ trigger already enforces it.
 With the migration applied, signing in over the API as the test admin
 and reading `households` returns the row; the same read with no session
 returns nothing; `has_permission('manage_members')` is true for the
-admin. Two criteria stay structural for now: a signed-in *non-member*
+admin. An anonymous attempt to insert a role came back `401` with
+Postgres's own `42501: new row violates row-level security policy` —
+the database refusing, not the app. And the admin, holding
+`manage_roles`, added a throwaway "Helper" role and its permission row
+over the API, saw it listed beside Admin and Member, and deleted it
+again — a new role handled entirely as data, with no code involved. Two criteria stay structural for now: a signed-in *non-member*
 and a third Admin. Neither can exist yet — REQ-10's trigger refuses
 every self sign-up after the first — until REQ-13 lets an admin create
 accounts. The migration tests pin the policies and the trigger in the
