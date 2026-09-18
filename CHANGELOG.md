@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- First sign-up creates the household and makes that person its Admin;
+  from then on sign-up is closed and the app only offers sign-in. This
+  brings Supabase (Postgres + Auth) into the code for the first time: the
+  `households`, `roles` (Admin, Member) and `household_members` tables
+  arrive as the first migration in `supabase/migrations/`, a database
+  trigger enforces the one-household rule, and row-level security is on
+  from day one. Adds `@supabase/supabase-js`, `@supabase/ssr`, and the
+  Supabase CLI as a dev dependency. `/sign-in` is a placeholder until the
+  next requirement fills it in. (#33)
 - Fix the promote workflow to find the Vercel build made from the exact
   commit a release tag points to, instead of whatever build Vercel
   considers "latest" — which could be a newer, unreleased commit on
