@@ -13,6 +13,15 @@ describe("migrate.yml", () => {
     expect(workflow).not.toMatch(/pull_request/);
   });
 
+  it("can be re-run by hand, for example after adding a missing secret", () => {
+    expect(workflow).toMatch(/^\s*workflow_dispatch:\s*$/m);
+  });
+
+  it("asks for read access to the repository and nothing more", () => {
+    expect(workflow).toMatch(/^permissions:\s*\n\s*contents: read\s*$/m);
+    expect(workflow).not.toMatch(/write/);
+  });
+
   it("never runs two applies at once", () => {
     expect(workflow).toMatch(/concurrency:\s*\n\s*group: apply-migrations\s*\n\s*cancel-in-progress: false/);
   });
@@ -29,8 +38,8 @@ describe("migrate.yml", () => {
     expect(workflow).toContain("exit 1");
   });
 
-  it("pushes migrations to the linked project, and never project config", () => {
-    expect(workflow).toMatch(/npx supabase db push --linked/);
+  it("pushes migrations to the linked project, and never project config or vault secrets", () => {
+    expect(workflow).toMatch(/npx supabase db push --linked --skip-vault/);
     expect(workflow).not.toMatch(/config push/);
   });
 });

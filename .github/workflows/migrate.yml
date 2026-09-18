@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - "supabase/migrations/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: apply-migrations
@@ -45,5 +49,5 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           npx supabase link --project-ref zyspyqvbsvbqbjgdzjpc --password "$SUPABASE_DB_PASSWORD" --yes
-          npx supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --yes
+          npx supabase db push --linked --skip-vault --password "$SUPABASE_DB_PASSWORD" --yes
           npx supabase migration list --linked
