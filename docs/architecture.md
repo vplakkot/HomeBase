@@ -197,17 +197,32 @@ sequenceDiagram
 Sign-out (`app/sign-out/actions.ts`) ends this device's session only and
 sends the visitor back to `/sign-in`.
 
+## Admin mode
+
+A role decides what someone *may* do; a mode decides what the screen
+*shows*. Admins use the ordinary member view by default and switch into
+admin mode with a button on the home page
+([`app/mode/actions.ts`](../app/mode/actions.ts)), which sets a
+`homebase-mode` **session cookie** — no expiry, so closing the app or the
+browser returns them to member view. In admin mode the home page shows a
+banner and a link to the console at [`app/admin/`](../app/admin/page.tsx).
+Both the toggle and the console are gated on `has_permission('manage_members')`,
+never on a role's name; a member who types `/admin` is sent home. See
+[lesson 10](lessons/10-modes-are-not-roles.md).
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
 
 - **No `components/` folder** — the sign-up and sign-in forms live next
   to their pages; nothing is shared between pages yet.
-- **Almost no state** — the only interactivity is the two forms'
-  pending/error state; nothing else changes after a page loads.
+- **Almost no state** — the only interactivity is the forms'
+  pending/error state and the admin-mode cookie; nothing else changes
+  after a page loads.
 - **No styling** — plain, unstyled HTML.
-- **No permissions yet** — everyone signed in sees the same thing until
-  REQ-12 adds roles' permissions and row-level security policies.
+- **An empty admin console** — `/admin` exists so the toggle has
+  somewhere to go; creating member accounts (REQ-13) and managing members
+  and roles (REQ-15) fill it in.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.

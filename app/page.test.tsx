@@ -1,10 +1,17 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import { cookies } from "next/headers";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { MODE_COOKIE } from "../lib/auth/mode";
 import { createClient } from "../lib/supabase/server";
 import HomePage from "./page";
 
 vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
+vi.mock("./mode/actions", () => ({
+  enterAdminMode: vi.fn(),
+  leaveAdminMode: vi.fn(),
+}));
+vi.mock("next/headers", () => ({ cookies: vi.fn() }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -14,9 +21,11 @@ vi.mock("next/navigation", () => ({
 function given({
   email,
   permissions = [],
+  mode,
 }: {
   email: string | null;
   permissions?: string[];
+  mode?: "admin";
 }) {
   vi.mocked(createClient).mockResolvedValue({
     auth: {
@@ -30,6 +39,10 @@ function given({
       error: null,
     })),
   } as unknown as Awaited<ReturnType<typeof createClient>>);
+  vi.mocked(cookies).mockResolvedValue({
+    get: (name: string) =>
+      name === MODE_COOKIE && mode ? { value: mode } : undefined,
+  } as unknown as Awaited<ReturnType<typeof cookies>>);
 }
 
 describe("HomePage", () => {
@@ -56,15 +69,28 @@ describe("HomePage", () => {
     await expect(HomePage()).rejects.toThrow("REDIRECT:/sign-in");
   });
 
-  it("mentions managing members only when that permission is held", async () => {
+  it("shows an admin the member view with a toggle into admin mode", async () => {
     given({ email: "admin@example.com", permissions: ["manage_members"] });
     render(await HomePage());
-    expect(screen.getByText("You can manage members.")).toBeDefined();
-    cleanup();
+    expect(screen.getByRole("button", { name: "Enter admin mode" })).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Admin console" })).toBeNull();
+  });
 
-    given({ email: "member@example.com", permissions: ["use_modules"] });
+  it("in admin mode, shows the banner, the console link and the way back", async () => {
+    given({ email: "admin@example.com", permissions: ["manage_members"], mode: "admin" });
     render(await HomePage());
-    expect(screen.queryByText("You can manage members.")).toBeNull();
+    expect(screen.getByText("Admin mode")).toBeDefined();
+    expect(screen.getByRole("link", { name: "Admin console" }).getAttribute("href")).toBe("/admin");
+    expect(screen.getByRole("button", { name: "Back to member view" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Enter admin mode" })).toBeNull();
+  });
+
+  it("never shows a member the toggle, even with a stray admin cookie", async () => {
+    given({ email: "member@example.com", permissions: ["use_modules"], mode: "admin" });
+    render(await HomePage());
+    expect(screen.queryByRole("button", { name: "Enter admin mode" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Admin console" })).toBeNull();
+    expect(screen.queryByText("Admin mode")).toBeNull();
   });
 
   it("falls back to placeholder build info when Vercel env vars are unset", async () => {

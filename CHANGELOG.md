@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Admin/member mode toggle: admins land in the ordinary member view and
+  switch into admin mode with a button on the home page, which reveals an
+  "Admin mode" banner, a link to the new `/admin` console page and a way
+  back. The mode is a session cookie, so closing the app returns to member
+  view. Both the toggle and `/admin` are gated on the `manage_members`
+  permission — members never see the toggle, and `/admin` sends them home
+  if they type the URL. (#48)
 - Roles and permissions stored as data: a `role_permissions` table holds
   each role's keys (`use_modules`, `manage_members`, `manage_roles`), and
   row-level security policies now gate every table on `is_member()` or
