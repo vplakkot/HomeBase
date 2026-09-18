@@ -45,6 +45,11 @@
   what it merged; "wait" on a PR holds it. The "verified on the preview
   link" item now says who verifies where, since the preview sits behind
   Vercel's login. (#44)
+- Add `.claude/settings.json` allowing Claude Code to run
+  `npx supabase db push` without a prompt, and explicitly denying
+  `npx supabase config push` (which would overwrite hand-tuned project
+  settings). Migrations stay reviewed in their PR; only the button press
+  moves. (#42)
 
 ## 0.0.5 - 2026-09-18
 
