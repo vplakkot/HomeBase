@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Admin creates a member account: a form on the admin console takes a
+  name, email and temporary password and creates the account directly —
+  no email is sent. The sign-up trigger now lets in accounts marked as
+  admin-created (a flag only the server-side key can set) and gives them
+  the Member role, while still refusing self sign-ups. On first sign-in
+  with a temporary password, the person is sent to `/set-password` and
+  can go nowhere else until they choose their own. Adds a server-only
+  Supabase admin client that uses `SUPABASE_SECRET_KEY`. (#49)
 - Admin/member mode toggle: admins land in the ordinary member view and
   switch into admin mode with a button on the home page, which reveals an
   "Admin mode" banner, a link to the new `/admin` console page and a way

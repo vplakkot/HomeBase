@@ -26,8 +26,24 @@ describe("redirectFor", () => {
       },
     );
 
-    it.each(["/sign-in", "/sign-up"])("sends %s home", (pathname) => {
-      expect(redirectFor(pathname, true)).toBe("/");
+    it.each(["/sign-in", "/sign-up", "/set-password"])(
+      "sends %s home",
+      (pathname) => {
+        expect(redirectFor(pathname, true)).toBe("/");
+      },
+    );
+  });
+
+  describe("signed in with a temporary password still in use", () => {
+    it.each(["/", "/admin", "/finances", "/sign-in"])(
+      "sends %s to set a new password first",
+      (pathname) => {
+        expect(redirectFor(pathname, true, true)).toBe("/set-password");
+      },
+    );
+
+    it("lets the set-password page itself through", () => {
+      expect(redirectFor("/set-password", true, true)).toBeNull();
     });
   });
 });

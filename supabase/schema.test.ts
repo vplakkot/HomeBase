@@ -108,3 +108,26 @@ describe("permissions and row-level security migration", () => {
     expect(sql).toMatch(/create function public\.has_permission\(permission text\)[\s\S]*?security definer[\s\S]*?set search_path = ''/);
   });
 });
+
+describe("admin-created members migration", () => {
+  const migration = readMigration("20260918180000");
+
+  it("replaces the sign-up trigger function rather than adding a second one", () => {
+    expect(migration).toMatch(/create or replace function public\.handle_new_user\(\)/);
+    expect(migration).not.toMatch(/create trigger/);
+  });
+
+  it("still creates the household and its Admin for the very first user", () => {
+    expect(migration).toMatch(/if existing_household_id is null then[\s\S]*?insert into public\.households default values[\s\S]*?where name = 'Admin'/);
+  });
+
+  it("refuses a self sign-up once the household exists", () => {
+    expect(migration).toMatch(/raw_app_meta_data->>'created_by_admin', ''\) <> 'true' then\s+raise exception 'Sign-up is closed/);
+  });
+
+  it("lets an admin-created account in, as Member unless a role was chosen", () => {
+    expect(migration).toMatch(/coalesce\(new\.raw_app_meta_data->>'household_role', 'Member'\)/);
+    expect(migration).toMatch(/raise exception 'Unknown role: %'/);
+    expect(migration).toMatch(/values \(new\.id, existing_household_id, role_to_grant\)/);
+  });
+});

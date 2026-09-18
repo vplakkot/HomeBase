@@ -11,9 +11,11 @@ type SetAll = (cookies: CookieToSet[], headers?: Record<string, string>) => void
 
 function givenSupabase({
   signedIn,
+  mustSetPassword = false,
   refreshedCookies = [],
 }: {
   signedIn: boolean;
+  mustSetPassword?: boolean;
   refreshedCookies?: CookieToSet[];
 }) {
   vi.mocked(createServerClient).mockImplementation(
@@ -26,7 +28,14 @@ function givenSupabase({
               setAll?.(refreshedCookies, { "cache-control": "no-store" });
             }
             return {
-              data: signedIn ? { claims: { sub: "user-1" } } : null,
+              data: signedIn
+                ? {
+                    claims: {
+                      sub: "user-1",
+                      app_metadata: { must_set_password: mustSetPassword },
+                    },
+                  }
+                : null,
               error: null,
             };
           }),
@@ -72,6 +81,17 @@ describe("proxy", () => {
     expect((await proxy(request("/sign-in"))).headers.get("location")).toBe(
       "http://localhost:3000/",
     );
+  });
+
+  it("sends someone still on a temporary password to set a new one first", async () => {
+    givenSupabase({ signedIn: true, mustSetPassword: true });
+    expect((await proxy(request("/"))).headers.get("location")).toBe(
+      "http://localhost:3000/set-password",
+    );
+    expect((await proxy(request("/admin"))).headers.get("location")).toBe(
+      "http://localhost:3000/set-password",
+    );
+    expect((await proxy(request("/set-password"))).headers.get("location")).toBeNull();
   });
 
   it("keeps refreshed session cookies and cache headers on a redirect", async () => {
