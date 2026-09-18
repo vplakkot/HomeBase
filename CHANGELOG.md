@@ -28,6 +28,9 @@
   requirement, create its GitHub issue from the Ready Notion requirement,
   set it In progress, and mark it Done once merged. Also names the HomeBase
   HQ Notion page directly. (#29)
+- Commit `.claude/launch.json`, the Claude desktop app's config for
+  starting the dev server (`npm run dev`, port 3000) in its browser pane.
+  Tool config only; nothing in the app, Vercel, or CI reads it. (#38)
 
 ## 0.0.5 - 2026-09-18
 
