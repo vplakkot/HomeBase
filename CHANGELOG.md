@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Per-member notification switch in the admin console. Each membership
+  carries a `notifications_enabled` flag, off by default, so a new member
+  — including the household's first admin — starts switched off without
+  either sign-up path having to say so. Only `manage_members` holders can
+  change it, and members cannot see it at all: the table-wide `select`
+  grant on `household_members` is withdrawn from `authenticated` and
+  re-granted column by column, leaving this one out, so even `select=*`
+  is refused. `anon` is withdrawn outright with nothing handed back,
+  since every policy on the table is already `to authenticated` and a
+  signed-out visitor has no business reading any of it. The roster function is re-created (not replaced, since its
+  columns changed) to return the flag to admins. Nothing sends
+  notifications yet; REQ-21 will read this flag. (#66)
+
 - CLAUDE.md: only one pull request containing a migration is open at a
   time. #62 wrote the reasoning into lesson 07, but a lesson explains and
   the Rules section is what binds. The working habit up to now has been to

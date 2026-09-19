@@ -6,6 +6,7 @@ export type Member = {
   email: string;
   role_id: string;
   role_name: string;
+  notifications_enabled: boolean;
 };
 
 export type Role = { id: string; name: string };

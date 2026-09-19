@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { createClient } from "../../lib/supabase/server";
-import { changeRole, createMember, resetPassword } from "./actions";
+import { changeRole, createMember, resetPassword, setNotifications } from "./actions";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("../../lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
@@ -161,6 +161,52 @@ describe("changeRole", () => {
     given({ updateError: { message: "This role must keep at least 1 holder(s)" } });
     const state = await changeRole({}, form({ userId: "u1", roleId: "r2" }));
     expect(state.error).toBe("This role must keep at least 1 holder(s)");
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("setNotifications", () => {
+  it("refuses anyone without the manage_members permission", async () => {
+    const { members } = given({ permission: false });
+    await expect(
+      setNotifications({}, form({ userId: "u1", enabled: "true" })),
+    ).rejects.toThrow("REDIRECT:/");
+    expect(members.update).not.toHaveBeenCalled();
+  });
+
+  it("turns the switch on for that member and refreshes the console", async () => {
+    const { members, updateEq } = given();
+    const state = await setNotifications({}, form({ userId: "u1", enabled: "true" }));
+    expect(state).toEqual({ enabled: true });
+    expect(members.update).toHaveBeenCalledWith({ notifications_enabled: true });
+    expect(updateEq).toHaveBeenCalledWith("user_id", "u1");
+    expect(revalidatePath).toHaveBeenCalledWith("/admin");
+  });
+
+  it("turns it off again", async () => {
+    const { members } = given();
+    const state = await setNotifications({}, form({ userId: "u1", enabled: "false" }));
+    expect(state).toEqual({ enabled: false });
+    expect(members.update).toHaveBeenCalledWith({ notifications_enabled: false });
+  });
+
+  it("treats anything that isn't the word true as off, never as a toggle", async () => {
+    const { members } = given();
+    await setNotifications({}, form({ userId: "u1", enabled: "" }));
+    expect(members.update).toHaveBeenCalledWith({ notifications_enabled: false });
+  });
+
+  it("needs to know which member", async () => {
+    const { members } = given();
+    const state = await setNotifications({}, form({ enabled: "true" }));
+    expect(state.error).toBe("Which member?");
+    expect(members.update).not.toHaveBeenCalled();
+  });
+
+  it("shows the database's refusal as-is", async () => {
+    given({ updateError: { message: "permission denied for table household_members" } });
+    const state = await setNotifications({}, form({ userId: "u1", enabled: "true" }));
+    expect(state.error).toBe("permission denied for table household_members");
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

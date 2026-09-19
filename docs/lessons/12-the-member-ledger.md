@@ -57,6 +57,55 @@ in directions you didn't picture (cascade, teardown). When you write one,
 list every way a row can leave the table — not just the way the feature
 removes it.
 
+## Row-level security has a column-level sibling
+
+Everything so far has been about *rows*: which memberships you may read,
+which you may change. REQ-16 asked for something different — a switch
+saying whether a member gets notifications, which only an admin may see.
+The row is one every member is already allowed to read. It's one field on
+it that has to stay private.
+
+Row-level security can't express that. What can is the much older idea it
+sits on top of: privileges can be granted per column. The catch is that a
+column-level `revoke` does nothing while a table-level `grant` is still in
+force — the broad permission simply wins, silently. So the table-wide
+`select` has to be taken away and handed back column by column, leaving
+the private one out:
+
+```sql
+revoke select on public.household_members from authenticated;
+grant select (user_id, household_id, role_id, created_at)
+  on public.household_members to authenticated;
+```
+
+Two things follow that are worth knowing before you meet them.
+
+**`select=*` starts failing rather than trimming.** Asking for every
+column now includes one the caller may not have, so the whole request is
+refused with "permission denied for table household_members". That is
+better than the alternative — a quiet omission would let a bug hide — but
+it means any future code that reads this table as the signed-in person has
+to name its columns.
+
+**The admin can't read it directly either.** Admin and member are the same
+database role, `authenticated`; the difference between them is data, not
+identity. So the column is closed to both, and admins get it back only
+through `household_members_overview()`, which is `security definer` and so
+runs as the table's owner. The permission check lives inside that
+function, exactly where it lived before.
+
+## A refused write doesn't look like a refusal
+
+Worth seeing once, because it surprises people. When a member tries to
+switch their own notifications on, the database answers `204 No Content` —
+success. Nothing changed. Row-level security filters an `update` the same
+way it filters a `select`: rows you may not touch aren't visible to the
+statement, so zero rows match, and updating zero rows is not an error.
+
+You confirm a write like this by reading the data back, not by trusting
+the status code. The REQ-16 proof did exactly that: attempt the write as
+the member, then read the truth with the service key and show it unchanged.
+
 ## "Takes effect on their next page load" costs nothing
 
 Permissions are never copied into the login token. Every page that cares
