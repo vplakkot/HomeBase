@@ -66,3 +66,34 @@ These checks don't review code quality, naming, or whether a change is a
 good idea — they only catch things that are mechanically checkable: does
 it type-check, does it build, do the tests we've written still pass, was
 the changelog touched. Anything more judgment-based is still a human's job.
+
+## The local run and CI have to be the same run
+
+CI checks out the repository and nothing else. A local checkout collects
+whatever is lying around it, and the two quietly stop agreeing.
+
+That happened here (#60). A git *worktree* — a second checkout of the same
+repo, on another branch, parked in `.claude/worktrees/` — is ignored by
+git, so it never shows up in `git status` and never reaches a commit. But
+vitest doesn't read `.gitignore`. It walked into that copy and collected
+every test a second time, from a commit that had nothing to do with the
+branch being worked on. A run that should have found 24 files found 46,
+and the inflated count was quoted as evidence in two pull requests before
+anyone noticed.
+
+The count was the harmless part. The real hazard is that the duplicate is
+pinned to an old commit: it can pass while the working tree is broken, or
+fail for reasons belonging to a branch nobody is touching, and either way
+the failure points at a file path that looks almost right. The fix is one
+line in `vitest.config.ts`, spreading `configDefaults.exclude` so the
+built-in exclusions survive:
+
+```ts
+exclude: [...configDefaults.exclude, "**/.claude/**"],
+```
+
+The general rule worth keeping: **git-ignored is not tool-ignored**. Every
+tool that walks the filesystem — a test runner, a linter, a bundler, a
+search — has its own idea of what to skip, and "git doesn't track it" tells
+you nothing about what they will do. When a local number and CI's number
+disagree, don't reconcile them by picking the one you like; find out why.

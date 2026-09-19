@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Stop vitest collecting tests from git worktrees under `.claude/`. A
+  worktree is a second checkout of the whole repo; git ignores it, vitest
+  did not, so every test was collected twice from a commit unrelated to
+  the branch in hand. Local runs reported 46 test files where the repo
+  has 24, and those inflated counts were quoted as evidence in two pull
+  requests. Adds `**/.claude/**` to `exclude`, spread over
+  `configDefaults.exclude` so the built-in exclusions survive, with tests
+  pinning both. Lesson 02 gains a section on why git-ignored is not
+  tool-ignored. (#60)
 - Admin console: members and roles. The console lists every member with
   name, email and role (names and emails come from Supabase's private
   `auth.users` through a `security definer` function that returns rows
