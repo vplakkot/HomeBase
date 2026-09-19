@@ -1,10 +1,11 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DEVICE_COOKIE } from "../../lib/notifications/device";
 import { createClient } from "../../lib/supabase/server";
 import { type DeviceSubscription, saveDevice } from "./actions";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
-vi.mock("next/headers", () => ({ headers: vi.fn() }));
+vi.mock("next/headers", () => ({ headers: vi.fn(), cookies: vi.fn() }));
 
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X)";
 
@@ -31,13 +32,18 @@ function given({
   vi.mocked(headers).mockResolvedValue(
     new Headers({ "user-agent": IPHONE }) as unknown as Awaited<ReturnType<typeof headers>>,
   );
-  return { from, upsert };
+  const set = vi.fn();
+  vi.mocked(cookies).mockResolvedValue(
+    { set } as unknown as Awaited<ReturnType<typeof cookies>>,
+  );
+  return { from, upsert, set };
 }
 
 describe("saveDevice", () => {
   afterEach(() => {
     vi.mocked(createClient).mockReset();
     vi.mocked(headers).mockReset();
+    vi.mocked(cookies).mockReset();
     vi.restoreAllMocks();
   });
 
@@ -73,6 +79,28 @@ describe("saveDevice", () => {
     expect(endpoints).toEqual([device.endpoint, "https://web.push.apple.com/SecondDevice"]);
   });
 
+  // Signing out ends notifications for this device only, so it has to know
+  // which device this browser is.
+  it("remembers this device, so signing out can end its notifications", async () => {
+    const { set } = given();
+    await saveDevice(device);
+    const [name, value, options] = set.mock.calls[0] as unknown as [
+      string,
+      string,
+      { httpOnly: boolean },
+    ];
+    expect(name).toBe(DEVICE_COOKIE);
+    expect(value).toBe(device.endpoint);
+    expect(options.httpOnly).toBe(true);
+  });
+
+  it("remembers nothing when saving was refused", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { set } = given({ upsertError: { code: "42501", message: "refused" } });
+    await saveDevice(device);
+    expect(set).not.toHaveBeenCalled();
+  });
+
   it("refuses when nobody is signed in", async () => {
     const { upsert } = given({ signedIn: false });
     expect(await saveDevice(device)).toEqual({
@@ -100,6 +128,7 @@ describe("saveDevice", () => {
     });
     expect(await saveDevice(device)).toEqual({
       saved: false,
+      takenByAnother: true,
       error:
         "This device is already signed up for notifications under someone else in the household.",
     });

@@ -1,6 +1,7 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { DEVICE_COOKIE, DEVICE_COOKIE_OPTIONS } from "../../lib/notifications/device";
 import { createClient } from "../../lib/supabase/server";
 
 // What a browser hands over when a device signs up for notifications
@@ -13,7 +14,7 @@ export type DeviceSubscription = {
 
 export type SaveDeviceResult =
   | { saved: true }
-  | { saved: false; error: string };
+  | { saved: false; error: string; takenByAnother?: true };
 
 // Real ones are far shorter (an Apple address is under 300 characters, the
 // keys under 100); the limits only stop a hand-crafted call storing junk.
@@ -71,6 +72,7 @@ export async function saveDevice(
     if (error.code === REFUSED_BY_RULES) {
       return {
         saved: false,
+        takenByAnother: true,
         error:
           "This device is already signed up for notifications under someone else in the household.",
       };
@@ -83,5 +85,9 @@ export async function saveDevice(
     }
     return { saved: false, error: "Couldn't save this device. Try again in a moment." };
   }
+
+  // Remember which device this browser is, so signing out can end
+  // notifications for this one and leave their other devices alone.
+  (await cookies()).set(DEVICE_COOKIE, endpoint, DEVICE_COOKIE_OPTIONS);
   return { saved: true };
 }
