@@ -5,13 +5,16 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
-    // A git worktree under .claude/ is a second checkout of this whole repo,
-    // parked on some other commit. Git ignores it; vitest doesn't, so every
-    // test gets collected twice and the local count stops matching CI — which
-    // is worse than noise, because that stale copy can pass or fail for
-    // reasons that have nothing to do with the branch in hand.
-    // Spread the defaults rather than replacing them: assigning `exclude`
-    // overwrites node_modules, dist and the rest.
-    exclude: [...configDefaults.exclude, "**/.claude/**"],
+    // A git worktree is a second checkout of this whole repo, parked on
+    // another commit. Vitest doesn't read .gitignore, so it collected every
+    // test twice and the local count stopped matching CI — worse than noise,
+    // because that stale copy can pass or fail for reasons belonging to a
+    // branch nobody is touching.
+    // Only the worktrees directory is excluded, not all of .claude: the rest
+    // of it is tracked, and .github/workflows/*.test.ts already shows this
+    // repo happily testing config that lives in a dot-directory.
+    // Spread the defaults rather than assigning: assigning replaces them, and
+    // node_modules is in there.
+    exclude: [...configDefaults.exclude, "**/.claude/worktrees/**"],
   },
 });
