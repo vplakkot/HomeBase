@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 import { readMode } from "../lib/auth/mode";
 import { hasPermission } from "../lib/auth/permissions";
 import { createClient } from "../lib/supabase/server";
+import { DEVICE_COOKIE } from "../lib/notifications/device";
 import { enterAdminMode, leaveAdminMode } from "./mode/actions";
 import { EnableNotifications } from "./notifications/enable-notifications";
-import { signOut } from "./sign-out/actions";
+import { SignOutForm } from "./sign-out/sign-out-form";
 
 function getBuildInfo() {
   const ref = process.env.VERCEL_GIT_COMMIT_REF || "dev";
@@ -25,7 +26,8 @@ export default async function HomePage() {
   }
   const email = data.claims.email ?? null;
   const canManageMembers = await hasPermission(supabase, "manage_members");
-  const mode = readMode(await cookies());
+  const cookieStore = await cookies();
+  const mode = readMode(cookieStore);
 
   return (
     <>
@@ -48,10 +50,9 @@ export default async function HomePage() {
       ) : null}
       <EnableNotifications
         publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+        knownDevice={cookieStore.get(DEVICE_COOKIE)?.value ?? null}
       />
-      <form action={signOut}>
-        <button type="submit">Sign out</button>
-      </form>
+      <SignOutForm />
       <p
         data-testid="build-info"
         style={{ fontSize: "0.75rem", color: "#888", marginTop: "3rem" }}

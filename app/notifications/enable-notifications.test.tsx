@@ -24,10 +24,21 @@ function givenDevice({
   alreadySubscribed = false,
   registerFailsOnArrival = false,
 } = {}) {
-  const subscription = { toJSON: () => DEVICE_JSON };
+  const makeSubscription = (endpoint: string) => ({
+    endpoint,
+    toJSON: () => ({ ...DEVICE_JSON, endpoint }),
+    unsubscribe: vi.fn(async () => true),
+  });
+  const subscription = makeSubscription(DEVICE_JSON.endpoint);
+  let signUps = 0;
   const pushManager = {
     getSubscription: vi.fn(async () => (alreadySubscribed ? subscription : null)),
-    subscribe: vi.fn(async (_options: PushSubscriptionOptionsInit) => subscription),
+    subscribe: vi.fn(async (_options: PushSubscriptionOptionsInit) => {
+      signUps += 1;
+      return makeSubscription(
+        signUps === 1 ? DEVICE_JSON.endpoint : `${DEVICE_JSON.endpoint}-fresh`,
+      );
+    }),
   };
   const registration = { pushManager };
   // Like a real browser, `ready` waits until a registration succeeds.
@@ -66,7 +77,7 @@ function givenDevice({
     vi.stubGlobal("PushManager", function PushManager() {});
     vi.stubGlobal("Notification", notification);
   }
-  return { pushManager, serviceWorker, notification };
+  return { pushManager, serviceWorker, notification, subscription };
 }
 
 async function tapEnable() {
@@ -152,13 +163,45 @@ describe("EnableNotifications", () => {
     expect(device.notification.requestPermission).not.toHaveBeenCalled();
   });
 
-  it("if this device is already on, saves it again quietly and says so", async () => {
+  it("if this person already turned this device on, says so without asking again", async () => {
     givenDevice({ permission: "granted", alreadySubscribed: true });
-    render(<EnableNotifications publicKey={PUBLIC_KEY} />);
+    render(
+      <EnableNotifications publicKey={PUBLIC_KEY} knownDevice={DEVICE_JSON.endpoint} />,
+    );
     expect(
       await screen.findByText("Notifications are on for this device."),
     ).toBeDefined();
     expect(saveDevice).toHaveBeenCalledWith(DEVICE_JSON);
+  });
+
+  // Someone else's device, or this one after they signed out: the browser
+  // is still signed up, but nobody may be enrolled without tapping.
+  it("never switches notifications on for someone who hasn't tapped", async () => {
+    givenDevice({ permission: "granted", alreadySubscribed: true });
+    render(<EnableNotifications publicKey={PUBLIC_KEY} knownDevice={null} />);
+    expect(
+      await screen.findByRole("button", { name: "Enable notifications" }),
+    ).toBeDefined();
+    expect(saveDevice).not.toHaveBeenCalled();
+  });
+
+  it("starts over when this device's address belongs to someone else", async () => {
+    const device = givenDevice({ permission: "granted", alreadySubscribed: true });
+    vi.mocked(saveDevice)
+      .mockResolvedValueOnce({
+        saved: false,
+        takenByAnother: true,
+        error: "This device is already signed up for notifications under someone else in the household.",
+      })
+      .mockResolvedValueOnce({ saved: true });
+    render(<EnableNotifications publicKey={PUBLIC_KEY} knownDevice={null} />);
+    await tapEnable();
+    expect(
+      await screen.findByText("Notifications are on for this device."),
+    ).toBeDefined();
+    expect(device.subscription.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(device.pushManager.subscribe).toHaveBeenCalledTimes(1);
+    expect(saveDevice).toHaveBeenCalledTimes(2);
   });
 
   it("says so when the device can't receive notifications at all", async () => {

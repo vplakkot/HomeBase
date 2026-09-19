@@ -14,7 +14,7 @@ export type DeviceSubscription = {
 
 export type SaveDeviceResult =
   | { saved: true }
-  | { saved: false; error: string };
+  | { saved: false; error: string; takenByAnother?: true };
 
 // Real ones are far shorter (an Apple address is under 300 characters, the
 // keys under 100); the limits only stop a hand-crafted call storing junk.
@@ -72,6 +72,7 @@ export async function saveDevice(
     if (error.code === REFUSED_BY_RULES) {
       return {
         saved: false,
+        takenByAnother: true,
         error:
           "This device is already signed up for notifications under someone else in the household.",
       };

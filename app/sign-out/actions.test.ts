@@ -13,8 +13,14 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-function given({ device = null as string | null } = {}) {
-  const eq = vi.fn().mockResolvedValue({ error: null });
+function given({
+  device = null as string | null,
+  deleteError = null as { code: string; message: string } | null,
+  deleteThrows = false,
+} = {}) {
+  const eq = deleteThrows
+    ? vi.fn().mockRejectedValue(new Error("network down"))
+    : vi.fn().mockResolvedValue({ error: deleteError });
   const from = vi.fn(() => ({ delete: vi.fn(() => ({ eq })) }));
   const client = {
     auth: { signOut: vi.fn().mockResolvedValue({ error: null }) },
@@ -65,6 +71,32 @@ describe("signOut", () => {
       client.auth.signOut.mock.invocationCallOrder[0],
     );
     expect(store.delete).toHaveBeenCalledWith(DEVICE_COOKIE);
+    expect(store.delete.mock.invocationCallOrder[0]).toBeLessThan(
+      client.auth.signOut.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("signs out anyway when ending notifications fails", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { client } = given({
+      device: "https://web.push.apple.com/this-device",
+      deleteError: { code: "08006", message: "connection failure" },
+    });
+    await expect(signOut()).rejects.toThrow("REDIRECT:/sign-in");
+    expect(client.auth.signOut).toHaveBeenCalled();
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
+  });
+
+  it("signs out anyway when ending notifications throws", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { client } = given({
+      device: "https://web.push.apple.com/this-device",
+      deleteThrows: true,
+    });
+    await expect(signOut()).rejects.toThrow("REDIRECT:/sign-in");
+    expect(client.auth.signOut).toHaveBeenCalled();
+    log.mockRestore();
   });
 
   it("leaves the table alone when this device never turned notifications on", async () => {

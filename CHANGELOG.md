@@ -2,15 +2,22 @@
 
 ## Unreleased
 
-- Signing out ends notifications on that device. Turning notifications on
-  now also records which device this browser is, in an `httpOnly`
-  `homebase-device` cookie, and signing out removes that one row from
-  `push_subscriptions` before ending the session, then forgets the
-  cookie. Without it, once REQ-21 starts sending, notifications would
-  keep arriving on a device their owner had signed out of, and a second
-  person signing in on a shared device could never turn notifications on,
-  because the address was taken. Their other devices are unaffected,
-  which matches sign-out ending this device's session only. (#75)
+- Signing out ends notifications on that device. The browser tells the
+  push service to forget the device, the server removes that one row from
+  `push_subscriptions`, and then the session ends; a failed clean-up is
+  logged rather than trapping anyone in a session. Turning notifications
+  on records which device this browser is, in an `httpOnly`
+  `homebase-device` cookie. Without this, once REQ-21 starts sending,
+  notifications would keep arriving on a device their owner had signed
+  out of, and a second person on a shared device could never turn
+  notifications on, because the address was taken. Two guards keep the
+  wrong person from being enrolled: notifications are only switched on by
+  themselves for a device that cookie says this person turned on, so
+  anyone else has to tap; and signing in clears the cookie left by
+  whoever was here before. If an address is still held by someone who
+  never signed out, tapping Enable signs up again for a fresh one. Their
+  other devices are unaffected, which matches sign-out ending this
+  device's session only. (#75)
 
 - Opt in to push notifications. The home page gains a Notifications
   section. In a normal browser tab it explains that notifications need

@@ -99,22 +99,42 @@ keep arriving on a device its owner has signed out of, and a second
 person signing in on the same device can't turn notifications on,
 because the address is taken.
 
-The fix is small. When notifications are turned on, the app writes the
-device's address into a cookie, `homebase-device`. Signing out reads it,
-removes that row, and forgets the cookie — in that order, because
-removing the row needs the session that's about to end. The sender only
-reaches devices listed in the table, so the row going is what stops the
-notifications. The person's other devices are untouched, which matches
-sign-out itself: it has always ended this device's session only.
+Signing out now does three things in this order:
 
-The cookie holds nothing secret (an address is useless without the app's
-private key), but it's `httpOnly`, so page scripts can't read or forge
+1. the browser tells the push service to forget this device, so nothing
+   can be delivered here afterwards
+2. the server removes that one row from `push_subscriptions`
+3. the session ends
+
+The order matters: removing the row needs the session that is about to
+end, because the database only lets each person remove their own
+devices. Their other devices are untouched, which matches sign-out
+itself — it has always ended this device's session only. A clean-up that
+fails is logged and signing out continues; being unable to tidy up must
+never trap someone in a session.
+
+How the app knows which device this browser is: when notifications are
+turned on, the address goes into a cookie, `homebase-device`. It holds
+nothing secret — an address is useless without the app's private key —
+but it's `httpOnly`, so page scripts can't read or forge it.
+
+Two guards around the same idea, both found in review:
+
+- **Nobody is enrolled without tapping.** When the app opens and
+  permission is already granted, it only confirms a device *this* person
+  turned on, which the cookie says. Otherwise the next person to sign in
+  on a shared device would find notifications already on, having never
+  asked. They see the button instead.
+- **Signing in clears the cookie**, since it describes whoever was here
+  before.
+
+And if an address is still taken — someone used the device and never
+signed out — tapping Enable unsubscribes, signs up again for a fresh
+address and saves that, instead of leaving a dead end.
+
+Without JavaScript the form still signs out and the row still goes. Only
+the push service's own copy would linger, with nothing left to send to
 it.
-
-The device stays signed up with Apple, which is deliberate: turning
-notifications back on then costs one tap and no new permission. And
-because the row is gone, the next person to sign in on that device can
-turn notifications on for themselves.
 
 ## Checking the rules on the live database, without signing in
 

@@ -325,13 +325,22 @@ sequenceDiagram
     Action->>DB: upsert on endpoint (user_id filled in by the database)
 ```
 
-Saving also writes the device's address into a `homebase-device`
-cookie (`httpOnly`), which is how sign-out knows which device this
-browser is: [`app/sign-out/actions.ts`](../app/sign-out/actions.ts)
-removes that one row before ending the session — in that order, since
-the delete needs the session — and clears the cookie. Their other
-devices keep their notifications, and the next person to sign in on this
-one can turn notifications on for themselves.
+Saving also writes the device's address into a `homebase-device` cookie
+(`httpOnly`), which is how sign-out knows which device this browser is.
+[`app/sign-out/sign-out-form.tsx`](../app/sign-out/sign-out-form.tsx)
+first asks the push service to forget this device, then
+[`app/sign-out/actions.ts`](../app/sign-out/actions.ts) removes that one
+row and clears the cookie before ending the session — in that order,
+since the delete needs the session. A failed clean-up is logged and
+sign-out continues. Their other devices keep their notifications.
+
+Two guards keep this from enrolling the wrong person: the control only
+confirms an existing subscription when its address matches that cookie,
+so anyone else must tap Enable; and signing in
+([`app/sign-in/actions.ts`](../app/sign-in/actions.ts)) clears the
+cookie left by whoever was here before. If an address is still held by
+someone who never signed out, tapping Enable unsubscribes, signs up
+again for a fresh address and saves that.
 
 `push_subscriptions` holds one row per device (`endpoint` is unique,
 `user_id` isn't), so a person can have several. `user_id` defaults to

@@ -16,7 +16,17 @@ export async function signOut() {
   // stops notifications arriving here. Their other devices keep theirs.
   const device = store.get(DEVICE_COOKIE)?.value;
   if (device) {
-    await supabase.from("push_subscriptions").delete().eq("endpoint", device);
+    try {
+      const { error } = await supabase
+        .from("push_subscriptions")
+        .delete()
+        .eq("endpoint", device);
+      if (error) {
+        console.error("Could not end notifications on this device", error.code, error.message);
+      }
+    } catch (reason) {
+      console.error("Could not end notifications on this device", reason);
+    }
     store.delete(DEVICE_COOKIE);
   }
 

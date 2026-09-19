@@ -128,6 +128,7 @@ describe("saveDevice", () => {
     });
     expect(await saveDevice(device)).toEqual({
       saved: false,
+      takenByAnother: true,
       error:
         "This device is already signed up for notifications under someone else in the household.",
     });

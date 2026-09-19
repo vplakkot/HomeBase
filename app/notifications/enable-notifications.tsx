@@ -40,7 +40,10 @@ function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
 }
 
-async function currentStatus(publicKey?: string): Promise<Status> {
+async function currentStatus(
+  publicKey?: string,
+  knownDevice?: string | null,
+): Promise<Status> {
   if (!isInstalled()) return "needs-install";
   if (!canReceivePush()) return "unsupported";
   if (!publicKey) return "not-set-up";
@@ -49,19 +52,34 @@ async function currentStatus(publicKey?: string): Promise<Status> {
   if (Notification.permission === "granted") {
     const registration = await navigator.serviceWorker.ready;
     const existing = await registration.pushManager.getSubscription();
-    // Saving again is harmless and repairs a device the database lost.
-    if (existing && (await saveDevice(existing.toJSON())).saved) return "on";
+    // Only confirm a device this person already turned on, which the note
+    // left at the time says. Anyone else has to tap, so notifications are
+    // never switched on for someone who never asked — on a shared device,
+    // or after someone else signed out here.
+    if (
+      existing &&
+      existing.endpoint === knownDevice &&
+      (await saveDevice(existing.toJSON())).saved
+    ) {
+      return "on";
+    }
   }
   return "ready";
 }
 
-export function EnableNotifications({ publicKey }: { publicKey?: string }) {
+export function EnableNotifications({
+  publicKey,
+  knownDevice = null,
+}: {
+  publicKey?: string;
+  knownDevice?: string | null;
+}) {
   const [status, setStatus] = useState<Status>("checking");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let current = true;
-    currentStatus(publicKey).then(
+    currentStatus(publicKey, knownDevice).then(
       (next) => current && setStatus(next),
       (reason: unknown) => {
         if (!current) return;
@@ -72,7 +90,7 @@ export function EnableNotifications({ publicKey }: { publicKey?: string }) {
     return () => {
       current = false;
     };
-  }, [publicKey]);
+  }, [publicKey, knownDevice]);
 
   async function enable() {
     setStatus("asking");
@@ -90,13 +108,22 @@ export function EnableNotifications({ publicKey }: { publicKey?: string }) {
       // registers, `ready` would wait forever.
       await navigator.serviceWorker.register("/sw.js");
       const registration = await navigator.serviceWorker.ready;
-      const subscription =
-        (await registration.pushManager.getSubscription()) ??
-        (await registration.pushManager.subscribe({
+      const signUp = () =>
+        registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: keyBytes(publicKey ?? ""),
-        }));
-      const result = await saveDevice(subscription.toJSON());
+        });
+      let subscription =
+        (await registration.pushManager.getSubscription()) ?? (await signUp());
+      let result = await saveDevice(subscription.toJSON());
+      if (!result.saved && result.takenByAnother) {
+        // This address was left behind by someone who used the device
+        // before and didn't sign out. Start again with a fresh one rather
+        // than leaving them stuck.
+        await subscription.unsubscribe();
+        subscription = await signUp();
+        result = await saveDevice(subscription.toJSON());
+      }
       if (result.saved) {
         setStatus("on");
       } else {
