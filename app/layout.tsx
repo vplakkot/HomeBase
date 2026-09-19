@@ -3,8 +3,10 @@ import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   title: "HomeBase",
-  // What an iPhone uses when the app is added to the home screen: the name
-  // under the icon, the icon itself, and permission to open full screen.
+  // What an iPhone reads from each page when the app is added to the home
+  // screen: the name under the icon and the icon itself. Opening full
+  // screen comes from the app card (app/manifest.ts, display: standalone);
+  // `capable` only adds the generic mobile-web-app-capable hint tag.
   appleWebApp: {
     capable: true,
     title: "HomeBase",

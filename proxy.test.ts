@@ -105,6 +105,23 @@ describe("proxy", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  // The proxy is where a sign-in gets renewed, about once an hour of use. If
+  // the renewed cookies lost their lifetime, the sign-in would be thrown
+  // away the next time the installed app closed (lesson 13).
+  it("keeps a renewed sign-in's 400-day lifetime, whether or not it redirects", async () => {
+    const lifetime = 400 * 24 * 60 * 60;
+    givenSupabase({
+      signedIn: true,
+      refreshedCookies: [
+        { name: "sb-token", value: "fresh", options: { path: "/", maxAge: lifetime } },
+      ],
+    });
+    for (const path of ["/", "/sign-in"]) {
+      const response = await proxy(request(path));
+      expect(response.headers.get("set-cookie")).toContain(`Max-Age=${lifetime}`);
+    }
+  });
+
   it("verifies the token instead of trusting the cookie", async () => {
     givenSupabase({ signedIn: true });
     await proxy(request("/"));

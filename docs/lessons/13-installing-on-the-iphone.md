@@ -23,8 +23,11 @@ is [`app/manifest.ts`](../../app/manifest.ts), which Next.js serves at
 
 iPhones also read a few lines from each page's `<head>`, which
 [`app/layout.tsx`](../../app/layout.tsx) adds through Next.js's
-`metadata`: a 180 pixel `apple-touch-icon` (the size iPhones use), the
-name to show under it, and permission to open full screen.
+`metadata`: a 180 pixel `apple-touch-icon` (the size iPhones use) and
+the name to show under it. Opening full screen comes from the card's
+`display: standalone`, not from the head. Older guides mention an
+`apple-mobile-web-app-capable` tag. This version of Next.js writes only
+the generic `mobile-web-app-capable` one, so the card is what counts.
 
 The icons are PNG files in `public/`: a white house on dark blue. They're
 placeholders until the Design track makes a real one. They were drawn
@@ -72,11 +75,22 @@ session is renewed, which the proxy does as you use the app. So in
 practice you stay signed in as long as you open the app now and then.
 
 That lifetime is the library's choice, not ours; it ignores any attempt
-to change it. So the test ([`lib/supabase/session-lifetime.test.ts`](../../lib/supabase/session-lifetime.test.ts))
-runs a real sign-in through our own Supabase client, with only Supabase's
-server faked, and reads what gets written. It fails if a library update
-changes the lifetime, or if our code ever stops passing it along. I
-checked the second one by breaking it on purpose.
+to change it. What our code can do is lose it on the way through, in
+either of the two places cookies get written:
+
+- **At sign-in.** [`lib/supabase/session-lifetime.test.ts`](../../lib/supabase/session-lifetime.test.ts)
+  runs a real sign-in through our own Supabase client, with only
+  Supabase's server faked, and reads what gets written.
+- **At renewal**, in the proxy, about once an hour of use. A proxy test
+  hands it a renewed cookie with a 400-day lifetime and checks the
+  lifetime is still on what goes back to the phone, with and without a
+  redirect.
+
+Each fails if our code stops passing the lifetime along; I checked both
+by breaking them on purpose. The sign-in test also fails if a library
+update changes the lifetime itself. The renewal test was added in
+review: the first version tested sign-in only, and dropping the
+lifetime in the proxy passed every test.
 
 One thing to expect on the phone: an installed web app keeps its own
 cookies, separate from Safari's. Being signed in in Safari doesn't carry
@@ -87,8 +101,9 @@ that it remembers you.
 
 Everything above is tested on the parts we control: what the card says,
 that the icons exist at the right sizes, that the phone can fetch them,
-and how long a sign-in lasts. The last step, whether an iPhone actually
-shows the icon and name and opens full screen, can only be seen on an
-iPhone. This Mac has no iPhone simulator (that needs Xcode), so that check
-happens on a real phone, either on a preview link or at the v0.1 release.
-The pull request says so rather than claiming it.
+and how long a sign-in lasts. The last step can only be seen on an
+iPhone: that it shows the icon and name, opens full screen, and keeps
+you signed in between launches. This Mac has no iPhone simulator (that
+needs Xcode), so that check happens on a real phone, either on a preview
+link or at the v0.1 release. The pull request says so rather than
+claiming it.

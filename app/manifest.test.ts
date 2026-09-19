@@ -46,7 +46,7 @@ describe("the app card a phone reads on Add to Home Screen", () => {
 });
 
 describe("what every page tells an iPhone", () => {
-  it("allows opening full screen, under the name HomeBase", () => {
+  it("names the home-screen icon HomeBase", () => {
     expect(metadata.appleWebApp).toMatchObject({
       capable: true,
       title: "HomeBase",

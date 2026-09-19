@@ -270,8 +270,8 @@ served at `/manifest.webmanifest` and linked from every page: the name
 HomeBase, `start_url: "/"`, `display: "standalone"` (full screen, no
 address bar) and two icons in `public/` (192 and 512 pixels).
 [`app/layout.tsx`](../app/layout.tsx)'s `metadata` adds what iOS reads
-from each page's head: a 180 pixel `apple-touch-icon`, the home-screen
-title, and permission to open full screen.
+from each page's head: a 180 pixel `apple-touch-icon` and the home-screen
+title. Full screen comes from the manifest's `display`.
 
 Phones fetch the manifest without cookies, so the proxy's `matcher` skips
 it, next to `favicon.ico`. Otherwise the proxy would find no sign-in and
@@ -280,8 +280,9 @@ already skipped. Neither holds anything private.
 
 Staying signed in across opens of the installed app rests on the session
 cookies' 400-day lifetime, which `@supabase/ssr` sets and renews on every
-refresh; a test runs a real sign-in through
-[`lib/supabase/server.ts`](../lib/supabase/server.ts) to pin it. See
+refresh. Tests pin it where our code writes those cookies: at sign-in,
+through [`lib/supabase/server.ts`](../lib/supabase/server.ts), and at
+renewal, in the proxy. See
 [lesson 13](lessons/13-installing-on-the-iphone.md).
 
 ## Not yet built
