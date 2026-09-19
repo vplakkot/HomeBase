@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Installable as an app on iPhone. A web app manifest
+  (`/manifest.webmanifest`) gives Add to Home Screen the name HomeBase, a
+  placeholder icon (a white house on dark blue, in `public/` at 180, 192
+  and 512 pixels), full-screen display and the home page as the start.
+  Each page's head adds the iPhone-specific icon and title. The proxy now
+  skips the manifest, because phones fetch it without cookies and would
+  otherwise get the sign-in page. Tests pin the session cookies'
+  400-day lifetime, which is what keeps you signed in between opens,
+  both at sign-in (a real sign-in through our Supabase client) and when
+  the proxy renews the session. What only an iPhone can show, the icon on
+  the home screen, the full-screen launch and staying signed in between
+  launches, is still to be checked on a real phone. (#69)
+
 - Per-member notification switch in the admin console. Each membership
   carries a `notifications_enabled` flag, off by default, so a new member
   — including the household's first admin — starts switched off without

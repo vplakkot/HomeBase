@@ -60,8 +60,13 @@ export async function proxy(request: NextRequest) {
   return redirect;
 }
 
+// The proxy skips files that hold nothing private and that a browser or
+// phone fetches on its own. The web app manifest is one of them: phones
+// fetch it without the sign-in cookies, so if it came through here it would
+// be answered with the sign-in page and "Add to Home Screen" would ignore
+// it. The icons it names are PNGs, which the extension rule already skips.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

@@ -105,6 +105,23 @@ describe("proxy", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  // The proxy is where a sign-in gets renewed, about once an hour of use. If
+  // the renewed cookies lost their lifetime, the sign-in would be thrown
+  // away the next time the installed app closed (lesson 13).
+  it("keeps a renewed sign-in's 400-day lifetime, whether or not it redirects", async () => {
+    const lifetime = 400 * 24 * 60 * 60;
+    givenSupabase({
+      signedIn: true,
+      refreshedCookies: [
+        { name: "sb-token", value: "fresh", options: { path: "/", maxAge: lifetime } },
+      ],
+    });
+    for (const path of ["/", "/sign-in"]) {
+      const response = await proxy(request(path));
+      expect(response.headers.get("set-cookie")).toContain(`Max-Age=${lifetime}`);
+    }
+  });
+
   it("verifies the token instead of trusting the cookie", async () => {
     givenSupabase({ signedIn: true });
     await proxy(request("/"));
@@ -123,5 +140,21 @@ describe("proxy", () => {
     expect(regex.test("/")).toBe(true);
     expect(regex.test("/sign-in")).toBe(true);
     expect(regex.test("/finances/2026")).toBe(true);
+  });
+
+  // A phone fetches these without the sign-in cookies. Sent through the
+  // proxy, they'd come back as the sign-in page and the install would
+  // ignore them.
+  it("lets a phone fetch the app card and icons without signing in", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    for (const path of [
+      "/manifest.webmanifest",
+      "/apple-touch-icon.png",
+      "/icon-192.png",
+      "/icon-512.png",
+    ]) {
+      expect(regex.test(path)).toBe(false);
+    }
   });
 });
