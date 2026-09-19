@@ -285,6 +285,62 @@ through [`lib/supabase/server.ts`](../lib/supabase/server.ts), and at
 renewal, in the proxy. See
 [lesson 13](lessons/13-installing-on-the-iphone.md).
 
+## Turning notifications on
+
+The home page carries a small browser-side control,
+[`app/notifications/enable-notifications.tsx`](../app/notifications/enable-notifications.tsx).
+In a normal browser tab it explains that notifications need the
+home-screen install. In the installed app it registers the service
+worker, [`public/sw.js`](../public/sw.js), which the phone keeps running
+in the background to receive and show notifications. It then offers
+**Enable notifications**, which asks the phone's permission as the first
+thing the tap does.
+
+On a yes, the browser's `pushManager.subscribe()` returns a subscription
+from the phone's push service (Apple's, for an iPhone). The subscription
+is an address (`endpoint`) plus two keys that let a sender encrypt for
+that one device. It's made against the app's public push key,
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, which the server page hands to the
+control. Its private half, `VAPID_PRIVATE_KEY`, waits in Vercel for the
+sender in REQ-21. The Server Action
+[`app/notifications/actions.ts`](../app/notifications/actions.ts) saves
+the subscription to a new table:
+
+```mermaid
+sequenceDiagram
+    participant Person
+    participant Control as enable-notifications.tsx
+    participant Phone as iPhone
+    participant Apple as Apple push service
+    participant Action as saveDevice (Server Action)
+    participant DB as push_subscriptions
+
+    Person->>Control: tap "Enable notifications"
+    Control->>Phone: Notification.requestPermission()
+    Phone-->>Person: "Allow notifications?"
+    Person-->>Phone: Allow
+    Control->>Apple: pushManager.subscribe(public key)
+    Apple-->>Control: endpoint + keys
+    Control->>Action: saveDevice(subscription)
+    Action->>DB: upsert on endpoint (user_id filled in by the database)
+```
+
+`push_subscriptions` holds one row per device (`endpoint` is unique,
+`user_id` isn't), so a person can have several. `user_id` defaults to
+`auth.uid()` and references `household_members`, so leaving the household
+removes the devices. Row-level security lets each member see, add,
+change and remove only their own rows, and every policy also asks
+`is_member()`. `anon` has no grants at all. A check constraint accepts
+only the push services' own addresses (Apple, Google, Mozilla,
+Microsoft), because the sender will call every address stored here.
+Like the notifications flag, nobody but the device's owner can read
+these rows through the API, so REQ-21's sender will need `service_role`.
+
+The service worker skips the proxy, like the manifest does. The phone
+re-checks it in the background, and it refuses a service worker that
+answers with a redirect, which is what a lapsed sign-in would otherwise
+produce. See [lesson 14](lessons/14-turning-notifications-on.md).
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:

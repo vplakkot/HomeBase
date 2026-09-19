@@ -1,0 +1,179 @@
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { saveDevice } from "./actions";
+import { EnableNotifications } from "./enable-notifications";
+
+vi.mock("./actions", () => ({ saveDevice: vi.fn() }));
+
+// A made-up public key in the same shape as a real one: 65 bytes, first 4.
+const KEY_BYTES = [4, ...Array.from({ length: 64 }, (_, i) => i)];
+const PUBLIC_KEY = Buffer.from(KEY_BYTES).toString("base64url");
+
+const DEVICE_JSON = {
+  endpoint: "https://web.push.apple.com/QGuQyavXutnMfBCd",
+  keys: { p256dh: "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA", auth: "tBHItJI5svbpez7KI4CCXg" },
+};
+
+// jsdom has no notifications, service workers or home screen, so each test
+// describes the phone it's pretending to be.
+function givenDevice({
+  installed = true,
+  supportsPush = true,
+  permission = "default" as NotificationPermission,
+  answer = "granted" as NotificationPermission,
+  alreadySubscribed = false,
+} = {}) {
+  const subscription = { toJSON: () => DEVICE_JSON };
+  const pushManager = {
+    getSubscription: vi.fn(async () => (alreadySubscribed ? subscription : null)),
+    subscribe: vi.fn(async (_options: PushSubscriptionOptionsInit) => subscription),
+  };
+  const registration = { pushManager };
+  const serviceWorker = {
+    register: vi.fn(async () => registration),
+    ready: Promise.resolve(registration),
+  };
+  const notification = {
+    permission,
+    requestPermission: vi.fn(async () => answer),
+  };
+
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((query: string) => ({
+      matches: installed && query === "(display-mode: standalone)",
+    })),
+  );
+  if (supportsPush) {
+    Object.defineProperty(navigator, "serviceWorker", {
+      value: serviceWorker,
+      configurable: true,
+    });
+    vi.stubGlobal("PushManager", function PushManager() {});
+    vi.stubGlobal("Notification", notification);
+  }
+  return { pushManager, serviceWorker, notification };
+}
+
+async function tapEnable() {
+  fireEvent.click(await screen.findByRole("button", { name: "Enable notifications" }));
+}
+
+describe("EnableNotifications", () => {
+  beforeEach(() => {
+    vi.mocked(saveDevice).mockResolvedValue({ saved: true });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    delete (navigator as { serviceWorker?: unknown }).serviceWorker;
+    vi.mocked(saveDevice).mockReset();
+  });
+
+  it("in a normal browser tab, explains that notifications need the home-screen install", async () => {
+    givenDevice({ installed: false });
+    render(<EnableNotifications publicKey={PUBLIC_KEY} />);
+    expect(
+      await screen.findByText(/Notifications need HomeBase on your home screen/),
+    ).toBeDefined();
+    expect(screen.getByText(/tap Share, then Add to Home Screen/)).toBeDefined();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("in the installed app, gets the device ready and offers the button", async () => {
+    const device = givenDevice();
+    render(<EnableNotifications publicKey={PUBLIC_KEY} />);
+    expect(
+      await screen.findByRole("button", { name: "Enable notifications" }),
+    ).toBeDefined();
+    expect(device.serviceWorker.register).toHaveBeenCalledWith("/sw.js");
+    expect(device.notification.requestPermission).not.toHaveBeenCalled();
+  });
+
+  // Checked straight after the click, before anything is awaited: the
+  // question has to be asked within the tap itself.
+  it("asks the phone's permission within the tap itself", async () => {
+    const device = givenDevice();
+    render(<EnableNotifications publicKey={PUBLIC_KEY} />);
+    const button = await screen.findByRole("button", { name: "Enable notifications" });
+    fireEvent.click(button);
+    expect(device.notification.requestPermission).toHaveBeenCalledTimes(1);
+  });
+
+  it("once allowed, signs this device up and saves it against the account", async () => {
+    const device = givenDevice({ answer: "granted" });
+    render(<EnableNotifications publicKey={PUBLIC_KEY} />);
+    await tapEnable();
+    expect(
+      await screen.findByText("Notifications are on for this device."),
+    ).toBeDefined();
+    const [options] = device.pushManager.subscribe.mock.calls[0];
+    expect(options.userVisibleOnly).toBe(true);
+    expect(Array.from(options.applicationServerKey as Uint8Array)).toEqual(KEY_BYTES);
+    expect(saveDevice).toHaveBeenCalledWith(DEVICE_JSON);
+  });
+
+  it("if permission is denied, shows notifications as off and how to turn them on in Settings", async () => {
+    const device = givenDevice({ answer: "denied" });
+    render(<EnableNotifications publicKey={PUBLIC_KEY} />);
+    await tapEnable();
+    expect(
+      await screen.findByText(/Notifications are off for this device/),
+    ).toBeDefined();
+    expect(
+      screen.getByText(/open the Settings app, tap Notifications, then HomeBase/),
+    ).toBeDefined();
+    expect(device.pushManager.subscribe).not.toHaveBeenCalled();
+    expect(saveDevice).not.toHaveBeenCalled();
+  });
+
+  it("if permission was denied earlier, shows off straight away without asking again", async () => {
+    const device = givenDevice({ permission: "denied" });
+    render(<EnableNotifications publicKey={PUBLIC_KEY} />);
+    expect(
+      await screen.findByText(/Notifications are off for this device/),
+    ).toBeDefined();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(device.notification.requestPermission).not.toHaveBeenCalled();
+  });
+
+  it("if this device is already on, saves it again quietly and says so", async () => {
+    givenDevice({ permission: "granted", alreadySubscribed: true });
+    render(<EnableNotifications publicKey={PUBLIC_KEY} />);
+    expect(
+      await screen.findByText("Notifications are on for this device."),
+    ).toBeDefined();
+    expect(saveDevice).toHaveBeenCalledWith(DEVICE_JSON);
+  });
+
+  it("says so when the device can't receive notifications at all", async () => {
+    givenDevice({ supportsPush: false });
+    render(<EnableNotifications publicKey={PUBLIC_KEY} />);
+    expect(
+      await screen.findByText(/This device can't get notifications from HomeBase/),
+    ).toBeDefined();
+  });
+
+  it("says so when the server has no push key", async () => {
+    givenDevice();
+    render(<EnableNotifications publicKey={undefined} />);
+    expect(
+      await screen.findByText("Notifications aren't set up on this server yet."),
+    ).toBeDefined();
+  });
+
+  it("shows why saving failed, and offers to try again", async () => {
+    givenDevice();
+    vi.mocked(saveDevice).mockResolvedValue({
+      saved: false,
+      error: "Couldn't save this device: offline",
+    });
+    render(<EnableNotifications publicKey={PUBLIC_KEY} />);
+    await tapEnable();
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Couldn't save this device: offline",
+    );
+    expect(screen.getByRole("button", { name: "Try again" })).toBeDefined();
+  });
+});

@@ -157,4 +157,13 @@ describe("proxy", () => {
       expect(regex.test(path)).toBe(false);
     }
   });
+
+  // The phone re-checks the service worker in the background, and refuses
+  // one that answers with a redirect, which is what a lapsed sign-in would
+  // produce here.
+  it("lets the phone fetch the service worker without signing in", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    expect(regex.test("/sw.js")).toBe(false);
+  });
 });

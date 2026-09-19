@@ -5,6 +5,7 @@ import { readMode } from "../lib/auth/mode";
 import { hasPermission } from "../lib/auth/permissions";
 import { createClient } from "../lib/supabase/server";
 import { enterAdminMode, leaveAdminMode } from "./mode/actions";
+import { EnableNotifications } from "./notifications/enable-notifications";
 import { signOut } from "./sign-out/actions";
 
 function getBuildInfo() {
@@ -45,6 +46,9 @@ export default async function HomePage() {
           <button type="submit">Enter admin mode</button>
         </form>
       ) : null}
+      <EnableNotifications
+        publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+      />
       <form action={signOut}>
         <button type="submit">Sign out</button>
       </form>
