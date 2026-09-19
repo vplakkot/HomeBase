@@ -182,7 +182,15 @@ describe("invitations expire migration", () => {
     expect(migration).toMatch(/if not found then\s+raise exception 'Sign-up is closed/);
   });
 
-  it("sweeps expired invitations away at sign-up, so none accumulate", () => {
+  it("dates rows that predate the column from their own creation, not from now", () => {
+    expect(migration).toMatch(
+      /update public\.member_invitations\s+set expires_at = created_at \+ interval '10 minutes'/,
+    );
+  });
+
+  it("tidies expired invitations at sign-up as well, best-effort", () => {
+    // Best-effort on purpose: this delete is inside the sign-up transaction, so
+    // a refused sign-up rolls it back. The guard is the expires_at test above.
     expect(migration).toMatch(/delete from public\.member_invitations where expires_at <= now\(\)/);
   });
 

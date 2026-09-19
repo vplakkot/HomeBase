@@ -92,6 +92,20 @@ transaction of its own before writing the next invitation; that is also
 the moment it matters, because it's the admin's retry. The `expires_at`
 test is the guard; everything else is housekeeping.
 
+**Adding a column with a default is a decision about the rows already
+there.** `add column expires_at ... default (now() + interval '10
+minutes')` gives *existing* rows that default too — dated from the moment
+the migration runs. So the migration written to disarm stale invitations
+would have handed every stale invitation a fresh ten minutes on the way
+in. One `update` from `created_at` fixes it. The table happened to be
+empty here, which is exactly why it's worth stating: a migration has to be
+right wherever it runs, not just where you watched it run.
+
+Ten minutes is tied to what an invitation is *today* — a signal consumed
+seconds later by the same action that wrote it. If invitations ever become
+something a person receives and acts on in their own time, both the
+default and the trigger's test need a different number, chosen on purpose.
+
 Two general shapes to keep. When a step can leave a record behind, prefer
 making the record expire over promising to come back and tidy it up — a
 guarantee that needs the process to still be alive isn't a guarantee. And

@@ -8,6 +8,13 @@
 alter table public.member_invitations
   add column expires_at timestamptz not null default (now() + interval '10 minutes');
 
+-- Rows written before this migration existed would take that default and come
+-- out of it with a fresh ten minutes — re-arming the very leftovers the column
+-- is here to disarm. Date them from when they were actually created instead,
+-- so anything already stale is already expired the moment this lands.
+update public.member_invitations
+  set expires_at = created_at + interval '10 minutes';
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
