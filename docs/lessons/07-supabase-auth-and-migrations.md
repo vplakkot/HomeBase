@@ -168,11 +168,19 @@ database that has run something the repo can't show it.
 
 **The tempting diagnosis is "merge them in timestamp order", and it is
 wrong.** The failure is symmetric. Merging the other one first would have
-left `main` missing `20260919100000` and failed in exactly the same words.
-Repairing the ledger doesn't rescue it either; it just moves the failure
-to whichever merge comes second. The window *between* two migration merges
-is always red, whatever you do inside it. It went green the moment the
-second one landed (#57, #52).
+left `main` missing `20260919100000` and failed in exactly the same
+words — the CLI compares the two lists and complains about whichever
+version the repo can't show it, with no opinion about which one that is.
+
+Repairing the ledger doesn't rescue it either; it just moves the failure.
+Tell the CLI to forget `20260919120000` and the next merge tries to run
+it again, against a column that already exists. Whether an escape exists
+at all depends on accidents: whether the stranded migration happens to be
+replayable, and whether the workflow passes `--include-all`, which ours
+doesn't. Don't plan around it. In practice the window *between* two
+migration merges is red, and it went green the moment the second pull
+request landed. Those were pull requests #58 and #59, for issues #57 and
+#52.
 
 So the rule isn't about ordering. **Finish and merge a migration pull
 request before opening the next one.** That cuts against the habit the

@@ -5,11 +5,11 @@
 - Lesson 07: document why only one migration pull request should be open
   at a time. Because a migration reaches the hosted project before it
   reaches `main`, two open ones leave the remote ledger holding both
-  while `main` holds neither, and `migrate.yml` fails on the first merge
-  with "Remote migration versions not found in local migrations
+  while `main` still holds only one, and `migrate.yml` fails on the first
+  merge with "Remote migration versions not found in local migrations
   directory". Records that merge order does not fix this, since the
-  failure is symmetric, and that the gap between the two merges is always
-  red. Seen for real merging #57 and #52. Docs only. (#62)
+  failure is symmetric, and that repairing the ledger only moves it.
+  Seen for real merging pull requests #58 and #59. Docs only. (#62)
 - Fix: invitations expire. Creating a member writes an invitation row and
   then creates the account; a crash between the two left the invitation
   behind, and an invitation never expired, so that address could sign
