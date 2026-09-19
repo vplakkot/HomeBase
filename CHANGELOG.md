@@ -9,7 +9,9 @@
   change it, and members cannot see it at all: the table-wide `select`
   grant on `household_members` is withdrawn from `authenticated` and
   re-granted column by column, leaving this one out, so even `select=*`
-  is refused. The roster function is re-created (not replaced, since its
+  is refused. `anon` is withdrawn outright with nothing handed back,
+  since every policy on the table is already `to authenticated` and a
+  signed-out visitor has no business reading any of it. The roster function is re-created (not replaced, since its
   columns changed) to return the flag to admins. Nothing sends
   notifications yet; REQ-21 will read this flag. (#66)
 

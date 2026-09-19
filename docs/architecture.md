@@ -198,11 +198,13 @@ Each membership also carries a `notifications_enabled` flag, off by
 default, which an admin turns on or off from the roster. Row-level
 security decides which *rows* you may read; this flag needed the
 column-level equivalent, so the table-wide `select` grant on
-`household_members` was withdrawn from `authenticated` and `anon` and
-re-granted column by column, leaving this one out. Members therefore
-still read every membership row but cannot see, or ask for, who has
-notifications on — not even with `select=*`, which now fails rather than
-quietly omitting it. The roster function is `security definer`, so it
+`household_members` was withdrawn from `authenticated` and re-granted
+column by column, leaving this one out. Members therefore still read
+every membership row but cannot see, or ask for, who has notifications
+on — not even with `select=*`, which now fails rather than quietly
+omitting it. `anon` had its grant withdrawn and nothing handed back, so a
+signed-out visitor can read no column of this table at all; the policies
+were already `to authenticated`, and this is the second layer. The roster function is `security definer`, so it
 runs as the table's owner and can still return the flag to
 `manage_members` holders.
 

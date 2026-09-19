@@ -123,9 +123,19 @@ export async function setNotifications(
   // No error does not by itself mean a row changed: row-level security
   // filters an update to zero rows without complaining. Reading the row back
   // to confirm isn't open to us, because this runs as the signed-in admin and
-  // the column is closed to them. What makes the claim safe is the line
-  // above: requireManageMembers() has already redirected anyone the policy
-  // would have filtered out, so reaching here means the row was writable.
+  // the column is closed to them.
+  //
+  // What rules out the row-level-security case is not similarity but
+  // identity: requireManageMembers() calls public.has_permission
+  // ('manage_members'), which is the same function the policy's own check
+  // calls, as the same database role in the same request. One predicate
+  // evaluated twice, so the two cannot drift apart.
+  //
+  // The case it does not cover is a user_id that no longer exists — a stale
+  // roster, or simply a value posted to this action directly. Then nothing
+  // matches, nothing errors, and this reports success for somebody who isn't
+  // there. Nothing is corrupted, and the next render drops them from the
+  // roster, so it corrects itself.
   revalidatePath("/admin");
   return { enabled };
 }
