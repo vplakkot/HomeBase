@@ -148,6 +148,53 @@ will run for real the first time someone builds a fresh database. The
 judgement is "this line is three tokens against a column I have
 confirmed", not "this is verified".
 
+### One migration pull request at a time
+
+The same fact behind the section above — migrations reach the live project
+*before* they reach `main` — has a second consequence, and this one bites
+at merge time.
+
+Two pull requests were open, each adding a migration, both already applied
+to the hosted project during verification. Merging the first one made
+[`migrate.yml`](../../.github/workflows/migrate.yml) fail on `main`:
+
+```
+Remote migration versions not found in local migrations directory.
+```
+
+`main` now had `20260919100000` and not `20260919120000`, while the CLI's
+ledger on the remote had both. `db push` refuses to reason about a
+database that has run something the repo can't show it.
+
+**The tempting diagnosis is "merge them in timestamp order", and it is
+wrong.** The failure is symmetric. Merging the other one first would have
+left `main` missing `20260919100000` and failed in exactly the same
+words — the CLI compares the two lists and complains about whichever
+version the repo can't show it, with no opinion about which one that is.
+
+Repairing the ledger doesn't rescue it either; it just moves the failure.
+Tell the CLI to forget `20260919120000` and the next merge tries to run
+it again, against a column that already exists. Whether an escape exists
+at all depends on accidents: whether the stranded migration happens to be
+replayable, and whether the workflow passes `--include-all`, which ours
+doesn't. Don't plan around it. In practice the window *between* two
+migration merges is red, and it went green the moment the second pull
+request landed. Those were pull requests #58 and #59, for issues #57 and
+#52.
+
+So the rule isn't about ordering. **Finish and merge a migration pull
+request before opening the next one.** That cuts against the habit the
+rest of this project encourages, where independent pull requests sit side
+by side happily — and that is exactly why it's written down. The
+exception isn't arbitrary: ordinary pull requests only touch files, so
+`main` is the whole truth about them. A migration touches a database that
+remembers, and two sources of truth have to agree.
+
+If two are already open, merge them back to back and accept one red run.
+Expect them to conflict each other on `CHANGELOG.md` and
+`supabase/schema.test.ts` as they go, since both append to the top of one
+and the bottom of the other.
+
 ## The data model
 
 ```mermaid
