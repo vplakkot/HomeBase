@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- CLAUDE.md: after restating the plan for a requirement, Claude starts
+  building instead of waiting for a go-ahead. It stops to ask only when
+  the plan holds a decision that's Vin's to make, or a step only Vin can
+  take. Vin had given this permission in an earlier chat, but it lived
+  only in that chat, so a fresh one stalled waiting for approval it
+  already had. Docs only. (#71)
+
 - Per-member notification switch in the admin console. Each membership
   carries a `notifications_enabled` flag, off by default, so a new member
   — including the household's first admin — starts switched off without
