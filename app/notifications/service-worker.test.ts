@@ -22,10 +22,11 @@ function loadWorker({ openWindows = [] as object[] } = {}) {
     addEventListener: (type: string, listener: Listener) => {
       listeners[type] = listener;
     },
+    location: { origin: "https://homebase.example" },
     registration: { showNotification },
     clients: { matchAll: vi.fn(async () => openWindows), openWindow },
   };
-  runInNewContext(source, { self });
+  runInNewContext(source, { self, URL });
 
   async function dispatch(type: string, event: object) {
     const pending: Promise<unknown>[] = [];
@@ -84,9 +85,14 @@ describe("the service worker", () => {
     const worker = loadWorker();
     const links: [unknown, string][] = [
       ["/finances", "/finances"],
+      ["/finances?month=9#owed", "/finances?month=9#owed"],
       ["https://other.example/x", "/"],
       ["//other.example/x", "/"],
       ["/\\other.example/x", "/"],
+      // A tab or line break inside a link is stripped by the browser, so
+      // these two really mean "//other.example/x".
+      ["/\t/other.example/x", "/"],
+      ["/\n/other.example/x", "/"],
       [42, "/"],
     ];
     for (const [url] of links) {
@@ -100,10 +106,13 @@ describe("the service worker", () => {
 
   it("opens the home page when a tapped notification names another site", async () => {
     const worker = loadWorker();
-    await worker.dispatch("notificationclick", {
-      notification: { close: vi.fn(), data: { url: "https://other.example/x" } },
-    });
-    expect(worker.openWindow).toHaveBeenCalledWith("/");
+    for (const url of ["https://other.example/x", "/\t/other.example/x"]) {
+      await worker.dispatch("notificationclick", {
+        notification: { close: vi.fn(), data: { url } },
+      });
+    }
+    expect(worker.openWindow).toHaveBeenNthCalledWith(1, "/");
+    expect(worker.openWindow).toHaveBeenNthCalledWith(2, "/");
   });
 
   it("opens the app when a notification is tapped", async () => {
