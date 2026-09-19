@@ -82,14 +82,48 @@ server call it. The check is in the database rather than the app, for
 the same reason as the one-household rule: the app isn't the only way to
 write to the table, and the database is.
 
+## Checking the rules on the live database, without signing in
+
+The rules above only exist in Postgres, so the tests in this repo can pin
+their wording but can't run them. They were checked on the live database
+instead, and without anyone's password.
+
+The database decides who someone is from a setting on the connection,
+`request.jwt.claims`, which normally comes from the sign-in token. A
+test can set that itself and then switch to the `authenticated` role,
+and the rules treat it exactly as they would that person. So one block
+of SQL played the test member, then the test admin, then a signed-out
+visitor, and tried every save, read, change and delete. At the end it
+deliberately raised an error, and the error carried the results out.
+
+That last part is the trick. Postgres undoes everything a failed
+statement did, so none of the test rows survived, and a count straight
+afterwards found none. It's a dress rehearsal on the real stage: the
+lights, the set and the cast are real, and nothing is left on stage when
+it's over.
+
+| Attempt | Result |
+|---|---|
+| Member saves a phone and an iPad | both saved, filed under the member |
+| Member saves the phone again | refreshed, not duplicated |
+| Member saves a device under the admin | refused by the rules |
+| Member saves an address that isn't a push service | refused by the check |
+| Admin lists devices | sees only their own |
+| Admin changes or removes the member's devices | nothing changes |
+| Admin takes over the member's phone by re-saving it | refused |
+| Member removes their own iPad | removed |
+| Signed-out visitor reads the table | permission denied |
+
+Run with `npx supabase db query --linked -f <file>`, which goes through
+the Supabase account already linked on this Mac.
+
 ## What only a phone can prove
 
 The tests pretend to be a phone: they cover what the app does for each
-answer, and what it saves. The live database was checked with a real
-signed-in session: which rows each person can see, add and remove. What
-nothing here can prove is the iPhone's side: that the question appears,
-and that Apple hands back a working subscription. This Mac has no
-iPhone simulator, and push needs a real device anyway. That check is
-yours, on a phone, and REQ-21's first test notification is its natural
-end point. "Each device receives its own notification" also has to wait
-for REQ-21, because until then nothing sends.
+answer, and what it saves. What nothing here can prove is the iPhone's
+side: that the question appears, and that Apple hands back a working
+subscription. This Mac has no iPhone simulator, and push needs a real
+device anyway. That check is yours, on a phone, and REQ-21's first test
+notification is its natural end point. "Each device receives its own
+notification" also has to wait for REQ-21, because until then nothing
+sends.
