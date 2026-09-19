@@ -66,3 +66,46 @@ These checks don't review code quality, naming, or whether a change is a
 good idea — they only catch things that are mechanically checkable: does
 it type-check, does it build, do the tests we've written still pass, was
 the changelog touched. Anything more judgment-based is still a human's job.
+
+## The local run and CI have to be the same run
+
+CI checks out the repository and nothing else. A local checkout collects
+whatever is lying around it, and the two quietly stop agreeing.
+
+That happened here (#60). A git *worktree* — a second checkout of the same
+repo, on another branch, parked in `.claude/worktrees/` — never shows up
+in `git status`, so it feels invisible. But vitest doesn't read
+`.gitignore`. It walked into that copy and collected every test a second
+time, from a commit that had nothing to do with the branch being worked
+on. A run that should have found 24 files found 46, and the inflated count
+was quoted as evidence in two pull requests before anyone noticed.
+
+A detail that made it worse: the path was ignored only through
+`.git/info/exclude`, a per-machine file that is never committed. So the
+"git ignores it" everyone relied on was true on exactly one computer.
+`.gitignore` now carries it instead.
+
+The count was the harmless part. The real hazard is that the duplicate is
+pinned to an old commit: it can pass while the working tree is broken, or
+fail for reasons belonging to a branch nobody is touching, and either way
+the failure points at a file path that looks almost right. The fix is one
+line in `vitest.config.ts`:
+
+```ts
+exclude: [...configDefaults.exclude, "**/.claude/worktrees/**"],
+```
+
+Two deliberate details. Spread `configDefaults.exclude` rather than
+assigning a fresh array, because assigning replaces vitest's defaults and
+`**/node_modules/**` is one of them. And exclude the *worktrees*
+directory, not all of `.claude` — the rest of that directory is tracked,
+and `.github/workflows/promote.test.ts` already shows this repo testing
+config that lives in a dot-directory. A glob wide enough to cover the
+problem and then some will one day swallow a test you meant to run, and
+vitest doesn't report what it skipped.
+
+The general rule worth keeping: **git-ignored is not tool-ignored**. Every
+tool that walks the filesystem — a test runner, a linter, a bundler, a
+search — has its own idea of what to skip, and "git doesn't track it" tells
+you nothing about what they will do. When a local number and CI's number
+disagree, don't reconcile them by picking the one you like; find out why.
