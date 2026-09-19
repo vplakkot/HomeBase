@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Opt in to push notifications. The home page gains a Notifications
+  section. In a normal browser tab it explains that notifications need
+  the home-screen install. In the installed app it offers **Enable
+  notifications**, which asks the phone's permission as the first thing
+  the tap does, then signs the device up with its push service and saves
+  the result against the signed-in person. A denied permission shows as
+  off, with the way back through the Settings app. A new
+  `push_subscriptions` table holds one row per device, so a person can
+  have several. Each member sees and manages only their own rows, `anon`
+  gets nothing, and a check refuses any address that isn't a push
+  service's own, because REQ-21's sender will call every one. Adds the
+  service worker (`public/sw.js`), which the proxy skips, and two new
+  environment variables for the app's push keys. The live check of the
+  table's rules is committed as `supabase/checks/push_subscriptions.sql`
+  and undoes itself when run. Nothing sends yet; that is REQ-21. (#70)
+
 - Installable as an app on iPhone. A web app manifest
   (`/manifest.webmanifest`) gives Add to Home Screen the name HomeBase, a
   placeholder icon (a white house on dark blue, in `public/` at 180, 192

@@ -12,6 +12,13 @@ vi.mock("./mode/actions", () => ({
   leaveAdminMode: vi.fn(),
 }));
 vi.mock("next/headers", () => ({ cookies: vi.fn() }));
+// The notifications control runs in the browser and has its own tests; here
+// it only has to be on the page, holding the server's push key.
+vi.mock("./notifications/enable-notifications", () => ({
+  EnableNotifications: ({ publicKey }: { publicKey?: string }) => (
+    <p data-testid="notifications">{publicKey ?? "no key"}</p>
+  ),
+}));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -91,6 +98,13 @@ describe("HomePage", () => {
     expect(screen.queryByRole("button", { name: "Enter admin mode" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Admin console" })).toBeNull();
     expect(screen.queryByText("Admin mode")).toBeNull();
+  });
+
+  it("offers notifications, handing over the server's push key", async () => {
+    given({ email: "member@example.com" });
+    vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public-push-key");
+    render(await HomePage());
+    expect(screen.getByTestId("notifications").textContent).toBe("public-push-key");
   });
 
   it("falls back to placeholder build info when Vercel env vars are unset", async () => {
