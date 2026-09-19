@@ -325,6 +325,14 @@ sequenceDiagram
     Action->>DB: upsert on endpoint (user_id filled in by the database)
 ```
 
+Saving also writes the device's address into a `homebase-device`
+cookie (`httpOnly`), which is how sign-out knows which device this
+browser is: [`app/sign-out/actions.ts`](../app/sign-out/actions.ts)
+removes that one row before ending the session — in that order, since
+the delete needs the session — and clears the cookie. Their other
+devices keep their notifications, and the next person to sign in on this
+one can turn notifications on for themselves.
+
 `push_subscriptions` holds one row per device (`endpoint` is unique,
 `user_id` isn't), so a person can have several. `user_id` defaults to
 `auth.uid()` and references `household_members`, so leaving the household

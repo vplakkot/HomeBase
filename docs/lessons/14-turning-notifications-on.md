@@ -91,6 +91,31 @@ server call it. The check is in the database rather than the app, for
 the same reason as the one-household rule: the app isn't the only way to
 write to the table, and the database is.
 
+## Signing out ends notifications on that device
+
+A device belongs to whoever turned notifications on there. Leave it at
+that and two things go wrong once REQ-21 starts sending: notifications
+keep arriving on a device its owner has signed out of, and a second
+person signing in on the same device can't turn notifications on,
+because the address is taken.
+
+The fix is small. When notifications are turned on, the app writes the
+device's address into a cookie, `homebase-device`. Signing out reads it,
+removes that row, and forgets the cookie — in that order, because
+removing the row needs the session that's about to end. The sender only
+reaches devices listed in the table, so the row going is what stops the
+notifications. The person's other devices are untouched, which matches
+sign-out itself: it has always ended this device's session only.
+
+The cookie holds nothing secret (an address is useless without the app's
+private key), but it's `httpOnly`, so page scripts can't read or forge
+it.
+
+The device stays signed up with Apple, which is deliberate: turning
+notifications back on then costs one tap and no new permission. And
+because the row is gone, the next person to sign in on that device can
+turn notifications on for themselves.
+
 ## Checking the rules on the live database, without signing in
 
 The rules above only exist in Postgres, so the tests in this repo can pin

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Signing out ends notifications on that device. Turning notifications on
+  now also records which device this browser is, in an `httpOnly`
+  `homebase-device` cookie, and signing out removes that one row from
+  `push_subscriptions` before ending the session, then forgets the
+  cookie. Without it, once REQ-21 starts sending, notifications would
+  keep arriving on a device their owner had signed out of, and a second
+  person signing in on a shared device could never turn notifications on,
+  because the address was taken. Their other devices are unaffected,
+  which matches sign-out ending this device's session only. (#75)
+
 - Opt in to push notifications. The home page gains a Notifications
   section. In a normal browser tab it explains that notifications need
   the home-screen install. In the installed app it offers **Enable
