@@ -180,7 +180,12 @@ holders — with a role dropdown fed from the `roles` table and a
 password-reset form. Role changes are plain updates to
 `household_members`, guarded by RLS and by two triggers reading the role's
 `max_holders` and `min_holders` (Admin: at most 2, at least 1), so the
-only admin cannot demote themselves. A reset sets a temporary password and
+only admin cannot demote themselves. A floor guards a *living* household:
+it also refuses to let the last admin's account be deleted, which would
+leave the other members with nobody able to manage them, but it stands
+aside when the household row itself is deleted and its memberships
+cascade away. Tearing a household down therefore means deleting the
+household first, then the accounts. A reset sets a temporary password and
 `must_set_password` through the secret key; Supabase signs the member out
 everywhere, and their next sign-in lands on `/set-password`. See
 [lesson 12](lessons/12-the-member-ledger.md).
