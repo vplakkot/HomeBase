@@ -347,9 +347,9 @@ These are deliberately absent at this stage, not overlooked:
 
 - **No `components/` folder** — the sign-up and sign-in forms live next
   to their pages; nothing is shared between pages yet.
-- **Almost no state** — the only interactivity is the forms'
-  pending/error state and the admin-mode cookie; nothing else changes
-  after a page loads.
+- **Little state** — the forms' pending/error state, the admin-mode
+  cookie, and the notifications control, which checks the device when the
+  page opens and changes as the phone's question is answered.
 - **No styling** — plain, unstyled HTML.
 - **An empty admin console** — `/admin` exists so the toggle has
   somewhere to go; creating member accounts (REQ-13) and managing members

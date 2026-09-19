@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../lib/supabase/server";
-import { saveDevice } from "./actions";
+import { type DeviceSubscription, saveDevice } from "./actions";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/headers", () => ({ headers: vi.fn() }));
@@ -15,7 +15,7 @@ const device = {
 
 function given({
   signedIn = true,
-  upsertError = null as { message: string } | null,
+  upsertError = null as { code: string; message: string } | null,
 } = {}) {
   const upsert = vi.fn(async () => ({ error: upsertError }));
   const from = vi.fn(() => ({ upsert }));
@@ -38,6 +38,7 @@ describe("saveDevice", () => {
   afterEach(() => {
     vi.mocked(createClient).mockReset();
     vi.mocked(headers).mockReset();
+    vi.restoreAllMocks();
   });
 
   it("saves the device against whoever is signed in", async () => {
@@ -83,17 +84,47 @@ describe("saveDevice", () => {
 
   it("refuses something that isn't a device subscription", async () => {
     const { upsert } = given();
-    for (const bad of [{}, { endpoint: device.endpoint }, { keys: device.keys }]) {
-      expect((await saveDevice(bad)).saved).toBe(false);
+    const notText = { ...device, keys: { ...device.keys, auth: 42 } };
+    const oversized = { ...device, endpoint: `${device.endpoint}${"x".repeat(2048)}` };
+    for (const bad of [{}, { endpoint: device.endpoint }, { keys: device.keys }, notText, oversized]) {
+      expect((await saveDevice(bad as DeviceSubscription)).saved).toBe(false);
     }
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it("passes on the database's refusal", async () => {
-    given({ upsertError: { message: "new row violates check constraint" } });
+  // The raw database message goes to the server log, not the screen.
+  it("explains a device already signed up under someone else in plain words", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    given({
+      upsertError: { code: "42501", message: "new row violates row-level security policy" },
+    });
     expect(await saveDevice(device)).toEqual({
       saved: false,
-      error: "Couldn't save this device: new row violates check constraint",
+      error:
+        "This device is already signed up for notifications under someone else in the household.",
+    });
+    expect(log).toHaveBeenCalledWith(
+      "saveDevice failed",
+      "42501",
+      "new row violates row-level security policy",
+    );
+  });
+
+  it("explains an address the database won't accept in plain words", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    given({ upsertError: { code: "23514", message: "violates check constraint" } });
+    expect(await saveDevice(device)).toEqual({
+      saved: false,
+      error: "That notification address isn't from a push service HomeBase accepts.",
+    });
+  });
+
+  it("asks to try again for anything else, without showing the database's words", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    given({ upsertError: { code: "08006", message: "connection failure" } });
+    expect(await saveDevice(device)).toEqual({
+      saved: false,
+      error: "Couldn't save this device. Try again in a moment.",
     });
   });
 });

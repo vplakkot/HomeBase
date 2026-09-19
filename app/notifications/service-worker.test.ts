@@ -71,6 +71,41 @@ describe("the service worker", () => {
     });
   });
 
+  it("still shows a notification when the message is literally null", async () => {
+    const worker = loadWorker();
+    await worker.dispatch("push", pushWith(null));
+    expect(worker.showNotification).toHaveBeenCalledWith("HomeBase", {
+      body: "",
+      data: { url: "/" },
+    });
+  });
+
+  it("keeps a push's link inside HomeBase", async () => {
+    const worker = loadWorker();
+    const links: [unknown, string][] = [
+      ["/finances", "/finances"],
+      ["https://other.example/x", "/"],
+      ["//other.example/x", "/"],
+      ["/\\other.example/x", "/"],
+      [42, "/"],
+    ];
+    for (const [url] of links) {
+      await worker.dispatch("push", pushWith({ title: "T", url }));
+    }
+    const opened = worker.showNotification.mock.calls.map(
+      (call) => (call as unknown as [string, { data: { url: string } }])[1].data.url,
+    );
+    expect(opened).toEqual(links.map(([, expected]) => expected));
+  });
+
+  it("opens the home page when a tapped notification names another site", async () => {
+    const worker = loadWorker();
+    await worker.dispatch("notificationclick", {
+      notification: { close: vi.fn(), data: { url: "https://other.example/x" } },
+    });
+    expect(worker.openWindow).toHaveBeenCalledWith("/");
+  });
+
   it("opens the app when a notification is tapped", async () => {
     const worker = loadWorker();
     const close = vi.fn();

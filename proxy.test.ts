@@ -166,4 +166,20 @@ describe("proxy", () => {
     const regex = new RegExp(`^${pattern}$`);
     expect(regex.test("/sw.js")).toBe(false);
   });
+
+  // The skip list names exact files. Anything merely resembling one still
+  // gets the sign-in check.
+  it("still checks look-alikes of the skipped files", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    for (const path of [
+      "/sw.json",
+      "/sw-js",
+      "/swXjs",
+      "/manifest.webmanifest.bak",
+      "/manifestXwebmanifest",
+    ]) {
+      expect(regex.test(path)).toBe(true);
+    }
+  });
 });

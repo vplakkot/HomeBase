@@ -22,6 +22,7 @@ function givenDevice({
   permission = "default" as NotificationPermission,
   answer = "granted" as NotificationPermission,
   alreadySubscribed = false,
+  registerFailsOnArrival = false,
 } = {}) {
   const subscription = { toJSON: () => DEVICE_JSON };
   const pushManager = {
@@ -29,9 +30,22 @@ function givenDevice({
     subscribe: vi.fn(async (_options: PushSubscriptionOptionsInit) => subscription),
   };
   const registration = { pushManager };
+  // Like a real browser, `ready` waits until a registration succeeds.
+  let markReady: (value: typeof registration) => void = () => {};
+  const ready = new Promise<typeof registration>((resolve) => {
+    markReady = resolve;
+  });
+  let attempts = 0;
   const serviceWorker = {
-    register: vi.fn(async () => registration),
-    ready: Promise.resolve(registration),
+    register: vi.fn(async () => {
+      attempts += 1;
+      if (registerFailsOnArrival && attempts === 1) {
+        throw new Error("The operation is insecure.");
+      }
+      markReady(registration);
+      return registration;
+    }),
+    ready,
   };
   const notification = {
     permission,
@@ -161,6 +175,21 @@ describe("EnableNotifications", () => {
     expect(
       await screen.findByText("Notifications aren't set up on this server yet."),
     ).toBeDefined();
+  });
+
+  // Without registering again, `ready` would never arrive and the button
+  // would sit on "Asking…" for good.
+  it("recovers with Try again when getting the device ready failed as the page opened", async () => {
+    const device = givenDevice({ registerFailsOnArrival: true });
+    render(<EnableNotifications publicKey={PUBLIC_KEY} />);
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "The operation is insecure.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(
+      await screen.findByText("Notifications are on for this device."),
+    ).toBeDefined();
+    expect(device.serviceWorker.register).toHaveBeenCalledTimes(2);
   });
 
   it("shows why saving failed, and offers to try again", async () => {

@@ -14,8 +14,9 @@
   gets nothing, and a check refuses any address that isn't a push
   service's own, because REQ-21's sender will call every one. Adds the
   service worker (`public/sw.js`), which the proxy skips, and two new
-  environment variables for the app's push keys. Nothing sends yet; that
-  is REQ-21. (#70)
+  environment variables for the app's push keys. The live check of the
+  table's rules is committed as `supabase/checks/push_subscriptions.sql`
+  and undoes itself when run. Nothing sends yet; that is REQ-21. (#70)
 
 - Installable as an app on iPhone. A web app manifest
   (`/manifest.webmanifest`) gives Add to Home Screen the name HomeBase, a

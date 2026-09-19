@@ -85,6 +85,10 @@ export function EnableNotifications({ publicKey }: { publicKey?: string }) {
         setStatus("off");
         return;
       }
+      // Registering again is harmless, and it's what rescues "Try again"
+      // when registering failed as the page opened: until something
+      // registers, `ready` would wait forever.
+      await navigator.serviceWorker.register("/sw.js");
       const registration = await navigator.serviceWorker.ready;
       const subscription =
         (await registration.pushManager.getSubscription()) ??

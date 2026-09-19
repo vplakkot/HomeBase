@@ -15,13 +15,31 @@ export type SaveDeviceResult =
   | { saved: true }
   | { saved: false; error: string };
 
+// Real ones are far shorter (an Apple address is under 300 characters, the
+// keys under 100); the limits only stop a hand-crafted call storing junk.
+const MAX_ENDPOINT = 2048;
+const MAX_KEY = 256;
+
+// Postgres error codes: row-level security refused the row, or the check
+// on the address did.
+const REFUSED_BY_RULES = "42501";
+const NOT_A_PUSH_SERVICE = "23514";
+
+function isText(value: unknown, max: number): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= max;
+}
+
 export async function saveDevice(
   subscription: DeviceSubscription,
 ): Promise<SaveDeviceResult> {
   const endpoint = subscription?.endpoint;
   const p256dh = subscription?.keys?.p256dh;
   const auth = subscription?.keys?.auth;
-  if (!endpoint || !p256dh || !auth) {
+  if (
+    !isText(endpoint, MAX_ENDPOINT) ||
+    !isText(p256dh, MAX_KEY) ||
+    !isText(auth, MAX_KEY)
+  ) {
     return {
       saved: false,
       error: "That doesn't look like a device signing up for notifications.",
@@ -48,7 +66,22 @@ export async function saveDevice(
       { onConflict: "endpoint" },
     );
   if (error) {
-    return { saved: false, error: `Couldn't save this device: ${error.message}` };
+    // The details go to the server log; the person gets words they can use.
+    console.error("saveDevice failed", error.code, error.message);
+    if (error.code === REFUSED_BY_RULES) {
+      return {
+        saved: false,
+        error:
+          "This device is already signed up for notifications under someone else in the household.",
+      };
+    }
+    if (error.code === NOT_A_PUSH_SERVICE) {
+      return {
+        saved: false,
+        error: "That notification address isn't from a push service HomeBase accepts.",
+      };
+    }
+    return { saved: false, error: "Couldn't save this device. Try again in a moment." };
   }
   return { saved: true };
 }

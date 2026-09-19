@@ -34,8 +34,8 @@ in.
 
 ## The app's own keys
 
-Each subscription is also tied to HomeBase's own pair of keys, which is
-what you added to Vercel:
+Each subscription is also tied to HomeBase's own pair of keys, which
+live in Vercel as environment variables:
 
 - **The public key** (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`) goes to the phone
   when it signs up. Apple remembers it.
@@ -49,6 +49,11 @@ made now because the two must be created together, and a subscription
 made with one public key only works with its matching private key.
 Changing the pair later would mean every device signing up again.
 
+Vercel only hands environment variables to a build, so after adding or
+changing them, a new deployment is needed before the app sees them.
+Until then the installed app says notifications aren't set up yet,
+rather than breaking.
+
 ## What each person sees
 
 | Where | What shows |
@@ -61,6 +66,10 @@ Changing the pair later would mean every device signing up again.
 Once someone says no, the phone never asks again, and no app can make
 it. That's why the "off" message points to the Settings app instead of
 offering the button again.
+
+When saving fails, the person sees plain words, such as "This device is
+already signed up for notifications under someone else in the
+household", and the database's own message goes to the server log.
 
 ## The database's rules
 
@@ -104,7 +113,7 @@ it's over.
 
 | Attempt | Result |
 |---|---|
-| Member saves a phone and an iPad | both saved, filed under the member |
+| Member saves a phone and an iPad (two made-up device entries) | both saved, filed under the member |
 | Member saves the phone again | refreshed, not duplicated |
 | Member saves a device under the admin | refused by the rules |
 | Member saves an address that isn't a push service | refused by the check |
@@ -114,8 +123,16 @@ it's over.
 | Member removes their own iPad | removed |
 | Signed-out visitor reads the table | permission denied |
 
-Run with `npx supabase db query --linked -f <file>`, which goes through
-the Supabase account already linked on this Mac.
+The SQL is in [`supabase/checks/push_subscriptions.sql`](../../supabase/checks/push_subscriptions.sql),
+so anyone can run it again:
+
+```bash
+npx supabase db query --linked -f supabase/checks/push_subscriptions.sql
+```
+
+It goes through the Supabase account already linked on this Mac. The
+device entries are made up: this proves the rules, not that a real phone
+can sign up.
 
 ## What only a phone can prove
 
@@ -123,7 +140,6 @@ The tests pretend to be a phone: they cover what the app does for each
 answer, and what it saves. What nothing here can prove is the iPhone's
 side: that the question appears, and that Apple hands back a working
 subscription. This Mac has no iPhone simulator, and push needs a real
-device anyway. That check is yours, on a phone, and REQ-21's first test
-notification is its natural end point. "Each device receives its own
-notification" also has to wait for REQ-21, because until then nothing
-sends.
+device anyway. It gets proven when REQ-21's first test notification
+reaches a phone. "Each device receives its own notification" also moved
+to REQ-21, because until something sends there's nothing to receive.
