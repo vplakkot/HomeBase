@@ -263,6 +263,27 @@ Both the toggle and the console are gated on `has_permission('manage_members')`,
 never on a role's name; a member who types `/admin` is sent home. See
 [lesson 10](lessons/10-modes-are-not-roles.md).
 
+## Installing on iPhone
+
+[`app/manifest.ts`](../app/manifest.ts) produces the web app manifest,
+served at `/manifest.webmanifest` and linked from every page: the name
+HomeBase, `start_url: "/"`, `display: "standalone"` (full screen, no
+address bar) and two icons in `public/` (192 and 512 pixels).
+[`app/layout.tsx`](../app/layout.tsx)'s `metadata` adds what iOS reads
+from each page's head: a 180 pixel `apple-touch-icon`, the home-screen
+title, and permission to open full screen.
+
+Phones fetch the manifest without cookies, so the proxy's `matcher` skips
+it, next to `favicon.ico`. Otherwise the proxy would find no sign-in and
+answer with the sign-in page. The icons are PNGs, which the matcher
+already skipped. Neither holds anything private.
+
+Staying signed in across opens of the installed app rests on the session
+cookies' 400-day lifetime, which `@supabase/ssr` sets and renews on every
+refresh; a test runs a real sign-in through
+[`lib/supabase/server.ts`](../lib/supabase/server.ts) to pin it. See
+[lesson 13](lessons/13-installing-on-the-iphone.md).
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:

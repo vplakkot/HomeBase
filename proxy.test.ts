@@ -124,4 +124,20 @@ describe("proxy", () => {
     expect(regex.test("/sign-in")).toBe(true);
     expect(regex.test("/finances/2026")).toBe(true);
   });
+
+  // A phone fetches these without the sign-in cookies. Sent through the
+  // proxy, they'd come back as the sign-in page and the install would
+  // ignore them.
+  it("lets a phone fetch the app card and icons without signing in", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    for (const path of [
+      "/manifest.webmanifest",
+      "/apple-touch-icon.png",
+      "/icon-192.png",
+      "/icon-512.png",
+    ]) {
+      expect(regex.test(path)).toBe(false);
+    }
+  });
 });
