@@ -15,8 +15,22 @@ const roles = [
   { id: "role-b", name: "Helper" },
 ];
 const members = [
-  { user_id: "u1", name: null, email: "first@example.com", role_id: "role-a", role_name: "Chief" },
-  { user_id: "u2", name: "Sam", email: "sam@example.com", role_id: "role-b", role_name: "Helper" },
+  {
+    user_id: "u1",
+    name: null,
+    email: "first@example.com",
+    role_id: "role-a",
+    role_name: "Chief",
+    notifications_enabled: false,
+  },
+  {
+    user_id: "u2",
+    name: "Sam",
+    email: "sam@example.com",
+    role_id: "role-b",
+    role_name: "Helper",
+    notifications_enabled: true,
+  },
 ];
 
 function given({ signedIn, permissions = [] }: { signedIn: boolean; permissions?: string[] }) {
@@ -77,6 +91,26 @@ describe("AdminPage", () => {
     expect(screen.getAllByRole("button", { name: "Save role" })).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: "Reset password" })).toHaveLength(2);
     expect(screen.getByRole("textbox", { name: "Temporary password for Sam" })).toBeDefined();
+  });
+
+  it("shows each member's notification switch, reflecting what it is now", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    const first = screen.getByRole("button", { name: "Notifications for first@example.com" });
+    const sam = screen.getByRole("button", { name: "Notifications for Sam" });
+    expect(first.textContent).toBe("Off — turn on");
+    expect(sam.textContent).toBe("On — turn off");
+  });
+
+  it("asks for the opposite state, so submitting twice can't flip someone back", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    const off = screen.getByRole("button", { name: "Notifications for first@example.com" });
+    const on = screen.getByRole("button", { name: "Notifications for Sam" });
+    const asked = (button: HTMLElement) =>
+      button.closest("form")?.querySelector<HTMLInputElement>('input[name="enabled"]')?.value;
+    expect(asked(off)).toBe("true");
+    expect(asked(on)).toBe("false");
   });
 
   it("still offers the create-member form", async () => {

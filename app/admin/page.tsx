@@ -4,6 +4,7 @@ import { listMembers, listRoles } from "../../lib/auth/members";
 import { hasPermission } from "../../lib/auth/permissions";
 import { createClient } from "../../lib/supabase/server";
 import { CreateMemberForm } from "./create-member-form";
+import { NotificationsForm } from "./notifications-form";
 import { ResetPasswordForm } from "./reset-password-form";
 import { RoleForm } from "./role-form";
 
@@ -33,6 +34,7 @@ export default async function AdminPage() {
               <th scope="col">Name</th>
               <th scope="col">Email</th>
               <th scope="col">Role</th>
+              <th scope="col">Notifications</th>
               <th scope="col">Password</th>
             </tr>
           </thead>
@@ -49,6 +51,13 @@ export default async function AdminPage() {
                       roleId={member.role_id}
                       roles={roles}
                       label={`Role for ${who}`}
+                    />
+                  </td>
+                  <td>
+                    <NotificationsForm
+                      userId={member.user_id}
+                      enabled={member.notifications_enabled}
+                      label={`Notifications for ${who}`}
                     />
                   </td>
                   <td>
