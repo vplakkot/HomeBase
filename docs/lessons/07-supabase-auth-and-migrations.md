@@ -240,10 +240,13 @@ action calls `redirect("/")`.
 
 **One Supabase project serves local, preview, and production.** That means
 the first *test* sign-up becomes the real household. Before the v0.1
-release, delete that test user in the Supabase dashboard (Authentication →
-Users). Deleting a user cascades to their `household_members` row; delete
-the leftover `households` row too. That is changing *data*, not structure,
-so it's allowed by hand. A second project for dev can come later.
+release, delete the test household — and mind the order: delete the row in
+`households` first (Table editor), which cascades its `household_members`
+rows away, then delete the test users (Authentication → Users). The other
+order is refused, because the last admin's account can't be deleted while
+the household still stands (see [lesson 12](12-the-member-ledger.md)).
+That is changing *data*, not structure, so it's allowed by hand. A second
+project for dev can come later.
 
 **Test emails must be real mailboxes.** Supabase's hosted Auth refused
 both `first-admin@example.com` (a reserved documentation domain) and

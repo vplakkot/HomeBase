@@ -11,6 +11,15 @@
   separate and best-effort: the admin console sweeps expired rows before
   writing a new one, so a retry after a failed attempt works immediately
   instead of waiting out the clock. (#52)
+- Fix: a household can be deleted again. The `min_holders` floor on a role
+  fired on every removal of a membership row, including the cascade
+  Postgres performs when the household itself is deleted, so "the
+  household must keep an admin" had become "the household can never be
+  deleted". The floor now applies only while the household still exists.
+  Deleting the last admin's *account* is still refused — it would leave
+  the other members with nobody able to manage them — and the error now
+  carries a hint naming the two ways out. Tearing a household down is
+  household first, accounts second. (#57)
 - Stop vitest collecting tests from git worktrees. A worktree is a second
   checkout of the whole repo; vitest doesn't read `.gitignore`, so every
   test was collected twice from a commit unrelated to the branch in hand.

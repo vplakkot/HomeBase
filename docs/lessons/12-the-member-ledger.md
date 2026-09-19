@@ -34,6 +34,29 @@ last admin?" — it sends the change, and the database either accepts it
 or answers "This role must keep at least 1 holder(s)", which the console
 shows as-is. Give a future role a floor and the same trigger guards it.
 
+## A rule that outlived what it was protecting
+
+The first version of that trigger fired on *every* delete of a membership
+row — and a membership row is also deleted by Postgres itself, by cascade,
+when the household it belongs to is deleted. So "the household must keep
+an admin" ended up meaning "the household can never be deleted". The rule
+outlived the thing it existed to protect (#57).
+
+The fix is one condition: by the time a cascade reaches the membership,
+Postgres has already removed the household row, so the trigger can ask
+whether the household still exists and stand aside if it doesn't. What it
+deliberately keeps refusing is deleting the *account* of the last admin,
+because that leaves real members behind with nobody able to manage them —
+the same shape as "you can't delete the last owner of an organisation".
+The exception now carries a `hint` telling you the two ways out: hand the
+role to someone else, or delete the household. A tear-down is therefore
+household first, accounts second.
+
+The general lesson: a guard written for one direction (demotion) will fire
+in directions you didn't picture (cascade, teardown). When you write one,
+list every way a row can leave the table — not just the way the feature
+removes it.
+
 ## "Takes effect on their next page load" costs nothing
 
 Permissions are never copied into the login token. Every page that cares
