@@ -55,3 +55,11 @@ $$;
 
 revoke all on function public.household_members_overview() from public;
 grant execute on function public.household_members_overview() to authenticated, service_role;
+
+-- A consequence to hand forward: after this, the ONLY way to read the flag
+-- is this function, and it requires manage_members. A background job has no
+-- signed-in user, so when REQ-21 sends notifications it cannot use this
+-- route. It will need its own — running as service_role, or a second
+-- security definer function written for a caller that is nobody. Deciding
+-- that here would mean guessing how that job authenticates, so it is left
+-- to the requirement that knows.

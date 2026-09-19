@@ -185,6 +185,13 @@ describe("per-member notification switch migration", () => {
     expect(migration).not.toMatch(/grant select[^;]*notifications_enabled[^;]*to authenticated/);
   });
 
+  it("closes the same door to signed-out visitors, not just members", () => {
+    // Policies on this table are all `to authenticated`, so anon already gets
+    // nothing. This is the second layer, so both roles are guarded the same way.
+    const anonRevoke = readMigration("20260919150000");
+    expect(anonRevoke).toMatch(/revoke select on public\.household_members from anon/);
+  });
+
   it("re-creates the roster function rather than replacing it, since its columns changed", () => {
     expect(migration).toMatch(/drop function public\.household_members_overview\(\)/);
     expect(migration).toMatch(/create function public\.household_members_overview\(\)/);

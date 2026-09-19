@@ -120,6 +120,12 @@ export async function setNotifications(
     return { error: error.message };
   }
 
+  // No error does not by itself mean a row changed: row-level security
+  // filters an update to zero rows without complaining. Reading the row back
+  // to confirm isn't open to us, because this runs as the signed-in admin and
+  // the column is closed to them. What makes the claim safe is the line
+  // above: requireManageMembers() has already redirected anyone the policy
+  // would have filtered out, so reaching here means the row was writable.
   revalidatePath("/admin");
   return { enabled };
 }
