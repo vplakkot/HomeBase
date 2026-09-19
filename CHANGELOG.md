@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Fix: a household can be deleted again. The `min_holders` floor on a role
+  fired on every removal of a membership row, including the cascade
+  Postgres performs when the household itself is deleted, so "the
+  household must keep an admin" had become "the household can never be
+  deleted". The floor now applies only while the household still exists.
+  Deleting the last admin's *account* is still refused — it would leave
+  the other members with nobody able to manage them — and the error now
+  carries a hint naming the two ways out. Tearing a household down is
+  household first, accounts second. (#57)
 - Admin console: members and roles. The console lists every member with
   name, email and role (names and emails come from Supabase's private
   `auth.users` through a `security definer` function that returns rows

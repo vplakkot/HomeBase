@@ -165,3 +165,26 @@ describe("members overview and minimum holders migration", () => {
     expect(migration).toMatch(/and user_id <> old\.user_id/);
   });
 });
+
+describe("floor applies while the household exists migration", () => {
+  const migration = readMigration("20260919100000");
+
+  it("lets a membership go when its household has already been deleted", () => {
+    expect(migration).toMatch(
+      /if tg_op = 'DELETE'\s+and not exists \(select 1 from public\.households where id = old\.household_id\) then\s+return old;/,
+    );
+  });
+
+  it("still counts the remaining holders for every other removal or demotion", () => {
+    expect(migration).toMatch(/select min_holders into minimum/);
+    expect(migration).toMatch(/if remaining < minimum then\s+raise exception 'This role must keep at least % holder\(s\)'/);
+    expect(migration).toMatch(/using hint = 'Give the role to someone else first, or delete the household itself\.'/);
+  });
+
+  it("replaces the existing function instead of adding a second trigger", () => {
+    expect(migration).toMatch(/create or replace function public\.enforce_role_holder_minimum\(\)/);
+    expect(migration).not.toMatch(/create trigger/);
+    expect(migration).toMatch(/security definer[\s\S]*?set search_path = ''/);
+    expect(migration).toContain("revoke all on function public.enforce_role_holder_minimum() from public;");
+  });
+});
