@@ -27,9 +27,10 @@ function given({
   adminUpdateError?: { message: string } | null;
 } = {}) {
   const deleteEq = vi.fn().mockResolvedValue({ error: null });
+  const deleteLt = vi.fn().mockResolvedValue({ error: null });
   const invitations = {
     insert: vi.fn().mockResolvedValue({ error: inviteError }),
-    delete: vi.fn(() => ({ eq: deleteEq })),
+    delete: vi.fn(() => ({ eq: deleteEq, lt: deleteLt })),
   };
   const updateEq = vi.fn().mockResolvedValue({ error: updateError });
   const members = { update: vi.fn(() => ({ eq: updateEq })) };
@@ -53,7 +54,7 @@ function given({
   vi.mocked(createAdminClient).mockReturnValue(
     admin as unknown as ReturnType<typeof createAdminClient>,
   );
-  return { admin, invitations, deleteEq, members, updateEq };
+  return { admin, invitations, deleteEq, deleteLt, members, updateEq };
 }
 
 function form(fields: Record<string, string>) {
@@ -112,10 +113,21 @@ describe("createMember", () => {
     expect(admin.auth.admin.inviteUserByEmail).not.toHaveBeenCalled();
   });
 
+  it("clears expired invitations before writing a new one", async () => {
+    const { invitations, deleteLt } = given();
+    await createMember({}, form(valid));
+    expect(deleteLt).toHaveBeenCalledWith("expires_at", expect.any(String));
+    expect(invitations.delete.mock.invocationCallOrder[0]).toBeLessThan(
+      invitations.insert.mock.invocationCallOrder[0],
+    );
+  });
+
   it("stops if the invitation can't be written, and explains a duplicate", async () => {
     const { admin } = given({ inviteError: { code: "23505", message: "duplicate key value" } });
     const state = await createMember({}, form(valid));
-    expect(state.error).toBe("An invitation for that email is already waiting to be used.");
+    expect(state.error).toBe(
+      "An invitation for that email is already waiting to be used. If an earlier attempt failed, it clears itself within ten minutes.",
+    );
     expect(admin.auth.admin.createUser).not.toHaveBeenCalled();
   });
 

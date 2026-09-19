@@ -129,6 +129,25 @@ Seen once already: the first
 admin API only writes `app_metadata` after the insert, so the trigger
 never saw it. The amended version checks a `member_invitations` table.
 
+**When the amendment doesn't need to reach the live project, skip the
+dance on purpose.** The second condition above is a real gate, not
+paperwork: `alter table ... add column` cannot tolerate having already
+run, so repairing and re-pushing would simply fail, and the only way to
+make it survive a replay is `if not exists` — weakening the file for
+every future environment to work around a one-off. The way out is to ask
+what the amendment actually changes on *this* database. In #52 it added
+an `update` covering rows that existed before the column did; on the
+hosted project that set was empty and always will be, so the statement
+matches nothing there. The applied schema, the applied data, and what the
+file produces on a fresh database all agree, and the file is simply left
+to diverge from the ledger.
+
+The price is honest and worth naming: that `update` has never executed
+anywhere. Its whole coverage is a test asserting the line exists, and it
+will run for real the first time someone builds a fresh database. The
+judgement is "this line is three tokens against a column I have
+confirmed", not "this is verified".
+
 ## The data model
 
 ```mermaid

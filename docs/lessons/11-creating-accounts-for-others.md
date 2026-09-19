@@ -64,6 +64,54 @@ other reason, the action deletes the invitation it just wrote.
 `app_metadata` still carries `must_set_password`, because that flag is
 read later, from the login token, where post-insert is no problem.
 
+## Two writes in a row need a plan for dying between them
+
+Writing the invitation and creating the account are two separate calls to
+two separate systems, and there is no transaction spanning both. The
+action already handles the case where the second call *returns* an error:
+it deletes the invitation it wrote. What it cannot handle is the process
+simply stopping between them — a timeout, a dropped connection, a deploy.
+Then the invitation stays, and an invitation was a permanent open door:
+the proof was a row backdated by a day that still let that address sign
+itself up through the public form (#52).
+
+The answer isn't more cleanup code, which would have the same problem one
+step further along. It's to make the leftover *harmless by default*:
+invitations now carry `expires_at`, ten minutes out, and the trigger only
+accepts one that hasn't expired. Ten minutes is far longer than the call
+it covers and far shorter than an attacker's patience.
+
+**Sweeping up is a separate job from being safe, and the live run taught
+that the hard way.** The trigger also deletes expired rows when it runs —
+but a *refused* sign-up raises an exception, and the exception rolls the
+whole transaction back, cleanup included. The tidying only survives when
+the sign-up succeeds. So the row that a refused attempt was supposed to
+clear is exactly the row still sitting there afterwards. The sweep that
+actually commits is the one in the admin action, which runs in a
+transaction of its own before writing the next invitation; that is also
+the moment it matters, because it's the admin's retry. The `expires_at`
+test is the guard; everything else is housekeeping.
+
+**Adding a column with a default is a decision about the rows already
+there.** `add column expires_at ... default (now() + interval '10
+minutes')` gives *existing* rows that default too — dated from the moment
+the migration runs. So the migration written to disarm stale invitations
+would have handed every stale invitation a fresh ten minutes on the way
+in. One `update` from `created_at` fixes it. The table happened to be
+empty here, which is exactly why it's worth stating: a migration has to be
+right wherever it runs, not just where you watched it run.
+
+Ten minutes is tied to what an invitation is *today* — a signal consumed
+seconds later by the same action that wrote it. If invitations ever become
+something a person receives and acts on in their own time, both the
+default and the trigger's test need a different number, chosen on purpose.
+
+Two general shapes to keep. When a step can leave a record behind, prefer
+making the record expire over promising to come back and tidy it up — a
+guarantee that needs the process to still be alive isn't a guarantee. And
+anything you do in the same transaction as a check that can fail will be
+undone when it fails, so never let cleanup ride on a failing path.
+
 Because these are real inserts into `household_members`, the guards from
 REQ-12 apply to them: a third Admin is refused by the holder-limit
 trigger, and a user with no membership row reads nothing. Both of those

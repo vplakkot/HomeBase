@@ -166,6 +166,46 @@ describe("members overview and minimum holders migration", () => {
   });
 });
 
+describe("invitations expire migration", () => {
+  const migration = readMigration("20260919120000");
+
+  it("gives every invitation a ten-minute life, with no null allowed", () => {
+    expect(migration).toMatch(
+      /alter table public\.member_invitations\s+add column expires_at timestamptz not null default \(now\(\) \+ interval '10 minutes'\)/,
+    );
+  });
+
+  it("admits a new user only on an invitation that has not expired", () => {
+    expect(migration).toMatch(
+      /where email = lower\(new\.email\)\s+and expires_at > now\(\)/,
+    );
+    expect(migration).toMatch(/if not found then\s+raise exception 'Sign-up is closed/);
+  });
+
+  it("dates rows that predate the column from their own creation, not from now", () => {
+    expect(migration).toMatch(
+      /update public\.member_invitations\s+set expires_at = created_at \+ interval '10 minutes'/,
+    );
+  });
+
+  it("tidies expired invitations at sign-up as well, best-effort", () => {
+    // Best-effort on purpose: this delete is inside the sign-up transaction, so
+    // a refused sign-up rolls it back. The guard is the expires_at test above.
+    expect(migration).toMatch(/delete from public\.member_invitations where expires_at <= now\(\)/);
+  });
+
+  it("still uses the invitation up and keeps the first-user path untouched", () => {
+    expect(migration).toMatch(/delete from public\.member_invitations where email = invitation\.email/);
+    expect(migration).toMatch(/if existing_household_id is null then[\s\S]*?where name = 'Admin'/);
+  });
+
+  it("replaces the trigger function rather than adding a second trigger", () => {
+    expect(migration).toMatch(/create or replace function public\.handle_new_user\(\)/);
+    expect(migration).not.toMatch(/create trigger/);
+    expect(migration).toMatch(/security definer[\s\S]*?set search_path = ''/);
+  });
+});
+
 describe("floor applies while the household exists migration", () => {
   const migration = readMigration("20260919100000");
 
