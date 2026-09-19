@@ -1,12 +1,22 @@
 import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdminClient } from "../../lib/supabase/admin";
+import { headers } from "next/headers";
+import { sendTestNotification } from "../../lib/notifications/send";
 import { createClient } from "../../lib/supabase/server";
-import { changeRole, createMember, resetPassword, setNotifications } from "./actions";
+import {
+  changeRole,
+  createMember,
+  resetPassword,
+  sendTestNow,
+  setNotifications,
+} from "./actions";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("../../lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/headers", () => ({ headers: vi.fn() }));
+vi.mock("../../lib/notifications/send", () => ({ sendTestNotification: vi.fn() }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -241,5 +251,68 @@ describe("resetPassword", () => {
     given({ adminUpdateError: { message: "User not found" } });
     const state = await resetPassword({}, form({ userId: "u1", temporaryPassword: "Temp-Pass-1!" }));
     expect(state.error).toBe("User not found");
+  });
+});
+
+describe("sendTestNow", () => {
+  function givenHost(host: string | null) {
+    vi.mocked(headers).mockResolvedValue(
+      new Headers(host ? { host } : {}) as unknown as Awaited<ReturnType<typeof headers>>,
+    );
+  }
+
+  beforeEach(() => {
+    vi.mocked(sendTestNotification).mockResolvedValue({
+      trigger: "manual",
+      people: 1,
+      devices: 2,
+      delivered: 2,
+      failed: 0,
+      removed: 0,
+      outcomes: [],
+    });
+  });
+
+  it("sends the same test the hourly schedule sends, and says how it went", async () => {
+    given();
+    givenHost("homebase.example");
+    expect(await sendTestNow({}, new FormData())).toEqual({
+      sent: { people: 1, devices: 2, delivered: 2 },
+    });
+    expect(sendTestNotification).toHaveBeenCalledWith({
+      subject: "https://homebase.example",
+      trigger: "manual",
+    });
+  });
+
+  it("sends a member away without sending anything", async () => {
+    given({ permission: false });
+    givenHost("homebase.example");
+    await expect(sendTestNow({}, new FormData())).rejects.toThrow("REDIRECT:/");
+    expect(sendTestNotification).not.toHaveBeenCalled();
+  });
+
+  it("names this app as the contact, wherever it is running", async () => {
+    given();
+    givenHost("localhost:3000");
+    await sendTestNow({}, new FormData());
+    expect(sendTestNotification).toHaveBeenCalledWith({
+      subject: "https://localhost:3000",
+      trigger: "manual",
+    });
+  });
+
+  it("explains a failure without showing its innards", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    given();
+    givenHost("homebase.example");
+    vi.mocked(sendTestNotification).mockRejectedValue(
+      new Error("Missing NEXT_PUBLIC_VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY"),
+    );
+    expect(await sendTestNow({}, new FormData())).toEqual({
+      error: "Couldn't send the test notification. Try again.",
+    });
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
   });
 });

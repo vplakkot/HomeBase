@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Hourly test notification, and a "Send test now" button in the admin
+  console. Both send the same thing: one signed, encrypted message per
+  device, to every device of every member whose switch is on. Switched-off
+  members' devices are never even fetched. A device whose push service
+  says it is gone (`404`/`410`) has its row removed, so the table can't
+  fill with addresses nothing can reach. Adds the `web-push` package,
+  which does the signing and the per-device encryption. Vercel's free plan
+  only allows a daily job, so the hourly clock lives in the database:
+  a migration adds `pg_cron` and `pg_net` and schedules a call to
+  `/api/notifications/test` on the hour. That address can't check a
+  session, because the database isn't a person, so it compares a shared
+  secret in constant time; the address and the secret live in Supabase's
+  vault, never in git, and until both exist the job does nothing. Only an
+  iPhone can prove a notification actually arrives, which is what the week
+  after the v0.1 release is for. (#76)
+
 - Signing out ends notifications on that device. The browser tells the
   push service to forget the device, the server removes that one row from
   `push_subscriptions`, and then the session ends; a failed clean-up is

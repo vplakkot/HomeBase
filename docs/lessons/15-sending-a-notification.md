@@ -1,0 +1,113 @@
+# Lesson 15: Sending a notification
+
+REQ-20 got a phone to sign up. REQ-21 is the other half: something that
+actually sends, every hour and on demand, so we can find out whether push
+is reliable enough to build on.
+
+## Who is involved
+
+Three parties, and the app only ever talks to the middle one.
+
+| Who | Does what |
+|---|---|
+| HomeBase | Writes the message, seals it, hands it over |
+| The push service (Apple's, for an iPhone) | Delivers it, or holds it until the phone is reachable |
+| The phone | Opens it and shows the notification |
+
+It works like posting a sealed letter. We hand Apple an envelope we've
+locked with the phone's own key, stamped with our seal. Apple can see the
+address and the stamp, carries it, and can't read a word of it. That's not
+a nicety: Apple would otherwise be reading every household reminder we
+ever send.
+
+Two pieces of cryptography do that, and
+[`web-push`](https://www.npmjs.com/package/web-push) does both for us:
+
+- **The stamp.** Each request is signed with the app's private key, the
+  one you put in Vercel. Apple checks it against the public key the phone
+  handed over when it signed up (lesson 14). That's how Apple knows the
+  message really comes from HomeBase.
+- **The lock.** The message is encrypted with the two keys that came back
+  with the subscription, which only that one device holds.
+
+We took the package rather than writing this ourselves. Hand-rolled
+cryptography is the classic example of code that looks right, passes your
+tests and is quietly broken.
+
+## Who gets one
+
+Everyone whose switch is on (REQ-16), and every device they've signed up
+(REQ-20). Both of those are private to their owner: members can't read
+each other's switches or devices, and admins can't either. A job running
+on a schedule has nobody signed in at all, so it reads them with the
+secret key, which is the only route to them. Both requirements said this
+would be needed; this is where it lands.
+
+Two rules fall out of that:
+
+- **Switched off means nothing is sent.** The query asks for the switched-on
+  people first, and only then for their devices. A switched-off member's
+  devices are never even fetched.
+- **A dead address is forgotten.** If a push service answers `404` or
+  `410 Gone`, that device's row is removed. Otherwise the table would
+  slowly fill with addresses nothing can be delivered to, and every hour
+  would retry them for ever.
+
+One device failing never stops the others: each send is its own attempt,
+and the summary counts what got through.
+
+## The clock lives in the database
+
+Vercel's free plan only allows a *daily* scheduled job, and this needs an
+hourly one. So the timekeeping moves to Supabase, which can do it:
+`pg_cron` keeps the time, and `pg_net` lets the database make a web
+request. On the hour, the database calls the app's own address, and the
+app does the sending.
+
+```
+every hour → Supabase (pg_cron) → calls HomeBase → web-push → Apple → phone
+```
+
+That address has to be reachable without signing in, because the database
+isn't a person and has no session. So it proves itself with a shared
+secret instead: the same value sits in Vercel, which the app reads, and in
+Supabase's vault, which the schedule reads. Neither is in git. The address
+is in the vault too, so it can change without a migration.
+
+The secret is compared **in constant time**. A normal comparison stops at
+the first wrong character, and the time it takes would let someone guess
+the secret one character at a time.
+
+Until both vault entries exist, the hourly job runs and deliberately does
+nothing, rather than failing noisily every hour.
+
+## A trap found by clicking the button
+
+The push services refuse a contact address that isn't `https:` or
+`mailto:`. On this laptop the app's own address is
+`http://localhost:3000`, so the first click of "Send test now" failed with
+exactly that message. The sender now writes such an address as `https`.
+Nothing fetches it — it's a note saying which app is calling — but the
+rule is strict.
+
+Worth remembering: the unit tests all passed while this was broken,
+because they used a stand-in for the library. Clicking the real button
+against the real database found it in seconds.
+
+## What's proven, and what waits for a phone
+
+Proven here: who would be sent to, that a switched-off member is never
+included, what the message says, that a dead address is forgotten, that
+the schedule's address refuses anyone without the secret, and — using the
+real library, not a stand-in — that what would go to Apple is signed with
+our keys and encrypted so the body can't be read.
+
+Not proven here: that a notification actually arrives. That needs a real
+iPhone with the app installed, and it's the point of the whole exercise:
+the week of hourly tests after the v0.1 release is what tells us whether
+push is reliable enough to build on.
+
+One thing to expect: the hourly job can only reach the live site, and the
+live site only changes when a release tag is pushed. So the hourly half
+starts working when v0.1 is released. "Send test now" works before that,
+wherever you're signed in.

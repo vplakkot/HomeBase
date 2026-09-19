@@ -4,6 +4,9 @@ import { createClient } from "../../lib/supabase/server";
 import AdminPage from "./page";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("./send-test-form", () => ({
+  SendTestForm: () => <button type="button">Send test now</button>,
+}));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -119,5 +122,15 @@ describe("AdminPage", () => {
     expect(screen.getByLabelText("Name")).toBeDefined();
     expect(screen.getByLabelText("Email")).toBeDefined();
     expect(screen.getByRole("button", { name: "Create member" })).toBeDefined();
+  });
+
+  it("offers a test notification, explaining who gets it", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    const section = screen.getByRole("region", { name: "Test notification" });
+    expect(within(section).getByRole("button", { name: "Send test now" })).toBeDefined();
+    expect(
+      within(section).getByText(/every device of every member whose switch is on/),
+    ).toBeDefined();
   });
 });

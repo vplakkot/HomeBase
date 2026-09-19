@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { sendTestNotification } from "../../lib/notifications/send";
 import { hasPermission } from "../../lib/auth/permissions";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { createClient } from "../../lib/supabase/server";
@@ -10,6 +12,10 @@ export type CreateMemberState = { error?: string; created?: string };
 export type ChangeRoleState = { error?: string; saved?: boolean };
 export type ResetPasswordState = { error?: string; reset?: boolean };
 export type NotificationsState = { error?: string; enabled?: boolean };
+export type SendTestState = {
+  error?: string;
+  sent?: { people: number; devices: number; delivered: number };
+};
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -165,4 +171,36 @@ export async function resetPassword(
   }
 
   return { reset: true };
+}
+
+// "Send test now": the same sending as the hourly schedule, started by an
+// admin instead. Only a manage_members holder gets this far, and the
+// recipients are the same either way — everyone whose switch is on.
+export async function sendTestNow(
+  _previous: SendTestState,
+  _formData: FormData,
+): Promise<SendTestState> {
+  await requireManageMembers();
+
+  const host = (await headers()).get("host");
+  if (!host) {
+    return { error: "Couldn't work out this app's own address." };
+  }
+
+  try {
+    const summary = await sendTestNotification({
+      subject: `https://${host}`,
+      trigger: "manual",
+    });
+    return {
+      sent: {
+        people: summary.people,
+        devices: summary.devices,
+        delivered: summary.delivered,
+      },
+    };
+  } catch (reason) {
+    console.error("Could not send a test notification", reason);
+    return { error: "Couldn't send the test notification. Try again." };
+  }
 }

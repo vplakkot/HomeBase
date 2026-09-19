@@ -334,3 +334,38 @@ describe("push subscriptions migration", () => {
     }
   });
 });
+
+describe("hourly test notification migration", () => {
+  const migration = readMigration("20260919190000");
+
+  it("runs on the hour, around the clock", () => {
+    expect(migration).toMatch(/cron\.schedule\(\s*'hourly-test-notification',[\s\S]*?'0 \* \* \* \*'/);
+  });
+
+  it("turns on the scheduler and the database's way of calling an address", () => {
+    expect(migration).toMatch(/create extension if not exists pg_cron/);
+    expect(migration).toMatch(/create extension if not exists pg_net/);
+  });
+
+  it("calls the app with the shared secret, both read from the vault", () => {
+    expect(migration).toMatch(/net\.http_post\(/);
+    for (const name of ["notify_url", "notify_secret"]) {
+      expect(migration).toMatch(
+        new RegExp(`select decrypted_secret from vault\\.decrypted_secrets where name = '${name}'`),
+      );
+    }
+    expect(migration).toMatch(/'Bearer ' \|\|/);
+  });
+
+  // A secret in git is a secret given away, and a hard-coded address would
+  // need a migration to change.
+  it("holds no address and no secret of its own", () => {
+    expect(migration).not.toMatch(/https?:\/\//);
+    expect(migration).not.toMatch(/Bearer [A-Za-z0-9._-]{8,}/);
+  });
+
+  // Without both, the job would fail every hour instead of waiting quietly.
+  it("does nothing until both are in the vault", () => {
+    expect(migration).toMatch(/where exists \(\s*select 1 from vault\.decrypted_secrets where name = 'notify_url'\s*\) and exists \(/);
+  });
+});

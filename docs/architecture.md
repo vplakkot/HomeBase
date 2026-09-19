@@ -353,6 +353,59 @@ Microsoft), because the sender will call every address stored here.
 Like the notifications flag, nobody but the device's owner can read
 these rows through the API, so REQ-21's sender will need `service_role`.
 
+## Sending the test notification
+
+[`lib/notifications/send.ts`](../lib/notifications/send.ts) is the only
+place anything is sent. It reads who is switched on
+(`household_members.notifications_enabled`) and their devices
+(`push_subscriptions`) with the **secret key**, because both are private
+to their owner and a scheduled job has nobody signed in. It signs and
+encrypts each message with `web-push` — a new dependency, and the
+standard one for this — using `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and
+`VAPID_PRIVATE_KEY` from Vercel, with the app's own address as the
+contact the push services require (written as `https` even on localhost,
+which they insist on). A device whose push service answers `404` or
+`410 Gone` has its row removed.
+
+Two things start a send:
+
+- **The hourly schedule.** Vercel's free plan allows only a daily job, so
+  the clock lives in the database:
+  [`supabase/migrations/20260919190000_hourly_test_notification.sql`](../supabase/migrations/20260919190000_hourly_test_notification.sql)
+  adds `pg_cron` and `pg_net` and schedules `0 * * * *`, which calls
+  [`app/api/notifications/test/route.ts`](../app/api/notifications/test/route.ts).
+  The address and a shared secret live in Supabase's vault
+  (`notify_url`, `notify_secret`), never in git; until both exist the job
+  does nothing. The route has no session to check — the database isn't a
+  person — so it compares the secret against `NOTIFY_SECRET` in constant
+  time, and the proxy's matcher skips just that one path.
+- **"Send test now"** in the admin console
+  ([`app/admin/send-test-form.tsx`](../app/admin/send-test-form.tsx)),
+  behind `manage_members` like everything else there, which calls the
+  same sender.
+
+```mermaid
+sequenceDiagram
+    participant Cron as Supabase pg_cron
+    participant Route as /api/notifications/test
+    participant Send as lib/notifications/send.ts
+    participant DB as Postgres (secret key)
+    participant Apple as Push service
+    participant Phone as iPhone
+
+    Cron->>Route: POST, hourly, Bearer <vault secret>
+    Route->>Route: constant-time secret check
+    Route->>Send: sendTestNotification()
+    Send->>DB: who is switched on, and their devices
+    DB-->>Send: devices
+    Send->>Apple: one signed, encrypted request per device
+    Apple-->>Phone: notification
+    Apple-->>Send: 410 Gone for a dead device
+    Send->>DB: remove that device
+```
+
+See [lesson 15](lessons/15-sending-a-notification.md).
+
 The service worker skips the proxy, like the manifest does. The phone
 re-checks it in the background, and it refuses a service worker that
 answers with a redirect, which is what a lapsed sign-in would otherwise
