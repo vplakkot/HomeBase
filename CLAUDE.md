@@ -29,6 +29,11 @@ When I say "next requirement":
 - Never commit secrets. Keys and passwords live in Vercel, never in git.
 - Database structure changes go through migration files in git, never by hand
   in the Supabase console.
+- Only one pull request containing a migration is open at a time. A migration
+  reaches the Supabase project before it reaches main, so two open ones make
+  migrate.yml fail on the first merge, whichever order you pick. Merge one and
+  wait for its migrate.yml run to pass before opening the next. Reasoning in
+  docs/lessons/07-supabase-auth-and-migrations.md.
 - Test data is fake. No real household details.
 - Ask before adding a dependency or changing architecture.
 - Explain changes in plain language. Assume I am learning, not reviewing

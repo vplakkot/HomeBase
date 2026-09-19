@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- CLAUDE.md: only one pull request containing a migration is open at a
+  time. #62 wrote the reasoning into lesson 07, but a lesson explains and
+  the Rules section is what binds. The working habit up to now has been to
+  keep independent pull requests open side by side, and Claude is the one
+  merging, so the constraint now sits where Claude reads its rules. (#64)
 - Lesson 07: document why only one migration pull request should be open
   at a time. Because a migration reaches the hosted project before it
   reaches `main`, two open ones leave the remote ledger holding both

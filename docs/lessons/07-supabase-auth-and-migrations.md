@@ -183,7 +183,8 @@ request landed. Those were pull requests #58 and #59, for issues #57 and
 #52.
 
 So the rule isn't about ordering. **Finish and merge a migration pull
-request before opening the next one.** That cuts against the habit the
+request before opening the next one.** CLAUDE.md's Rules section carries
+that as a rule; this section is the reasoning behind it. That cuts against the habit the
 rest of this project encourages, where independent pull requests sit side
 by side happily — and that is exactly why it's written down. The
 exception isn't arbitrary: ordinary pull requests only touch files, so
