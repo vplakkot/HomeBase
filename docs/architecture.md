@@ -189,7 +189,18 @@ it also refuses to let the last admin's account be deleted, which would
 leave the other members with nobody able to manage them, but it stands
 aside when the household row itself is deleted and its memberships
 cascade away. Tearing a household down therefore means deleting the
-household first, then the accounts. A reset sets a temporary password and
+household first, then the accounts. Each membership also carries a `notifications_enabled` flag, off by
+default, which an admin turns on or off from the roster. Row-level
+security decides which *rows* you may read; this flag needed the
+column-level equivalent, so the table-wide `select` grant on
+`household_members` was withdrawn from `authenticated` and re-granted
+column by column, leaving this one out. Members therefore still read
+every membership row but cannot see, or ask for, who has notifications
+on — not even with `select=*`, which now fails rather than quietly
+omitting it. The roster function is `security definer`, so it runs as the
+table's owner and can still return the flag to `manage_members` holders.
+Nothing sends notifications yet; REQ-21 is what will read this flag.
+A reset sets a temporary password and
 `must_set_password` through the secret key; Supabase signs the member out
 everywhere, and their next sign-in lands on `/set-password`. See
 [lesson 12](lessons/12-the-member-ledger.md).

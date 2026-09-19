@@ -166,6 +166,42 @@ describe("members overview and minimum holders migration", () => {
   });
 });
 
+describe("per-member notification switch migration", () => {
+  const migration = readMigration("20260919140000");
+
+  it("adds the switch to the membership, off unless someone turns it on", () => {
+    expect(migration).toMatch(
+      /alter table public\.household_members\s+add column notifications_enabled boolean not null default false/,
+    );
+  });
+
+  it("hides the switch from members with a column-level grant, not just the interface", () => {
+    // A column-level revoke does nothing while a table-level grant stands,
+    // so the table grant must be withdrawn and replaced column by column.
+    expect(migration).toMatch(/revoke select on public\.household_members from authenticated/);
+    expect(migration).toMatch(
+      /grant select \(user_id, household_id, role_id, created_at\)\s+on public\.household_members to authenticated/,
+    );
+    expect(migration).not.toMatch(/grant select[^;]*notifications_enabled[^;]*to authenticated/);
+  });
+
+  it("re-creates the roster function rather than replacing it, since its columns changed", () => {
+    expect(migration).toMatch(/drop function public\.household_members_overview\(\)/);
+    expect(migration).toMatch(/create function public\.household_members_overview\(\)/);
+    expect(migration).not.toMatch(/create or replace function public\.household_members_overview/);
+  });
+
+  it("returns the switch to manage_members holders only, through that function", () => {
+    expect(migration).toMatch(/returns table \([\s\S]*?notifications_enabled boolean\s*\)/);
+    expect(migration).toMatch(/hm\.notifications_enabled/);
+    expect(migration).toMatch(/where \(select public\.has_permission\('manage_members'\)\)/);
+    expect(migration).toMatch(/security definer[\s\S]*?set search_path = ''/);
+    expect(migration).toContain(
+      "grant execute on function public.household_members_overview() to authenticated, service_role",
+    );
+  });
+});
+
 describe("invitations expire migration", () => {
   const migration = readMigration("20260919120000");
 

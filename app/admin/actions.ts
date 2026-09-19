@@ -9,6 +9,7 @@ import { createClient } from "../../lib/supabase/server";
 export type CreateMemberState = { error?: string; created?: string };
 export type ChangeRoleState = { error?: string; saved?: boolean };
 export type ResetPasswordState = { error?: string; reset?: boolean };
+export type NotificationsState = { error?: string; enabled?: boolean };
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -96,6 +97,31 @@ export async function changeRole(
 
   revalidatePath("/admin");
   return { saved: true };
+}
+
+export async function setNotifications(
+  _previous: NotificationsState,
+  formData: FormData,
+): Promise<NotificationsState> {
+  const userId = String(formData.get("userId") ?? "");
+  if (!userId) {
+    return { error: "Which member?" };
+  }
+  // The form sends the state being asked for, not a toggle, so a stale page
+  // can't flip someone the wrong way by being submitted twice.
+  const enabled = formData.get("enabled") === "true";
+
+  const supabase = await requireManageMembers();
+  const { error } = await supabase
+    .from("household_members")
+    .update({ notifications_enabled: enabled })
+    .eq("user_id", userId);
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin");
+  return { enabled };
 }
 
 export async function resetPassword(
