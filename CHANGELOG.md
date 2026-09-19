@@ -11,6 +11,17 @@
   separate and best-effort: the admin console sweeps expired rows before
   writing a new one, so a retry after a failed attempt works immediately
   instead of waiting out the clock. (#52)
+- Stop vitest collecting tests from git worktrees. A worktree is a second
+  checkout of the whole repo; vitest doesn't read `.gitignore`, so every
+  test was collected twice from a commit unrelated to the branch in hand.
+  Local runs reported 46 test files where the repo has 24, and those
+  inflated counts were quoted as evidence in two pull requests. Adds
+  `**/.claude/worktrees/**` to `exclude`, spread over
+  `configDefaults.exclude` so `**/node_modules/**` survives, with tests
+  pinning both. `.claude/worktrees/` also moves into `.gitignore`: it had
+  only ever been ignored through `.git/info/exclude`, which is
+  per-machine and never committed. Lesson 02 gains a section on why
+  git-ignored is not tool-ignored. (#60)
 - Admin console: members and roles. The console lists every member with
   name, email and role (names and emails come from Supabase's private
   `auth.users` through a `security definer` function that returns rows

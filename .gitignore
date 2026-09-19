@@ -15,6 +15,11 @@
 .DS_Store
 *.pem
 
+# git worktrees the Claude Code desktop app creates inside the repo. Ignored
+# here so it's true for every clone, not just whichever machine happened to
+# add it to .git/info/exclude.
+.claude/worktrees/
+
 # local env files
 .env*.local
 .env
