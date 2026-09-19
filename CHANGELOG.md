@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Fix: invitations expire. Creating a member writes an invitation row and
+  then creates the account; a crash between the two left the invitation
+  behind, and an invitation never expired, so that address could sign
+  itself up through the public form at any time afterwards. Invitations
+  now last ten minutes and the sign-up trigger ignores any that have
+  expired, which is what makes a leftover harmless. Clearing them out is
+  separate and best-effort: the admin console sweeps expired rows before
+  writing a new one, so a retry after a failed attempt works immediately
+  instead of waiting out the clock. (#52)
 - Admin console: members and roles. The console lists every member with
   name, email and role (names and emails come from Supabase's private
   `auth.users` through a `security definer` function that returns rows

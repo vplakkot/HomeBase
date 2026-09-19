@@ -165,3 +165,35 @@ describe("members overview and minimum holders migration", () => {
     expect(migration).toMatch(/and user_id <> old\.user_id/);
   });
 });
+
+describe("invitations expire migration", () => {
+  const migration = readMigration("20260919120000");
+
+  it("gives every invitation a ten-minute life, with no null allowed", () => {
+    expect(migration).toMatch(
+      /alter table public\.member_invitations\s+add column expires_at timestamptz not null default \(now\(\) \+ interval '10 minutes'\)/,
+    );
+  });
+
+  it("admits a new user only on an invitation that has not expired", () => {
+    expect(migration).toMatch(
+      /where email = lower\(new\.email\)\s+and expires_at > now\(\)/,
+    );
+    expect(migration).toMatch(/if not found then\s+raise exception 'Sign-up is closed/);
+  });
+
+  it("sweeps expired invitations away at sign-up, so none accumulate", () => {
+    expect(migration).toMatch(/delete from public\.member_invitations where expires_at <= now\(\)/);
+  });
+
+  it("still uses the invitation up and keeps the first-user path untouched", () => {
+    expect(migration).toMatch(/delete from public\.member_invitations where email = invitation\.email/);
+    expect(migration).toMatch(/if existing_household_id is null then[\s\S]*?where name = 'Admin'/);
+  });
+
+  it("replaces the trigger function rather than adding a second trigger", () => {
+    expect(migration).toMatch(/create or replace function public\.handle_new_user\(\)/);
+    expect(migration).not.toMatch(/create trigger/);
+    expect(migration).toMatch(/security definer[\s\S]*?set search_path = ''/);
+  });
+});

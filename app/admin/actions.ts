@@ -36,6 +36,14 @@ export async function createMember(
 
   const supabase = await requireManageMembers();
 
+  // An invitation left behind by a create that died mid-way expires by
+  // itself, but clearing spent ones here means a retry doesn't have to wait
+  // out the clock.
+  await supabase
+    .from("member_invitations")
+    .delete()
+    .lt("expires_at", new Date().toISOString());
+
   // The invitation must exist before the account does: it is what the
   // database trigger checks when the new user row arrives.
   const { error: inviteError } = await supabase
@@ -45,7 +53,7 @@ export async function createMember(
     return {
       error:
         inviteError.code === UNIQUE_VIOLATION
-          ? "An invitation for that email is already waiting to be used."
+          ? "An invitation for that email is already waiting to be used. If an earlier attempt failed, it clears itself within ten minutes."
           : inviteError.message,
     };
   }

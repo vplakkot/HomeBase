@@ -168,7 +168,11 @@ then uses the server-only `SUPABASE_SECRET_KEY`
 ([`lib/supabase/admin.ts`](../lib/supabase/admin.ts)) to create the user
 with a temporary password. The trigger admits the new user only because
 that invitation exists, grants the invited role (Member by default), and
-deletes the invitation. A `must_set_password` flag in `app_metadata` —
+deletes the invitation. Invitations expire ten minutes after they are
+written and the trigger ignores expired ones, so a row left behind by a
+create that died mid-way cannot admit anyone later; the admin action
+clears expired rows before writing a new one.
+A `must_set_password` flag in `app_metadata` —
 which only the secret key can write — is read by the proxy from the login
 token to send the person to `/set-password` before anything else. No
 email is sent. See [lesson 11](lessons/11-creating-accounts-for-others.md).
