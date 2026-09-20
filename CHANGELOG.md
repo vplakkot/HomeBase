@@ -10,7 +10,9 @@
   the newest build, so the job started working the moment its code
   merged. architecture.md and lesson 03 now say the same, since they
   described the tag-gated design without noting it governs custom
-  domains and none is attached. Docs only. (#82)
+  domains and none is attached. CLAUDE.md's merging rule kept the same
+  gate but stopped giving a false reason for it, and lessons 04 and 15
+  lost their last two copies of the old model. Docs only. (#82)
 
 - CLAUDE.md: after restating the plan for a requirement, Claude starts
   building instead of waiting for a go-ahead. It stops to ask only when

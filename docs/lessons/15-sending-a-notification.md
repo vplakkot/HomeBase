@@ -119,9 +119,10 @@ limit 5;
 
 `200` with a count of what was sent is a working hour. `401` means the
 secret in Vercel and the one in the vault don't match — a stray newline
-is enough. `307` pointing at `/sign-in` means the live site is older than
-this code, and the release that knows this address hasn't shipped yet.
-Nothing at all means the schedule never ran.
+is enough. `307` pointing at `/sign-in` means the live site is running
+code older than this address — most likely the deployment for the merge
+that added it hasn't finished yet. Nothing at all means the schedule
+never ran.
 
 To compare the two copies of the secret without ever looking at either,
 fingerprint them. The database side:
@@ -163,9 +164,10 @@ push is reliable enough to build on.
 
 ## A correction, left in on purpose
 
-I wrote above that the hourly job could not work until v0.1 was released,
-reasoning that it can only reach the live site and the live site only
-changes when a release tag is pushed. The second half is false.
+This lesson originally ended by saying the hourly job could not work
+until v0.1 was released, reasoning that it can only reach the live site
+and the live site only changes when a release tag is pushed. The second
+half is false, so that ending is gone and this is what replaced it.
 
 The app's only address today is Vercel's own
 `home-base-home-base12.vercel.app`, and Vercel always points that at the
