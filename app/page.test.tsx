@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { cookies } from "next/headers";
 import { afterEach, describe, expect, it, vi } from "vitest";
