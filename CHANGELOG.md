@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.1.0 - 2026-09-20
+
+The first release anyone in the household can actually use: sign in,
+manage members, install it on a phone, and start the week of hourly test
+notifications that decides whether push is reliable enough to build on.
+
 - A notification log in the admin console: every send recorded with who
   it went to, which device, what triggered it, and whether it arrived.
   The phone reports its own deliveries and taps, because nothing else
