@@ -36,7 +36,15 @@ const members = [
   },
 ];
 
-function given({ signedIn, permissions = [] }: { signedIn: boolean; permissions?: string[] }) {
+function given({
+  signedIn,
+  permissions = [],
+  log = [] as Record<string, unknown>[],
+}: {
+  signedIn: boolean;
+  permissions?: string[];
+  log?: Record<string, unknown>[];
+}) {
   vi.mocked(createClient).mockResolvedValue({
     auth: {
       getClaims: vi.fn().mockResolvedValue({
@@ -53,11 +61,22 @@ function given({ signedIn, permissions = [] }: { signedIn: boolean; permissions?
       }
       throw new Error(`unexpected rpc ${fn}`);
     }),
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        order: vi.fn().mockResolvedValue({ data: roles, error: null }),
-      })),
-    })),
+    from: vi.fn((table: string) => {
+      if (table === "notification_log") {
+        return {
+          select: vi.fn(() => ({
+            gte: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({ data: log, error: null }),
+            })),
+          })),
+        };
+      }
+      return {
+        select: vi.fn(() => ({
+          order: vi.fn().mockResolvedValue({ data: roles, error: null }),
+        })),
+      };
+    }),
   } as unknown as Awaited<ReturnType<typeof createClient>>);
 }
 
@@ -132,5 +151,86 @@ describe("AdminPage", () => {
     expect(
       within(section).getByText(/every device of every member whose switch is on/),
     ).toBeDefined();
+  });
+
+  // REQ-22.
+  const MINUTE = 60 * 1000;
+  function entry(over: Record<string, unknown> = {}) {
+    return {
+      id: "log-1",
+      sent_at: new Date(Date.now() - 30 * MINUTE).toISOString(),
+      trigger: "hourly",
+      user_id: "u2",
+      device: "a1b2c3d4e5f6",
+      delivered_at: null,
+      tapped_at: null,
+      accepted: true,
+      failure_code: null,
+      ...over,
+    };
+  }
+
+  function logSection() {
+    return screen.getByRole("region", { name: "Notification log" });
+  }
+
+  it("says so plainly when nothing has been sent yet", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    expect(within(logSection()).getByText(/Nothing sent in the last 7 days/)).toBeDefined();
+  });
+
+  it("shows who a notification went to, and whether it arrived", async () => {
+    given({
+      signedIn: true,
+      permissions: ["manage_members"],
+      log: [
+        entry({
+          id: "log-1",
+          delivered_at: new Date(Date.now() - 29 * MINUTE).toISOString(),
+        }),
+      ],
+    });
+    render(await AdminPage());
+    const row = within(logSection()).getAllByRole("row")[1];
+    expect(within(row).getByText("Sam")).toBeDefined();
+    expect(within(row).getByText("Delivered")).toBeDefined();
+    expect(within(row).getByText("Hourly")).toBeDefined();
+  });
+
+  // The whole point of the requirement: a send with no word back is a
+  // failure worth seeing, not a blank.
+  it("calls a send missing once five minutes have passed with no delivery", async () => {
+    given({
+      signedIn: true,
+      permissions: ["manage_members"],
+      log: [entry()],
+    });
+    render(await AdminPage());
+    expect(within(logSection()).getByText("Missing")).toBeDefined();
+  });
+
+  it("calls a fresh send waiting, not missing", async () => {
+    given({
+      signedIn: true,
+      permissions: ["manage_members"],
+      log: [entry({ sent_at: new Date(Date.now() - MINUTE).toISOString() })],
+    });
+    render(await AdminPage());
+    expect(within(logSection()).getByText("Waiting")).toBeDefined();
+    expect(within(logSection()).queryByText("Missing")).toBeNull();
+  });
+
+  // The address a device is reached at never belongs on a screen.
+  it("shows a device fingerprint, never its push address", async () => {
+    given({
+      signedIn: true,
+      permissions: ["manage_members"],
+      log: [entry()],
+    });
+    render(await AdminPage());
+    const section = logSection();
+    expect(within(section).getByText("a1b2c3d4e5f6")).toBeDefined();
+    expect(section.textContent).not.toContain("web.push.apple.com");
   });
 });

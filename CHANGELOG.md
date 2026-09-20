@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- A notification log in the admin console: every send recorded with who
+  it went to, which device, what triggered it, and whether it arrived.
+  The phone reports its own deliveries and taps, because nothing else
+  knows — handing a message to Apple says Apple took it, not that a
+  phone ever saw it. That report arrives with nobody signed in, so it
+  proves itself with a one-use secret carried inside the message, which
+  only the device it was sent to can read. The log keeps a one-way
+  fingerprint of each device rather than its push address, since that
+  address is what lets anyone send to the phone. A send with no word back
+  after five minutes shows as missing; one the push service refused shows
+  as refused, because those are different failures. Entries older than 30
+  days delete themselves daily. (#79)
+
 - CLAUDE.md: after restating the plan for a requirement, Claude starts
   building instead of waiting for a go-ahead. It stops to ask only when
   the plan holds a decision that's Vin's to make, or a step only Vin can

@@ -414,6 +414,60 @@ sequenceDiagram
 
 See [lesson 15](lessons/15-sending-a-notification.md).
 
+## The notification log
+
+[`supabase/migrations/20260920060000_notification_log.sql`](../supabase/migrations/20260920060000_notification_log.sql)
+adds `notification_log`: one row per notification per device, holding when
+it was sent, what triggered it, whose it was, which device, and when (or
+whether) it arrived and was tapped.
+
+Only the sender and the receipt address write to it, both with the
+**secret key**. There is no insert, update or delete policy at all, so
+nobody signed in can write a delivery that did not happen. Admins can
+read it, which is the first time an admin can see anything about another
+member's notifications — REQ-16 and REQ-20 deliberately hid switches and
+devices even from admins. What is exposed is narrower: times, and a
+one-way **fingerprint** of the device rather than its push address, which
+is the thing that would let anyone send to that phone.
+
+Delivery is reported by the phone itself, because nothing else knows.
+[`public/sw.js`](../public/sw.js) calls
+[`app/api/notifications/receipt/route.ts`](../app/api/notifications/receipt/route.ts)
+when a notification shows and again when it is tapped. That call carries
+no session — a notification can arrive for someone signed out — so it
+proves itself with a **receipt token**: a random secret placed inside
+that one encrypted message, so only the device it was sent to can quote
+it. The address answers `204` to everything, so it cannot be used to test
+guesses, and the proxy's matcher skips it for the same reason it skips
+the hourly address.
+
+The log rows are written **before** the notifications are sent. A push
+can be delivered and reported back in well under a second, and a receipt
+that arrives before its row exists would be lost.
+
+"Missing after 5 minutes" is worked out when the log is read
+([`lib/notifications/log.ts`](../lib/notifications/log.ts)), not stored,
+so the rule lives in one place and can be tightened without a migration.
+A daily `pg_cron` job deletes entries older than 30 days.
+
+```mermaid
+sequenceDiagram
+    participant Send as lib/notifications/send.ts
+    participant DB as Postgres (secret key)
+    participant Apple as Push service
+    participant SW as Service worker
+    participant Receipt as /api/notifications/receipt
+
+    Send->>DB: write a log row per device, each with its own token
+    Send->>Apple: signed, encrypted message containing that token
+    Apple-->>SW: notification
+    SW->>Receipt: POST the token, "delivered"
+    Receipt->>DB: fill in delivered_at, only if blank
+    SW->>Receipt: POST the token, "tapped"
+```
+
+See [lesson 16](lessons/16-the-notification-log.md).
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:

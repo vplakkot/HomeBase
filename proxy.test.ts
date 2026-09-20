@@ -170,6 +170,19 @@ describe("proxy", () => {
     expect(regex.test("/api/anything")).toBe(true);
   });
 
+
+  // A phone reporting a delivered notification has no session either: the
+  // service worker runs with no page, and its owner may be signed out.
+  it("lets a phone report a delivery without a sign-in", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    expect(regex.test("/api/notifications/receipt")).toBe(false);
+    // Only that exact path. A look-alike still faces the sign-in check.
+    expect(regex.test("/api/notifications/receipt/extra")).toBe(true);
+    expect(regex.test("/api/notifications/receipts")).toBe(true);
+    expect(regex.test("/api/notifications/receipt.json")).toBe(true);
+  });
+
   // The phone re-checks the service worker in the background, and refuses
   // one that answers with a redirect, which is what a lapsed sign-in would
   // produce here.

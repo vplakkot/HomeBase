@@ -35,13 +35,37 @@ function device(user_id: string, name: string): Device {
   };
 }
 
+type LoggedRow = {
+  trigger: string;
+  user_id: string;
+  device: string;
+  receipt_token: string;
+};
+
 function givenHousehold({
   switchedOn = [] as string[],
   devices = [] as Device[],
 }) {
   const asked: { ids?: string[] } = {};
   const deleted: string[] = [];
+  const logged: LoggedRow[] = [];
+  const logUpdates: { token: string; fields: Record<string, unknown> }[] = [];
   const from = vi.fn((table: string) => {
+    if (table === "notification_log") {
+      return {
+        insert: async (rows: LoggedRow[]) => {
+          order.push("log");
+          logged.push(...rows);
+          return { error: null };
+        },
+        update: (fields: Record<string, unknown>) => ({
+          eq: async (_column: string, token: string) => {
+            logUpdates.push({ token, fields });
+            return { error: null };
+          },
+        }),
+      };
+    }
     if (table === "household_members") {
       return {
         select: () => ({
@@ -74,19 +98,25 @@ function givenHousehold({
   vi.mocked(createAdminClient).mockReturnValue(
     { from } as unknown as ReturnType<typeof createAdminClient>,
   );
-  return { from, deleted, asked };
+  return { from, deleted, asked, logged, logUpdates };
 }
 
 const send = () =>
   sendTestNotification({ subject: "https://homebase.example", trigger: "hourly" });
 
+// Shared by the fake database and the fake push library, so one test can
+// prove the log row existed before the notification went out.
+const order: string[] = [];
+
 describe("sendTestNotification", () => {
   beforeEach(() => {
+    order.length = 0;
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public-key");
     vi.stubEnv("VAPID_PRIVATE_KEY", "private-key");
-    vi.mocked(webpush.sendNotification).mockResolvedValue(
-      {} as Awaited<ReturnType<typeof webpush.sendNotification>>,
-    );
+    vi.mocked(webpush.sendNotification).mockImplementation(async () => {
+      order.push("send");
+      return {} as Awaited<ReturnType<typeof webpush.sendNotification>>;
+    });
   });
 
   afterEach(() => {
@@ -147,7 +177,7 @@ describe("sendTestNotification", () => {
     givenHousehold({ switchedOn: [VIN], devices: [device(VIN, "vin-phone")] });
     await sendTestNotification({ subject: "https://homebase.example", trigger: "manual" });
     const [, message] = vi.mocked(webpush.sendNotification).mock.calls[0];
-    expect(JSON.parse(String(message))).toEqual({
+    expect(JSON.parse(String(message))).toMatchObject({
       title: "HomeBase",
       body: "Test notification, sent by hand.",
       url: "/",
@@ -207,6 +237,90 @@ describe("sendTestNotification", () => {
     await expect(
       sendTestNotification({ subject: "ftp://nope.example", trigger: "manual" }),
     ).rejects.toThrow("Not a usable contact address for push");
+  });
+
+  // REQ-22. The log row has to exist before the message goes out: a
+  // notification can reach a phone and be reported back in well under a
+  // second, and a receipt with no row to land on is simply lost.
+  it("writes every log row before it sends anything", async () => {
+    const { logged } = givenHousehold({
+      switchedOn: [VIN, MEGAN],
+      devices: [device(VIN, "vin-phone"), device(MEGAN, "megan-phone")],
+    });
+    await send();
+    expect(order[0]).toBe("log");
+    expect(order.filter((step) => step === "send")).toHaveLength(2);
+    expect(logged).toHaveLength(2);
+    expect(logged.map((row) => row.user_id)).toEqual([VIN, MEGAN]);
+    expect(logged.every((row) => row.trigger === "hourly")).toBe(true);
+  });
+
+  // The push address is what lets anyone send to the phone. The log keeps
+  // a one-way fingerprint instead, so reading the log never hands over
+  // the means to reach someone's device.
+  it("logs a fingerprint of the device, never its address", async () => {
+    const { logged } = givenHousehold({
+      switchedOn: [VIN],
+      devices: [device(VIN, "vin-phone")],
+    });
+    await send();
+    expect(logged[0].device).not.toContain("web.push.apple.com");
+    expect(logged[0].device).not.toContain("vin-phone");
+    expect(logged[0].device).toMatch(/^[0-9a-f]{12}$/);
+  });
+
+  it("gives two devices different fingerprints, and the same device the same one", async () => {
+    const { logged } = givenHousehold({
+      switchedOn: [VIN],
+      devices: [device(VIN, "vin-phone"), device(VIN, "vin-ipad")],
+    });
+    await send();
+    const first = logged.map((row) => row.device);
+    expect(first[0]).not.toBe(first[1]);
+
+    vi.clearAllMocks();
+    const again = givenHousehold({
+      switchedOn: [VIN],
+      devices: [device(VIN, "vin-phone")],
+    });
+    await send();
+    expect(again.logged[0].device).toBe(first[0]);
+  });
+
+  // Each device gets its own secret, inside its own message. Sharing one
+  // would let a receipt from any device answer for all of them.
+  it("gives each device its own receipt token, and sends it only that one", async () => {
+    const { logged } = givenHousehold({
+      switchedOn: [VIN],
+      devices: [device(VIN, "vin-phone"), device(VIN, "vin-ipad")],
+    });
+    await send();
+    const tokens = logged.map((row) => row.receipt_token);
+    expect(new Set(tokens).size).toBe(2);
+    expect(tokens[0]).toMatch(/^[A-Za-z0-9_-]{20,}$/);
+
+    const sentTokens = vi
+      .mocked(webpush.sendNotification)
+      .mock.calls.map(([, message]) => JSON.parse(String(message)).receipt);
+    expect(sentTokens).toEqual(tokens);
+  });
+
+  it("marks a refused send against its own log row", async () => {
+    const { logged, logUpdates } = givenHousehold({
+      switchedOn: [VIN],
+      devices: [device(VIN, "vin-phone"), device(VIN, "vin-ipad")],
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(webpush.sendNotification)
+      .mockRejectedValueOnce(new WebPushError("boom", 500, {} as never, "", ""))
+      .mockResolvedValueOnce({} as Awaited<ReturnType<typeof webpush.sendNotification>>);
+    await send();
+    expect(logUpdates).toEqual([
+      {
+        token: logged[0].receipt_token,
+        fields: { accepted: false, failure_code: 500 },
+      },
+    ]);
   });
 
   it("refuses to run without the app's push keys", async () => {
