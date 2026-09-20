@@ -63,7 +63,8 @@ Every pull request must satisfy all of these:
 - [ ] Every acceptance criterion has a passing test
 - [ ] All automated checks pass
 - [ ] Verified in a browser — locally by you, and on the preview link by me
-      whenever I choose to (it sits behind Vercel's login, so you can't)
+      whenever I choose to (Vercel's own login no longer guards previews,
+      but you have no HomeBase account, so signed-in pages stay mine)
 - [ ] CHANGELOG.md updated
 - [ ] Database changes are migrations
 - [ ] No secrets in code

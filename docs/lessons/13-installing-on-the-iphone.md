@@ -57,10 +57,11 @@ bounces to sign-in.
 
 One wrinkle you might meet: on Vercel **preview** links, Next.js adds
 `crossorigin="use-credentials"` to the card's link, so the phone *does*
-send cookies there. Preview links sit behind Vercel's own login, and
-without those cookies the card would be refused before it reached our
-app. On the real domain nothing does that, which is why the skip matters
-most in production.
+send cookies there. That used to matter a great deal: preview links sat
+behind Vercel's own login, and without those cookies the card would have
+been refused before it ever reached our app. Vercel's login is off now —
+[lesson 15](15-sending-a-notification.md) explains why — so previews
+behave like the real address here. The skip itself still matters.
 
 ## Staying signed in between opens
 

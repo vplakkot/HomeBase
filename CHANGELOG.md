@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Corrected three docs that went stale when Vercel's own login was
+  switched off: CLAUDE.md and lesson 13 both still said preview links sat
+  behind it, and lesson 15 said the hourly notification could not work
+  until v0.1 was released. That last one was wrong for a different
+  reason — the live site tracks `main`, so the job started working the
+  moment its code merged. Docs only. (#82)
+
 - CLAUDE.md: after restating the plan for a requirement, Claude starts
   building instead of waiting for a go-ahead. It stops to ask only when
   the plan holds a decision that's Vin's to make, or a step only Vin can

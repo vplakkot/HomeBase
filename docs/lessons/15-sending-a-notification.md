@@ -161,7 +161,14 @@ iPhone with the app installed, and it's the point of the whole exercise:
 the week of hourly tests after the v0.1 release is what tells us whether
 push is reliable enough to build on.
 
-One thing to expect: the hourly job can only reach the live site, and the
-live site only changes when a release tag is pushed. So the hourly half
-starts working when v0.1 is released. "Send test now" works before that,
-wherever you're signed in.
+One thing I got wrong while writing this, worth leaving in: I said the
+hourly job could not work until v0.1 was released, reasoning that it can
+only reach the live site and the live site only changes when a release
+tag is pushed. The second half is false. Production tracks `main`, so the
+hourly job went live minutes after this work merged — no tag involved.
+The proof was the live address answering `401` instead of `307`: it had
+started refusing an unauthenticated caller, which only the new code does.
+
+That is worth knowing for its own sake, and it is being settled
+separately in [issue #81](https://github.com/vplakkot/HomeBase/issues/81),
+because it also means merging is releasing.
