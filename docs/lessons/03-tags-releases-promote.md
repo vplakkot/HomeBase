@@ -59,6 +59,20 @@ says otherwise. It also means production only changes on a version bump we
 chose on purpose, not on every commit that happened to land on `main`
 first.
 
+**That is the design. It is not what happens today**, and the reason is
+worth understanding, because the setting is doing exactly what it says.
+"Auto-assign Custom Production Domains" governs *custom* domains, and
+this project has none: `vercel domains ls` returns nothing. Every Vercel
+project also gets a free address of its own —
+`home-base-home-base12.vercel.app` here — and Vercel always points that
+one at the newest production build, whatever the custom-domain setting
+says.
+
+So the safety net above is real but not yet hung: a merge to `main` is
+live on the only address the app has, within minutes, with no tag. It
+starts working the moment a custom domain is attached. Tracked in
+[issue #81](https://github.com/vplakkot/HomeBase/issues/81).
+
 ```mermaid
 sequenceDiagram
     participant Dev as You
