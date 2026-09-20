@@ -119,9 +119,10 @@ limit 5;
 
 `200` with a count of what was sent is a working hour. `401` means the
 secret in Vercel and the one in the vault don't match — a stray newline
-is enough. `307` pointing at `/sign-in` means the live site is older than
-this code, and the release that knows this address hasn't shipped yet.
-Nothing at all means the schedule never ran.
+is enough. `307` pointing at `/sign-in` means the live site is running
+code older than this address — most likely the deployment for the merge
+that added it hasn't finished yet. Nothing at all means the schedule
+never ran.
 
 To compare the two copies of the secret without ever looking at either,
 fingerprint them. The database side:
@@ -161,7 +162,23 @@ iPhone with the app installed, and it's the point of the whole exercise:
 the week of hourly tests after the v0.1 release is what tells us whether
 push is reliable enough to build on.
 
-One thing to expect: the hourly job can only reach the live site, and the
-live site only changes when a release tag is pushed. So the hourly half
-starts working when v0.1 is released. "Send test now" works before that,
-wherever you're signed in.
+## A correction, left in on purpose
+
+This lesson originally ended by saying the hourly job could not work
+until v0.1 was released, reasoning that it can only reach the live site
+and the live site only changes when a release tag is pushed. The second
+half is false, so that ending is gone and this is what replaced it.
+
+The app's only address today is Vercel's own
+`home-base-home-base12.vercel.app`, and Vercel always points that at the
+newest production build. The tag-gating this project set up governs
+*custom* domains, and none is attached yet. So the hourly job went live
+minutes after this work merged, with no tag involved.
+
+The proof was the live address answering `401` where it had answered
+`307`: it had started refusing an unauthenticated caller, which only the
+new code does. It has run on the hour every hour since.
+
+Which means, today, **merging is releasing**. That is a bigger fact than
+a wrong sentence in a lesson, and it is being settled in
+[issue #81](https://github.com/vplakkot/HomeBase/issues/81).
