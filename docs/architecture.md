@@ -263,15 +263,166 @@ Both the toggle and the console are gated on `has_permission('manage_members')`,
 never on a role's name; a member who types `/admin` is sent home. See
 [lesson 10](lessons/10-modes-are-not-roles.md).
 
+## Installing on iPhone
+
+[`app/manifest.ts`](../app/manifest.ts) produces the web app manifest,
+served at `/manifest.webmanifest` and linked from every page: the name
+HomeBase, `start_url: "/"`, `display: "standalone"` (full screen, no
+address bar) and two icons in `public/` (192 and 512 pixels).
+[`app/layout.tsx`](../app/layout.tsx)'s `metadata` adds what iOS reads
+from each page's head: a 180 pixel `apple-touch-icon` and the home-screen
+title. Full screen comes from the manifest's `display`.
+
+Phones fetch the manifest without cookies, so the proxy's `matcher` skips
+it, next to `favicon.ico`. Otherwise the proxy would find no sign-in and
+answer with the sign-in page. The icons are PNGs, which the matcher
+already skipped. Neither holds anything private.
+
+Staying signed in across opens of the installed app rests on the session
+cookies' 400-day lifetime, which `@supabase/ssr` sets and renews on every
+refresh. Tests pin it where our code writes those cookies: at sign-in,
+through [`lib/supabase/server.ts`](../lib/supabase/server.ts), and at
+renewal, in the proxy. See
+[lesson 13](lessons/13-installing-on-the-iphone.md).
+
+## Turning notifications on
+
+The home page carries a small browser-side control,
+[`app/notifications/enable-notifications.tsx`](../app/notifications/enable-notifications.tsx).
+In a normal browser tab it explains that notifications need the
+home-screen install. In the installed app it registers the service
+worker, [`public/sw.js`](../public/sw.js), which the phone keeps running
+in the background to receive and show notifications. It then offers
+**Enable notifications**, which asks the phone's permission as the first
+thing the tap does.
+
+On a yes, the browser's `pushManager.subscribe()` returns a subscription
+from the phone's push service (Apple's, for an iPhone). The subscription
+is an address (`endpoint`) plus two keys that let a sender encrypt for
+that one device. It's made against the app's public push key,
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, which the server page hands to the
+control. Its private half, `VAPID_PRIVATE_KEY`, waits in Vercel for the
+sender in REQ-21. The Server Action
+[`app/notifications/actions.ts`](../app/notifications/actions.ts) saves
+the subscription to a new table:
+
+```mermaid
+sequenceDiagram
+    participant Person
+    participant Control as enable-notifications.tsx
+    participant Phone as iPhone
+    participant Apple as Apple push service
+    participant Action as saveDevice (Server Action)
+    participant DB as push_subscriptions
+
+    Person->>Control: tap "Enable notifications"
+    Control->>Phone: Notification.requestPermission()
+    Phone-->>Person: "Allow notifications?"
+    Person-->>Phone: Allow
+    Control->>Apple: pushManager.subscribe(public key)
+    Apple-->>Control: endpoint + keys
+    Control->>Action: saveDevice(subscription)
+    Action->>DB: upsert on endpoint (user_id filled in by the database)
+```
+
+Saving also writes the device's address into a `homebase-device` cookie
+(`httpOnly`), which is how sign-out knows which device this browser is.
+[`app/sign-out/sign-out-form.tsx`](../app/sign-out/sign-out-form.tsx)
+first asks the push service to forget this device, then
+[`app/sign-out/actions.ts`](../app/sign-out/actions.ts) removes that one
+row and clears the cookie before ending the session — in that order,
+since the delete needs the session. A failed clean-up is logged and
+sign-out continues. Their other devices keep their notifications.
+
+Two guards keep this from enrolling the wrong person: the control only
+confirms an existing subscription when its address matches that cookie,
+so anyone else must tap Enable; and signing in
+([`app/sign-in/actions.ts`](../app/sign-in/actions.ts)) clears the
+cookie left by whoever was here before. If an address is still held by
+someone who never signed out, tapping Enable unsubscribes, signs up
+again for a fresh address and saves that.
+
+`push_subscriptions` holds one row per device (`endpoint` is unique,
+`user_id` isn't), so a person can have several. `user_id` defaults to
+`auth.uid()` and references `household_members`, so leaving the household
+removes the devices. Row-level security lets each member see, add,
+change and remove only their own rows, and every policy also asks
+`is_member()`. `anon` has no grants at all. A check constraint accepts
+only the push services' own addresses (Apple, Google, Mozilla,
+Microsoft), because the sender will call every address stored here.
+Like the notifications flag, nobody but the device's owner can read
+these rows through the API, so REQ-21's sender will need `service_role`.
+
+The service worker skips the proxy, like the manifest does. The phone
+re-checks it in the background, and it refuses a service worker that
+answers with a redirect, which is what a lapsed sign-in would otherwise
+produce. See [lesson 14](lessons/14-turning-notifications-on.md).
+
+## Sending the test notification
+
+[`lib/notifications/send.ts`](../lib/notifications/send.ts) is the only
+place anything is sent. It reads who is switched on
+(`household_members.notifications_enabled`) and their devices
+(`push_subscriptions`) with the **secret key**, because both are private
+to their owner and a scheduled job has nobody signed in. It signs and
+encrypts each message with `web-push` — a new dependency, and the
+standard one for this — using `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and
+`VAPID_PRIVATE_KEY` from Vercel, with the app's own address as the
+contact the push services require (written as `https` even on localhost,
+which they insist on). A device whose push service answers `404` or
+`410 Gone` has its row removed.
+
+Two things start a send:
+
+- **The hourly schedule.** Vercel's free plan allows only a daily job, so
+  the clock lives in the database:
+  [`supabase/migrations/20260919190000_hourly_test_notification.sql`](../supabase/migrations/20260919190000_hourly_test_notification.sql)
+  adds `pg_cron` and `pg_net` and schedules `0 * * * *`, which calls
+  [`app/api/notifications/test/route.ts`](../app/api/notifications/test/route.ts).
+  The address and a shared secret live in Supabase's vault
+  (`notify_url`, `notify_secret`), never in git; until both exist the job
+  does nothing. The route has no session to check — the database isn't a
+  person — so it compares the secret against `NOTIFY_SECRET` in constant
+  time, and the proxy's matcher skips just that one path. Vercel's own
+  Deployment Protection is off for this reason and one bigger one: it
+  would have required every visitor, household members included, to hold
+  a Vercel account. HomeBase's invite-only sign-in is the real gate.
+- **"Send test now"** in the admin console
+  ([`app/admin/send-test-form.tsx`](../app/admin/send-test-form.tsx)),
+  behind `manage_members` like everything else there, which calls the
+  same sender.
+
+```mermaid
+sequenceDiagram
+    participant Cron as Supabase pg_cron
+    participant Route as /api/notifications/test
+    participant Send as lib/notifications/send.ts
+    participant DB as Postgres (secret key)
+    participant Apple as Push service
+    participant Phone as iPhone
+
+    Cron->>Route: POST, hourly, Bearer <vault secret>
+    Route->>Route: constant-time secret check
+    Route->>Send: sendTestNotification()
+    Send->>DB: who is switched on, and their devices
+    DB-->>Send: devices
+    Send->>Apple: one signed, encrypted request per device
+    Apple-->>Phone: notification
+    Apple-->>Send: 410 Gone for a dead device
+    Send->>DB: remove that device
+```
+
+See [lesson 15](lessons/15-sending-a-notification.md).
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
 
 - **No `components/` folder** — the sign-up and sign-in forms live next
   to their pages; nothing is shared between pages yet.
-- **Almost no state** — the only interactivity is the forms'
-  pending/error state and the admin-mode cookie; nothing else changes
-  after a page loads.
+- **Little state** — the forms' pending/error state, the admin-mode
+  cookie, and the notifications control, which checks the device when the
+  page opens and changes as the phone's question is answered.
 - **No styling** — plain, unstyled HTML.
 - **An empty admin console** — `/admin` exists so the toggle has
   somewhere to go; creating member accounts (REQ-13) and managing members

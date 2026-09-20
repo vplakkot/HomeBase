@@ -9,6 +9,68 @@
   only in that chat, so a fresh one stalled waiting for approval it
   already had. Docs only. (#71)
 
+- Hourly test notification, and a "Send test now" button in the admin
+  console. Both send the same thing: one signed, encrypted message per
+  device, to every device of every member whose switch is on. Switched-off
+  members' devices are never even fetched. A device whose push service
+  says it is gone (`404`/`410`) has its row removed, so the table can't
+  fill with addresses nothing can reach. Adds the `web-push` package,
+  which does the signing and the per-device encryption. Vercel's free plan
+  only allows a daily job, so the hourly clock lives in the database:
+  a migration adds `pg_cron` and `pg_net` and schedules a call to
+  `/api/notifications/test` on the hour. That address can't check a
+  session, because the database isn't a person, so it compares a shared
+  secret in constant time; the address and the secret live in Supabase's
+  vault, never in git, and until both exist the job does nothing. Only an
+  iPhone can prove a notification actually arrives, which is what the week
+  after the v0.1 release is for. (#76)
+
+- Signing out ends notifications on that device. The browser tells the
+  push service to forget the device, the server removes that one row from
+  `push_subscriptions`, and then the session ends; a failed clean-up is
+  logged rather than trapping anyone in a session. Turning notifications
+  on records which device this browser is, in an `httpOnly`
+  `homebase-device` cookie. Without this, once REQ-21 starts sending,
+  notifications would keep arriving on a device their owner had signed
+  out of, and a second person on a shared device could never turn
+  notifications on, because the address was taken. Two guards keep the
+  wrong person from being enrolled: notifications are only switched on by
+  themselves for a device that cookie says this person turned on, so
+  anyone else has to tap; and signing in clears the cookie left by
+  whoever was here before. If an address is still held by someone who
+  never signed out, tapping Enable signs up again for a fresh one. Their
+  other devices are unaffected, which matches sign-out ending this
+  device's session only. (#75)
+
+- Opt in to push notifications. The home page gains a Notifications
+  section. In a normal browser tab it explains that notifications need
+  the home-screen install. In the installed app it offers **Enable
+  notifications**, which asks the phone's permission as the first thing
+  the tap does, then signs the device up with its push service and saves
+  the result against the signed-in person. A denied permission shows as
+  off, with the way back through the Settings app. A new
+  `push_subscriptions` table holds one row per device, so a person can
+  have several. Each member sees and manages only their own rows, `anon`
+  gets nothing, and a check refuses any address that isn't a push
+  service's own, because REQ-21's sender will call every one. Adds the
+  service worker (`public/sw.js`), which the proxy skips, and two new
+  environment variables for the app's push keys. The live check of the
+  table's rules is committed as `supabase/checks/push_subscriptions.sql`
+  and undoes itself when run. Nothing sends yet; that is REQ-21. (#70)
+
+- Installable as an app on iPhone. A web app manifest
+  (`/manifest.webmanifest`) gives Add to Home Screen the name HomeBase, a
+  placeholder icon (a white house on dark blue, in `public/` at 180, 192
+  and 512 pixels), full-screen display and the home page as the start.
+  Each page's head adds the iPhone-specific icon and title. The proxy now
+  skips the manifest, because phones fetch it without cookies and would
+  otherwise get the sign-in page. Tests pin the session cookies'
+  400-day lifetime, which is what keeps you signed in between opens,
+  both at sign-in (a real sign-in through our Supabase client) and when
+  the proxy renews the session. What only an iPhone can show, the icon on
+  the home screen, the full-screen launch and staying signed in between
+  launches, is still to be checked on a real phone. (#69)
+
 - Per-member notification switch in the admin console. Each membership
   carries a `notifications_enabled` flag, off by default, so a new member
   — including the household's first admin — starts switched off without

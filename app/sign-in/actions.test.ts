@@ -1,14 +1,19 @@
+import { cookies } from "next/headers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SIGN_IN_FAILED_MESSAGE } from "../../lib/auth/messages";
+import { DEVICE_COOKIE } from "../../lib/notifications/device";
 import { createClient } from "../../lib/supabase/server";
 import { signIn } from "./actions";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("next/headers", () => ({ cookies: vi.fn() }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
 }));
+
+let store: { delete: ReturnType<typeof vi.fn> };
 
 function fakeClient(signInError: { message: string } | null) {
   const client = {
@@ -20,6 +25,10 @@ function fakeClient(signInError: { message: string } | null) {
   };
   vi.mocked(createClient).mockResolvedValue(
     client as unknown as Awaited<ReturnType<typeof createClient>>,
+  );
+  store = { delete: vi.fn() };
+  vi.mocked(cookies).mockResolvedValue(
+    store as unknown as Awaited<ReturnType<typeof cookies>>,
   );
   return client;
 }
@@ -35,6 +44,21 @@ function form(fields: Record<string, string>) {
 describe("signIn", () => {
   beforeEach(() => {
     vi.mocked(createClient).mockReset();
+    vi.mocked(cookies).mockReset();
+  });
+
+  // The note says which device this browser is for notifications. Left
+  // behind, it would decide what the next person sees.
+  it("forgets the previous person's device note", async () => {
+    fakeClient(null);
+    await signIn({}, form({ email: "member@example.com", password: "pw" })).catch(() => {});
+    expect(store.delete).toHaveBeenCalledWith(DEVICE_COOKIE);
+  });
+
+  it("leaves the note alone when signing in fails", async () => {
+    fakeClient({ message: "Invalid login credentials" });
+    await signIn({}, form({ email: "member@example.com", password: "pw" }));
+    expect(store.delete).not.toHaveBeenCalled();
   });
 
   it("rejects a missing email or password before touching Supabase", async () => {

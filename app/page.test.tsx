@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { cookies } from "next/headers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MODE_COOKIE } from "../lib/auth/mode";
+import { DEVICE_COOKIE } from "../lib/notifications/device";
 import { createClient } from "../lib/supabase/server";
 import HomePage from "./page";
 
@@ -12,6 +13,19 @@ vi.mock("./mode/actions", () => ({
   leaveAdminMode: vi.fn(),
 }));
 vi.mock("next/headers", () => ({ cookies: vi.fn() }));
+// The notifications control runs in the browser and has its own tests; here
+// it only has to be on the page, holding the server's push key.
+vi.mock("./notifications/enable-notifications", () => ({
+  EnableNotifications: ({
+    publicKey,
+    knownDevice,
+  }: {
+    publicKey?: string;
+    knownDevice?: string | null;
+  }) => (
+    <p data-testid="notifications">{`${publicKey ?? "no key"} · ${knownDevice ?? "no device"}`}</p>
+  ),
+}));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -22,10 +36,12 @@ function given({
   email,
   permissions = [],
   mode,
+  device,
 }: {
   email: string | null;
   permissions?: string[];
   mode?: "admin";
+  device?: string;
 }) {
   vi.mocked(createClient).mockResolvedValue({
     auth: {
@@ -40,8 +56,11 @@ function given({
     })),
   } as unknown as Awaited<ReturnType<typeof createClient>>);
   vi.mocked(cookies).mockResolvedValue({
-    get: (name: string) =>
-      name === MODE_COOKIE && mode ? { value: mode } : undefined,
+    get: (name: string) => {
+      if (name === MODE_COOKIE && mode) return { value: mode };
+      if (name === DEVICE_COOKIE && device) return { value: device };
+      return undefined;
+    },
   } as unknown as Awaited<ReturnType<typeof cookies>>);
 }
 
@@ -91,6 +110,24 @@ describe("HomePage", () => {
     expect(screen.queryByRole("button", { name: "Enter admin mode" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Admin console" })).toBeNull();
     expect(screen.queryByText("Admin mode")).toBeNull();
+  });
+
+  it("offers notifications, handing over the push key and this device's note", async () => {
+    given({ email: "member@example.com", device: "https://web.push.apple.com/this" });
+    vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public-push-key");
+    render(await HomePage());
+    expect(screen.getByTestId("notifications").textContent).toBe(
+      "public-push-key · https://web.push.apple.com/this",
+    );
+  });
+
+  it("hands over no device note when this browser never turned notifications on", async () => {
+    given({ email: "member@example.com" });
+    vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public-push-key");
+    render(await HomePage());
+    expect(screen.getByTestId("notifications").textContent).toBe(
+      "public-push-key · no device",
+    );
   });
 
   it("falls back to placeholder build info when Vercel env vars are unset", async () => {

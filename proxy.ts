@@ -60,8 +60,20 @@ export async function proxy(request: NextRequest) {
   return redirect;
 }
 
+// The proxy skips files that hold nothing private and that a browser or
+// phone fetches on its own. The web app manifest is one of them: phones
+// fetch it without the sign-in cookies, so if it came through here it would
+// be answered with the sign-in page and "Add to Home Screen" would ignore
+// it. The icons it names are PNGs, which the extension rule already skips.
+// The service worker (sw.js) is another: the phone re-checks it in the
+// background, and a service worker that answers with a redirect is refused
+// outright, so a lapsed sign-in must never turn into one.
+// The hourly schedule's address is the last: it runs in the database with
+// nobody signed in, and proves itself with a shared secret instead. Sent
+// through here it would be answered with the sign-in page, and the
+// schedule would quietly send nothing.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest$|sw\\.js$|api/notifications/test$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

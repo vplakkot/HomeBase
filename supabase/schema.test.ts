@@ -271,3 +271,101 @@ describe("floor applies while the household exists migration", () => {
     expect(migration).toContain("revoke all on function public.enforce_role_holder_minimum() from public;");
   });
 });
+
+describe("push subscriptions migration", () => {
+  const migration = readMigration("20260919170000");
+
+  it("keeps one row per device, so a person can have several", () => {
+    expect(migration).toMatch(/create table public\.push_subscriptions/);
+    expect(migration).toMatch(/endpoint text not null unique/);
+    // Nothing makes a person's user_id unique: a second device is a second row.
+    expect(migration).not.toMatch(/user_id uuid[^,]*unique/);
+    expect(migration).not.toMatch(/unique \(user_id\)/);
+  });
+
+  it("saves each device against the signed-in person, and drops it when they leave", () => {
+    expect(migration).toMatch(
+      /user_id uuid not null default auth\.uid\(\)\s+references public\.household_members \(user_id\) on delete cascade/,
+    );
+  });
+
+  it("lets each member see and manage only their own devices", () => {
+    expect(migration).toMatch(/alter table public\.push_subscriptions enable row level security/);
+    for (const action of ["select", "insert", "update", "delete"]) {
+      expect(migration).toMatch(
+        new RegExp(`on public\\.push_subscriptions for ${action} to authenticated`),
+      );
+    }
+    const policies = migration.match(/create policy[\s\S]*?;/g) ?? [];
+    expect(policies).toHaveLength(4);
+    for (const policy of policies) {
+      expect(policy).toMatch(/public\.is_member\(\) and user_id = \(select auth\.uid\(\)\)/);
+      // No permission widens it: an admin sees only their own devices too.
+      expect(policy).not.toMatch(/has_permission/);
+    }
+  });
+
+  it("gives signed-out visitors nothing", () => {
+    expect(migration).toContain("revoke all on public.push_subscriptions from anon;");
+  });
+
+  // Postgres runs the real check. This lifts its pattern out of the file
+  // and tries it on sample addresses, so a loosened pattern fails here.
+  it("accepts only the push services' own addresses", () => {
+    const pattern = migration.match(/check \(endpoint ~ '([^']+)'\)/)?.[1];
+    expect(pattern).toBeDefined();
+    const allowed = new RegExp(pattern!);
+    for (const endpoint of [
+      "https://web.push.apple.com/QGuQyavXutnMfBCd",
+      "https://fcm.googleapis.com/fcm/send/abc:def",
+      "https://updates.push.services.mozilla.com/wpush/v2/gAAAA",
+      "https://wns2-bl2p.notify.windows.com/w/?token=abc",
+    ]) {
+      expect(allowed.test(endpoint)).toBe(true);
+    }
+    for (const endpoint of [
+      "http://web.push.apple.com/QGuQ",
+      "https://web.push.apple.com.example.com/QGuQ",
+      "https://example.com/web.push.apple.com/",
+      "https://192.168.1.10/push",
+      "https://localhost:3000/",
+    ]) {
+      expect(allowed.test(endpoint)).toBe(false);
+    }
+  });
+});
+
+describe("hourly test notification migration", () => {
+  const migration = readMigration("20260919190000");
+
+  it("runs on the hour, around the clock", () => {
+    expect(migration).toMatch(/cron\.schedule\(\s*'hourly-test-notification',[\s\S]*?'0 \* \* \* \*'/);
+  });
+
+  it("turns on the scheduler and the database's way of calling an address", () => {
+    expect(migration).toMatch(/create extension if not exists pg_cron/);
+    expect(migration).toMatch(/create extension if not exists pg_net/);
+  });
+
+  it("calls the app with the shared secret, both read from the vault", () => {
+    expect(migration).toMatch(/net\.http_post\(/);
+    for (const name of ["notify_url", "notify_secret"]) {
+      expect(migration).toMatch(
+        new RegExp(`select decrypted_secret from vault\\.decrypted_secrets where name = '${name}'`),
+      );
+    }
+    expect(migration).toMatch(/'Bearer ' \|\|/);
+  });
+
+  // A secret in git is a secret given away, and a hard-coded address would
+  // need a migration to change.
+  it("holds no address and no secret of its own", () => {
+    expect(migration).not.toMatch(/https?:\/\//);
+    expect(migration).not.toMatch(/Bearer [A-Za-z0-9._-]{8,}/);
+  });
+
+  // Without both, the job would fail every hour instead of waiting quietly.
+  it("does nothing until both are in the vault", () => {
+    expect(migration).toMatch(/where exists \(\s*select 1 from vault\.decrypted_secrets where name = 'notify_url'\s*\) and exists \(/);
+  });
+});

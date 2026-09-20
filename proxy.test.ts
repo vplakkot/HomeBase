@@ -105,6 +105,23 @@ describe("proxy", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  // The proxy is where a sign-in gets renewed, about once an hour of use. If
+  // the renewed cookies lost their lifetime, the sign-in would be thrown
+  // away the next time the installed app closed (lesson 13).
+  it("keeps a renewed sign-in's 400-day lifetime, whether or not it redirects", async () => {
+    const lifetime = 400 * 24 * 60 * 60;
+    givenSupabase({
+      signedIn: true,
+      refreshedCookies: [
+        { name: "sb-token", value: "fresh", options: { path: "/", maxAge: lifetime } },
+      ],
+    });
+    for (const path of ["/", "/sign-in"]) {
+      const response = await proxy(request(path));
+      expect(response.headers.get("set-cookie")).toContain(`Max-Age=${lifetime}`);
+    }
+  });
+
   it("verifies the token instead of trusting the cookie", async () => {
     givenSupabase({ signedIn: true });
     await proxy(request("/"));
@@ -123,5 +140,58 @@ describe("proxy", () => {
     expect(regex.test("/")).toBe(true);
     expect(regex.test("/sign-in")).toBe(true);
     expect(regex.test("/finances/2026")).toBe(true);
+  });
+
+  // A phone fetches these without the sign-in cookies. Sent through the
+  // proxy, they'd come back as the sign-in page and the install would
+  // ignore them.
+  it("lets a phone fetch the app card and icons without signing in", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    for (const path of [
+      "/manifest.webmanifest",
+      "/apple-touch-icon.png",
+      "/icon-192.png",
+      "/icon-512.png",
+    ]) {
+      expect(regex.test(path)).toBe(false);
+    }
+  });
+
+  // The hourly schedule has no session; it proves itself with a shared
+  // secret inside the route.
+  it("lets the hourly schedule reach its own address", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    expect(regex.test("/api/notifications/test")).toBe(false);
+    // Nothing else under /api skips the sign-in check.
+    expect(regex.test("/api/notifications/test/extra")).toBe(true);
+    expect(regex.test("/api/notifications")).toBe(true);
+    expect(regex.test("/api/anything")).toBe(true);
+  });
+
+  // The phone re-checks the service worker in the background, and refuses
+  // one that answers with a redirect, which is what a lapsed sign-in would
+  // produce here.
+  it("lets the phone fetch the service worker without signing in", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    expect(regex.test("/sw.js")).toBe(false);
+  });
+
+  // The skip list names exact files. Anything merely resembling one still
+  // gets the sign-in check.
+  it("still checks look-alikes of the skipped files", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    for (const path of [
+      "/sw.json",
+      "/sw-js",
+      "/swXjs",
+      "/manifest.webmanifest.bak",
+      "/manifestXwebmanifest",
+    ]) {
+      expect(regex.test(path)).toBe(true);
+    }
   });
 });

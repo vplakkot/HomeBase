@@ -6,6 +6,7 @@ import { createClient } from "../../lib/supabase/server";
 import { CreateMemberForm } from "./create-member-form";
 import { NotificationsForm } from "./notifications-form";
 import { ResetPasswordForm } from "./reset-password-form";
+import { SendTestForm } from "./send-test-form";
 import { RoleForm } from "./role-form";
 
 export default async function AdminPage() {
@@ -73,6 +74,14 @@ export default async function AdminPage() {
         </table>
         <h3>Create a member account</h3>
         <CreateMemberForm />
+      </section>
+      <section aria-labelledby="test-notification-heading">
+        <h2 id="test-notification-heading">Test notification</h2>
+        <p>
+          Goes to every device of every member whose switch is on, the same
+          as the hourly one.
+        </p>
+        <SendTestForm />
       </section>
       <p>
         <Link href="/">Back to home</Link>
