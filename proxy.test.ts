@@ -158,6 +158,18 @@ describe("proxy", () => {
     }
   });
 
+  // The hourly schedule has no session; it proves itself with a shared
+  // secret inside the route.
+  it("lets the hourly schedule reach its own address", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    expect(regex.test("/api/notifications/test")).toBe(false);
+    // Nothing else under /api skips the sign-in check.
+    expect(regex.test("/api/notifications/test/extra")).toBe(true);
+    expect(regex.test("/api/notifications")).toBe(true);
+    expect(regex.test("/api/anything")).toBe(true);
+  });
+
   // The phone re-checks the service worker in the background, and refuses
   // one that answers with a redirect, which is what a lapsed sign-in would
   // produce here.
