@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import {
+  hashReceiptToken,
+  looksLikeAToken,
+} from "../../../../lib/notifications/receipt-token";
 
 // REQ-22. Where a phone reports that a notification arrived, and that it
 // was tapped.
@@ -11,15 +15,18 @@ import { createAdminClient } from "../../../../lib/supabase/admin";
 // inside a message only that device could decrypt. Holding it is the
 // proof.
 //
-// So the worst anyone without a token can do here is nothing, and the most
-// anyone with a stolen token can do is claim that one notification arrived.
+// The most anyone holding a stolen token can do is claim that one
+// notification arrived. Everyone else gets 204 and changes nothing.
+//
+// Worth naming rather than glossing: this address is open to the whole
+// internet and has no rate limit, so anyone can make us do a little work
+// for nothing. The blast radius is bounded — at most one row, and only
+// the row whose token they already hold — but the request volume is not.
+// That trade-off is recorded in the pull request rather than assumed
+// away.
 
 const EVENTS = ["delivered", "tapped"] as const;
 type Event = (typeof EVENTS)[number];
-
-// A receipt token is 32 random bytes in base64url. Anything far off that
-// isn't worth a database round trip.
-const TOKEN_LOOKS_RIGHT = /^[A-Za-z0-9_-]{16,128}$/;
 
 export async function POST(request: Request) {
   // Always the same answer, whatever happened. A different reply for a
@@ -37,7 +44,7 @@ export async function POST(request: Request) {
     receipt?: unknown;
     event?: unknown;
   };
-  if (typeof receipt !== "string" || !TOKEN_LOOKS_RIGHT.test(receipt)) {
+  if (!looksLikeAToken(receipt)) {
     return acknowledge;
   }
   if (typeof event !== "string" || !EVENTS.includes(event as Event)) {
@@ -53,6 +60,10 @@ export async function POST(request: Request) {
       ? { tapped_at: now, delivered_at: now }
       : { delivered_at: now };
 
+  // The log stores a hash, never the token, so an admin reading it can't
+  // quote one back. Matching means hashing what arrived the same way.
+  const hash = hashReceiptToken(receipt);
+
   try {
     const admin = createAdminClient();
     // Only ever fills in a blank. The first report of each kind is the
@@ -61,7 +72,7 @@ export async function POST(request: Request) {
       await admin
         .from("notification_log")
         .update({ [column]: value })
-        .eq("receipt_token", receipt)
+        .eq("receipt_hash", hash)
         .is(column, null);
     }
   } catch (reason) {

@@ -423,7 +423,10 @@ whether) it arrived and was tapped.
 
 Only the sender and the receipt address write to it, both with the
 **secret key**. There is no insert, update or delete policy at all, so
-nobody signed in can write a delivery that did not happen. Admins can
+nobody signed in can write to it directly — and what is stored is a
+**hash** of each receipt token rather than the token, so an admin reading
+the log cannot quote one back to record a delivery that never happened
+either. Admins can
 read it, which is the first time an admin can see anything about another
 member's notifications — REQ-16 and REQ-20 deliberately hid switches and
 devices even from admins. What is exposed is narrower: times, and a
@@ -437,9 +440,11 @@ when a notification shows and again when it is tapped. That call carries
 no session — a notification can arrive for someone signed out — so it
 proves itself with a **receipt token**: a random secret placed inside
 that one encrypted message, so only the device it was sent to can quote
-it. The address answers `204` to everything, so it cannot be used to test
-guesses, and the proxy's matcher skips it for the same reason it skips
-the hourly address.
+it. The address hashes what arrives and matches that against the log. It
+answers `204` to everything, so it cannot be used to test guesses, and
+the proxy's matcher skips it for the same reason it skips the hourly
+address. It is open to the internet and unthrottled; the blast radius is
+one row, but the request volume is not bounded.
 
 The log rows are written **before** the notifications are sent. A push
 can be delivered and reported back in well under a second, and a receipt
@@ -458,11 +463,11 @@ sequenceDiagram
     participant SW as Service worker
     participant Receipt as /api/notifications/receipt
 
-    Send->>DB: write a log row per device, each with its own token
+    Send->>DB: write a log row per device, each with a hash of its token
     Send->>Apple: signed, encrypted message containing that token
     Apple-->>SW: notification
     SW->>Receipt: POST the token, "delivered"
-    Receipt->>DB: fill in delivered_at, only if blank
+    Receipt->>DB: hash it, match the row, fill in delivered_at if blank
     SW->>Receipt: POST the token, "tapped"
 ```
 

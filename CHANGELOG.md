@@ -10,7 +10,10 @@
   proves itself with a one-use secret carried inside the message, which
   only the device it was sent to can read. The log keeps a one-way
   fingerprint of each device rather than its push address, since that
-  address is what lets anyone send to the phone. A send with no word back
+  address is what lets anyone send to the phone, and a hash of each
+  device's one-use secret rather than the secret, so that an admin
+  reading the log cannot quote one back and record a delivery that never
+  happened. A send with no word back
   after five minutes shows as missing; one the push service refused shows
   as refused, because those are different failures. Entries older than 30
   days delete themselves daily. (#79)

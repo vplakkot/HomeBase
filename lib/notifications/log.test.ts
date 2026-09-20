@@ -28,6 +28,13 @@ function row(over: Partial<LogRow> = {}): LogRow {
 }
 
 describe("statusOf", () => {
+  // The boundary tests below derive their timestamps from this constant,
+  // so they would stay green if it became twenty minutes. The
+  // requirement says five, so five is asserted outright.
+  it("waits the five minutes the requirement asks for", () => {
+    expect(MISSING_AFTER_MS).toBe(5 * 60 * 1000);
+  });
+
   it("is waiting while the five minutes are still running", () => {
     expect(statusOf(row(), NOW)).toBe("waiting");
   });

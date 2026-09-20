@@ -56,12 +56,12 @@ export function NotificationLog({
       <table>
         <thead>
           <tr>
-            <th scope="col">Sent</th>
+            <th scope="col">Sent (UTC)</th>
             <th scope="col">Who</th>
             <th scope="col">Device</th>
             <th scope="col">Trigger</th>
             <th scope="col">Status</th>
-            <th scope="col">Arrived</th>
+            <th scope="col">Arrived (UTC)</th>
           </tr>
         </thead>
         <tbody>

@@ -1,6 +1,7 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import webpush, { WebPushError } from "web-push";
 import { createAdminClient } from "../supabase/admin";
+import { hashReceiptToken, newReceiptToken } from "./receipt-token";
 
 // Who gets a test notification, and what happened to each device. The
 // switch and the devices are both readable only by their owner, and a
@@ -92,7 +93,7 @@ export async function sendTestNotification({
   // which it sends back to report the delivery (REQ-22).
   const addressed = ((devices ?? []) as Device[]).map((device) => ({
     device,
-    receiptToken: randomBytes(32).toString("base64url"),
+    receiptToken: newReceiptToken(),
     fingerprint: fingerprintOf(device.endpoint),
   }));
 
@@ -105,7 +106,8 @@ export async function sendTestNotification({
         trigger,
         user_id: device.user_id,
         device: fingerprint,
-        receipt_token: receiptToken,
+        // The hash goes in the log; the token itself goes to the phone.
+        receipt_hash: hashReceiptToken(receiptToken),
       })),
     );
     // Losing the log must never stop the notifications themselves. The
@@ -184,7 +186,7 @@ async function sendToOne(
     await admin
       .from("notification_log")
       .update({ accepted: false, failure_code: statusCode ?? null })
-      .eq("receipt_token", receiptToken);
+      .eq("receipt_hash", hashReceiptToken(receiptToken));
     if (statusCode !== undefined && GONE.includes(statusCode)) {
       await admin
         .from("push_subscriptions")

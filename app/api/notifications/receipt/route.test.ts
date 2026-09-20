@@ -1,13 +1,15 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { hashReceiptToken } from "../../../../lib/notifications/receipt-token";
 import { POST } from "./route";
 
 vi.mock("../../../../lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
 type Write = {
   fields: Record<string, unknown>;
-  token: string;
+  matchedColumn: string;
+  matchedValue: string;
   onlyIfBlank: string;
 };
 
@@ -15,12 +17,12 @@ function givenDatabase({ fail = false } = {}) {
   const writes: Write[] = [];
   const from = vi.fn(() => ({
     update: (fields: Record<string, unknown>) => ({
-      eq: (_column: string, token: string) => ({
+      eq: (matchedColumn: string, matchedValue: string) => ({
         is: async (onlyIfBlank: string) => {
           if (fail) {
             throw new Error("database unreachable");
           }
-          writes.push({ fields, token, onlyIfBlank });
+          writes.push({ fields, matchedColumn, matchedValue, onlyIfBlank });
           return { error: null };
         },
       }),
@@ -55,7 +57,6 @@ describe("the receipt address", () => {
     const response = await POST(report({ receipt: TOKEN, event: "delivered" }));
     expect(response.status).toBe(204);
     expect(writes).toHaveLength(1);
-    expect(writes[0].token).toBe(TOKEN);
     expect(writes[0].onlyIfBlank).toBe("delivered_at");
     expect(typeof writes[0].fields.delivered_at).toBe("string");
   });
@@ -110,5 +111,16 @@ describe("the receipt address", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const response = await POST(report({ receipt: TOKEN, event: "delivered" }));
     expect(response.status).toBe(204);
+  });
+
+  // The log holds hashes, so the token that arrives has to be hashed the
+  // same way to find its row. Looking it up by the raw token would find
+  // nothing, and every delivery would silently go unrecorded.
+  it("looks the row up by the hash of the token, not the token", async () => {
+    const { writes } = givenDatabase();
+    await POST(report({ receipt: TOKEN, event: "delivered" }));
+    expect(writes[0].matchedColumn).toBe("receipt_hash");
+    expect(writes[0].matchedValue).toBe(hashReceiptToken(TOKEN));
+    expect(writes[0].matchedValue).not.toBe(TOKEN);
   });
 });

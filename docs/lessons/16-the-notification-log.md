@@ -44,11 +44,30 @@ Think of it as a numbered ticket sealed inside the envelope. Anyone can
 claim they got the letter; only the person who opened it can quote the
 number.
 
+**The log stores a hash of the token, not the token.** This is the same
+reason a password is never stored as typed. An admin can read the log; if
+it held the tokens, an admin could copy one out and quote it back,
+recording a delivery that never happened — which is precisely the lie the
+log exists to rule out. The receipt address hashes whatever arrives and
+looks for a matching hash.
+
+A plain SHA-256 is enough here, unlike a password. Passwords need slow,
+salted hashing because people pick guessable ones. This is 256 random
+bits, so there is no shorter route than trying them all.
+
 What that buys, precisely:
 
 - Someone with no token can do nothing at all.
 - Someone with a stolen token can mark *that one* notification delivered,
   and nothing else. No reading, no other rows, no other people.
+- Someone who can read the whole log still has no token.
+
+One thing this does *not* buy, and it is worth naming rather than
+glossing: the address is open to the internet with no rate limit, so
+anyone can make the app do a little work for nothing. What they cannot do
+is change anything they do not already hold a token for. Whether that
+deserves a rate limit is a judgement recorded in the pull request, not
+something the design quietly assumes away.
 
 The address answers `204 No Content` every single time — for a good
 token, a bad token, junk, anything. A different answer for a token that

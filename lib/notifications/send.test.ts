@@ -2,6 +2,7 @@
 import webpush from "web-push";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdminClient } from "../supabase/admin";
+import { hashReceiptToken } from "./receipt-token";
 import { sendTestNotification } from "./send";
 
 vi.mock("web-push", () => {
@@ -39,7 +40,7 @@ type LoggedRow = {
   trigger: string;
   user_id: string;
   device: string;
-  receipt_token: string;
+  receipt_hash: string;
 };
 
 function givenHousehold({
@@ -248,8 +249,7 @@ describe("sendTestNotification", () => {
       devices: [device(VIN, "vin-phone"), device(MEGAN, "megan-phone")],
     });
     await send();
-    expect(order[0]).toBe("log");
-    expect(order.filter((step) => step === "send")).toHaveLength(2);
+    expect(order).toEqual(["log", "send", "send"]);
     expect(logged).toHaveLength(2);
     expect(logged.map((row) => row.user_id)).toEqual([VIN, MEGAN]);
     expect(logged.every((row) => row.trigger === "hourly")).toBe(true);
@@ -295,14 +295,30 @@ describe("sendTestNotification", () => {
       devices: [device(VIN, "vin-phone"), device(VIN, "vin-ipad")],
     });
     await send();
-    const tokens = logged.map((row) => row.receipt_token);
-    expect(new Set(tokens).size).toBe(2);
-    expect(tokens[0]).toMatch(/^[A-Za-z0-9_-]{20,}$/);
-
     const sentTokens = vi
       .mocked(webpush.sendNotification)
       .mock.calls.map(([, message]) => JSON.parse(String(message)).receipt);
-    expect(sentTokens).toEqual(tokens);
+    expect(new Set(sentTokens).size).toBe(2);
+    expect(sentTokens[0]).toMatch(/^[A-Za-z0-9_-]{20,}$/);
+    expect(logged.map((row) => row.receipt_hash)).toEqual(
+      sentTokens.map(hashReceiptToken),
+    );
+  });
+
+  // An admin can read the log. If it held the tokens themselves, an admin
+  // could quote one back and record a delivery that never happened —
+  // exactly what the log exists to rule out.
+  it("stores a hash of the token, never the token itself", async () => {
+    const { logged } = givenHousehold({
+      switchedOn: [VIN],
+      devices: [device(VIN, "vin-phone")],
+    });
+    await send();
+    const [, message] = vi.mocked(webpush.sendNotification).mock.calls[0];
+    const sent = JSON.parse(String(message)).receipt;
+    expect(logged[0].receipt_hash).not.toBe(sent);
+    expect(logged[0].receipt_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(logged[0].receipt_hash).toBe(hashReceiptToken(sent));
   });
 
   it("marks a refused send against its own log row", async () => {
@@ -317,7 +333,7 @@ describe("sendTestNotification", () => {
     await send();
     expect(logUpdates).toEqual([
       {
-        token: logged[0].receipt_token,
+        token: logged[0].receipt_hash,
         fields: { accepted: false, failure_code: 500 },
       },
     ]);

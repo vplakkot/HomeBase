@@ -396,7 +396,7 @@ describe("notification log migration", () => {
     expect(statements).not.toMatch(/p256dh/);
   });
 
-  it("gives each row its own receipt token, and only one row per token", () => {
+  it("gives each row its own receipt secret, and only one row per secret", () => {
     expect(migration).toMatch(/receipt_token text not null unique/);
   });
 
@@ -426,5 +426,32 @@ describe("notification log migration", () => {
     // hourly send.
     const schedule = migration.match(/'delete-old-notification-log',[\s\S]*?'([^']+)'/);
     expect(schedule?.[1]).toBe("20 4 * * *");
+  });
+});
+
+describe("receipt hash migration", () => {
+  const migration = readMigration("20260920070000");
+
+  // An admin can read the log. Storing the token itself would let them
+  // copy one out and quote it back, recording a delivery that never
+  // happened — the one lie the log exists to rule out.
+  it("stores a hash of the receipt token rather than the token", () => {
+    expect(migration).toMatch(
+      /alter table public\.notification_log\s+rename column receipt_token to receipt_hash/,
+    );
+  });
+
+  it("drops the hand-made index that duplicated the unique constraint", () => {
+    expect(migration).toMatch(
+      /drop index if exists public\.notification_log_receipt_token_idx/,
+    );
+  });
+
+  // Renaming an empty table's column is safe to replay against a fresh
+  // database; dropping and recreating the table is not, and would leave
+  // a footgun in the file for every future environment.
+  it("never drops the table to get there", () => {
+    const statements = migration.replace(/--.*$/gm, "");
+    expect(statements).not.toMatch(/drop table/);
   });
 });
