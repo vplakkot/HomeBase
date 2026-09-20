@@ -3,9 +3,9 @@
 ## Unreleased
 
 - Test files now run in Node unless they actually render something.
-  Vitest was standing up a fake browser for all 36 files when only 7 need
+  Vitest was standing up a fake browser for all 34 files when only 8 need
   one, which was about three quarters of the suite's running time. The
-  run drops from roughly 2.6 to 1.5 seconds with no assertion changed.
+  run drops from roughly 2.5 to 1.4 seconds with no assertion changed.
   (#85)
 
 - CLAUDE.md: after restating the plan for a requirement, Claude starts
