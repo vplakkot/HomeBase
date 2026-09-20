@@ -11,6 +11,14 @@ import config from "./vitest.config";
 const exclude = config.test?.exclude ?? [];
 
 describe("vitest config", () => {
+  // Standing up a fake browser for files that never touch the DOM was
+  // about three quarters of the suite's running time. Flipping this back
+  // would slow every run down again without failing anything, which is
+  // exactly the kind of regression nobody notices.
+  it("leaves files in Node unless they ask for a browser", () => {
+    expect(config.test?.environment).toBe("node");
+  });
+
   it("ignores git worktrees, which hold a second copy of the whole repo", () => {
     expect(exclude).toContain("**/.claude/worktrees/**");
   });

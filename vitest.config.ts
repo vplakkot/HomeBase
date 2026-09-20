@@ -4,7 +4,17 @@ import { configDefaults, defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: "jsdom",
+    // Most test files here never touch the DOM: they exercise server
+    // actions, library functions, SQL and workflow files. Standing up a
+    // fake browser for those was about three quarters of the suite's
+    // running time. The handful that need a browser ask for one, with a
+    // `// @vitest-environment jsdom` line as the first line of the file.
+    //
+    // If you are here because a new test failed with `ReferenceError:
+    // document is not defined`, or `window`, or `navigator`, that line is
+    // what it wants. Any file that renders a component, or that leans on
+    // something a browser provides, needs it.
+    environment: "node",
     // A git worktree is a second checkout of this whole repo, parked on
     // another commit. Vitest doesn't read .gitignore, so it collected every
     // test twice and the local count stopped matching CI — worse than noise,

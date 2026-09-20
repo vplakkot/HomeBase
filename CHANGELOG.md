@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Test files now run in Node unless they actually render something.
+  Vitest was standing up a fake browser for all 34 files when only 8 need
+  one, which was about three quarters of the suite's running time. The
+  run drops from roughly 2.3 to 1.4 seconds with no assertion changed.
+  (#85)
+
 - Corrected three docs that went stale when Vercel's own login was
   switched off: CLAUDE.md and lesson 13 both still said preview links sat
   behind it, and lesson 15 said the hourly notification could not work
