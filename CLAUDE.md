@@ -21,7 +21,10 @@ When I say "next requirement":
 4. Set the requirement to In progress.
 5. The Notion page is the spec: acceptance criteria, out of scope, and
    decisions. Don't copy it elsewhere. Ask if anything is unclear.
-6. Restate your plan and wait for my go-ahead.
+6. Restate your plan in plain words, then start building. Stop for my
+   go-ahead only when the plan holds a decision that's mine to make (a
+   product choice the docs don't settle, a new dependency, an architecture
+   change) or a step only I can take.
 
 ## Rules
 - Never commit to main. Always a branch, then a pull request.
@@ -69,7 +72,8 @@ Every pull request must satisfy all of these:
       up work) — not applicable to bug or chore issues
 
 ## Working style
-- Restate what you understood before starting, and wait for confirmation.
+- Restate what you understood before starting. Wait for my confirmation
+  only when there's a decision in it for me (see Picking up work, step 6).
 - Small steps. One concern per pull request.
 - Direct and concise. Say when something is a bad idea.
 - Use analogies for new concepts.
