@@ -46,6 +46,39 @@ describe("the hourly schedule's way in", () => {
     });
   });
 
+  // The database keeps every answer it gets for hours. Device addresses
+  // have no business being copied there once an hour.
+  it("answers with counts only, never the devices themselves", async () => {
+    vi.stubEnv("NOTIFY_SECRET", SECRET);
+    vi.mocked(sendTestNotification).mockResolvedValue({
+      trigger: "hourly",
+      people: 1,
+      devices: 1,
+      delivered: 1,
+      failed: 0,
+      removed: 0,
+      outcomes: [
+        {
+          userId: "00000000-0000-0000-0000-00000000000a",
+          endpoint: "https://web.push.apple.com/a-real-device",
+          delivered: true,
+        },
+      ],
+    });
+    const response = await POST(request(`Bearer ${SECRET}`));
+    const body = await response.text();
+    expect(body).not.toContain("web.push.apple.com");
+    expect(body).not.toContain("00000000-0000-0000-0000-00000000000a");
+    expect(JSON.parse(body)).toEqual({
+      trigger: "hourly",
+      people: 1,
+      devices: 1,
+      delivered: 1,
+      failed: 0,
+      removed: 0,
+    });
+  });
+
   it.each([
     ["nothing at all", undefined],
     ["the wrong secret", "Bearer not-the-secret"],

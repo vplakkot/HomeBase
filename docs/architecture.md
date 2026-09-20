@@ -353,6 +353,11 @@ Microsoft), because the sender will call every address stored here.
 Like the notifications flag, nobody but the device's owner can read
 these rows through the API, so REQ-21's sender will need `service_role`.
 
+The service worker skips the proxy, like the manifest does. The phone
+re-checks it in the background, and it refuses a service worker that
+answers with a redirect, which is what a lapsed sign-in would otherwise
+produce. See [lesson 14](lessons/14-turning-notifications-on.md).
+
 ## Sending the test notification
 
 [`lib/notifications/send.ts`](../lib/notifications/send.ts) is the only
@@ -405,11 +410,6 @@ sequenceDiagram
 ```
 
 See [lesson 15](lessons/15-sending-a-notification.md).
-
-The service worker skips the proxy, like the manifest does. The phone
-re-checks it in the background, and it refuses a service worker that
-answers with a redirect, which is what a lapsed sign-in would otherwise
-produce. See [lesson 14](lessons/14-turning-notifications-on.md).
 
 ## Not yet built
 

@@ -22,13 +22,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not allowed." }, { status: 401 });
   }
 
-  const summary = await sendTestNotification({
+  const { outcomes, ...counts } = await sendTestNotification({
     // Our own address, which the push services want as a contact for the
     // app. Taken from the request, so it's right in every environment.
     subject: request.nextUrl.origin,
     trigger: "hourly",
   });
-  return NextResponse.json(summary);
+  // Counts only. pg_net keeps every answer it receives for hours, and
+  // there's no reason to copy each device's address into that table once
+  // an hour, for ever.
+  void outcomes;
+  return NextResponse.json(counts);
 }
 
 // Compared in constant time: a comparison that stops at the first wrong

@@ -81,6 +81,24 @@ the secret one character at a time.
 Until both vault entries exist, the hourly job runs and deliberately does
 nothing, rather than failing noisily every hour.
 
+## How to tell whether the hourly job ran
+
+Nothing reports back. `pg_net` sends the request and forgets it, so a job
+that fails — a secret that doesn't match, an address that isn't live yet
+— fails silently, every hour, for ever. The answers are kept in the
+database for a few hours, so this is how to look:
+
+```sql
+select created, status_code, content
+from net._http_response
+order by created desc
+limit 5;
+```
+
+`200` with a count of what was sent is a working hour. `401` means the
+secret in Vercel and the one in the vault don't match — a stray newline
+is enough. Nothing at all means the schedule never ran.
+
 ## A trap found by clicking the button
 
 The push services refuse a contact address that isn't `https:` or
