@@ -183,9 +183,12 @@ clock, HTTP call, secret check, sender — gets exercised for real every
 hour before the release, which is how we know it works rather than
 hoping.
 
-**It has to move before the test week counts for anything.** The phone
-subscribes through whatever address it installed from, and the question
-being asked is about production. When v0.1 ships, `notify_url` becomes:
+**It has to move before the test week counts for anything.** Not for a
+mechanical reason — both deployments share the same push keys and the
+same database, so either could reach a phone that signed up through the
+other. The reason is what the week is for: it asks whether push is
+reliable enough to build on, and the answer has to be about the thing
+the household actually uses. When v0.1 ships, `notify_url` becomes:
 
 ```
 https://home-base-peach.vercel.app/api/notifications/test

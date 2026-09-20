@@ -74,7 +74,7 @@ one promote points at:
 
 Worth heading off the obvious objection, because it is the exact gap the
 mistake below fell into: the setting this project relies on is called
-"Auto-assign Custom **Domains**", and `home-base-peach.vercel.app` is
+"Auto-assign Custom Production Domains", and `home-base-peach.vercel.app` is
 not a domain anyone bought. `vercel domains ls` returns nothing for this
 project. It is still the address promote moves and the address visitors
 get, which you can confirm without understanding Vercel's naming at all
