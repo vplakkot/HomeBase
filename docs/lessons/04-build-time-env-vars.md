@@ -46,9 +46,7 @@ Because of the [promote-on-tag pipeline](03-tags-releases-promote.md) this
 project uses, `VERCEL_GIT_COMMIT_REF` will usually read `main`, not the
 release tag like `v0.0.3`. That's because Vercel builds the app the moment
 a PR merges to `main` — before any tag exists. The tag only decides
-*when that already-built code* gets promoted to a custom production
-domain (there is none yet — see [lesson 03](03-tags-releases-promote.md)
-and [issue #81](https://github.com/vplakkot/HomeBase/issues/81)); it
+*when that already-built code* gets promoted to the production domain; it
 never triggers a new build. So "version" here really means "which branch
 built this," not "which release this is." The commit hash is still exact
 and reliable, though — it names precisely which code is running, which is
