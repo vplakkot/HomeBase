@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- A notification log in the admin console: every send recorded with who
+  it went to, which device, what triggered it, and whether it arrived.
+  The phone reports its own deliveries and taps, because nothing else
+  knows — handing a message to Apple says Apple took it, not that a
+  phone ever saw it. That report arrives with nobody signed in, so it
+  proves itself with a one-use secret carried inside the message, which
+  only the device it was sent to can read. The log keeps a one-way
+  fingerprint of each device rather than its push address, since that
+  address is what lets anyone send to the phone, and a hash of each
+  device's one-use secret rather than the secret, so that an admin
+  reading the log cannot quote one back and record a delivery that never
+  happened. A send with no word back
+  after five minutes shows as missing; one the push service refused shows
+  as refused, because those are different failures. Entries older than 30
+  days delete themselves daily. (#79)
 - Undid yesterday's wrong claim that merging to `main` is releasing. It
   is not: production is `home-base-peach.vercel.app`, it only moves when
   a tag is pushed, and it was still serving v0.0.5. The mistake came

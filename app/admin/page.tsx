@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listMembers, listRoles } from "../../lib/auth/members";
+import { listRecentLog, SHOW_DAYS } from "../../lib/notifications/log";
 import { hasPermission } from "../../lib/auth/permissions";
 import { createClient } from "../../lib/supabase/server";
 import { CreateMemberForm } from "./create-member-form";
+import { NotificationLog } from "./notification-log";
 import { NotificationsForm } from "./notifications-form";
 import { ResetPasswordForm } from "./reset-password-form";
 import { SendTestForm } from "./send-test-form";
@@ -23,6 +25,21 @@ export default async function AdminPage() {
     listMembers(supabase),
     listRoles(supabase),
   ]);
+  // Read separately, and forgiven if it fails. The log is the least
+  // important thing on this page; losing it must not take member
+  // management down with it.
+  let log = null;
+  try {
+    log = await listRecentLog(supabase);
+  } catch (reason) {
+    console.error(
+      "Could not read the notification log",
+      reason instanceof Error ? reason.message : reason,
+    );
+  }
+  const names = new Map(
+    members.map((member) => [member.user_id, member.name ?? member.email]),
+  );
 
   return (
     <>
@@ -82,6 +99,15 @@ export default async function AdminPage() {
           as the hourly one.
         </p>
         <SendTestForm />
+      </section>
+      <section aria-labelledby="notification-log-heading">
+        <h2 id="notification-log-heading">Notification log</h2>
+        <p>
+          The last {SHOW_DAYS} days. A send counts as missing once five
+          minutes have passed with no word from the device. Entries older
+          than 30 days are deleted on their own.
+        </p>
+        <NotificationLog rows={log} names={names} now={Date.now()} />
       </section>
       <p>
         <Link href="/">Back to home</Link>

@@ -68,12 +68,16 @@ export async function proxy(request: NextRequest) {
 // The service worker (sw.js) is another: the phone re-checks it in the
 // background, and a service worker that answers with a redirect is refused
 // outright, so a lapsed sign-in must never turn into one.
-// The hourly schedule's address is the last: it runs in the database with
+// The hourly schedule's address is next: it runs in the database with
 // nobody signed in, and proves itself with a shared secret instead. Sent
 // through here it would be answered with the sign-in page, and the
 // schedule would quietly send nothing.
+// The receipt address is the last, for the same shape of reason: a phone
+// reports a delivered notification from its service worker, which has no
+// session and may belong to someone signed out. It proves itself with the
+// one-message token it was sent (REQ-22).
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest$|sw\\.js$|api/notifications/test$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest$|sw\\.js$|api/notifications/(?:test|receipt)$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

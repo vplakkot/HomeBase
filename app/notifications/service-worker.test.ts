@@ -18,6 +18,8 @@ function loadWorker({ openWindows = [] as object[] } = {}) {
   const listeners: Record<string, Listener> = {};
   const showNotification = vi.fn(async () => {});
   const openWindow = vi.fn(async () => {});
+  // REQ-22: the worker reports deliveries and taps back to the app.
+  const fetch = vi.fn(async () => ({ status: 204 }));
   const self = {
     addEventListener: (type: string, listener: Listener) => {
       listeners[type] = listener;
@@ -26,14 +28,14 @@ function loadWorker({ openWindows = [] as object[] } = {}) {
     registration: { showNotification },
     clients: { matchAll: vi.fn(async () => openWindows), openWindow },
   };
-  runInNewContext(source, { self, URL });
+  runInNewContext(source, { self, URL, fetch });
 
   async function dispatch(type: string, event: object) {
     const pending: Promise<unknown>[] = [];
     listeners[type]({ ...event, waitUntil: (p: Promise<unknown>) => pending.push(p) });
     await Promise.all(pending);
   }
-  return { dispatch, showNotification, openWindow };
+  return { dispatch, showNotification, openWindow, fetch };
 }
 
 function pushWith(message: unknown) {
@@ -54,7 +56,7 @@ describe("the service worker", () => {
     await worker.dispatch("push", pushWith({ title: "Test", body: "Hourly check" }));
     expect(worker.showNotification).toHaveBeenCalledWith("Test", {
       body: "Hourly check",
-      data: { url: "/" },
+      data: { url: "/", receipt: "" },
     });
   });
 
@@ -64,11 +66,11 @@ describe("the service worker", () => {
     await worker.dispatch("push", pushWith("plain words"));
     expect(worker.showNotification).toHaveBeenNthCalledWith(1, "HomeBase", {
       body: "",
-      data: { url: "/" },
+      data: { url: "/", receipt: "" },
     });
     expect(worker.showNotification).toHaveBeenNthCalledWith(2, "HomeBase", {
       body: "plain words",
-      data: { url: "/" },
+      data: { url: "/", receipt: "" },
     });
   });
 
@@ -77,7 +79,7 @@ describe("the service worker", () => {
     await worker.dispatch("push", pushWith(null));
     expect(worker.showNotification).toHaveBeenCalledWith("HomeBase", {
       body: "",
-      data: { url: "/" },
+      data: { url: "/", receipt: "" },
     });
   });
 
@@ -133,5 +135,68 @@ describe("the service worker", () => {
     });
     expect(focus).toHaveBeenCalled();
     expect(worker.openWindow).not.toHaveBeenCalled();
+  });
+
+  // REQ-22. Nothing else can report the delivery: the worker runs with no
+  // page and no session, and the phone's owner may be signed out. The
+  // token that came inside this one message is the whole proof.
+  it("tells the app a notification arrived, using the token it was sent", async () => {
+    const worker = loadWorker();
+    await worker.dispatch(
+      "push",
+      pushWith({ title: "Test", body: "Hourly check", receipt: "token-abc" }),
+    );
+    expect(worker.fetch).toHaveBeenCalledWith("/api/notifications/receipt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ receipt: "token-abc", event: "delivered" }),
+    });
+  });
+
+  it("reports the tap when a notification is opened", async () => {
+    const worker = loadWorker();
+    await worker.dispatch("notificationclick", {
+      notification: {
+        close: vi.fn(),
+        data: { url: "/", receipt: "token-abc" },
+      },
+    });
+    expect(worker.fetch).toHaveBeenCalledWith("/api/notifications/receipt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ receipt: "token-abc", event: "tapped" }),
+    });
+  });
+
+  // A message from before this existed, or one that lost its token, still
+  // has to show. The report is the optional part.
+  it("still shows a push that carries no token, and reports nothing", async () => {
+    const worker = loadWorker();
+    await worker.dispatch("push", pushWith({ title: "Test", body: "No token" }));
+    expect(worker.showNotification).toHaveBeenCalled();
+    expect(worker.fetch).not.toHaveBeenCalled();
+  });
+
+  // Showing the notification is the job. A failed report must never take
+  // the notification down with it.
+  it("still shows the notification when the report can't be sent", async () => {
+    const worker = loadWorker();
+    worker.fetch.mockRejectedValue(new Error("offline"));
+    await expect(
+      worker.dispatch(
+        "push",
+        pushWith({ title: "Test", body: "Hourly check", receipt: "token-abc" }),
+      ),
+    ).resolves.not.toThrow();
+    expect(worker.showNotification).toHaveBeenCalled();
+  });
+
+  it("still opens the app when the tap report can't be sent", async () => {
+    const worker = loadWorker();
+    worker.fetch.mockRejectedValue(new Error("offline"));
+    await worker.dispatch("notificationclick", {
+      notification: { close: vi.fn(), data: { url: "/", receipt: "t" } },
+    });
+    expect(worker.openWindow).toHaveBeenCalledWith("/");
   });
 });

@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import webpush, { WebPushError } from "web-push";
 import { createAdminClient } from "../supabase/admin";
+import { hashReceiptToken, newReceiptToken } from "./receipt-token";
 
 // Who gets a test notification, and what happened to each device. The
 // switch and the devices are both readable only by their owner, and a
@@ -87,10 +89,37 @@ export async function sendTestNotification({
     throw new Error(`Could not read the devices: ${devicesError.message}`);
   }
 
-  const message = JSON.stringify({ ...MESSAGES[trigger], url: "/" });
+  // Each device gets its own secret, handed to it inside its own message,
+  // which it sends back to report the delivery (REQ-22).
+  const addressed = ((devices ?? []) as Device[]).map((device) => ({
+    device,
+    receiptToken: newReceiptToken(),
+    fingerprint: fingerprintOf(device.endpoint),
+  }));
+
+  // The log rows go in BEFORE anything is sent. A notification can reach a
+  // phone and be reported back in well under a second, and a receipt that
+  // arrives before its row exists has nowhere to land.
+  if (addressed.length > 0) {
+    const { error: logError } = await admin.from("notification_log").insert(
+      addressed.map(({ device, receiptToken, fingerprint }) => ({
+        trigger,
+        user_id: device.user_id,
+        device: fingerprint,
+        // The hash goes in the log; the token itself goes to the phone.
+        receipt_hash: hashReceiptToken(receiptToken),
+      })),
+    );
+    // Losing the log must never stop the notifications themselves. The
+    // log is for judging reliability; the sending is the point.
+    if (logError) {
+      console.error("Could not write the notification log", logError.message);
+    }
+  }
+
   const outcomes = await Promise.all(
-    ((devices ?? []) as Device[]).map((device) =>
-      sendToOne(device, message, admin),
+    addressed.map(({ device, receiptToken }) =>
+      sendToOne(device, receiptToken, trigger, admin),
     ),
   );
 
@@ -117,15 +146,28 @@ function contactAddress(subject: string): string {
   return contact;
 }
 
+// A stable name for a device that isn't its address. The address is what
+// lets anyone send to the phone; this is a one-way hash of it, so the log
+// can follow one device over time without holding the means to reach it.
+function fingerprintOf(endpoint: string): string {
+  return createHash("sha256").update(endpoint).digest("hex").slice(0, 12);
+}
+
 async function sendToOne(
   device: Device,
-  message: string,
+  receiptToken: string,
+  trigger: Trigger,
   admin: ReturnType<typeof createAdminClient>,
 ): Promise<DeviceOutcome> {
   const subscription = {
     endpoint: device.endpoint,
     keys: { p256dh: device.p256dh, auth: device.auth },
   };
+  const message = JSON.stringify({
+    ...MESSAGES[trigger],
+    url: "/",
+    receipt: receiptToken,
+  });
   try {
     await webpush.sendNotification(subscription, message, {
       TTL: KEEP_TRYING_FOR,
@@ -140,6 +182,11 @@ async function sendToOne(
       statusCode,
       reason instanceof Error ? reason.message : reason,
     );
+    // Correct the log row, which was written before the attempt.
+    await admin
+      .from("notification_log")
+      .update({ accepted: false, failure_code: statusCode ?? null })
+      .eq("receipt_hash", hashReceiptToken(receiptToken));
     if (statusCode !== undefined && GONE.includes(statusCode)) {
       await admin
         .from("push_subscriptions")
