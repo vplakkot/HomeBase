@@ -56,8 +56,9 @@ When I say "next requirement":
   that follows them still wait for my go-ahead. The reason used to be
   that the tag is what puts code on the production domain; that is not
   true today, because no custom domain is attached yet and every merge
-  is live within minutes (#81). The gate stays where it is until that
-  is settled.
+  to main is live within minutes (#81). So the auto-merge rule above
+  currently means auto-deploy. The gate stays where it is until that is
+  settled.
 
 ## Definition of Done
 Every pull request must satisfy all of these:
