@@ -109,3 +109,46 @@ tool that walks the filesystem — a test runner, a linter, a bundler, a
 search — has its own idea of what to skip, and "git doesn't track it" tells
 you nothing about what they will do. When a local number and CI's number
 disagree, don't reconcile them by picking the one you like; find out why.
+
+## Not every test needs a browser
+
+Vitest gives each test file an *environment*: the set of globals it runs
+against. There are two in play here.
+
+- **`node`** — plain Node. No `document`, no `window`, no DOM.
+- **`jsdom`** — a fake browser built in JavaScript, with all of those.
+
+Building that fake browser is not free, and it happens **per file**. The
+default was `jsdom`, so all 34 test files paid for one. Eight of them
+actually need it. The other 26 exercise server actions, library
+functions, SQL text and workflow files, and never touch the DOM.
+
+That was roughly three quarters of the suite's running time, spent
+furnishing rooms nobody entered. The default is now `node`, and a file
+that needs a browser says so on its first line:
+
+```ts
+// @vitest-environment jsdom
+```
+
+Whole run: about 2.3 seconds to about 1.4.
+
+**What this costs you.** A new test that renders a component without that
+line fails with `ReferenceError: document is not defined`, pointing at the
+`render()` call. Clear enough once you know, mystifying if you don't,
+which is why `vitest.config.ts` names that exact error next to the
+setting.
+
+**The trap worth knowing about**, found in review rather than by a failing
+test. `lib/notifications/this-device.test.ts` fakes a `navigator` to test
+service-worker handling. Moved to `node`, it kept passing — because Node
+21 and later happen to ship a global `navigator` of their own. Nothing in
+this repo pins the Node version outside CI, so on Node 20 it would have
+thrown, and meanwhile its own header comment still claimed it was running
+in jsdom. It asks for jsdom again now.
+
+The general shape: **a test that passes tells you less than you think
+about why.** This one passed before the change and after it, for two
+different reasons, and only one of them was the intended one. When you
+change what a test runs *against*, "still green" is not the same as
+"still testing the same thing".
