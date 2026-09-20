@@ -151,18 +151,27 @@ Worth remembering: the unit tests all passed while this was broken,
 because they used a stand-in for the library. Clicking the real button
 against the real database found it in seconds.
 
-## What's proven, and what waits for a phone
+## What's proven
 
-Proven here: who would be sent to, that a switched-off member is never
-included, what the message says, that a dead address is forgotten, that
-the schedule's address refuses anyone without the secret, and — using the
-real library, not a stand-in — that what would go to Apple is signed with
-our keys and encrypted so the body can't be read.
+Proven by the tests: who would be sent to, that a switched-off member is
+never included, what the message says, that a dead address is forgotten,
+that the schedule's address refuses anyone without the secret, and —
+using the real library, not a stand-in — that what would go to Apple is
+signed with our keys and encrypted so the body can't be read.
 
-Not proven here: that a notification actually arrives. That needs a real
-iPhone with the app installed, and it's the point of the whole exercise:
-the week of hourly tests after the v0.1 release is what tells us whether
-push is reliable enough to build on.
+**Proven by the release, on 2026-09-20:** a notification actually
+arrives. The hourly job ran at 17:00 UTC, reported
+`{"people":1,"devices":1,"delivered":1,"failed":0}`, and the phone
+showed it. Nobody triggered it and nobody was watching for it. The hour
+before, with nothing enrolled, the same job reported all zeros — so the
+counts mean what they say.
+
+That was the open question of the whole milestone, and it is closed. One
+device, one install, one real notification.
+
+What the week of hourly tests answers now is a different question, and a
+narrower one: not *can* push deliver, but *how often does it*. One
+notification proves the path exists. Only repetition finds the gaps.
 
 ## Which address the schedule calls, and why it matters
 

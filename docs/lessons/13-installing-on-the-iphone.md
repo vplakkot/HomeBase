@@ -109,6 +109,8 @@ that the icons exist at the right sizes, that the phone can fetch them,
 and how long a sign-in lasts. The last step can only be seen on an
 iPhone: that it shows the icon and name, opens full screen, and keeps
 you signed in between launches. This Mac has no iPhone simulator (that
-needs Xcode), so that check happens on a real phone, either on a preview
-link or at the v0.1 release. The pull request says so rather than
-claiming it.
+needs Xcode), so that check had to wait for a real phone.
+
+It happened at the v0.1 release on 2026-09-20: installed from the home
+screen, signed in, and notifications enabled and arriving. The icons are
+still the placeholder house until the Design track replaces them.

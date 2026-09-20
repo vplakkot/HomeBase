@@ -182,7 +182,19 @@ Against the real hosted database, with the app running:
 - Reporting a tap afterwards wrote `tapped_at` **and left the original
   delivery time alone**, which is the "only fill a blank" rule working.
 
-Not proven here: a real notification making the round trip from Apple to
-an iPhone and back. That needs a phone with the app installed and the
-member's switch on. The log exists precisely so that, when it happens,
-nobody has to be awake to see it.
+Half-proven by the release, on 2026-09-20. The outbound leg works: the
+17:00 hourly send reached a real iPhone, and the log recorded it as
+sent and accepted.
+
+The return leg did not report, and the log is what showed that —
+`delivered_at` stayed null on a notification that demonstrably arrived.
+The likely reason is mundane: that phone installed the app before this
+code existed, so it is running a cached service worker that receives a
+receipt token it has never heard of and drops it. Service workers
+update when the app is next opened.
+
+Worth sitting with, though, because it is the log earning its keep on
+its first day. Without it, "the notification arrived" and "the
+notification arrived and we know it arrived" would look identical. The
+first is what a person sees. The second is what a week of unattended
+tests needs.
