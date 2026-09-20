@@ -81,6 +81,28 @@ the secret one character at a time.
 Until both vault entries exist, the hourly job runs and deliberately does
 nothing, rather than failing noisily every hour.
 
+The two vault names are matched **exactly, capitals included**. A secret
+saved as `NOTIFY_SECRET` is not `notify_secret`: the guard above finds
+nothing, and the job does nothing, every hour, without complaint. That
+happened on the first attempt here.
+
+## Vercel's own front door had to be unlocked
+
+Vercel can keep every deployment behind *its* login, a setting called
+Deployment Protection, and it was on. It turns callers away before they
+reach our code: the database's call was answered by Vercel's sign-in page,
+not by HomeBase.
+
+It would have shut out the household too. Megan can't sign in to Vercel —
+it isn't her account — so she could never have reached the app at all. So
+it was switched off. On this plan that's all or nothing; there's no
+setting that protects previews alone.
+
+What really guards HomeBase is its own sign-in, which is invite-only.
+Vercel's was a second lock only one person held a key to. The price of
+removing it: preview links are now reachable by anyone holding the URL,
+though every page behind them still demands a HomeBase sign-in.
+
 ## How to tell whether the hourly job ran
 
 Nothing reports back. `pg_net` sends the request and forgets it, so a job
@@ -97,7 +119,21 @@ limit 5;
 
 `200` with a count of what was sent is a working hour. `401` means the
 secret in Vercel and the one in the vault don't match — a stray newline
-is enough. Nothing at all means the schedule never ran.
+is enough. `307` pointing at `/sign-in` means the live site is older than
+this code, and the release that knows this address hasn't shipped yet.
+Nothing at all means the schedule never ran.
+
+To compare the two copies of the secret without ever looking at either,
+fingerprint them. The database side:
+
+```sql
+select name, encode(extensions.digest(decrypted_secret,'sha256'),'hex')
+from vault.decrypted_secrets;
+```
+
+and the Vercel side, by pulling the production values to a scratch file,
+hashing the same way, and deleting the file. Matching fingerprints mean
+matching secrets; a printed secret is one you then have to go and rotate.
 
 ## A trap found by clicking the button
 

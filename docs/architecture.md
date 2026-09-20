@@ -383,7 +383,10 @@ Two things start a send:
   (`notify_url`, `notify_secret`), never in git; until both exist the job
   does nothing. The route has no session to check — the database isn't a
   person — so it compares the secret against `NOTIFY_SECRET` in constant
-  time, and the proxy's matcher skips just that one path.
+  time, and the proxy's matcher skips just that one path. Vercel's own
+  Deployment Protection is off for this reason and one bigger one: it
+  would have required every visitor, household members included, to hold
+  a Vercel account. HomeBase's invite-only sign-in is the real gate.
 - **"Send test now"** in the admin console
   ([`app/admin/send-test-form.tsx`](../app/admin/send-test-form.tsx)),
   behind `manage_members` like everything else there, which calls the
