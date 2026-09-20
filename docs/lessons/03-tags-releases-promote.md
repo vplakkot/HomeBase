@@ -59,19 +59,47 @@ says otherwise. It also means production only changes on a version bump we
 chose on purpose, not on every commit that happened to land on `main`
 first.
 
-**That is the design. It is not what happens today**, and the reason is
-worth understanding, because the setting is doing exactly what it says.
-"Auto-assign Custom Production Domains" governs *custom* domains, and
-this project has none: `vercel domains ls` returns nothing. Every Vercel
-project also gets a free address of its own —
-`home-base-home-base12.vercel.app` here — and Vercel always points that
-one at the newest production build, whatever the custom-domain setting
-says.
+## Which address is production, and the trap in answering that
 
-So the safety net above is real but not yet hung: a merge to `main` is
-live on the only address the app has, within minutes, with no tag. It
-starts working the moment a custom domain is attached. Tracked in
-[issue #81](https://github.com/vplakkot/HomeBase/issues/81).
+Production is **`home-base-peach.vercel.app`**.
+
+Vercel hands a project several addresses, and only one of them is the
+one promote points at:
+
+| Address | What it follows |
+|---|---|
+| `home-base-peach.vercel.app` | **Production.** Only moves when `promote.yml` runs, on a tag |
+| `home-base-home-base12.vercel.app` | The newest production *build* — every merge to `main` |
+| `home-base-git-<branch>-…vercel.app` | That branch's latest build |
+
+The second one is the trap, and it caught a Claude session on 2026-09-20
+badly enough to be worth writing down. `vercel project ls` prints it in
+a column headed **"Latest Production URL"**. It is not the production
+URL. It is the newest build, which for a project that builds `main` on
+every merge means it moves whenever you merge.
+
+Having read that column, the session watched the address change after a
+merge, concluded that merging was releasing, and edited five documents —
+including CLAUDE.md's merging rule — to say so. All of it was wrong, and
+all of it had to be undone.
+
+**The check that settles it in seconds:**
+
+```bash
+gh run list --workflow=promote.yml
+```
+
+If the last successful run is days old, production has not moved in
+days, whatever any alias is doing. Or ask the address itself: on
+2026-09-20 production answered `404` for `/sign-in`, because it was
+still serving a commit from before sign-in existed.
+
+The general lesson is not about Vercel. **A label written by a tool is
+not a fact about your system.** "Latest Production URL" was accurate on
+its own terms — it is the latest build targeting production — and
+completely misleading as an answer to "what are visitors seeing?". When
+a dashboard and a workflow you wrote disagree, the workflow's run
+history is the evidence; the dashboard is a description.
 
 ```mermaid
 sequenceDiagram

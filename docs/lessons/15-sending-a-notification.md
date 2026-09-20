@@ -119,10 +119,10 @@ limit 5;
 
 `200` with a count of what was sent is a working hour. `401` means the
 secret in Vercel and the one in the vault don't match — a stray newline
-is enough. `307` pointing at `/sign-in` means the live site is running
-code older than this address — most likely the deployment for the merge
-that added it hasn't finished yet. Nothing at all means the schedule
-never ran.
+is enough. `307` pointing at `/sign-in` means whatever `notify_url`
+points at is running code older than this address — either its build
+hasn't finished, or it is production and the release carrying this code
+hasn't been tagged yet. Nothing at all means the schedule never ran.
 
 To compare the two copies of the secret without ever looking at either,
 fingerprint them. The database side:

@@ -53,12 +53,8 @@ When I say "next requirement":
   merge it without asking me, then tell me what was merged. If I say
   "wait" on a pull request, hold it until I say otherwise. Release pull
   requests (the ones that bump package.json's version) and the tag push
-  that follows them still wait for my go-ahead. The reason used to be
-  that the tag is what puts code on the production domain; that is not
-  true today, because no custom domain is attached yet and every merge
-  to main is live within minutes (#81). So the auto-merge rule above
-  currently means auto-deploy. The gate stays where it is until that is
-  settled.
+  that follows them still wait for my go-ahead, because that is what puts
+  code on the production domain.
 
 ## Definition of Done
 Every pull request must satisfy all of these:

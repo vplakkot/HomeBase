@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Undid yesterday's wrong claim that merging to `main` is releasing. It
+  is not: production is `home-base-peach.vercel.app`, it only moves when
+  a tag is pushed, and it was still serving v0.0.5. The mistake came
+  from reading `vercel project ls`'s "Latest Production URL" column,
+  which names the newest *build*, not the address visitors see. CLAUDE.md
+  gets its real reason back, and lesson 03 now names all three kinds of
+  address and the check that settles which is which. Lesson 15 records
+  that the hourly job's address points at the build-following alias
+  rather than production, and has to move when v0.1 ships. (#88)
+
 - Test files now run in Node unless they actually render something.
   Vitest was standing up a fake browser for all 34 files when only 8 need
   one, which was about three quarters of the suite's running time. The
