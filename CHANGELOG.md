@@ -6,8 +6,11 @@
   switched off: CLAUDE.md and lesson 13 both still said preview links sat
   behind it, and lesson 15 said the hourly notification could not work
   until v0.1 was released. That last one was wrong for a different
-  reason — the live site tracks `main`, so the job started working the
-  moment its code merged. Docs only. (#82)
+  reason — the app's only address is Vercel's own, which always follows
+  the newest build, so the job started working the moment its code
+  merged. architecture.md and lesson 03 now say the same, since they
+  described the tag-gated design without noting it governs custom
+  domains and none is attached. Docs only. (#82)
 
 - CLAUDE.md: after restating the plan for a requirement, Claude starts
   building instead of waiting for a go-ahead. It stops to ask only when

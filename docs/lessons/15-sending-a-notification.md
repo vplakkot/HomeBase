@@ -161,14 +161,22 @@ iPhone with the app installed, and it's the point of the whole exercise:
 the week of hourly tests after the v0.1 release is what tells us whether
 push is reliable enough to build on.
 
-One thing I got wrong while writing this, worth leaving in: I said the
-hourly job could not work until v0.1 was released, reasoning that it can
-only reach the live site and the live site only changes when a release
-tag is pushed. The second half is false. Production tracks `main`, so the
-hourly job went live minutes after this work merged — no tag involved.
-The proof was the live address answering `401` instead of `307`: it had
-started refusing an unauthenticated caller, which only the new code does.
+## A correction, left in on purpose
 
-That is worth knowing for its own sake, and it is being settled
-separately in [issue #81](https://github.com/vplakkot/HomeBase/issues/81),
-because it also means merging is releasing.
+I wrote above that the hourly job could not work until v0.1 was released,
+reasoning that it can only reach the live site and the live site only
+changes when a release tag is pushed. The second half is false.
+
+The app's only address today is Vercel's own
+`home-base-home-base12.vercel.app`, and Vercel always points that at the
+newest production build. The tag-gating this project set up governs
+*custom* domains, and none is attached yet. So the hourly job went live
+minutes after this work merged, with no tag involved.
+
+The proof was the live address answering `401` where it had answered
+`307`: it had started refusing an unauthenticated caller, which only the
+new code does. It has run on the hour every hour since.
+
+Which means, today, **merging is releasing**. That is a bigger fact than
+a wrong sentence in a lesson, and it is being settled in
+[issue #81](https://github.com/vplakkot/HomeBase/issues/81).

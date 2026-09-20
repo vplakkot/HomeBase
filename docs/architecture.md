@@ -78,8 +78,17 @@ was cut. If no build exists for that commit, the workflow fails loudly and
 leaves production untouched. See [lesson 03](lessons/03-tags-releases-promote.md)
 for the full build-vs-promote explanation and a diagram of that flow.
 
-In short: merging to `main` builds; pushing a tag is what actually goes
-live.
+In short: merging to `main` builds; pushing a tag is what points a
+**custom** domain at that build.
+
+One thing to know before relying on that: **there is no custom domain
+yet.** The setting above governs custom domains, and with none attached,
+the only address this project has is Vercel's own
+`home-base-home-base12.vercel.app`, which Vercel always points at the
+newest production build. So today, merging to `main` *is* releasing — a
+merge is live within minutes, with no tag involved. The design described
+above starts working the moment a domain is attached. Tracked in
+[issue #81](https://github.com/vplakkot/HomeBase/issues/81).
 
 Database structure follows the same path with one more workflow:
 [`.github/workflows/migrate.yml`](../.github/workflows/migrate.yml)
