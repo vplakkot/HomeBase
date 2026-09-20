@@ -18,17 +18,18 @@
   run drops from roughly 2.3 to 1.4 seconds with no assertion changed.
   (#85)
 
-- Corrected three docs that went stale when Vercel's own login was
-  switched off: CLAUDE.md and lesson 13 both still said preview links sat
-  behind it, and lesson 15 said the hourly notification could not work
-  until v0.1 was released. That last one was wrong for a different
-  reason — the app's only address is Vercel's own, which always follows
-  the newest build, so the job started working the moment its code
-  merged. architecture.md and lesson 03 now say the same, since they
-  described the tag-gated design without noting it governs custom
-  domains and none is attached. CLAUDE.md's merging rule kept the same
-  gate but stopped giving a false reason for it, and lessons 04 and 15
-  lost their last two copies of the old model. Docs only. (#82)
+- Corrected two docs that went stale when Vercel's own login was switched
+  off: CLAUDE.md and lesson 13 both still said preview links sat behind
+  it. Lesson 13 also blamed the wrong mechanism — Next.js marks the app
+  card's link for cookies because the build is a preview, not because
+  previews were protected, so the phone still sends them; they are
+  simply unused now. Docs only. (#82)
+
+  This entry originally claimed a good deal more, about merging being
+  releasing. That was wrong, and the entry above undoes it. Corrected
+  here rather than left standing, because nothing in Unreleased has
+  shipped yet and a release note should not contain a falsehood and its
+  retraction one paragraph apart.
 
 - CLAUDE.md: after restating the plan for a requirement, Claude starts
   building instead of waiting for a go-ahead. It stops to ask only when

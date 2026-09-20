@@ -120,9 +120,11 @@ limit 5;
 `200` with a count of what was sent is a working hour. `401` means the
 secret in Vercel and the one in the vault don't match — a stray newline
 is enough. `307` pointing at `/sign-in` means whatever `notify_url`
-points at is running code older than this address — either its build
-hasn't finished, or it is production and the release carrying this code
-hasn't been tagged yet. Nothing at all means the schedule never ran.
+points at is running code that has the sign-in proxy but not this
+address — most likely its build hasn't finished. `404` means that code
+is older still, from before this route existed at all, which is what
+production answers until v0.1 ships. Nothing at all means the schedule
+never ran.
 
 To compare the two copies of the secret without ever looking at either,
 fingerprint them. The database side:
@@ -162,23 +164,32 @@ iPhone with the app installed, and it's the point of the whole exercise:
 the week of hourly tests after the v0.1 release is what tells us whether
 push is reliable enough to build on.
 
-## A correction, left in on purpose
+## Which address the schedule calls, and why it matters
 
-This lesson originally ended by saying the hourly job could not work
-until v0.1 was released, reasoning that it can only reach the live site
-and the live site only changes when a release tag is pushed. The second
-half is false, so that ending is gone and this is what replaced it.
+The hourly job calls whatever sits in the vault as `notify_url`. Today
+that is `home-base-home-base12.vercel.app` — which is **not**
+production. It is the address that follows the newest build of `main`.
+Production is `home-base-peach.vercel.app`, and it only moves when a tag
+is pushed. [Lesson 03](03-tags-releases-promote.md) has the three kinds
+of address and the trap in telling them apart.
 
-The app's only address today is Vercel's own
-`home-base-home-base12.vercel.app`, and Vercel always points that at the
-newest production build. The tag-gating this project set up governs
-*custom* domains, and none is attached yet. So the hourly job went live
-minutes after this work merged, with no tag involved.
+That is why the job started answering `200` well before v0.1 shipped,
+and it should be said plainly that this was a mistake rather than a
+plan: the address was chosen while the wrong one was believed to be
+production.
 
-The proof was the live address answering `401` where it had answered
-`307`: it had started refusing an unauthenticated caller, which only the
-new code does. It has run on the hour every hour since.
+It turns out useful by accident. It means the whole chain — database
+clock, HTTP call, secret check, sender — gets exercised for real every
+hour before the release, which is how we know it works rather than
+hoping.
 
-Which means, today, **merging is releasing**. That is a bigger fact than
-a wrong sentence in a lesson, and it is being settled in
-[issue #81](https://github.com/vplakkot/HomeBase/issues/81).
+**It has to move before the test week counts for anything.** The phone
+subscribes through whatever address it installed from, and the question
+being asked is about production. When v0.1 ships, `notify_url` becomes:
+
+```
+https://home-base-peach.vercel.app/api/notifications/test
+```
+
+Not before. Production is still serving v0.0.5, which has no such
+address, so moving it early just means an hourly `404`.

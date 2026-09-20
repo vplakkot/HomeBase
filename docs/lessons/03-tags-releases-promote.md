@@ -72,6 +72,19 @@ one promote points at:
 | `home-base-home-base12.vercel.app` | The newest production *build* — every merge to `main` |
 | `home-base-git-<branch>-…vercel.app` | That branch's latest build |
 
+Worth heading off the obvious objection, because it is the exact gap the
+mistake below fell into: the setting this project relies on is called
+"Auto-assign Custom **Domains**", and `home-base-peach.vercel.app` is
+not a domain anyone bought. `vercel domains ls` returns nothing for this
+project. It is still the address promote moves and the address visitors
+get, which you can confirm without understanding Vercel's naming at all
+by watching what it serves.
+
+That is the honest state of this lesson: the *behaviour* above is
+observed and re-checked, not deduced from Vercel's documentation. If you
+ever need to know for certain which address is production, do not reason
+about the settings — ask the system.
+
 The second one is the trap, and it caught a Claude session on 2026-09-20
 badly enough to be worth writing down. `vercel project ls` prints it in
 a column headed **"Latest Production URL"**. It is not the production
