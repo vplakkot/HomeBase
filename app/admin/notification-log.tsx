@@ -35,9 +35,10 @@ export function NotificationLog({
   if (rows === null) {
     return (
       <p>
-        The log could not be read just now. Everything else on this page
-        still works, and nothing has stopped sending &mdash; only the record
-        of it is unavailable.
+        The log could not be read. Everything else on this page still
+        works, and nothing has stopped sending &mdash; only the record of it
+        is unavailable. If this persists, the reason will be in the
+        server logs.
       </p>
     );
   }

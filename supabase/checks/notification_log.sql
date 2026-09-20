@@ -55,8 +55,11 @@ begin
     report := report || E'2. admin cannot insert a row (wants this)\n';
   end;
 
-  -- The whole point of storing a hash: even the one person who can read
-  -- the table cannot turn what they read into a delivery report.
+  -- The reader cannot write. Note what this does and does not show: it
+  -- proves the policies block a direct update, and would report 0 even
+  -- if the table stored raw tokens. That the hash stops a *replay* is a
+  -- separate thing, shown by posting a stored hash to the receipt
+  -- address and watching nothing happen.
   begin
     update public.notification_log set delivered_at = now()
      where device = 'checkmember0';

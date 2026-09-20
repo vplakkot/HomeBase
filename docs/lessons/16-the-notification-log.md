@@ -165,8 +165,11 @@ real project:
 4. member reads the log: sees 0 rows, including their own (wants 0)
 ```
 
-Line 3 is the hash doing its job: the one person who *can* read the table
-still cannot turn what they read into a delivery report.
+Line 3 is worth reading carefully, because it is easy to credit to the
+wrong thing. It shows the *policies* refuse a direct write — it would
+report 0 even if the table stored raw tokens. What shows the hash
+working is the other check: post the stored hash to the receipt address,
+and nothing happens. Two different guards, and the log needs both.
 
 ## What was proven, and how
 
