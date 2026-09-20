@@ -41,10 +41,12 @@ function given({
   signedIn,
   permissions = [],
   log = [] as Record<string, unknown>[],
+  logFails = false,
 }: {
   signedIn: boolean;
   permissions?: string[];
   log?: Record<string, unknown>[];
+  logFails?: boolean;
 }) {
   vi.mocked(createClient).mockResolvedValue({
     auth: {
@@ -67,7 +69,11 @@ function given({
         return {
           select: vi.fn(() => ({
             gte: vi.fn(() => ({
-              order: vi.fn().mockResolvedValue({ data: log, error: null }),
+              order: vi.fn().mockResolvedValue(
+                logFails
+                  ? { data: null, error: { message: "denied" } }
+                  : { data: log, error: null },
+              ),
             })),
           })),
         };
@@ -174,6 +180,30 @@ describe("AdminPage", () => {
   function logSection() {
     return screen.getByRole("region", { name: "Notification log" });
   }
+
+  // The log is the least important thing on this page. If it fails, the
+  // members table must still be there — otherwise one broken read takes
+  // account management down with it.
+  it("still shows the members table when the log can't be read", async () => {
+    given({ signedIn: true, permissions: ["manage_members"], logFails: true });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    render(await AdminPage());
+    expect(screen.getByText("sam@example.com")).toBeDefined();
+    expect(
+      within(logSection()).getByText(/log could not be read/),
+    ).toBeDefined();
+  });
+
+  // An unreadable log and an empty one mean opposite things, and saying
+  // "nothing sent" when we simply could not look would be a lie.
+  it("does not call an unreadable log an empty one", async () => {
+    given({ signedIn: true, permissions: ["manage_members"], logFails: true });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    render(await AdminPage());
+    expect(
+      within(logSection()).queryByText(/Nothing sent in the last 7 days/),
+    ).toBeNull();
+  });
 
   it("says so plainly when nothing has been sent yet", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });

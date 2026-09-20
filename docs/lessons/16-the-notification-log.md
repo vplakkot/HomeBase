@@ -84,7 +84,7 @@ create its row. The receipt arrives, finds nothing to attach itself to,
 and is dropped. You'd see a delivered notification logged as missing,
 and you'd never work out why.
 
-So the rows go in **first**, tokens and all, and the send outcome is
+So the rows go in **first** — hashes and all — and the send outcome is
 written back afterwards. A test asserts the ordering directly, by
 recording which happened first.
 
@@ -141,6 +141,32 @@ hour, so it never overlaps the hourly send.
 Thirty days was a decision, recorded in the requirement: long enough to
 judge reliability, short enough that a log we may throw away entirely
 doesn't quietly become permanent.
+
+## Proving the rules, without the key that ignores them
+
+One gap nearly shipped, and it is the kind that hides well. Every test of
+the log mocks Supabase, and every live check of the sender ran with the
+**secret key** — which bypasses row-level security entirely. So nothing
+had actually proven that a signed-in admin can read this table.
+
+That matters because a policy which silently denies everyone looks
+exactly like a log with nothing in it. Both show an empty screen.
+
+[`supabase/checks/notification_log.sql`](../../supabase/checks/notification_log.sql)
+closes it, using the same trick as the REQ-20 check: tell the database
+who is asking, switch to the role a signed-in person actually has, try
+everything, then raise an error so Postgres undoes it all. Against the
+real project:
+
+```
+1. admin reads the log: sees 2 of 2 rows (wants 2)
+2. admin cannot insert a row (wants this)
+3. admin marked 0 rows delivered (wants 0)
+4. member reads the log: sees 0 rows, including their own (wants 0)
+```
+
+Line 3 is the hash doing its job: the one person who *can* read the table
+still cannot turn what they read into a delivery report.
 
 ## What was proven, and how
 

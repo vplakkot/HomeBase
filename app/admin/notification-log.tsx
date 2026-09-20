@@ -23,13 +23,25 @@ export function NotificationLog({
   names,
   now,
 }: {
-  rows: LogRow[];
+  // null means the log could not be read. Deliberately different from an
+  // empty log, which means nothing has been sent.
+  rows: LogRow[] | null;
   // user_id → what to call them.
   names: Map<string, string>;
   // Passed in rather than read here, so the table is the same wherever
   // it's rendered and a test can fix the clock.
   now: number;
 }) {
+  if (rows === null) {
+    return (
+      <p>
+        The log could not be read just now. Everything else on this page
+        still works, and nothing has stopped sending &mdash; only the record
+        of it is unavailable.
+      </p>
+    );
+  }
+
   if (rows.length === 0) {
     return (
       <p>

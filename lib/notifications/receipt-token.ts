@@ -20,7 +20,8 @@ export function hashReceiptToken(token: string): string {
 }
 
 // Long enough to be worth a lookup, short enough to reject junk cheaply.
-// Also excludes every character PostgREST reads as filter syntax.
+// The raw token never reaches a database filter — only its hash does —
+// so this is about cost, not injection.
 const LOOKS_LIKE_A_TOKEN = /^[A-Za-z0-9_-]{16,128}$/;
 
 export function looksLikeAToken(value: unknown): value is string {

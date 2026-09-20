@@ -21,11 +21,22 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  const [members, roles, log] = await Promise.all([
+  const [members, roles] = await Promise.all([
     listMembers(supabase),
     listRoles(supabase),
-    listRecentLog(supabase),
   ]);
+  // Read separately, and forgiven if it fails. The log is the least
+  // important thing on this page; losing it must not take member
+  // management down with it.
+  let log = null;
+  try {
+    log = await listRecentLog(supabase);
+  } catch (reason) {
+    console.error(
+      "Could not read the notification log",
+      reason instanceof Error ? reason.message : reason,
+    );
+  }
   const names = new Map(
     members.map((member) => [member.user_id, member.name ?? member.email]),
   );
