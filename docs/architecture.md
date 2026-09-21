@@ -540,18 +540,68 @@ icon beside "HomeBase". Each has its own stylesheet, a **CSS Module**
 that component, so one component's styles can't leak onto another's.
 Forms used by a single page still live next to it.
 
+## Phone and desktop layouts
+
+Every signed-in page sits in one frame,
+[`components/app-frame.tsx`](../components/app-frame.tsx), which holds
+both layouts at once. Below 1024 px wide the stylesheets show the phone
+one: the page scrolls, and a bar stays fixed at the bottom. From 1024 px
+they show the desktop one: a sidebar
+([`components/sidebar.tsx`](../components/sidebar.tsx)) beside the page.
+The width decides alone, with no device detection, so resizing a window
+switches on the spot. A stylesheet can't read a token inside `@media`, so
+each states `1024px` itself, and a test holds every one of them to
+`--breakpoint-desktop`.
+
+```mermaid
+flowchart TB
+    List[lib/modules.ts: the one module list] --> Sidebar & Tiles & Switcher
+    subgraph Desktop["1024 px and wider"]
+      Sidebar[Sidebar: Home, modules, Admin console]
+    end
+    subgraph Phone["Below 1024 px"]
+      Tiles[Home: module tiles + Admin pill] --> QuickAdd[Quick add bar]
+      Bar[Inside a module: Home · Sections · Modules] --> Switcher[Module switcher sheet]
+    end
+```
+
+The modules come from one list in code,
+[`lib/modules.ts`](../lib/modules.ts): name, slug, token prefix, home
+page and sections. Home's tiles, the sidebar and the phone's module
+switcher all draw from it, so a new module is a new entry. v0.2 lists
+all six but gives only Finances a page (`/finances`, an empty shell). The
+other five show without a link, per a Notion decision of 2026-09-21. A
+module's colours reach its components as `--module-*` variables built
+from its token prefix, and a test checks every prefix has all six
+colours.
+
+On a phone, Home has no navigation bar: the tiles and the Admin pill do
+that job, and Quick add stays at the bottom. Inside a module the bottom
+bar is Home · Sections · Modules. Sections and Modules open **bottom
+sheets** ([`components/bottom-sheet.tsx`](../components/bottom-sheet.tsx)),
+built on the browser's own `<dialog>`. These are the first interactive
+pieces of the frame, so they run in the browser as Client Components.
+So does Home's greeting, because only the phone knows its own time of
+day. `same-capabilities.test.tsx` renders the pages and checks that
+every place the desktop sidebar reaches is reachable without it.
+
+The layout meets the phone's edges with `viewport-fit=cover` and the
+screen's safe-area insets, so content clears the notch and the home bar.
+That part has not been checked on an iPhone. See
+[lesson 18](lessons/18-one-app-two-layouts.md).
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
 
-- **Little state** — the forms' pending/error state, and the
-  notifications control, which checks the device when the page opens and
-  changes as the phone's question is answered.
-- **No designed screens** — the design's colours and fonts apply
-  everywhere, but every page is still laid out as plain HTML until the
-  v0.2 screens are built. That includes the admin console: it works
-  (members, roles, notifications, the log) but gets the design's cards
-  only in REQ-84.
+- **Little state** — the forms' pending/error state, the notifications
+  control, which checks the device when the page opens and changes as the
+  phone's question is answered, and which sheet is open.
+- **Screens still to design** — Home and the frame are designed. The
+  Finances module has a plain placeholder until REQ-17 gives it its
+  header, and the admin console works but gets the design's cards only in
+  REQ-84. Sign-in, sign-up and set-password have no mockup, so they keep
+  a plain layout in the design's fonts and colours.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.

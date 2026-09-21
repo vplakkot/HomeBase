@@ -100,6 +100,26 @@ describe("AdminPage", () => {
     await expect(AdminPage()).rejects.toThrow("REDIRECT:/");
   });
 
+  // DESIGN.md §8: on a phone the console is reached from Home's Admin pill
+  // and has a way back at the top; a desktop has the sidebar instead.
+  it("starts with the way back Home, for phones", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    const back = screen.getByRole("main").firstElementChild!;
+    expect(back.textContent).toBe("Home");
+    expect(back.getAttribute("href")).toBe("/");
+  });
+
+  it("marks the admin console as where you are, in the desktop sidebar", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    const sidebar = screen.getByRole("navigation", { name: "Main" });
+    const here = within(sidebar)
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("aria-current") === "page");
+    expect(here.map((link) => link.textContent)).toEqual(["Admin console"]);
+  });
+
   it("lists every member with name, email and role", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());

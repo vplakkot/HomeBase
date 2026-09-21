@@ -57,6 +57,8 @@
 
   /* Status (reuse module-neutral meanings) */
   --color-success: #196640;   --color-success-bg: #E3F2EA;
+  /* Border and title of the "All clear" row, as its mockup draws them */
+  --color-success-line: #B8DDC8; --color-success-title: #0B3320;
   --color-danger: #8E2D21;    --color-danger-bg: #F9E7E4;
   --color-info: #2646AE;      --color-info-bg: #E8EEFE;
   --color-toggle-off: #D6D0C6;

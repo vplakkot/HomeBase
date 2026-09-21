@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppFrame } from "../../components/app-frame";
+import { ChevronLeftIcon } from "../../components/icons";
 import { listMembers, listRoles } from "../../lib/auth/members";
 import { listRecentLog, SHOW_DAYS } from "../../lib/notifications/log";
 import { hasPermission } from "../../lib/auth/permissions";
@@ -10,6 +12,7 @@ import { NotificationsForm } from "./notifications-form";
 import { ResetPasswordForm } from "./reset-password-form";
 import { SendTestForm } from "./send-test-form";
 import { RoleForm } from "./role-form";
+import styles from "./page.module.css";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -41,8 +44,15 @@ export default async function AdminPage() {
     members.map((member) => [member.user_id, member.name ?? member.email]),
   );
 
+  // Only admins get this far, so the sidebar offers the console too. On a
+  // phone there's no bar at the bottom here; the way back is at the top
+  // (docs/design/DESIGN.md §8).
   return (
-    <>
+    <AppFrame current="admin" canAdminister>
+      <Link href="/" className={styles.back}>
+        <ChevronLeftIcon />
+        Home
+      </Link>
       <h1>Admin console</h1>
       <section aria-labelledby="members-heading">
         <h2 id="members-heading">Members</h2>
@@ -109,9 +119,6 @@ export default async function AdminPage() {
         </p>
         <NotificationLog rows={log} names={names} now={Date.now()} />
       </section>
-      <p>
-        <Link href="/">Back to home</Link>
-      </p>
-    </>
+    </AppFrame>
   );
 }

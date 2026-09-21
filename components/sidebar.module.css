@@ -1,0 +1,95 @@
+/* Phones don't get the sidebar: Home's tiles and the bottom bars do its
+   job there. */
+.sidebar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    flex-shrink: 0;
+    width: var(--sidebar-width);
+    height: 100%;
+    overflow-y: auto;
+    padding: var(--space-6) var(--space-4);
+    border-right: 1px solid var(--color-line);
+    background: var(--color-surface);
+  }
+}
+
+.brand {
+  padding: 0 var(--space-2);
+}
+
+.modules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.modules > h2 {
+  padding-left: var(--space-3);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-target-min);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink);
+  font-size: var(--text-body);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Where you are: Home and the admin console go dark... */
+.row[aria-current="page"] {
+  background: var(--color-ink);
+  color: var(--color-on-panel);
+  font-weight: 700;
+}
+
+/* ...a module takes its own quiet colours. */
+.module[aria-current="page"] {
+  background: var(--module-quiet);
+  color: var(--module-quiet-ink);
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--module-loud);
+}
+
+.soon {
+  color: var(--color-muted);
+}
+
+.bottom {
+  margin-top: auto;
+}
+
+/* Read out by screen readers, not shown. */
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

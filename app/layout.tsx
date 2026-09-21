@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 // The design's colours, fonts, corner sizes and spacing, read straight
 // from the design folder so the app and the design can't disagree. Then
@@ -31,6 +31,14 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-touch-icon.png",
   },
+};
+
+// "cover" lets pages reach the very edges of a phone screen. The app
+// frame keeps its content clear of the rounded corners, the notch and the
+// home bar using the screen's safe-area insets. Not yet checked on an
+// iPhone.
+export const viewport: Viewport = {
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

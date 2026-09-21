@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- HomeBase now has its designed phone and desktop layouts, and a
+  designed Home. On a phone, Home shows the brand and (for admins) the
+  Admin pill, a greeting with the date, an "All clear" row where action
+  items will go, and a tile for each of the six modules, with Quick add
+  (Expense, Event, Meal) fixed at the bottom. From 1024 px wide, a
+  sidebar takes over the navigation and Home spreads to three columns;
+  resizing a window switches on the spot. All six modules are listed,
+  but only Finances opens, to an empty page saying it's coming, with a
+  Home · Sections · Modules bar at the bottom on phones. Quick add and the
+  sections are all "coming soon". A test checks that everywhere the
+  desktop sidebar goes, a phone can go too. Not yet checked on an
+  iPhone: how the layout meets the notch and the home bar. (#107, #110)
+
 - Admins now reach the admin console from an "Admin" pill at the top
   right of Home, which members don't see. The v0.1 admin mode is gone:
   no more "Enter admin mode" and "Back to member view" buttons, and the
