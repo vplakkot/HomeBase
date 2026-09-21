@@ -72,9 +72,9 @@ on previews and on the real address alike.
 ## Staying signed in between opens
 
 A cookie either has a lifetime or it doesn't. One without a lifetime is
-thrown away when the app closes; admin mode relies on exactly that
-(lesson 10). The sign-in must not work that way, or every open of the
-installed app would start at the sign-in page.
+thrown away when the app closes; v0.1's admin mode relied on exactly
+that (lesson 10). The sign-in must not work that way, or every open of
+the installed app would start at the sign-in page.
 
 It doesn't: `@supabase/ssr` writes the sign-in cookies with a 400-day
 lifetime, and writes them again with a fresh 400 days each time the

@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MODE_COOKIE } from "../../lib/auth/mode";
 import { DEVICE_COOKIE } from "../../lib/notifications/device";
 import { createClient } from "../../lib/supabase/server";
 import { signOut } from "./actions";
@@ -104,11 +103,5 @@ describe("signOut", () => {
     await signOut().catch(() => {});
     expect(from).not.toHaveBeenCalled();
     expect(store.delete).not.toHaveBeenCalledWith(DEVICE_COOKIE);
-  });
-
-  it("forgets admin mode, so the next sign-in starts in member view", async () => {
-    const { store } = given();
-    await signOut().catch(() => {});
-    expect(store.delete).toHaveBeenCalledWith(MODE_COOKIE);
   });
 });

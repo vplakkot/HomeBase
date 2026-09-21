@@ -2,7 +2,6 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { MODE_COOKIE } from "../../lib/auth/mode";
 import { DEVICE_COOKIE } from "../../lib/notifications/device";
 import { createClient } from "../../lib/supabase/server";
 
@@ -33,7 +32,5 @@ export async function signOut() {
   // "local" ends this device's session only; the default, "global", would
   // also sign the same person out of their other devices.
   await supabase.auth.signOut({ scope: "local" });
-  // Signing back in is a new session: it starts in member view.
-  store.delete(MODE_COOKIE);
   redirect("/sign-in");
 }

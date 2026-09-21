@@ -9,8 +9,8 @@ const FOUR_HUNDRED_DAYS = 400 * 24 * 60 * 60;
 
 // Staying signed in between opens of the installed app depends on the
 // session cookies outliving the app being closed. A cookie with no lifetime
-// is thrown away when the app closes; that's how admin mode is forgotten
-// (lesson 10), and it must not happen to the sign-in itself. The lifetime
+// is thrown away when the app closes (v0.1's admin mode relied on that,
+// lesson 10), and it must not happen to the sign-in itself. The lifetime
 // comes from @supabase/ssr's defaults, so this runs a real sign-in through
 // our own client, with only Supabase's server faked, and reads what gets
 // written.

@@ -1,0 +1,8 @@
+/* The top of Home: the brand on the left, the Admin pill (admins only)
+   on the right. */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}

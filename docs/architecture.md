@@ -256,18 +256,20 @@ sequenceDiagram
 Sign-out (`app/sign-out/actions.ts`) ends this device's session only and
 sends the visitor back to `/sign-in`.
 
-## Admin mode
+## Admin access
 
-A role decides what someone *may* do; a mode decides what the screen
-*shows*. Admins use the ordinary member view by default and switch into
-admin mode with a button on the home page
-([`app/mode/actions.ts`](../app/mode/actions.ts)), which sets a
-`homebase-mode` **session cookie** — no expiry, so closing the app or the
-browser returns them to member view. In admin mode the home page shows a
-banner and a link to the console at [`app/admin/`](../app/admin/page.tsx).
-Both the toggle and the console are gated on `has_permission('manage_members')`,
-never on a role's name; a member who types `/admin` is sent home. See
-[lesson 10](lessons/10-modes-are-not-roles.md).
+A role decides what someone *may* do. Admins reach the console at
+[`app/admin/`](../app/admin/page.tsx) from an **Admin pill** on Home
+([`components/admin-pill.tsx`](../components/admin-pill.tsx)), shown only
+to holders of `manage_members`. The console checks the same permission
+itself, so hiding the pill is a courtesy and the page's check is the
+lock: a member who types `/admin` is sent home. Both ask for the
+permission, never a role's name.
+
+v0.1 also had an admin *mode*: admins saw the member view until they
+switched, and a session cookie remembered the switch. The v0.2 design
+dropped it (a Notion decision of 2026-09-21), and with it the switch, the
+cookie and its code. See [lesson 10](lessons/10-modes-are-not-roles.md).
 
 ## Installing on iPhone
 
