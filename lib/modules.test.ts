@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { readTokens } from "../test/css";
-import { MODULES, moduleBySlug, moduleColours } from "./modules";
+import {
+  MODULES,
+  NOTHING_SWITCHED_OFF,
+  moduleBySlug,
+  moduleColours,
+  modulesSwitchedOn,
+} from "./modules";
 
 const tokens = readTokens();
 
@@ -45,6 +51,17 @@ describe("the module list", () => {
       .map((name) => name.match(/^--([a-z]+)-loud$/)?.[1])
       .filter(Boolean);
     expect(MODULES.map((module) => module.tokens).sort()).toEqual(coloured.sort());
+  });
+
+  // DESIGN.md §3: a module switched off disappears from Home.
+  it("leaves out a module that is switched off", () => {
+    const names = modulesSwitchedOn(new Set(["pets", "wine"])).map((module) => module.name);
+    expect(names).toEqual(["Finances", "Calendar", "Meal Plans", "Health"]);
+  });
+
+  // The admin console's module switches come in a later milestone.
+  it("has nothing switched off yet", () => {
+    expect(modulesSwitchedOn(NOTHING_SWITCHED_OFF)).toEqual(MODULES);
   });
 
   it("finds a module by its slug, and refuses one that doesn't exist", () => {

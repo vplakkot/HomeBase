@@ -51,6 +51,9 @@ describe("what each screen gets", () => {
     ["app/page.module.css", "header", "Home's brand and Admin pill", true, false],
     ["app/page.module.css", "desktopQuickAdd", "Quick add beside the greeting", false, true],
     ["app/admin/page.module.css", "back", "the admin console's way back", true, false],
+    ["components/module-tile.module.css", "status", "a tile's status line", true, false],
+    ["components/module-tile.module.css", "headline", "a tile's headline", false, true],
+    ["components/module-tile.module.css", "facts", "a tile's two facts", false, true],
   ])("%s .%s: %s", (file, className, _what, onPhone, onDesktop) => {
     const shown = (desktop: boolean) =>
       styleOf(css(file), className, desktop).get("display") !== "none";
@@ -63,5 +66,33 @@ describe("what each screen gets", () => {
       styleOf(css("app/page.module.css"), "tiles", desktop).get("grid-template-columns");
     expect(columns(false)).toBe("repeat(2, minmax(0, 1fr))");
     expect(columns(true)).toBe("repeat(3, minmax(0, 1fr))");
+  });
+});
+
+// DESIGN.md §4: on a phone, Quick add is fixed at the bottom and the tiles
+// scroll under it. The frame is pinned to the screen and never scrolls;
+// the main area is the one thing that does, and the bar sits below it in
+// the frame's column (components/app-frame.test.tsx checks that order).
+// So scrolling moves the tiles and leaves the bar where it is. A browser
+// check on 2026-09-21 confirmed it: after scrolling, the bar's top edge
+// hadn't moved and the last tile had come up from under it.
+describe("a phone's Quick add bar", () => {
+  const frameCss = css("components/app-frame.module.css");
+  const style = (className: string) => styleOf(frameCss, className, false);
+
+  it("sits in a frame pinned to the screen, which doesn't scroll", () => {
+    expect(style("frame").get("position")).toBe("fixed");
+    expect(style("frame").get("inset")).toBe("0");
+    expect(style("frame").has("overflow")).toBe(false);
+    expect(style("column").get("flex-direction")).toBe("column");
+  });
+
+  it("stays put while the page above it scrolls", () => {
+    expect(style("main").get("overflow-y")).toBe("auto");
+    // Without these the page would grow past the screen and push the bar
+    // off the bottom instead of scrolling above it.
+    expect(style("main").get("flex")).toBe("1");
+    expect(style("main").get("min-height")).toBe("0");
+    expect(style("phoneBar").get("flex-shrink")).toBe("0");
   });
 });

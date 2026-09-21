@@ -9,7 +9,8 @@ import { ModuleTile } from "../components/module-tile";
 import { QuickAdd } from "../components/quick-add";
 import { SectionLabel } from "../components/section-label";
 import { hasPermission } from "../lib/auth/permissions";
-import { MODULES } from "../lib/modules";
+import { moduleStatus } from "../lib/module-status";
+import { NOTHING_SWITCHED_OFF, modulesSwitchedOn } from "../lib/modules";
 import { DEVICE_COOKIE } from "../lib/notifications/device";
 import { createClient } from "../lib/supabase/server";
 import { EnableNotifications } from "./notifications/enable-notifications";
@@ -37,7 +38,15 @@ function firstName(metadata: unknown): string | null {
 // which are the only navigation Home needs; Quick add stays fixed at the
 // bottom. On a desktop the sidebar takes over the brand and the way to
 // the admin console, and Quick add moves up beside the greeting.
-export default async function HomePage() {
+//
+// ?demo in the address swaps what the tiles say for the design's invented
+// example, so every state can be seen before modules have data (a Notion
+// decision of 2026-09-21; lib/module-status.ts).
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) {
@@ -48,6 +57,7 @@ export default async function HomePage() {
   const email = data.claims.email ?? null;
   const canManageMembers = await hasPermission(supabase, "manage_members");
   const cookieStore = await cookies();
+  const demo = (await searchParams).demo !== undefined;
 
   return (
     <AppFrame
@@ -75,9 +85,9 @@ export default async function HomePage() {
       <section className={styles.section} aria-labelledby="modules">
         <SectionLabel id="modules">Modules</SectionLabel>
         <ul className={styles.tiles}>
-          {MODULES.map((module) => (
+          {modulesSwitchedOn(NOTHING_SWITCHED_OFF).map((module) => (
             <li key={module.slug}>
-              <ModuleTile module={module} status="Coming soon" />
+              <ModuleTile module={module} status={moduleStatus(module, { demo })} />
             </li>
           ))}
         </ul>

@@ -1,35 +1,58 @@
+/* A quiet tile: the module's tint, border and ink. The --tile-* names are
+   the colours the rest of the tile uses, so .loud below can swap them all
+   in one place. */
 .tile {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--space-2);
+  --tile-ground: var(--module-quiet);
+  --tile-line: var(--module-quiet-line);
+  --tile-title: var(--module-quiet-title);
+  --tile-ink: var(--module-quiet-ink);
+  --tile-chip: var(--color-surface);
+  --tile-rule: var(--module-quiet-line);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(var(--space-2), 1fr) auto auto;
+  grid-template-areas:
+    "chip go"
+    ". ."
+    "name name"
+    "status status";
   min-height: 112px;
   padding: var(--space-4);
-  border: 1px solid var(--module-quiet-line);
+  border: 1px solid var(--tile-line);
   border-radius: var(--radius-lg);
-  background: var(--module-quiet);
-  color: var(--module-quiet-title);
+  background: var(--tile-ground);
+  color: var(--tile-title);
   text-decoration: none;
 }
 
+/* A loud tile: the module needs someone. All its text is on-loud, the
+   colour made to be read on the loud one (DESIGN.md §3); the mockups'
+   paler status lines fall short of 4.5 to 1 (DESIGN.md §10). The chip and
+   the line above the facts are see-through, as the mockups draw them. */
+.loud {
+  --tile-ground: var(--module-loud);
+  --tile-line: var(--module-loud);
+  --tile-title: var(--module-on-loud);
+  --tile-ink: var(--module-on-loud);
+  --tile-chip: color-mix(in srgb, var(--color-surface) 20%, transparent);
+  --tile-rule: color-mix(in srgb, var(--module-on-loud) 25%, transparent);
+}
+
 .chip {
+  grid-area: chip;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 34px;
   height: 34px;
   border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  color: var(--module-quiet-ink);
-}
-
-.text {
-  display: flex;
-  flex-direction: column;
+  background: var(--tile-chip);
+  color: var(--tile-ink);
 }
 
 .name {
+  grid-area: name;
   font-family: var(--font-display);
   font-size: var(--text-display-sm);
   font-weight: 800;
@@ -37,22 +60,64 @@
 }
 
 .status {
-  color: var(--module-quiet-ink);
+  grid-area: status;
+  color: var(--tile-ink);
   font-size: var(--text-caption);
   font-weight: 600;
 }
 
+/* A desktop tile's headline and facts: not on a phone. */
+.headline {
+  display: none;
+  grid-area: headline;
+  font-family: var(--font-display);
+  font-size: var(--text-display-md);
+  font-weight: 800;
+  letter-spacing: var(--tracking-display);
+  line-height: 1.15;
+}
+
+.facts {
+  display: none;
+  grid-area: facts;
+  align-self: end;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--tile-rule);
+}
+
+.fact {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--tile-ink);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.value {
+  color: var(--tile-title);
+  font-weight: 700;
+  text-align: right;
+}
+
 .go {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
-  color: var(--module-quiet-ink);
+  grid-area: go;
+  display: flex;
+  color: var(--tile-ink);
 }
 
 @media (min-width: 1024px) {
   .tile {
-    justify-content: flex-start;
-    gap: var(--space-4);
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "chip name go"
+      "headline headline headline"
+      "facts facts facts";
+    column-gap: var(--space-3);
+    row-gap: var(--space-4);
     min-height: 196px;
     padding: var(--space-5);
     border-radius: var(--radius-xl);
@@ -63,8 +128,20 @@
     height: 36px;
   }
 
+  .name,
   .go {
-    top: var(--space-5);
-    right: var(--space-5);
+    align-self: center;
+  }
+
+  .status {
+    display: none;
+  }
+
+  .headline {
+    display: block;
+  }
+
+  .facts {
+    display: flex;
   }
 }
