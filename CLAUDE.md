@@ -56,6 +56,32 @@ When I say "next requirement":
   that follows them still wait for my go-ahead, because that is what puts
   code on the production domain.
 
+## Reviews
+Reviews cost more than anything else in a session. Spend them where they
+catch things.
+- One review per pull request. Re-review only if a fix changed code; a
+  wording fix doesn't need another round.
+- Never run two reviews at once.
+- No review for a version-bump pull request. It waits for my go-ahead
+  instead.
+- The reviewer runs on Sonnet by default. Use Opus for risky code:
+  migrations, row-level security, sign-in, anything the internet can
+  call, and the service worker.
+- Keep the brief short. Point the reviewer at the pull request; don't ask
+  it to re-search the repo or re-measure things unless that is what the
+  pull request is about.
+- A review checks that the work agrees with itself, not that its claims
+  about the outside world are true. Before a pull request says how
+  Vercel, Supabase, iOS or any other outside system behaves, prove it
+  against that system.
+
+## Writing
+- Commit messages: a subject line and at most 10 lines of body.
+- Pull request descriptions: one screen. What changed, why, how it was
+  checked.
+- Lessons: under 100 lines, and only for a genuinely new concept, not for
+  every chore or fix.
+
 ## Definition of Done
 Every pull request must satisfy all of these:
 - [ ] Linked to a GitHub issue — a feature from a Ready requirement, a bug,
@@ -68,7 +94,8 @@ Every pull request must satisfy all of these:
 - [ ] CHANGELOG.md updated
 - [ ] Database changes are migrations
 - [ ] No secrets in code
-- [ ] A lesson doc added or updated in docs/lessons/ for anything new
+- [ ] A lesson doc added or updated in docs/lessons/ when there is a
+      genuinely new concept (see Writing)
 - [ ] Notion requirement set to Done once merged (you do this; see Picking
       up work) — not applicable to bug or chore issues
 

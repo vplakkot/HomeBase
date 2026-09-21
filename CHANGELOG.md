@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Reviews now run once per pull request, never two at once, and not at
+  all for version bumps. The reviewer defaults to Sonnet, with Opus kept
+  for risky code. CLAUDE.md gains limits on commit, PR and lesson length,
+  and a rule to prove claims about outside systems before making them.
+  (#100)
+
 - The service worker now takes over as soon as it installs, instead of
   queueing behind the old one. A new worker normally waits until every
   window using the previous one has closed, which on a phone is close to
