@@ -124,11 +124,17 @@ describe("app stylesheets and components", () => {
   // takes its parent's, even over an earlier rule that set one.
   it("name only tokens that exist", () => {
     const defined = new Set(readTokens().keys());
-    for (const file of files.filter((name) => name.endsWith(".css"))) {
-      for (const rule of readRules(readFileSync(join(REPO_ROOT, file), "utf-8"))) {
-        for (const property of rule.declarations.keys()) {
-          if (property.startsWith("--")) defined.add(property);
+    for (const file of files) {
+      const source = readFileSync(join(REPO_ROOT, file), "utf-8");
+      if (file.endsWith(".css")) {
+        for (const rule of readRules(source)) {
+          for (const property of rule.declarations.keys()) {
+            if (property.startsWith("--")) defined.add(property);
+          }
         }
+      } else {
+        // Set from code, like lib/modules.ts's { "--module-loud": … }.
+        for (const match of source.matchAll(/["'](--[\w-]+)["']\s*:/g)) defined.add(match[1]);
       }
     }
     const unknown = files.flatMap((file) =>

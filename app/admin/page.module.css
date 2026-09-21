@@ -1,0 +1,18 @@
+/* The way back to Home on a phone. A desktop has the sidebar. */
+.back {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-1);
+  min-height: var(--tap-target-min);
+  color: var(--color-ink);
+  font-size: var(--text-body);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (min-width: 1024px) {
+  .back {
+    display: none;
+  }
+}

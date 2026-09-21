@@ -1,0 +1,72 @@
+/* Phone: three buttons across a bar pinned under the page, clear of the
+   rounded bottom of the screen. */
+.bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: var(--space-2) max(var(--space-3), env(safe-area-inset-right))
+    max(var(--space-6), env(safe-area-inset-bottom))
+    max(var(--space-3), env(safe-area-inset-left));
+  border-top: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
+
+.bar .action {
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 52px;
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  font-size: var(--text-label);
+}
+
+.bar .chip {
+  width: 30px;
+  height: 30px;
+}
+
+/* Desktop: three bordered buttons in a row. */
+.buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.buttons .action {
+  gap: var(--space-2);
+  min-height: var(--tap-target-min);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--text-body-sm);
+}
+
+.buttons .chip {
+  width: 24px;
+  height: 24px;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  color: var(--color-ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* The plus sits on the module's quiet tint, in its ink. */
+.chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--module-quiet);
+  color: var(--module-quiet-ink);
+}
+
+.soon {
+  margin: 0;
+  padding: 0 var(--space-1) var(--space-2);
+  color: var(--color-muted);
+}

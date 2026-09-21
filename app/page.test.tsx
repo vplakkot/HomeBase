@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { cookies } from "next/headers";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { DEVICE_COOKIE } from "../lib/notifications/device";
 import { createClient } from "../lib/supabase/server";
+import { installDialogStandIn } from "../test/dialog";
 import HomePage from "./page";
+
+beforeAll(installDialogStandIn);
 
 vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
@@ -30,11 +33,13 @@ vi.mock("next/navigation", () => ({
 
 function given({
   email,
+  name,
   permissions = [],
   device,
   otherCookies = {},
 }: {
   email: string | null;
+  name?: string;
   permissions?: string[];
   device?: string;
   otherCookies?: Record<string, string>;
@@ -42,7 +47,10 @@ function given({
   vi.mocked(createClient).mockResolvedValue({
     auth: {
       getClaims: vi.fn().mockResolvedValue({
-        data: email === null ? null : { claims: { email, sub: "user-1" } },
+        data:
+          email === null
+            ? null
+            : { claims: { email, sub: "user-1", user_metadata: name ? { name } : {} } },
         error: null,
       }),
     },
@@ -65,13 +73,87 @@ describe("HomePage", () => {
     vi.unstubAllEnvs();
   });
 
-  it("starts with the brand lockup, top-left, then who is signed in", async () => {
+  // REQ-81, phone: brand and Admin pill, greeting and date, action items,
+  // then the modules, all in the one scrolling area.
+  it("runs top to bottom as the design does", async () => {
+    given({ email: "admin@example.com", permissions: ["manage_members"] });
+    render(await HomePage());
+    const main = screen.getByRole("main");
+    const header = main.firstElementChild!;
+    expect(header.tagName).toBe("HEADER");
+    expect(header.textContent).toBe("HomeBaseAdmin");
+    const [greeting, ...sections] = within(main).getAllByRole("heading");
+    expect(greeting.tagName).toBe("H1");
+    expect(sections.map((heading) => heading.textContent)).toEqual([
+      "Action items",
+      "Modules",
+      "Account",
+    ]);
+  });
+
+  it("greets the person by first name, when the account has one", async () => {
+    given({ email: "sam@example.com", name: "Sam Example" });
+    render(await HomePage());
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/, Sam$/);
+  });
+
+  it("shows All clear where action items go, until there are any", async () => {
     given({ email: "member@example.com" });
-    const { container } = render(await HomePage());
-    const first = container.firstElementChild;
-    expect(first?.tagName).toBe("HEADER");
-    expect(first?.querySelector("img")?.getAttribute("src")).toBe("/icon.svg");
-    expect(first?.textContent).toBe("HomeBase");
+    render(await HomePage());
+    const section = screen.getByRole("region", { name: "Action items" });
+    expect(section.textContent).toContain("All clear");
+    expect(section.textContent).toContain("No action items today");
+  });
+
+  // A decision of 2026-09-21: all six show, only Finances opens.
+  it("shows a tile for all six modules, only Finances a link", async () => {
+    given({ email: "member@example.com" });
+    render(await HomePage());
+    const modules = screen.getByRole("region", { name: "Modules" });
+    const tiles = within(modules).getAllByRole("listitem");
+    expect(tiles.map((tile) => tile.textContent)).toEqual([
+      "FinancesComing soon",
+      "CalendarComing soon",
+      "PetsComing soon",
+      "WineComing soon",
+      "Meal PlansComing soon",
+      "HealthComing soon",
+    ]);
+    expect(within(modules).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "/finances",
+    ]);
+  });
+
+  // Phones get a bar fixed below the page; desktops get buttons beside the
+  // greeting. The screen width shows one and hides the other.
+  it("offers Quick add twice: a bar for phones, buttons for desktops", async () => {
+    given({ email: "member@example.com" });
+    render(await HomePage());
+    const main = screen.getByRole("main");
+    const phoneBar = main.nextElementSibling as HTMLElement;
+    for (const place of [phoneBar, main]) {
+      const group = within(place).getByRole("group", { name: "Quick add" });
+      expect(within(group).getAllByRole("button").map((button) => button.textContent)).toEqual([
+        "Expense",
+        "Event",
+        "Meal",
+      ]);
+    }
+  });
+
+  // The tiles are the navigation on a phone's Home, so its bar holds
+  // Quick add and nothing that goes anywhere.
+  it("has no navigation bar on a phone's Home", async () => {
+    given({ email: "member@example.com" });
+    render(await HomePage());
+    const phoneBar = screen.getByRole("main").nextElementSibling as HTMLElement;
+    expect(within(phoneBar).queryAllByRole("link")).toEqual([]);
+    expect(within(phoneBar).queryAllByRole("navigation")).toEqual([]);
+  });
+
+  it("keeps who is signed in on the page", async () => {
+    given({ email: "member@example.com" });
+    render(await HomePage());
     expect(screen.getByText("Signed in as member@example.com")).toBeDefined();
   });
 

@@ -1,0 +1,97 @@
+.bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: var(--space-2) max(var(--space-3), env(safe-area-inset-right))
+    max(var(--space-6), env(safe-area-inset-bottom))
+    max(var(--space-3), env(safe-area-inset-left));
+  border-top: 1px solid var(--color-line);
+  background: var(--color-surface);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 48px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: var(--text-label);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* In the module's own colour, not greyed out (DESIGN.md §6). The mockup
+   uses the loud colour; quiet-ink is the same hue, darker, and readable
+   on white for every module, where rose and mustard wouldn't be. */
+.selected {
+  color: var(--module-quiet-ink);
+  font-weight: 700;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: var(--space-2) var(--space-1);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.row[aria-current="page"] .rowName {
+  color: var(--module-quiet-ink);
+}
+
+.rowText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rowName {
+  flex: 1;
+  font-size: var(--text-body);
+  font-weight: 700;
+}
+
+.rowNote {
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+  font-weight: 500;
+}
+
+.soon {
+  color: var(--color-muted);
+}
+
+.chip {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-track);
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--module-loud);
+}

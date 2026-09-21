@@ -83,6 +83,15 @@ describe("module colours", () => {
     }
   });
 
+  // The selected item in a module's phone bar, and the icon chips on
+  // tiles, put quiet-ink on white.
+  it("makes quiet-ink readable on white: at least 4.5 to 1", () => {
+    for (const module of modules) {
+      const ratio = contrast(token(`--${module}-quiet-ink`), token("--color-surface"));
+      expect(ratio, `${module} quiet-ink on white`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   it("makes text on a quiet tile readable: at least 4.5 to 1", () => {
     for (const module of modules) {
       for (const part of ["quiet-ink", "quiet-title"]) {
@@ -104,6 +113,7 @@ describe("everyday text", () => {
     ["--color-on-panel", "--color-panel"],
     ["--color-on-panel-muted", "--color-panel"],
     ["--color-success", "--color-success-bg"],
+    ["--color-success-title", "--color-success-bg"],
     ["--color-danger", "--color-danger-bg"],
     ["--color-info", "--color-info-bg"],
   ];
