@@ -544,15 +544,14 @@ Forms used by a single page still live next to it.
 
 These are deliberately absent at this stage, not overlooked:
 
-- **Little state** — the forms' pending/error state, the admin-mode
-  cookie, and the notifications control, which checks the device when the
-  page opens and changes as the phone's question is answered.
+- **Little state** — the forms' pending/error state, and the
+  notifications control, which checks the device when the page opens and
+  changes as the phone's question is answered.
 - **No designed screens** — the design's colours and fonts apply
   everywhere, but every page is still laid out as plain HTML until the
-  v0.2 screens are built.
-- **An empty admin console** — `/admin` exists so the toggle has
-  somewhere to go; creating member accounts (REQ-13) and managing members
-  and roles (REQ-15) fill it in.
+  v0.2 screens are built. That includes the admin console: it works
+  (members, roles, notifications, the log) but gets the design's cards
+  only in REQ-84.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.

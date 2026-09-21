@@ -1,5 +1,9 @@
 # Lesson 10: Modes are not roles
 
+> **This describes v0.1.** v0.2 removed the admin mode, its cookie and
+> the tests named below; see [What v0.2 changed](#what-v02-changed) at
+> the end. The idea still holds.
+
 REQ-14 ("admin/member mode toggle") is small, and the one idea in it is
 worth keeping straight for every screen that comes later.
 

@@ -113,6 +113,21 @@ describe("HomePage", () => {
     expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
   });
 
+  // The one case where v0.1 behaved differently: an admin whose browser
+  // still holds the old cookie. v0.1 showed them a banner and a way back
+  // to member view; now they get the same Home as any other admin.
+  it("gives an admin with a leftover admin-mode cookie the plain Home", async () => {
+    given({
+      email: "admin@example.com",
+      permissions: ["manage_members"],
+      otherCookies: { "homebase-mode": "admin" },
+    });
+    render(await HomePage());
+    expect(screen.getByRole("link", { name: "Admin" }).getAttribute("href")).toBe("/admin");
+    expect(screen.queryByText("Admin mode")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Back to member view" })).toBeNull();
+  });
+
   it("has no admin-mode switch any more", async () => {
     given({ email: "admin@example.com", permissions: ["manage_members"] });
     render(await HomePage());
