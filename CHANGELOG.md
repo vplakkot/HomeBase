@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Admins now reach the admin console from an "Admin" pill at the top
+  right of Home, which members don't see. The v0.1 admin mode is gone:
+  no more "Enter admin mode" and "Back to member view" buttons, and the
+  cookie that remembered the choice is no longer read or written. Who can
+  open the console hasn't changed: the page checks the permission itself,
+  so a member who types its address is still sent home. (#108)
+
 - HomeBase has its own icon: the design's white roof over four module
   tiles, on the phone's home screen and in the browser tab. On Home, the
   plain "HomeBase" heading becomes the brand lockup, the icon beside the

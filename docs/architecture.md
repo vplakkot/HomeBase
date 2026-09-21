@@ -256,18 +256,20 @@ sequenceDiagram
 Sign-out (`app/sign-out/actions.ts`) ends this device's session only and
 sends the visitor back to `/sign-in`.
 
-## Admin mode
+## Admin access
 
-A role decides what someone *may* do; a mode decides what the screen
-*shows*. Admins use the ordinary member view by default and switch into
-admin mode with a button on the home page
-([`app/mode/actions.ts`](../app/mode/actions.ts)), which sets a
-`homebase-mode` **session cookie** — no expiry, so closing the app or the
-browser returns them to member view. In admin mode the home page shows a
-banner and a link to the console at [`app/admin/`](../app/admin/page.tsx).
-Both the toggle and the console are gated on `has_permission('manage_members')`,
-never on a role's name; a member who types `/admin` is sent home. See
-[lesson 10](lessons/10-modes-are-not-roles.md).
+A role decides what someone *may* do. Admins reach the console at
+[`app/admin/`](../app/admin/page.tsx) from an **Admin pill** on Home
+([`components/admin-pill.tsx`](../components/admin-pill.tsx)), shown only
+to holders of `manage_members`. The console checks the same permission
+itself, so hiding the pill is a courtesy and the page's check is the
+lock: a member who types `/admin` is sent home. Both ask for the
+permission, never a role's name.
+
+v0.1 also had an admin *mode*: admins saw the member view until they
+switched, and a session cookie remembered the switch. The v0.2 design
+dropped it (a Notion decision of 2026-09-21), and with it the switch, the
+cookie and its code. See [lesson 10](lessons/10-modes-are-not-roles.md).
 
 ## Installing on iPhone
 
@@ -542,15 +544,14 @@ Forms used by a single page still live next to it.
 
 These are deliberately absent at this stage, not overlooked:
 
-- **Little state** — the forms' pending/error state, the admin-mode
-  cookie, and the notifications control, which checks the device when the
-  page opens and changes as the phone's question is answered.
+- **Little state** — the forms' pending/error state, and the
+  notifications control, which checks the device when the page opens and
+  changes as the phone's question is answered.
 - **No designed screens** — the design's colours and fonts apply
   everywhere, but every page is still laid out as plain HTML until the
-  v0.2 screens are built.
-- **An empty admin console** — `/admin` exists so the toggle has
-  somewhere to go; creating member accounts (REQ-13) and managing members
-  and roles (REQ-15) fill it in.
+  v0.2 screens are built. That includes the admin console: it works
+  (members, roles, notifications, the log) but gets the design's cards
+  only in REQ-84.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.

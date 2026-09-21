@@ -2,17 +2,12 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { cookies } from "next/headers";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MODE_COOKIE } from "../lib/auth/mode";
 import { DEVICE_COOKIE } from "../lib/notifications/device";
 import { createClient } from "../lib/supabase/server";
 import HomePage from "./page";
 
 vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
-vi.mock("./mode/actions", () => ({
-  enterAdminMode: vi.fn(),
-  leaveAdminMode: vi.fn(),
-}));
 vi.mock("next/headers", () => ({ cookies: vi.fn() }));
 // The notifications control runs in the browser and has its own tests; here
 // it only has to be on the page, holding the server's push key.
@@ -36,13 +31,13 @@ vi.mock("next/navigation", () => ({
 function given({
   email,
   permissions = [],
-  mode,
   device,
+  otherCookies = {},
 }: {
   email: string | null;
   permissions?: string[];
-  mode?: "admin";
   device?: string;
+  otherCookies?: Record<string, string>;
 }) {
   vi.mocked(createClient).mockResolvedValue({
     auth: {
@@ -58,9 +53,8 @@ function given({
   } as unknown as Awaited<ReturnType<typeof createClient>>);
   vi.mocked(cookies).mockResolvedValue({
     get: (name: string) => {
-      if (name === MODE_COOKIE && mode) return { value: mode };
       if (name === DEVICE_COOKIE && device) return { value: device };
-      return undefined;
+      return name in otherCookies ? { value: otherCookies[name] } : undefined;
     },
   } as unknown as Awaited<ReturnType<typeof cookies>>);
 }
@@ -92,28 +86,53 @@ describe("HomePage", () => {
     await expect(HomePage()).rejects.toThrow("REDIRECT:/sign-in");
   });
 
-  it("shows an admin the member view with a toggle into admin mode", async () => {
+  it("shows an admin the Admin pill, top-right, opening the admin console", async () => {
+    given({ email: "admin@example.com", permissions: ["manage_members"] });
+    const { container } = render(await HomePage());
+    const pill = screen.getByRole("link", { name: "Admin" });
+    expect(pill.getAttribute("href")).toBe("/admin");
+    // After the brand lockup in the header, which lays the two out left and right.
+    expect(container.querySelector("header")?.lastElementChild).toBe(pill);
+  });
+
+  it("never shows a member the Admin pill", async () => {
+    given({ email: "member@example.com", permissions: ["use_modules"] });
+    render(await HomePage());
+    expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
+  });
+
+  // v0.1 kept an "admin mode" in a cookie. It's gone, and so is anything
+  // that read it: only the permission decides.
+  it("ignores a leftover admin-mode cookie from v0.1", async () => {
+    given({
+      email: "member@example.com",
+      permissions: ["use_modules"],
+      otherCookies: { "homebase-mode": "admin" },
+    });
+    render(await HomePage());
+    expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
+  });
+
+  // The one case where v0.1 behaved differently: an admin whose browser
+  // still holds the old cookie. v0.1 showed them a banner and a way back
+  // to member view; now they get the same Home as any other admin.
+  it("gives an admin with a leftover admin-mode cookie the plain Home", async () => {
+    given({
+      email: "admin@example.com",
+      permissions: ["manage_members"],
+      otherCookies: { "homebase-mode": "admin" },
+    });
+    render(await HomePage());
+    expect(screen.getByRole("link", { name: "Admin" }).getAttribute("href")).toBe("/admin");
+    expect(screen.queryByText("Admin mode")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Back to member view" })).toBeNull();
+  });
+
+  it("has no admin-mode switch any more", async () => {
     given({ email: "admin@example.com", permissions: ["manage_members"] });
     render(await HomePage());
-    expect(screen.getByRole("button", { name: "Enter admin mode" })).toBeDefined();
-    expect(screen.queryByRole("link", { name: "Admin console" })).toBeNull();
-  });
-
-  it("in admin mode, shows the banner, the console link and the way back", async () => {
-    given({ email: "admin@example.com", permissions: ["manage_members"], mode: "admin" });
-    render(await HomePage());
-    expect(screen.getByText("Admin mode")).toBeDefined();
-    expect(screen.getByRole("link", { name: "Admin console" }).getAttribute("href")).toBe("/admin");
-    expect(screen.getByRole("button", { name: "Back to member view" })).toBeDefined();
     expect(screen.queryByRole("button", { name: "Enter admin mode" })).toBeNull();
-  });
-
-  it("never shows a member the toggle, even with a stray admin cookie", async () => {
-    given({ email: "member@example.com", permissions: ["use_modules"], mode: "admin" });
-    render(await HomePage());
-    expect(screen.queryByRole("button", { name: "Enter admin mode" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Admin console" })).toBeNull();
-    expect(screen.queryByText("Admin mode")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Back to member view" })).toBeNull();
   });
 
   it("offers notifications, handing over the push key and this device's note", async () => {

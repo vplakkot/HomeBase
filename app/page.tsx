@@ -1,13 +1,12 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { AdminPill } from "../components/admin-pill";
 import { BrandLockup } from "../components/brand-lockup";
-import { readMode } from "../lib/auth/mode";
 import { hasPermission } from "../lib/auth/permissions";
 import { createClient } from "../lib/supabase/server";
 import { DEVICE_COOKIE } from "../lib/notifications/device";
-import { enterAdminMode, leaveAdminMode } from "./mode/actions";
 import { EnableNotifications } from "./notifications/enable-notifications";
+import styles from "./page.module.css";
 import { SignOutForm } from "./sign-out/sign-out-form";
 
 function getBuildInfo() {
@@ -28,29 +27,14 @@ export default async function HomePage() {
   const email = data.claims.email ?? null;
   const canManageMembers = await hasPermission(supabase, "manage_members");
   const cookieStore = await cookies();
-  const mode = readMode(cookieStore);
 
   return (
     <>
-      <header>
+      <header className={styles.header}>
         <BrandLockup />
+        {canManageMembers ? <AdminPill /> : null}
       </header>
       <p>{email ? `Signed in as ${email}` : "Signed in"}</p>
-      {canManageMembers && mode === "admin" ? (
-        <section aria-label="Admin mode">
-          <p>
-            <strong>Admin mode</strong> · <Link href="/admin">Admin console</Link>
-          </p>
-          <form action={leaveAdminMode}>
-            <button type="submit">Back to member view</button>
-          </form>
-        </section>
-      ) : null}
-      {canManageMembers && mode === "member" ? (
-        <form action={enterAdminMode}>
-          <button type="submit">Enter admin mode</button>
-        </form>
-      ) : null}
       <EnableNotifications
         publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY}
         knownDevice={cookieStore.get(DEVICE_COOKIE)?.value ?? null}

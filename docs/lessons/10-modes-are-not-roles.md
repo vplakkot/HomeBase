@@ -1,5 +1,9 @@
 # Lesson 10: Modes are not roles
 
+> **This describes v0.1.** v0.2 removed the admin mode, its cookie and
+> the tests named below; see [What v0.2 changed](#what-v02-changed) at
+> the end. The idea still holds.
+
 REQ-14 ("admin/member mode toggle") is small, and the one idea in it is
 worth keeping straight for every screen that comes later.
 
@@ -54,3 +58,19 @@ wasted work for the many pages that don't need it. So `/admin` does the
 check itself and redirects a non-holder home. As more admin pages arrive
 they follow the same three lines — and if that repetition grows, a shared
 `requirePermission()` helper is the natural next step.
+
+## What v0.2 changed
+
+The mode is gone. The v0.2 design gives admins an **Admin pill** on Home
+that opens the console directly, and shows admin-only controls to
+everyone, locked for members, instead of hiding them. Vin decided on
+2026-09-21 to drop the switch, so the button, the `homebase-mode` cookie
+and the code behind them were removed.
+
+The distinction this lesson draws still stands, just with one side
+emptied. Roles still decide what you can do, through the same
+permission check. What went is a *second* thing that decided what the
+screen shows. The pill is only shown to people with the permission, but
+that's politeness: `/admin` checks for itself, as described above, so a
+member who types the address is still sent home. A later requirement
+moves the pill into a profile menu, with one extra button for admins.
