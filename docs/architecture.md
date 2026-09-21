@@ -479,6 +479,49 @@ sequenceDiagram
 
 See [lesson 16](lessons/16-the-notification-log.md).
 
+## Look and feel
+
+The design lives in [`docs/design/`](design/): the rules in `DESIGN.md`,
+reference mockups, the app icon, and
+[`tokens.css`](design/tokens.css), which writes every colour, font,
+corner size and spacing value down once as a named CSS variable (a
+*token*). The root layout ([`app/layout.tsx`](../app/layout.tsx)) loads
+that file straight from the design folder, so the app and the design
+read the same file and can't drift apart. It then loads
+[`app/globals.css`](../app/globals.css), the base every page starts from:
+warm-white ground, ink text, the body font on everything including form
+controls, and the display font at weight 800 on headings.
+
+Styles name tokens (`var(--color-muted)`), never raw values.
+[`app/no-raw-design-values.test.ts`](../app/no-raw-design-values.test.ts)
+reads every stylesheet and component and fails on a raw colour, font or
+corner size, and on a token name that doesn't exist. A browser raises no
+error for a misspelt token; it quietly resets that colour or size to its
+default.
+
+The fonts come through `next/font` ([`app/fonts.ts`](../app/fonts.ts)),
+which is part of Next.js rather than a new dependency. It adds a new
+outside service, but only at build time: while the app is built (on
+Vercel, and in CI) it downloads Bricolage Grotesque and Plus Jakarta Sans
+from Google Fonts, and the app then serves them from its own address.
+Opening HomeBase never contacts Google. If Google Fonts can't be reached,
+the build fails rather than shipping without the fonts; that was checked
+by building through a dead proxy.
+
+```mermaid
+flowchart LR
+    Google[Google Fonts] -- "font files, at build time only" --> Build[next build]
+    Tokens[docs/design/tokens.css] --> Layout[app/layout.tsx]
+    Base[app/globals.css] --> Layout
+    Build --> Layout
+    Layout -- "every page, fonts from our own address" --> Browser
+```
+
+Each font's name reaches the tokens through a CSS variable set on
+`<html>`, together with a system font resized to the same proportions,
+which stands in until the file arrives so text doesn't jump. See
+[lesson 17](lessons/17-design-tokens-and-fonts.md).
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
@@ -488,7 +531,9 @@ These are deliberately absent at this stage, not overlooked:
 - **Little state** — the forms' pending/error state, the admin-mode
   cookie, and the notifications control, which checks the device when the
   page opens and changes as the phone's question is answered.
-- **No styling** — plain, unstyled HTML.
+- **No designed screens** — the design's colours and fonts apply
+  everywhere, but every page is still laid out as plain HTML until the
+  v0.2 screens are built.
 - **An empty admin console** — `/admin` exists so the toggle has
   somewhere to go; creating member accounts (REQ-13) and managing members
   and roles (REQ-15) fill it in.

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Every page now uses the v0.2 design's colours and fonts: headings in
+  Bricolage Grotesque, everything else in Plus Jakarta Sans, on a
+  warm-white page. Every colour, font, corner size and spacing value is
+  defined once, in the design's own file, and the app reads that file
+  directly, so the two can't drift. The fonts are downloaded while the
+  app is built and served from HomeBase's own address, so opening the
+  app never contacts Google. Tests measure every text colour against the
+  4.5:1 contrast minimum, and fail on any raw colour code, font or corner
+  size in the app's styles. Pages keep their plain layouts for now; the
+  designed screens come next. (#103)
+
 - Reviews now run once per pull request, never two at once, and not at
   all for version bumps. The reviewer defaults to Sonnet, with Opus kept
   for risky code. CLAUDE.md gains limits on commit, PR and lesson length,

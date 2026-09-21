@@ -1,0 +1,103 @@
+/* HomeBase design tokens — v0.2
+   Source of truth for colour, type, shape and spacing.
+   Components reference these names; never hard-code the values. */
+
+:root {
+  /* ---------- Surfaces & text ---------- */
+  --color-ground: #FCFBF9;        /* page background (warm white) */
+  --color-surface: #FFFFFF;       /* cards, bars, sheets */
+  --color-line: #E4DFD6;          /* card borders, bar dividers */
+  --color-line-soft: #EFEBE4;     /* row dividers inside cards */
+  --color-track: #EDE8E0;         /* progress-bar track, neutral chips */
+  --color-ink: #121016;           /* headings, primary text */
+  --color-muted: #6B6675;         /* secondary text, labels, inactive icons */
+
+  /* Dark panel — action items, first-run hero */
+  --color-panel: #1B1824;
+  --color-panel-layer-1: #332E3F; /* stacked-card edge behind item 1 */
+  --color-panel-layer-2: #4A4458; /* stacked-card edge behind item 2 */
+  --color-on-panel: #FFFFFF;
+  --color-on-panel-muted: #C9C4D8;
+
+  /* Overlay behind bottom sheets */
+  --color-scrim: rgba(18, 16, 22, 0.45);
+
+  /* ---------- Module colours ----------
+     Each module has LOUD (has an action item) and QUIET (all clear).
+     loud        = tile/icon background when the module needs attention
+     on-loud     = text + icon colour on the loud background
+     quiet       = tile background when all clear
+     quiet-line  = tile border when all clear
+     quiet-ink   = label/icon colour on the quiet tile
+     quiet-title = title colour on the quiet tile                        */
+
+  --finances-loud: #B23A2B;   --finances-on-loud: #FFFFFF;
+  --finances-quiet: #F9E7E4;  --finances-quiet-line: #EFC6BF;
+  --finances-quiet-ink: #8E2D21; --finances-quiet-title: #3E0E08;
+
+  --calendar-loud: #2F5BEA;   --calendar-on-loud: #FFFFFF;
+  --calendar-quiet: #E8EEFE;  --calendar-quiet-line: #C2D2FB;
+  --calendar-quiet-ink: #2646AE; --calendar-quiet-title: #0B1F52;
+
+  --pets-loud: #E8618C;       --pets-on-loud: #3A0719;
+  --pets-quiet: #FCE8EF;      --pets-quiet-line: #F5C2D3;
+  --pets-quiet-ink: #A8305A;  --pets-quiet-title: #3A0719;
+
+  --wine-loud: #6D4AE0;       --wine-on-loud: #FFFFFF;
+  --wine-quiet: #EEE9FC;      --wine-quiet-line: #D3C8F7;
+  --wine-quiet-ink: #5236B8;  --wine-quiet-title: #221052;
+
+  --meals-loud: #E0A526;      --meals-on-loud: #3D2A02;
+  --meals-quiet: #FBF1D9;     --meals-quiet-line: #F1DBA0;
+  --meals-quiet-ink: #8A6208; --meals-quiet-title: #3D2A02;
+
+  --health-loud: #1F7A4D;     --health-on-loud: #FFFFFF;
+  --health-quiet: #E3F2EA;    --health-quiet-line: #B8DDC8;
+  --health-quiet-ink: #196640; --health-quiet-title: #0B3320;
+
+  /* Status (reuse module-neutral meanings) */
+  --color-success: #196640;   --color-success-bg: #E3F2EA;
+  --color-danger: #8E2D21;    --color-danger-bg: #F9E7E4;
+  --color-info: #2646AE;      --color-info-bg: #E8EEFE;
+  --color-toggle-off: #D6D0C6;
+
+  /* ---------- Type ----------
+     The app loads both fonts with next/font (app/fonts.ts). It passes
+     each font's name in through --font-face-display and --font-face-body,
+     together with a stand-in system font resized to match, so text
+     doesn't jump when the real font arrives. The quoted names are the
+     fallback for anything reading this file outside the app.            */
+  --font-display: var(--font-face-display, 'Bricolage Grotesque'), system-ui, sans-serif; /* weight 800 */
+  --font-body: var(--font-face-body, 'Plus Jakarta Sans'), system-ui, sans-serif;         /* 400–700 */
+
+  --text-display-xl: 34px;  /* desktop page title */
+  --text-display-lg: 28px;  /* phone page title */
+  --text-display-md: 22px;  /* card headline */
+  --text-display-sm: 17px;  /* tile title */
+  --text-body-lg: 16px;
+  --text-body: 15px;
+  --text-body-sm: 13px;
+  --text-caption: 12px;
+  --text-label: 11px;       /* uppercase, letter-spacing 0.1em, weight 700 */
+  --tracking-display: -0.02em;
+  --tracking-label: 0.1em;
+
+  /* ---------- Shape ---------- */
+  --radius-sm: 12px;   /* icon chips, small buttons */
+  --radius-md: 16px;   /* buttons, list cards */
+  --radius-lg: 20px;   /* tiles, action card */
+  --radius-xl: 22px;   /* hero / verdict cards */
+  --radius-sheet: 26px;/* top corners of bottom sheets */
+  --radius-pill: 999px;
+
+  /* ---------- Spacing (4px base) ---------- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-9: 36px;
+  --screen-pad-phone: 18px;
+  --screen-pad-desktop: 36px;
+
+  /* ---------- Layout ---------- */
+  --breakpoint-desktop: 1024px; /* see REQ-18 */
+  --sidebar-width: 248px;
+  --tap-target-min: 44px;
+}
