@@ -188,10 +188,9 @@ sent and accepted.
 
 The return leg did not report, and the log is what showed that —
 `delivered_at` stayed null on a notification that demonstrably arrived.
-The likely reason is mundane: that phone installed the app before this
-code existed, so it is running a cached service worker that receives a
-receipt token it has never heard of and drops it. Service workers
-update when the app is next opened.
+It turned out to be a real bug in the service worker rather than a
+delay, and it is written up where it belongs, under
+[what the first night found](#what-the-first-night-found).
 
 Worth sitting with, though, because it is the log earning its keep on
 its first day. Without it, "the notification arrived" and "the
