@@ -71,10 +71,13 @@ describe("HomePage", () => {
     vi.unstubAllEnvs();
   });
 
-  it("shows HomeBase and who is signed in", async () => {
+  it("starts with the brand lockup, top-left, then who is signed in", async () => {
     given({ email: "member@example.com" });
-    render(await HomePage());
-    expect(screen.getByRole("heading", { name: "HomeBase" })).toBeDefined();
+    const { container } = render(await HomePage());
+    const first = container.firstElementChild;
+    expect(first?.tagName).toBe("HEADER");
+    expect(first?.querySelector("img")?.getAttribute("src")).toBe("/icon.svg");
+    expect(first?.textContent).toBe("HomeBase");
     expect(screen.getByText("Signed in as member@example.com")).toBeDefined();
   });
 

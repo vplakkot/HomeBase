@@ -29,12 +29,14 @@ the name to show under it. Opening full screen comes from the card's
 `apple-mobile-web-app-capable` tag. This version of Next.js writes only
 the generic `mobile-web-app-capable` one, so the card is what counts.
 
-The icons are PNG files in `public/`: a white house on dark blue. They're
-placeholders until the Design track makes a real one. They were drawn
-once with Next.js's own image renderer (`next/og`, so nothing new was
-installed), and replacing them means dropping in three new files at the
-same sizes. A test reads the width and height straight out of each file,
-so a wrong-sized replacement fails.
+The icons are PNG files in `public/`. Until v0.2 they were a placeholder
+white house on dark blue. Since REQ-80 they are the design's icon, a
+white roof over four module tiles, made from `docs/design/icon.svg` by
+`scripts/export-icons.sh`. They're exported square, as DESIGN.md asks,
+because iPhones round an app icon's corners themselves. A test reads
+each file's width and height, and the colour of the pixels in its top
+corners. A rounded export would show there, as see-through corners or
+corners that aren't the icon's dark background.
 
 ## The trap: the phone fetches the card without your sign-in
 
@@ -112,5 +114,7 @@ you signed in between launches. This Mac has no iPhone simulator (that
 needs Xcode), so that check had to wait for a real phone.
 
 It happened at the v0.1 release on 2026-09-20: installed from the home
-screen, signed in, and notifications enabled and arriving. The icons are
-still the placeholder house until the Design track replaces them.
+screen, signed in, and notifications enabled and arriving. That phone
+installed the placeholder house. Not yet checked on a phone: whether an
+app already on the home screen shows the design's icon without being
+removed and added again.

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- HomeBase has its own icon: the design's white roof over four module
+  tiles, on the phone's home screen and in the browser tab. On Home, the
+  plain "HomeBase" heading becomes the brand lockup, the icon beside the
+  name in the display font, top-left. The home-screen icons are exported
+  square, as the design asks, because iPhones round the corners
+  themselves. One script makes every icon file from the design's own
+  icon, and tests check each file's size and that its corners are solid.
+  Not yet checked on a phone: whether an app already installed shows the
+  new icon without being removed and added again. (#105)
+
 - Every page now uses the v0.2 design's colours and fonts: headings in
   Bricolage Grotesque, everything else in Plus Jakarta Sans, on a
   warm-white page. Every colour, font, corner size and spacing value is

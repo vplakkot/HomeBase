@@ -75,8 +75,25 @@ browser: headings still asked for Bricolage Grotesque by its plain name,
 but the resized understudy had dropped out. A test keeps them on
 `<html>`.
 
+## A stylesheet per component
+
+REQ-80 added the first shared piece, the brand lockup (the icon beside
+"HomeBase"), in `components/`. Its styles sit next to it in
+`brand-lockup.module.css`. A file ending `.module.css` is a **CSS
+Module**. Next.js gives each class in it a name no other file can have
+(`.lockup` becomes something like
+`brand-lockup-module__0a139G__lockup` in the browser). Think of name
+tags at a party with two Sams: each gets a surname, so a note meant for
+one never reaches the other. Components can pick short, plain class
+names without ever styling each other by accident. Only `globals.css`
+styles the whole page.
+
+The lockup also needed the first token the design didn't provide:
+DESIGN.md sets its name at 19 px, a size with no token. Rather than
+write 19px (which the raw-value test would refuse), `tokens.css` gained
+`--text-brand`.
+
 ## What's next
 
-REQ-80 adds the app icon and the brand lockup. After that come the
-phone and desktop layouts, which give these tokens their first real
+The phone and desktop layouts, which give these tokens their first real
 screens.

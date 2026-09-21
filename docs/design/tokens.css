@@ -74,6 +74,7 @@
   --text-display-lg: 28px;  /* phone page title */
   --text-display-md: 22px;  /* card headline */
   --text-display-sm: 17px;  /* tile title */
+  --text-brand: 19px;       /* "HomeBase" in the brand lockup (DESIGN.md §2) */
   --text-body-lg: 16px;
   --text-body: 15px;
   --text-body-sm: 13px;

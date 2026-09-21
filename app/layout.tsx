@@ -18,7 +18,17 @@ export const metadata: Metadata = {
     title: "HomeBase",
     statusBarStyle: "default",
   },
+  // Every icon link is listed here. Once a layout lists icons itself,
+  // Next.js stops linking the icon files kept in app/ (a browser check
+  // found app/icon.svg unlinked), so they all live in public/, made by
+  // scripts/export-icons.sh.
   icons: {
+    // The browser tab: the design's own file, and an .ico holding the
+    // same icon at 16, 32 and 48 pixels for browsers that can't show SVG.
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+    ],
     apple: "/apple-touch-icon.png",
   },
 };

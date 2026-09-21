@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { BrandLockup } from "../components/brand-lockup";
 import { readMode } from "../lib/auth/mode";
 import { hasPermission } from "../lib/auth/permissions";
 import { createClient } from "../lib/supabase/server";
@@ -31,7 +32,9 @@ export default async function HomePage() {
 
   return (
     <>
-      <h1>HomeBase</h1>
+      <header>
+        <BrandLockup />
+      </header>
       <p>{email ? `Signed in as ${email}` : "Signed in"}</p>
       {canManageMembers && mode === "admin" ? (
         <section aria-label="Admin mode">
