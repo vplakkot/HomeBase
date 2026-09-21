@@ -71,6 +71,25 @@ Meal Plans). Components receive a module's colours under generic names
 like `--module-quiet`, so one stylesheet works for all six. A test fails
 if a prefix is misspelt, because the browser wouldn't complain.
 
+## Loud and quiet
+
+A tile turns its module's bright colour only when the module has an
+action item. Nobody sets "loud" by hand: the tile works it out from the
+action items, so a bright tile can never appear with nothing behind it.
+
+The stylesheet does the swap with one class. The tile's rules say
+`background: var(--tile-ground)` and so on. The plain tile sets those
+variables to the module's quiet colours; adding `.loud` sets them to
+the loud ones. It works like a lighting preset on a stage: one switch,
+and every light changes together.
+
+No module has data yet, so what each tile says comes from a stand-in,
+`lib/module-status.ts`. Normally it says "Coming soon" and stays quiet,
+because the app shouldn't show things it doesn't know. Adding `?demo` to
+Home's address swaps in the design's invented example, so both states
+can be looked at. When a module gets real data, it replaces its stand-in
+entry and the tile doesn't change.
+
 ## The greeting
 
 "Morning, Vin" needs the time where the phone is, and a request for a

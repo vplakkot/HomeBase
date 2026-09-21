@@ -47,6 +47,15 @@ export const MODULES: readonly Module[] = [
   { slug: "health", name: "Health", tokens: "health", href: null, sections: [] },
 ];
 
+// A module switched off in the admin console disappears from Home, and
+// its data is kept (DESIGN.md §3). The console's switches come in a later
+// milestone, so for now nothing is switched off.
+export const NOTHING_SWITCHED_OFF: ReadonlySet<string> = new Set();
+
+export function modulesSwitchedOn(switchedOff: ReadonlySet<string>): readonly Module[] {
+  return MODULES.filter((module) => !switchedOff.has(module.slug));
+}
+
 export function moduleBySlug(slug: string): Module {
   const found = MODULES.find((module) => module.slug === slug);
   if (!found) throw new Error(`No module called ${slug}`);

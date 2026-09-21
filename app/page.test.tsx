@@ -5,6 +5,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { DEVICE_COOKIE } from "../lib/notifications/device";
 import { createClient } from "../lib/supabase/server";
 import { installDialogStandIn } from "../test/dialog";
+import tileStyles from "../components/module-tile.module.css";
 import HomePage from "./page";
 
 beforeAll(installDialogStandIn);
@@ -67,6 +68,25 @@ function given({
   } as unknown as Awaited<ReturnType<typeof cookies>>);
 }
 
+// Home as the browser asks for it, with whatever follows ? in the address.
+function home(params: Record<string, string> = {}) {
+  return HomePage({ searchParams: Promise.resolve(params) });
+}
+
+function tiles() {
+  const modules = screen.getByRole("region", { name: "Modules" });
+  return within(modules)
+    .getAllByRole("listitem")
+    .map((item) => {
+      const tile = item.firstElementChild as HTMLElement;
+      return {
+        name: tile.querySelector(`.${tileStyles.name}`)?.textContent,
+        status: tile.querySelector(`.${tileStyles.status}`)?.textContent,
+        loud: tile.classList.contains(tileStyles.loud),
+      };
+    });
+}
+
 describe("HomePage", () => {
   afterEach(() => {
     cleanup();
@@ -77,7 +97,7 @@ describe("HomePage", () => {
   // then the modules, all in the one scrolling area.
   it("runs top to bottom as the design does", async () => {
     given({ email: "admin@example.com", permissions: ["manage_members"] });
-    render(await HomePage());
+    render(await home());
     const main = screen.getByRole("main");
     const header = main.firstElementChild!;
     expect(header.tagName).toBe("HEADER");
@@ -93,13 +113,13 @@ describe("HomePage", () => {
 
   it("greets the person by first name, when the account has one", async () => {
     given({ email: "sam@example.com", name: "Sam Example" });
-    render(await HomePage());
+    render(await home());
     expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/, Sam$/);
   });
 
   it("shows All clear where action items go, until there are any", async () => {
     given({ email: "member@example.com" });
-    render(await HomePage());
+    render(await home());
     const section = screen.getByRole("region", { name: "Action items" });
     expect(section.textContent).toContain("All clear");
     expect(section.textContent).toContain("No action items today");
@@ -108,19 +128,41 @@ describe("HomePage", () => {
   // A decision of 2026-09-21: all six show, only Finances opens.
   it("shows a tile for all six modules, only Finances a link", async () => {
     given({ email: "member@example.com" });
-    render(await HomePage());
-    const modules = screen.getByRole("region", { name: "Modules" });
-    const tiles = within(modules).getAllByRole("listitem");
-    expect(tiles.map((tile) => tile.textContent)).toEqual([
-      "FinancesComing soon",
-      "CalendarComing soon",
-      "PetsComing soon",
-      "WineComing soon",
-      "Meal PlansComing soon",
-      "HealthComing soon",
+    render(await home());
+    expect(tiles().map((tile) => tile.name)).toEqual([
+      "Finances",
+      "Calendar",
+      "Pets",
+      "Wine",
+      "Meal Plans",
+      "Health",
     ]);
+    const modules = screen.getByRole("region", { name: "Modules" });
     expect(within(modules).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/finances",
+    ]);
+  });
+
+  // REQ-82, and a decision of 2026-09-21: until modules have data, Home
+  // shows no invented state unless ?demo asks for it.
+  it("keeps every tile quiet, saying Coming soon", async () => {
+    given({ email: "member@example.com" });
+    render(await home());
+    for (const tile of tiles()) {
+      expect(tile, tile.name!).toMatchObject({ status: "Coming soon", loud: false });
+    }
+  });
+
+  it("with ?demo, shows the design's example, loud and quiet tiles side by side", async () => {
+    given({ email: "member@example.com" });
+    render(await home({ demo: "" }));
+    expect(tiles()).toEqual([
+      { name: "Finances", status: "$285 due", loud: true },
+      { name: "Calendar", status: "Dentist Thu", loud: false },
+      { name: "Pets", status: "Pill due today", loud: true },
+      { name: "Wine", status: "9 bottles", loud: false },
+      { name: "Meal Plans", status: "Tacos tonight", loud: false },
+      { name: "Health", status: "Refill ready", loud: true },
     ]);
   });
 
@@ -128,7 +170,7 @@ describe("HomePage", () => {
   // greeting. The screen width shows one and hides the other.
   it("offers Quick add twice: a bar for phones, buttons for desktops", async () => {
     given({ email: "member@example.com" });
-    render(await HomePage());
+    render(await home());
     const main = screen.getByRole("main");
     const phoneBar = main.nextElementSibling as HTMLElement;
     for (const place of [phoneBar, main]) {
@@ -145,7 +187,7 @@ describe("HomePage", () => {
   // Quick add and nothing that goes anywhere.
   it("has no navigation bar on a phone's Home", async () => {
     given({ email: "member@example.com" });
-    render(await HomePage());
+    render(await home());
     const phoneBar = screen.getByRole("main").nextElementSibling as HTMLElement;
     expect(within(phoneBar).queryAllByRole("link")).toEqual([]);
     expect(within(phoneBar).queryAllByRole("navigation")).toEqual([]);
@@ -153,24 +195,24 @@ describe("HomePage", () => {
 
   it("keeps who is signed in on the page", async () => {
     given({ email: "member@example.com" });
-    render(await HomePage());
+    render(await home());
     expect(screen.getByText("Signed in as member@example.com")).toBeDefined();
   });
 
   it("offers sign-out", async () => {
     given({ email: "member@example.com" });
-    render(await HomePage());
+    render(await home());
     expect(screen.getByRole("button", { name: "Sign out" })).toBeDefined();
   });
 
   it("sends a signed-out visitor to sign-in", async () => {
     given({ email: null });
-    await expect(HomePage()).rejects.toThrow("REDIRECT:/sign-in");
+    await expect(home()).rejects.toThrow("REDIRECT:/sign-in");
   });
 
   it("shows an admin the Admin pill, top-right, opening the admin console", async () => {
     given({ email: "admin@example.com", permissions: ["manage_members"] });
-    const { container } = render(await HomePage());
+    const { container } = render(await home());
     const pill = screen.getByRole("link", { name: "Admin" });
     expect(pill.getAttribute("href")).toBe("/admin");
     // After the brand lockup in the header, which lays the two out left and right.
@@ -179,7 +221,7 @@ describe("HomePage", () => {
 
   it("never shows a member the Admin pill", async () => {
     given({ email: "member@example.com", permissions: ["use_modules"] });
-    render(await HomePage());
+    render(await home());
     expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
   });
 
@@ -191,7 +233,7 @@ describe("HomePage", () => {
       permissions: ["use_modules"],
       otherCookies: { "homebase-mode": "admin" },
     });
-    render(await HomePage());
+    render(await home());
     expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
   });
 
@@ -204,7 +246,7 @@ describe("HomePage", () => {
       permissions: ["manage_members"],
       otherCookies: { "homebase-mode": "admin" },
     });
-    render(await HomePage());
+    render(await home());
     expect(screen.getByRole("link", { name: "Admin" }).getAttribute("href")).toBe("/admin");
     expect(screen.queryByText("Admin mode")).toBeNull();
     expect(screen.queryByRole("button", { name: "Back to member view" })).toBeNull();
@@ -212,7 +254,7 @@ describe("HomePage", () => {
 
   it("has no admin-mode switch any more", async () => {
     given({ email: "admin@example.com", permissions: ["manage_members"] });
-    render(await HomePage());
+    render(await home());
     expect(screen.queryByRole("button", { name: "Enter admin mode" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Back to member view" })).toBeNull();
   });
@@ -220,7 +262,7 @@ describe("HomePage", () => {
   it("offers notifications, handing over the push key and this device's note", async () => {
     given({ email: "member@example.com", device: "https://web.push.apple.com/this" });
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public-push-key");
-    render(await HomePage());
+    render(await home());
     expect(screen.getByTestId("notifications").textContent).toBe(
       "public-push-key · https://web.push.apple.com/this",
     );
@@ -229,7 +271,7 @@ describe("HomePage", () => {
   it("hands over no device note when this browser never turned notifications on", async () => {
     given({ email: "member@example.com" });
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public-push-key");
-    render(await HomePage());
+    render(await home());
     expect(screen.getByTestId("notifications").textContent).toBe(
       "public-push-key · no device",
     );
@@ -239,7 +281,7 @@ describe("HomePage", () => {
     given({ email: "member@example.com" });
     vi.stubEnv("VERCEL_GIT_COMMIT_REF", "");
     vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "");
-    render(await HomePage());
+    render(await home());
     expect(screen.getByTestId("build-info").textContent).toBe("dev · local");
   });
 
@@ -247,7 +289,7 @@ describe("HomePage", () => {
     given({ email: "member@example.com" });
     vi.stubEnv("VERCEL_GIT_COMMIT_REF", "main");
     vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "abcdef1234567890");
-    render(await HomePage());
+    render(await home());
     expect(screen.getByTestId("build-info").textContent).toBe(
       "main · abcdef1",
     );

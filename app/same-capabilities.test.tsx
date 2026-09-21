@@ -54,6 +54,9 @@ async function placesOn(page: () => Promise<React.ReactElement>) {
   return { desktop, phone };
 }
 
+// Home as the browser asks for it, with nothing after ? in the address.
+const Home = () => HomePage({ searchParams: Promise.resolve({}) });
+
 describe.each([
   ["an admin", ["use_modules", "manage_members"], ["/", "/admin", "/finances"]],
   ["a member", ["use_modules"], ["/", "/finances"]],
@@ -62,7 +65,7 @@ describe.each([
     signedInWith(permissions);
     const desktop = new Set<string>();
     const phone = new Set<string>();
-    for (const page of [HomePage, FinancesPage]) {
+    for (const page of [Home, FinancesPage]) {
       const places = await placesOn(page);
       places.desktop.forEach((href) => desktop.add(href));
       places.phone.forEach((href) => phone.add(href));

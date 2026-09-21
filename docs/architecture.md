@@ -575,6 +575,17 @@ module's colours reach its components as `--module-*` variables built
 from its token prefix, and a test checks every prefix has all six
 colours.
 
+What each tile says comes from
+[`lib/module-status.ts`](../lib/module-status.ts): a status line for a
+phone, a headline and two facts for a desktop, and the module's action
+items. A tile is loud, in its module's solid colour, if and only if the
+module has an action item. No module has data yet, so that file is a
+stand-in: every module is quiet and says "Coming soon", unless `?demo`
+is in Home's address, which swaps in the design's invented example (a
+Notion decision of 2026-09-21). Home draws tiles only for modules that
+are switched on; the admin console's switches come later, so for now
+none is off.
+
 On a phone, Home has no navigation bar: the tiles and the Admin pill do
 that job, and Quick add stays at the bottom. Inside a module the bottom
 bar is Home · Sections · Modules. Sections and Modules open **bottom

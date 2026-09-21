@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Home's module tiles now have both of the design's states. A tile turns
+  its module's bright colour only when that module has an action item,
+  and stays in its pale tint otherwise. On a desktop each tile shows a
+  headline and two facts under its name. Modules have no data yet, so
+  every tile stays pale and says "Coming soon". Add `?demo` to Home's
+  address to see the design's example: Finances, Pets and Health bright,
+  the rest pale. Text on a bright tile uses the colour the design made
+  for it, not the mockups' paler lines, which were too faint to read
+  comfortably. (#112)
+
 - HomeBase now has its designed phone and desktop layouts, and a
   designed Home. On a phone, Home shows the brand and (for admins) the
   Admin pill, a greeting with the date, an "All clear" row where action
