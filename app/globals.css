@@ -1,0 +1,51 @@
+/* What every page gets before any component styles itself. Every value
+   here is a token from docs/design/tokens.css, which the root layout
+   loads first; DESIGN.md has the rules behind them. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: var(--tracking-display);
+  line-height: 1.15;
+}
+
+h1 {
+  font-size: var(--text-display-lg);
+}
+
+h2 {
+  font-size: var(--text-display-md);
+}
+
+h3 {
+  font-size: var(--text-display-sm);
+}
+
+/* Browsers give form controls a system font of their own, so without this
+   every button and field would ignore the body font. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}

@@ -61,9 +61,14 @@
   --color-info: #2646AE;      --color-info-bg: #E8EEFE;
   --color-toggle-off: #D6D0C6;
 
-  /* ---------- Type ---------- */
-  --font-display: 'Bricolage Grotesque', system-ui, sans-serif; /* weight 800 */
-  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;      /* 400–700 */
+  /* ---------- Type ----------
+     The app loads both fonts with next/font (app/fonts.ts). It passes
+     each font's name in through --font-face-display and --font-face-body,
+     together with a stand-in system font resized to match, so text
+     doesn't jump when the real font arrives. The quoted names are the
+     fallback for anything reading this file outside the app.            */
+  --font-display: var(--font-face-display, 'Bricolage Grotesque'), system-ui, sans-serif; /* weight 800 */
+  --font-body: var(--font-face-body, 'Plus Jakarta Sans'), system-ui, sans-serif;         /* 400–700 */
 
   --text-display-xl: 34px;  /* desktop page title */
   --text-display-lg: 28px;  /* phone page title */

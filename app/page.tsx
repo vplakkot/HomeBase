@@ -55,7 +55,11 @@ export default async function HomePage() {
       <SignOutForm />
       <p
         data-testid="build-info"
-        style={{ fontSize: "0.75rem", color: "#888", marginTop: "3rem" }}
+        style={{
+          fontSize: "var(--text-caption)",
+          color: "var(--color-muted)",
+          marginTop: "var(--space-9)",
+        }}
       >
         {getBuildInfo()}
       </p>

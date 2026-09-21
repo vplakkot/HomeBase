@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+// The design's colours, fonts, corner sizes and spacing, read straight
+// from the design folder so the app and the design can't disagree. Then
+// the base styles every page starts from, which are built out of them.
+import "../docs/design/tokens.css";
+import "./globals.css";
+import { bodyFont, displayFont } from "./fonts";
 
 export const metadata: Metadata = {
   title: "HomeBase",
@@ -19,7 +25,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    // The fonts' variables go on <html>, the element tokens.css calls
+    // :root, because that's where --font-display and --font-body read
+    // them. A CSS variable only reaches the element it's set on and what's
+    // inside it. On <body>, both tokens would drop to the bare font names
+    // in tokens.css and lose the resized stand-in that stops text jumping
+    // while the fonts load.
+    <html lang="en" className={`${displayFont.variable} ${bodyFont.variable}`}>
       <body>{children}</body>
     </html>
   );

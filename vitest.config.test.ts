@@ -27,6 +27,13 @@ describe("vitest config", () => {
     expect(exclude).not.toContain("**/.claude/**");
   });
 
+  // Without it, any test that imports the root layout fails with
+  // "Bricolage_Grotesque is not a function".
+  it("gives tests a stand-in for next/font, which only works in a Next.js build", () => {
+    const alias = config.resolve?.alias as Record<string, string> | undefined;
+    expect(alias?.["next/font/google"]).toMatch(/test\/next-font-google\.ts$/);
+  });
+
   it("keeps every default exclude rather than replacing them", () => {
     for (const pattern of configDefaults.exclude) {
       expect(exclude).toContain(pattern);

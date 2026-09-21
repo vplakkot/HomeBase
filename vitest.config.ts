@@ -1,8 +1,19 @@
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      // next/font only works inside a Next.js build, which rewrites each
+      // font call; the package itself is empty. Anything importing the root
+      // layout loads the fonts, so tests get a stand-in with the same shape.
+      "next/font/google": fileURLToPath(
+        new URL("./test/next-font-google.ts", import.meta.url),
+      ),
+    },
+  },
   test: {
     // Most test files here never touch the DOM: they exercise server
     // actions, library functions, SQL and workflow files. Standing up a
