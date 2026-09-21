@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Recorded what the v0.1.0 release actually proved. Three lessons still
+  said a notification arriving on a real iPhone was waiting for a phone;
+  it arrived, unattended, on the first hourly send after the release.
+  Lesson 16 keeps the honest half: the outbound leg is proven and the
+  receipt did not report, which the log itself is what revealed. (#94)
+
 ## 0.1.0 - 2026-09-20
 
 The first release anyone in the household can actually use: sign in,
