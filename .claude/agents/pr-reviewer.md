@@ -2,6 +2,7 @@
 name: pr-reviewer
 description: Reviews a pull request against its linked GitHub issue and CLAUDE.md's Definition of Done. Advisory only - never merges, pushes, comments, or edits code. Use when asked to review a PR before merging it.
 tools: Read, Grep, Glob, Bash, WebFetch
+model: sonnet
 ---
 
 # PR reviewer
