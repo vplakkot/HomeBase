@@ -189,8 +189,46 @@ sent and accepted.
 The return leg did not report, and the log is what showed that —
 `delivered_at` stayed null on a notification that demonstrably arrived.
 It turned out to be a real bug in the service worker rather than a
-delay, and it is written up where it belongs, under
-[what the first night found](#what-the-first-night-found).
+delay. The next section has it.
+
+## What the first night found
+
+**19 notifications arrived. All 19 were recorded as never delivered.**
+
+My first guess was a stale cache, and it was wrong. The cause is a rule
+about service workers worth knowing before you write one:
+
+> A new service worker installs, and then **waits**. It does not control
+> anything until every window using the old one has closed.
+
+On a phone that is close to never. An installed app sits in the app
+switcher for days, so the old worker kept control, and the new one — the
+one that knows how to report a receipt — was downloaded and then
+deliberately held back. Opening the app does not help. Opening it is
+what keeps the old worker alive.
+
+Two lines fix it, and they belong in a service worker from the start:
+
+```js
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+```
+
+`skipWaiting` stops the new worker queueing behind the old one. `claim`
+hands it the windows already open, rather than making you launch the app
+again.
+
+The general shape is worth more than the fix: **the thing that ships a
+fix can itself be the broken thing.** Every later correction to this
+worker would have sat in the same queue, and nothing would have reported
+an error. The phone was working perfectly — running last week's code.
+
+And the log is the only reason anyone knew. From the outside, "the
+notification arrived" and "the notification arrived and we know it
+arrived" look identical. The receipt path could have been dead for the
+whole test week.
 
 Worth sitting with, though, because it is the log earning its keep on
 its first day. Without it, "the notification arrived" and "the

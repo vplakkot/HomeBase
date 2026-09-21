@@ -3,6 +3,25 @@
 // is closed. A device can only sign up for notifications once one is
 // registered. It has to live at the site's root to cover every page.
 
+// Take over as soon as we arrive.
+//
+// By default a new service worker installs and then *waits*: it will not
+// control anything until every window using the old one has closed. On a
+// phone an installed app can sit in the app switcher for days, so the old
+// worker keeps control and a fix never reaches the device. That is not a
+// cache being stale — the new file is downloaded and then deliberately
+// held back.
+//
+// This cost us the first night of the v0.1 test week: 19 notifications
+// arrived on a phone whose worker predated the code that reports them,
+// and every one was recorded as never delivered.
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (event) => {
+  // skipWaiting alone activates the new worker; claim() also hands it the
+  // windows that are already open, instead of waiting for the next launch.
+  event.waitUntil(self.clients.claim());
+});
+
 // Only a path inside HomeBase, such as "/" or "/finances". Anything else
 // becomes the home page, so a notification can never open another
 // website. This asks the browser's own address parser rather than

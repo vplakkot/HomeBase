@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- The service worker now takes over as soon as it installs, instead of
+  queueing behind the old one. A new worker normally waits until every
+  window using the previous one has closed, which on a phone is close to
+  never — so the code that reports a delivered notification was
+  downloaded and then held back. It cost the first night of the v0.1 test
+  week: 19 notifications arrived, and all 19 were recorded as never
+  delivered. (#96)
+
 - Recorded what the v0.1.0 release actually proved. Three lessons still
   said a notification arriving on a real iPhone was waiting for a phone;
   it arrived, unattended, on the first hourly send after the release.
