@@ -20,13 +20,16 @@ function loadWorker({ openWindows = [] as object[] } = {}) {
   const openWindow = vi.fn(async () => {});
   // REQ-22: the worker reports deliveries and taps back to the app.
   const fetch = vi.fn(async () => ({ status: 204 }));
+  const skipWaiting = vi.fn();
+  const claim = vi.fn(async () => {});
   const self = {
     addEventListener: (type: string, listener: Listener) => {
       listeners[type] = listener;
     },
+    skipWaiting,
     location: { origin: "https://homebase.example" },
     registration: { showNotification },
-    clients: { matchAll: vi.fn(async () => openWindows), openWindow },
+    clients: { matchAll: vi.fn(async () => openWindows), openWindow, claim },
   };
   runInNewContext(source, { self, URL, fetch });
 
@@ -35,7 +38,7 @@ function loadWorker({ openWindows = [] as object[] } = {}) {
     listeners[type]({ ...event, waitUntil: (p: Promise<unknown>) => pending.push(p) });
     await Promise.all(pending);
   }
-  return { dispatch, showNotification, openWindow, fetch };
+  return { dispatch, showNotification, openWindow, fetch, skipWaiting, claim };
 }
 
 function pushWith(message: unknown) {
@@ -135,6 +138,22 @@ describe("the service worker", () => {
     });
     expect(focus).toHaveBeenCalled();
     expect(worker.openWindow).not.toHaveBeenCalled();
+  });
+
+  // A new worker normally installs and then waits until every window
+  // using the old one has closed. An installed app can sit in the app
+  // switcher for days, so without this a fix never reaches the phone —
+  // which cost the first night of the v0.1 test week.
+  it("takes over as soon as it installs, instead of waiting", async () => {
+    const worker = loadWorker();
+    await worker.dispatch("install", {});
+    expect(worker.skipWaiting).toHaveBeenCalled();
+  });
+
+  it("claims windows that are already open", async () => {
+    const worker = loadWorker();
+    await worker.dispatch("activate", {});
+    expect(worker.claim).toHaveBeenCalled();
   });
 
   // REQ-22. Nothing else can report the delivery: the worker runs with no
