@@ -279,10 +279,19 @@ address bar) and two icons in `public/` (192 and 512 pixels).
 from each page's head: a 180 pixel `apple-touch-icon` and the home-screen
 title. Full screen comes from the manifest's `display`.
 
+Every icon file is made from the design's icon by
+[`scripts/export-icons.sh`](../scripts/export-icons.sh). The home-screen
+PNGs are exported square, because iPhones round an app icon's corners
+themselves. The browser tab gets the design's `icon.svg` as drawn, with a
+`favicon.ico` for browsers that can't show SVG. `metadata` lists every
+icon link. Once a layout lists icons itself, Next.js stops linking icon
+files kept in `app/`, so they all live in `public/`.
+
 Phones fetch the manifest without cookies, so the proxy's `matcher` skips
 it, next to `favicon.ico`. Otherwise the proxy would find no sign-in and
-answer with the sign-in page. The icons are PNGs, which the matcher
-already skipped. Neither holds anything private.
+answer with the sign-in page. The icon files end in `.png`, `.svg` or
+`.ico`, which the matcher already skipped. None of them holds anything
+private.
 
 Staying signed in across opens of the installed app rests on the session
 cookies' 400-day lifetime, which `@supabase/ssr` sets and renews on every
@@ -522,12 +531,17 @@ Each font's name reaches the tokens through a CSS variable set on
 which stands in until the file arrives so text doesn't jump. See
 [lesson 17](lessons/17-design-tokens-and-fonts.md).
 
+Pieces used on more than one page live in
+[`components/`](../components/), starting with the brand lockup: the
+icon beside "HomeBase". Each has its own stylesheet, a **CSS Module**
+(`brand-lockup.module.css`), whose class names Next.js makes unique to
+that component, so one component's styles can't leak onto another's.
+Forms used by a single page still live next to it.
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
 
-- **No `components/` folder** — the sign-up and sign-in forms live next
-  to their pages; nothing is shared between pages yet.
 - **Little state** — the forms' pending/error state, the admin-mode
   cookie, and the notifications control, which checks the device when the
   page opens and changes as the phone's question is answered.

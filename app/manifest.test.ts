@@ -1,18 +1,36 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { REPO_ROOT } from "../test/css";
+import { readPng } from "../test/png";
 import { metadata } from "./layout";
 import manifest from "./manifest";
 
-const PUBLIC_DIR = join(__dirname, "..", "public");
+const PUBLIC_DIR = join(REPO_ROOT, "public");
+const DESIGN_ICON = join(REPO_ROOT, "docs", "design", "icon.svg");
 
-// A PNG's width and height sit at bytes 16–23: after the 8-byte signature
-// and the first chunk's length and name ("IHDR"). Reading them directly
-// proves the file on disk is the size the card claims.
-function pngSize(publicPath: string): { width: number; height: number } {
-  const bytes = readFileSync(join(PUBLIC_DIR, publicPath));
-  expect(bytes.subarray(1, 4).toString("ascii")).toBe("PNG");
-  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+// The icon's background colour, as the design's own file gives it: the
+// fill of the full-size square every other shape sits on.
+const background = (() => {
+  const svg = readFileSync(DESIGN_ICON, "utf-8");
+  const hex = svg.match(/<rect width="64" height="64"[^>]*fill="#([0-9A-Fa-f]{6})"/)?.[1];
+  if (!hex) throw new Error("no background square in docs/design/icon.svg");
+  return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+})();
+
+function sizeOf(publicPath: string): { width: number; height: number } {
+  const { width, height } = readPng(join(PUBLIC_DIR, publicPath));
+  return { width, height };
+}
+
+// DESIGN.md asks for home-screen icons exported square, because iPhones
+// round the corners themselves. A rounded export shows up in the top
+// corners: see-through there, or a colour other than the background.
+function expectSquareDesignIcon(publicPath: string) {
+  const png = readPng(join(PUBLIC_DIR, publicPath));
+  expect(png.hasAlpha, `${publicPath} has a transparency channel`).toBe(false);
+  expect(png.topRow[0].slice(0, 3), `${publicPath} top-left`).toEqual(background);
+  expect(png.topRow[png.width - 1].slice(0, 3), `${publicPath} top-right`).toEqual(background);
 }
 
 describe("the app card a phone reads on Add to Home Screen", () => {
@@ -40,8 +58,12 @@ describe("the app card a phone reads on Add to Home Screen", () => {
   it("names only icons that exist, at the sizes it claims", () => {
     for (const icon of card.icons ?? []) {
       const [width, height] = (icon.sizes ?? "").split("x").map(Number);
-      expect(pngSize(icon.src)).toEqual({ width, height });
+      expect(sizeOf(icon.src)).toEqual({ width, height });
     }
+  });
+
+  it("uses the design's icon, square and solid to the corners", () => {
+    for (const icon of card.icons ?? []) expectSquareDesignIcon(icon.src);
   });
 });
 
@@ -55,6 +77,32 @@ describe("what every page tells an iPhone", () => {
 
   it("points to a 180 pixel home-screen icon that exists", () => {
     const { apple } = metadata.icons as { apple: string };
-    expect(pngSize(apple)).toEqual({ width: 180, height: 180 });
+    expect(sizeOf(apple)).toEqual({ width: 180, height: 180 });
+  });
+
+  it("uses the design's icon there too, square and solid to the corners", () => {
+    const { apple } = metadata.icons as { apple: string };
+    expectSquareDesignIcon(apple);
+  });
+});
+
+// A browser check confirmed Next.js turns these into links on every page.
+describe("what a browser tab shows", () => {
+  const { icon } = metadata.icons as { icon: Array<Record<string, string>> };
+
+  it("is the design's icon file, unchanged", () => {
+    expect(icon).toContainEqual({ url: "/icon.svg", type: "image/svg+xml" });
+    expect(readFileSync(join(PUBLIC_DIR, "icon.svg"))).toEqual(readFileSync(DESIGN_ICON));
+  });
+
+  it("has a fallback for browsers that can't show SVG, at 16, 32 and 48 pixels", () => {
+    expect(icon).toContainEqual({ url: "/favicon.ico", sizes: "16x16 32x32 48x48" });
+    const ico = readFileSync(join(PUBLIC_DIR, "favicon.ico"));
+    expect(ico.readUInt16LE(0), "reserved, always 0").toBe(0);
+    expect(ico.readUInt16LE(2), "1 means an icon file").toBe(1);
+    // A 16-byte entry per picture, the first byte of each being its width.
+    const count = ico.readUInt16LE(4);
+    const widths = Array.from({ length: count }, (_, i) => ico[6 + i * 16]);
+    expect(widths).toEqual([16, 32, 48]);
   });
 });
