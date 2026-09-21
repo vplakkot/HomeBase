@@ -50,37 +50,46 @@ When I say "next requirement":
   already states that version.
 - Merging: once every Definition of Done item is satisfied and the
   pr-reviewer agent's verdict on the pull request is "Ready to merge",
-  merge it without asking me, then tell me what was merged. If I say
-  "wait" on a pull request, hold it until I say otherwise. Release pull
-  requests (the ones that bump package.json's version) and the tag push
-  that follows them still wait for my go-ahead, because that is what puts
-  code on the production domain.
+  merge it without asking me, then tell me what was merged. A "Needs
+  changes" verdict counts too, if every finding was wording and all are
+  fixed; if any finding was code, re-review first. "Needs a human look"
+  always comes to me. If I say "wait" on a pull request, hold it until I
+  say otherwise. Three kinds wait for my go-ahead whatever the verdict:
+  release pull requests (the ones that bump package.json's version) and
+  the tag push that follows, because that is what puts code on the
+  production domain; and any change to this file, because these are the
+  rules you work under.
 
 ## Reviews
 Reviews cost more than anything else in a session. Spend them where they
 catch things.
-- One review per pull request. Re-review only if a fix changed code; a
-  wording fix doesn't need another round.
+- One review per pull request. Re-review only if a fix changed code.
+  Code is anything that runs or decides what runs: app code, tests, SQL,
+  workflows, and `.claude/` settings. Wording is prose: docs, lessons,
+  comments, CHANGELOG, and this file.
 - Never run two reviews at once.
-- No review for a version-bump pull request. It waits for my go-ahead
-  instead.
-- The reviewer runs on Sonnet by default. Use Opus for risky code:
-  migrations, row-level security, sign-in, anything the internet can
-  call, and the service worker.
+- No review for a release pull request that only bumps the version and
+  its CHANGELOG section. It waits for my go-ahead instead.
+- Name the reviewer's model every time you launch it; don't rely on its
+  default. Sonnet, unless any file in the pull request is risky:
+  migrations, row-level security, sign-in, `app/api/**`, the service
+  worker, `.github/workflows/`, or `.claude/settings.json`. Then Opus.
 - Keep the brief short. Point the reviewer at the pull request; don't ask
   it to re-search the repo or re-measure things unless that is what the
   pull request is about.
 - A review checks that the work agrees with itself, not that its claims
-  about the outside world are true. Before a pull request says how
-  Vercel, Supabase, iOS or any other outside system behaves, prove it
-  against that system.
+  about the outside world are true. Anything in a pull request — code,
+  docs or description — that says how Vercel, Supabase, iOS or another
+  outside system behaves must first be shown by running it against that
+  system. If that can't be done from here, say it is unproven.
 
 ## Writing
-- Commit messages: a subject line and at most 10 lines of body.
-- Pull request descriptions: one screen. What changed, why, how it was
-  checked.
-- Lessons: under 100 lines, and only for a genuinely new concept, not for
-  every chore or fix.
+- Commit messages: a subject line and at most 10 lines of prose, not
+  counting blank lines or the trailer.
+- Pull request descriptions: about 25 lines. What changed, why, how it
+  was checked.
+- New lessons: under 100 lines, and only for a concept no existing lesson
+  covers. Updating an existing lesson has no length limit.
 
 ## Definition of Done
 Every pull request must satisfy all of these:

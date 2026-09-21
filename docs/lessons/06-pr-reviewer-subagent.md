@@ -28,6 +28,7 @@ The file has two parts:
 name: pr-reviewer
 description: ...
 tools: Read, Grep, Glob, Bash, WebFetch
+model: sonnet
 ---
 
 (the actual instructions, as plain markdown)
@@ -94,8 +95,15 @@ closer to what a human reviewer would look for before approving.
 
 ## Editing its instructions later
 
-Everything about how it behaves lives in that one file — there's nothing
-elsewhere to keep in sync. To change what it checks, how it reports, or
+What it checks and how it reports live in that one file. *When* it runs
+and *which model* it runs on are decided by CLAUDE.md's Reviews section:
+once per pull request, never two at once, and Sonnet unless the pull
+request touches something risky.
+
+That `model: sonnet` line is only a default, and it was not honoured the
+first time it mattered: the review of the very pull request that added it
+ran on Opus. So CLAUDE.md says to name the model on every launch rather
+than trust the default. A setting you can't see working is a guess. To change what it checks, how it reports, or
 what tools it can touch, edit
 [`.claude/agents/pr-reviewer.md`](../../.claude/agents/pr-reviewer.md)
 directly:
