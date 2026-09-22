@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-09-22
+
+HomeBase in its design: tokens and fonts, the icon, phone and desktop
+layouts, the designed Home with loud and quiet module tiles and the
+action items card, an account pill and sidebar buttons for Profile,
+Settings and Sign out, the Finances shell with its header and section
+tabs, the admin console's three cards, and a sign-in page with the logo.
+Modules still have no data, so Home is calm and Finances says it's
+coming; `?demo` on Home shows every state of the tiles and cards.
+Not yet checked on an iPhone: how the layout meets the notch and home
+bar, and swiping the action items with a finger.
 
 - Your account has one place of its own. On a phone, the pill at the top
   right of Home (where the Admin pill was) shows your initial and name
@@ -13,8 +23,9 @@
 - Sign-in now looks like HomeBase: the app icon and name above the form,
   in one centred column on a phone and a desktop. Fields are 52 px tall
   with 16 px text, the size iPhones need so they don't zoom in on a tap
-  (not yet checked on an iPhone), and the Sign in button is full width. A wrong password shows in red above the
-  button. Sign-up and set-password get the same look. (#119)
+  (not yet checked on an iPhone), and the Sign in button is full width.
+  A wrong password shows in red above the button. Sign-up and
+  set-password get the same look. (#119)
 
 - The admin console has the design's three cards: People, Notifications
   and Modules (on a phone in that order: Notifications, Modules, People;
