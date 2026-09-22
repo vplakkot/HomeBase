@@ -67,6 +67,26 @@ async function currentStatus(
   return "ready";
 }
 
+// What Home does on every load, out of sight, now that the control itself
+// sits in the account menu's Settings (REQ-85): the same check the control
+// runs as it appears. Registering the service worker each time also makes
+// the phone look for a newer one; a stale one cost a night of the v0.1
+// test week. For a device this person turned on, it saves the device
+// again, which keeps the note's 400 days from running out.
+export function KeepThisDevice({
+  publicKey,
+  knownDevice = null,
+}: {
+  publicKey?: string;
+  knownDevice?: string | null;
+}) {
+  useEffect(() => {
+    // Nothing to show either way; Settings shows the result when opened.
+    currentStatus(publicKey, knownDevice).catch(() => {});
+  }, [publicKey, knownDevice]);
+  return null;
+}
+
 export function EnableNotifications({
   publicKey,
   knownDevice = null,

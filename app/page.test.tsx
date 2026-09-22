@@ -16,6 +16,9 @@ vi.mock("next/headers", () => ({ cookies: vi.fn() }));
 // The notifications control runs in the browser and has its own tests; here
 // it only has to be on the page, holding the server's push key.
 vi.mock("./notifications/enable-notifications", () => ({
+  KeepThisDevice: ({ publicKey, knownDevice }: { publicKey?: string; knownDevice?: string | null }) => (
+    <i data-testid="upkeep">{`${publicKey ?? "no key"} · ${knownDevice ?? "no device"}`}</i>
+  ),
   EnableNotifications: ({
     publicKey,
     knownDevice,
@@ -333,6 +336,17 @@ describe("HomePage", () => {
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public-push-key");
     render(await home());
     expect(within(openMenu("Settings")).getByTestId("notifications").textContent).toBe(
+      "public-push-key · https://web.push.apple.com/this",
+    );
+  });
+
+  // The control moved into Settings, but Home still checks the device on
+  // every load, as it did when the control lived on Home.
+  it("still checks this device on every load, out of sight", async () => {
+    given({ email: "member@example.com", device: "https://web.push.apple.com/this" });
+    vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public-push-key");
+    render(await home());
+    expect(screen.getByTestId("upkeep").textContent).toBe(
       "public-push-key · https://web.push.apple.com/this",
     );
   });

@@ -12,6 +12,7 @@ import { hasPermission } from "../lib/auth/permissions";
 import { demoFrom, moduleStatus, mostUrgent } from "../lib/module-status";
 import { NOTHING_SWITCHED_OFF, modulesSwitchedOn } from "../lib/modules";
 import { createClient } from "../lib/supabase/server";
+import { KeepThisDevice } from "./notifications/enable-notifications";
 import styles from "./page.module.css";
 
 // Home (docs/design/DESIGN.md §4). On a phone, top to bottom: the brand
@@ -54,6 +55,7 @@ export default async function HomePage({
         <BrandLockup />
         <AccountPill account={account} canAdminister={canManageMembers} />
       </header>
+      <KeepThisDevice publicKey={account.publicKey} knownDevice={account.knownDevice} />
 
       <div className={styles.intro}>
         <Greeting name={account.name?.split(/\s+/)[0] ?? null} />

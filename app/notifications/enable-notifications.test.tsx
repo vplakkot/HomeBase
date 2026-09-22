@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { saveDevice } from "./actions";
-import { EnableNotifications } from "./enable-notifications";
+import { EnableNotifications, KeepThisDevice } from "./enable-notifications";
 
 vi.mock("./actions", () => ({ saveDevice: vi.fn() }));
 
@@ -248,5 +248,36 @@ describe("EnableNotifications", () => {
       "Couldn't save this device: offline",
     );
     expect(screen.getByRole("button", { name: "Try again" })).toBeDefined();
+  });
+});
+
+// REQ-85: Home keeps doing the load-time check out of sight.
+describe("KeepThisDevice", () => {
+  beforeEach(() => {
+    vi.mocked(saveDevice).mockResolvedValue({ saved: true });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    delete (navigator as { serviceWorker?: unknown }).serviceWorker;
+    vi.mocked(saveDevice).mockReset();
+  });
+
+  it("checks for a newer service worker and re-saves a device this person turned on", async () => {
+    const device = givenDevice({ permission: "granted", alreadySubscribed: true });
+    const { container } = render(
+      <KeepThisDevice publicKey={PUBLIC_KEY} knownDevice={DEVICE_JSON.endpoint} />,
+    );
+    await waitFor(() => expect(saveDevice).toHaveBeenCalledWith(DEVICE_JSON));
+    expect(device.serviceWorker.register).toHaveBeenCalledWith("/sw.js");
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("never enrols anyone who hasn't tapped", async () => {
+    const device = givenDevice({ permission: "granted", alreadySubscribed: true });
+    render(<KeepThisDevice publicKey={PUBLIC_KEY} knownDevice={null} />);
+    await waitFor(() => expect(device.serviceWorker.register).toHaveBeenCalled());
+    expect(saveDevice).not.toHaveBeenCalled();
   });
 });

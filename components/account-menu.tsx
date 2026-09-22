@@ -128,7 +128,8 @@ function AccountSheets({
       </BottomSheet>
       <BottomSheet open={sheet === "settings"} onClose={() => onClose("settings")} title="Settings">
         {/* Only while open: the control checks this device as it appears,
-            and Home has this menu twice, the pill and the sidebar. */}
+            and Home has this menu twice, the pill and the sidebar. Home
+            runs that check on every load anyway (KeepThisDevice). */}
         {sheet === "settings" ? (
           <div className={styles.settings}>
             <EnableNotifications publicKey={account.publicKey} knownDevice={account.knownDevice} />
