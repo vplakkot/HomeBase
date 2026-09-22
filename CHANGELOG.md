@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- The Budget year setup reads better and asks less. The split no longer
+  asks which year: it works the budget year out from today and says
+  "Your budget year runs April 2026 to March 2027". Income sources now
+  have a name, so two jobs can be told apart. In both the income and
+  bills cards, the form for adding sits at the top on its own tinted
+  block and stays there, with what's already saved listed below it as
+  rows; changing a saved bill is folded behind "Change". A bill's due
+  day is picked from a list of days of the month (1st, 2nd, 22nd)
+  instead of typed as a number, and the form says that shorter months
+  use their last day. Before a split is saved, the card says so rather
+  than talking as if one existed. (#128)
+
 - How work is picked up changed: CLAUDE.md now treats a batch of 3-4
   related requirements as one pull request, with one GitHub issue, one
   review and one session each, and says what a batch is. Nothing in the

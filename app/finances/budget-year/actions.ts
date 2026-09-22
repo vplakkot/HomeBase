@@ -63,10 +63,12 @@ export async function saveBudgetYear(_previous: FormState, formData: FormData): 
 }
 
 export async function addIncomeSource(_previous: FormState, formData: FormData): Promise<FormState> {
+  const name = String(formData.get("name") ?? "").trim();
   const ownerId = String(formData.get("ownerId") ?? "");
   const amount = parseAmount(String(formData.get("netAmount") ?? ""));
   const cadence = String(formData.get("cadence") ?? "");
   const anchorDate = String(formData.get("anchorDate") ?? "");
+  if (!name) return { error: "Name the source, so two jobs can be told apart." };
   if (!ownerId) return { error: "Whose pay is it?" };
   if (amount === null) return { error: "Enter the take-home amount of one payment, like 2400.00." };
   if (!isCadence(cadence)) return { error: "Choose how often it's paid." };
@@ -74,6 +76,7 @@ export async function addIncomeSource(_previous: FormState, formData: FormData):
 
   const supabase = await requireManageBudget();
   const { error } = await supabase.from("income_sources").insert({
+    name,
     owner_id: ownerId,
     net_amount: amount,
     cadence,

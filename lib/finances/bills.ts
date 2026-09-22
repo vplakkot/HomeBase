@@ -23,6 +23,14 @@ export function dueLabel(day: number): string {
   return `Due the ${ordinal(day)}`;
 }
 
+// A bill due on the 29th, 30th or 31st falls on the last day of a month
+// that is shorter — February's 28th, say. Monthly entry works from this.
+export function dueDateIn(day: number, year: number, month: number): string {
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const onDay = Math.min(day, lastDay);
+  return `${year}-${String(month).padStart(2, "0")}-${String(onDay).padStart(2, "0")}`;
+}
+
 export async function listBills(supabase: SupabaseClient): Promise<Bill[]> {
   const { data, error } = await supabase
     .from("bills")

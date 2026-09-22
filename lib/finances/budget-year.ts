@@ -26,6 +26,11 @@ export function budgetYearLabel(startYear: number): string {
   return `April ${startYear} – March ${startYear + 1}`;
 }
 
+// The same span inside a sentence, where a dash would read as a pause.
+export function budgetYearSpoken(startYear: number): string {
+  return `April ${startYear} to March ${startYear + 1}`;
+}
+
 // A percentage as typed into the form, in hundredths so that 33.33 +
 // 66.67 adds up to exactly 100 without floating-point drift. Null when it
 // isn't a number from 0 to 100 with at most two decimals.

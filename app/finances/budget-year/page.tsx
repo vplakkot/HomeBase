@@ -1,7 +1,7 @@
 import { LockIcon } from "../../../components/icons";
 import { BILL_KINDS, dueLabel, listBills } from "../../../lib/finances/bills";
 import {
-  budgetYearLabel,
+  budgetYearSpoken,
   budgetYearStartFor,
   HOUSEHOLD_TIME_ZONE,
   householdToday,
@@ -29,6 +29,9 @@ function shortDate(iso: string): string {
 // The Budget year section (docs/design/DESIGN.md §7): the yearly setup an
 // admin does — the split (REQ-50), each person's income sources (REQ-51)
 // and the bill list (REQ-94). Admin-only: members see it locked.
+//
+// Each card puts what you add at the top and what's already there below,
+// so adding something never moves the form you're typing in (#128).
 export default async function BudgetYearPage() {
   const { supabase, canManageMembers, canManageBudget, account } = await financesViewer();
 
@@ -69,9 +72,10 @@ export default async function BudgetYearPage() {
             Split
           </h2>
           <p className={`${shared.cardNote} ${styles.pad}`}>
+            Your budget year runs {budgetYearSpoken(startYear)}.{" "}
             {budgetYear
-              ? `${budgetYearLabel(startYear)} is set. Every month in it uses this split.`
-              : `No split yet for ${budgetYearLabel(startYear)}.`}
+              ? "Every month in it uses this split."
+              : "No split saved for it yet."}
           </p>
           <SplitForm
             people={people}
@@ -85,24 +89,37 @@ export default async function BudgetYearPage() {
           <h2 id="income" className={shared.cardTitle}>
             Income sources
           </h2>
+          <div className={styles.addBlock}>
+            <h3 className={styles.addTitle}>Add an income source</h3>
+            <IncomeForm people={people} />
+          </div>
           {incomes.length === 0 ? (
-            <p className={`${shared.cardNote} ${styles.pad}`}>No income sources yet.</p>
+            <p className={`${shared.cardNote} ${styles.pad} ${styles.padTop}`}>
+              Nothing added yet. Add one for every regular paycheck.
+            </p>
           ) : (
             <ul className={shared.rows}>
               {incomes.map((income) => (
-                <li key={income.id} className={shared.billRow}>
-                  <span className={shared.billText}>
-                    <span className={shared.billName}>
-                      {nameOf.get(income.owner_id) ?? "Someone"} · {formatMoney(income.net_amount)}
+                <li key={income.id} className={styles.entry}>
+                  <div className={styles.entryHead}>
+                    <span className={styles.entryName}>
+                      {income.name || nameOf.get(income.owner_id) || "Income"}
                     </span>
-                    <span className={shared.cardNote}>
-                      {CADENCES[income.cadence]} · next paydays{" "}
-                      {payDates(income, todayIso, 3).map(shortDate).join(", ")}
-                    </span>
-                  </span>
+                    <span className={styles.amount}>{formatMoney(income.net_amount)}</span>
+                  </div>
+                  <p className={shared.cardNote}>
+                    {nameOf.get(income.owner_id) ?? "Someone"} · {CADENCES[income.cadence]}
+                  </p>
+                  <p className={shared.cardNote}>
+                    Next paydays {payDates(income, todayIso, 3).map(shortDate).join(", ")}
+                  </p>
                   <form action={removeIncomeSource}>
                     <input type="hidden" name="id" value={income.id} />
-                    <button type="submit" className={shared.button}>
+                    <button
+                      type="submit"
+                      className={styles.quiet}
+                      aria-label={`Remove ${income.name || "income source"}`}
+                    >
                       Remove
                     </button>
                   </form>
@@ -110,35 +127,46 @@ export default async function BudgetYearPage() {
               ))}
             </ul>
           )}
-          <IncomeForm people={people} />
         </section>
 
         <section className={shared.card} aria-labelledby="bill-list">
           <h2 id="bill-list" className={shared.cardTitle}>
             Bills
           </h2>
-          <p className={`${shared.cardNote} ${styles.pad}`}>
-            Changes apply from the next month opened; months already open keep theirs.
-          </p>
-          {bills.length === 0 ? null : (
+          <div className={styles.addBlock}>
+            <h3 className={styles.addTitle}>Add a bill</h3>
+            <BillForm />
+          </div>
+          {bills.length === 0 ? (
+            <p className={`${shared.cardNote} ${styles.pad} ${styles.padTop}`}>
+              No bills yet. Add rent and each card you split.
+            </p>
+          ) : (
             <ul className={shared.rows}>
               {bills.map((bill) => (
-                <li key={bill.id} className={styles.billItem}>
-                  <span className={shared.cardNote}>
-                    {BILL_KINDS[bill.kind]} · {dueLabel(bill.due_day)}
-                  </span>
-                  <BillForm bill={bill} />
-                  <form action={removeBill}>
-                    <input type="hidden" name="id" value={bill.id} />
-                    <button type="submit" className={shared.button} aria-label={`Remove ${bill.name}`}>
-                      Remove
-                    </button>
-                  </form>
+                <li key={bill.id} className={styles.entry}>
+                  <div className={styles.entryHead}>
+                    <span className={styles.entryName}>{bill.name}</span>
+                    <span className={styles.kind}>{BILL_KINDS[bill.kind]}</span>
+                  </div>
+                  <p className={shared.cardNote}>{dueLabel(bill.due_day)} of each month</p>
+                  <details className={styles.change}>
+                    <summary>Change</summary>
+                    <BillForm bill={bill} />
+                    <form action={removeBill}>
+                      <input type="hidden" name="id" value={bill.id} />
+                      <button type="submit" className={styles.quiet} aria-label={`Remove ${bill.name}`}>
+                        Remove
+                      </button>
+                    </form>
+                  </details>
                 </li>
               ))}
             </ul>
           )}
-          <BillForm />
+          <p className={`${shared.cardNote} ${styles.pad} ${styles.padTop}`}>
+            Changes apply from the next month opened; months already open keep theirs.
+          </p>
         </section>
       </div>
     </FinancesFrame>

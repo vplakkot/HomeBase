@@ -18,6 +18,7 @@ export function isCadence(value: string): value is Cadence {
 
 export type IncomeSource = {
   id: string;
+  name: string;
   owner_id: string;
   net_amount: number;
   cadence: Cadence;
@@ -78,7 +79,7 @@ export function payDates(
 export async function listIncomeSources(supabase: SupabaseClient): Promise<IncomeSource[]> {
   const { data, error } = await supabase
     .from("income_sources")
-    .select("id, owner_id, net_amount, cadence, anchor_date")
+    .select("id, name, owner_id, net_amount, cadence, anchor_date")
     .order("created_at");
   if (error) throw new Error(`Could not list income sources: ${error.message}`);
   return ((data ?? []) as IncomeSource[]).map((s) => ({ ...s, net_amount: Number(s.net_amount) }));

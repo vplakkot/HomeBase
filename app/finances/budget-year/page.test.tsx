@@ -53,24 +53,28 @@ describe("the Budget year section", () => {
     expect(within(tabs).getByRole("link", { name: "Overview" }).getAttribute("aria-current")).toBeNull();
   });
 
-  // REQ-50: the April start year, a percentage for each person, a note.
-  it("asks an admin for the start year, each person's percentage and a note", async () => {
+  // REQ-50, #128: the year comes from the calendar, never from a field.
+  it("works the budget year out from today and doesn't ask for it", async () => {
     await renderAs(ADMIN);
     const split = screen.getByRole("region", { name: "Split" });
-    expect(within(split).getByText("No split yet for April 2026 – March 2027.")).toBeDefined();
-    expect((within(split).getByLabelText("Budget year starting April") as HTMLInputElement).value).toBe("2026");
-    expect(within(split).getByLabelText("Alex's share (%)")).toBeDefined();
-    expect(within(split).getByLabelText("Sam's share (%)")).toBeDefined();
+    expect(split.textContent).toContain("Your budget year runs April 2026 to March 2027.");
+    expect(split.textContent).toContain("No split saved for it yet.");
+    expect(within(split).queryByLabelText(/Budget year starting/)).toBeNull();
+    // The year still has to reach the server, hidden.
+    const hidden = split.querySelector('input[name="startYear"]') as HTMLInputElement;
+    expect([hidden.type, hidden.value]).toEqual(["hidden", "2026"]);
+    expect(within(split).getByLabelText("Alex's share")).toBeDefined();
+    expect(within(split).getByLabelText("Sam's share")).toBeDefined();
     expect(within(split).getByLabelText("Based on (optional)")).toBeDefined();
   });
 
   it("keeps a running total and says when it isn't 100", async () => {
     await renderAs(ADMIN);
     const split = screen.getByRole("region", { name: "Split" });
-    fireEvent.change(within(split).getByLabelText("Alex's share (%)"), { target: { value: "60" } });
-    fireEvent.change(within(split).getByLabelText("Sam's share (%)"), { target: { value: "30" } });
+    fireEvent.change(within(split).getByLabelText("Alex's share"), { target: { value: "60" } });
+    fireEvent.change(within(split).getByLabelText("Sam's share"), { target: { value: "30" } });
     expect(within(split).getByText("Total: 90% · must be 100%")).toBeDefined();
-    fireEvent.change(within(split).getByLabelText("Sam's share (%)"), { target: { value: "40" } });
+    fireEvent.change(within(split).getByLabelText("Sam's share"), { target: { value: "40" } });
     expect(within(split).getByText("Total: 100%")).toBeDefined();
   });
 
@@ -89,38 +93,80 @@ describe("the Budget year section", () => {
       ],
     });
     const split = screen.getByRole("region", { name: "Split" });
-    expect((within(split).getByLabelText("Alex's share (%)") as HTMLInputElement).value).toBe("55");
+    expect((within(split).getByLabelText("Alex's share") as HTMLInputElement).value).toBe("55");
     expect((within(split).getByLabelText("Based on (optional)") as HTMLTextAreaElement).value).toBe(
       "Salaries as of March",
     );
+    expect(split.textContent).toContain("Every month in it uses this split.");
   });
 
-  // REQ-51: each source with its owner, amount, cadence and next paydays.
-  it("lists income sources with their next paydays, and asks for all four facts", async () => {
+  // Sources saved before names existed keep working: the owner stands in.
+  it("falls back to the owner's name for a source saved without one", async () => {
     await renderAs(ADMIN, {
       income_sources: [
-        { id: "i-1", owner_id: "u-sam", net_amount: 2400, cadence: "biweekly", anchor_date: "2026-09-18" },
+        { id: "i-0", name: "", owner_id: "u-alex", net_amount: 100, cadence: "monthly", anchor_date: "2026-09-01" },
+      ],
+    });
+    const row = within(screen.getByRole("region", { name: "Income sources" })).getByRole("listitem");
+    expect(row.textContent).toContain("Alex");
+    expect(within(row).getByRole("button", { name: "Remove income source" })).toBeDefined();
+  });
+
+  // REQ-51 and #128: a name tells two jobs apart, and the add form stays
+  // at the top however many sources are saved.
+  it("names each income source, lists its next paydays, and asks for all five facts", async () => {
+    await renderAs(ADMIN, {
+      income_sources: [
+        {
+          id: "i-1",
+          name: "Saturday shifts",
+          owner_id: "u-sam",
+          net_amount: 2400,
+          cadence: "biweekly",
+          anchor_date: "2026-09-18",
+        },
       ],
     });
     const income = screen.getByRole("region", { name: "Income sources" });
     expect(within(income).getByRole("listitem").textContent).toBe(
-      "Sam · $2,400.00Every two weeks · next paydays Oct 2, Oct 16, Oct 30Remove",
+      "Saturday shifts$2,400.00Sam · Every two weeksNext paydays Oct 2, Oct 16, Oct 30Remove",
     );
-    for (const label of ["Whose pay", "Take-home per payment ($)", "How often", "One real payday"]) {
+    for (const label of ["Name", "Whose pay", "Take-home per payment", "How often", "One real payday"]) {
       expect(within(income).getByLabelText(label)).toBeDefined();
     }
+    expect(within(income).getByRole("heading", { name: "Add an income source", level: 3 })).toBeDefined();
+    const [addFirst] = within(income).getAllByRole("button");
+    expect(addFirst.textContent).toBe("Add income source");
   });
 
-  // REQ-94: each bill editable in place, removable, and a form to add one.
-  it("lists the bills to change or remove, and a form to add one", async () => {
+  // REQ-94 and #128: add at the top, saved bills below as rows, editing
+  // folded away, and the due day picked from days of the month.
+  it("adds at the top and lists saved bills below, with editing folded away", async () => {
     await renderAs(ADMIN, { bills: [{ id: "b-1", name: "Rent", kind: "rent", due_day: 1 }] });
     const bills = screen.getByRole("region", { name: "Bills" });
-    expect((within(bills).getByLabelText("Name of Rent") as HTMLInputElement).value).toBe("Rent");
-    expect((within(bills).getByLabelText("Type of Rent") as HTMLSelectElement).value).toBe("rent");
-    expect((within(bills).getByLabelText("Due day of Rent") as HTMLInputElement).value).toBe("1");
-    expect(within(bills).getByRole("button", { name: "Remove Rent" })).toBeDefined();
-    expect(within(bills).getByRole("button", { name: "Add bill" })).toBeDefined();
+    const [addFirst] = within(bills).getAllByRole("button");
+    expect(addFirst.textContent).toBe("Add bill");
+    // The add block is titled and comes before anything saved.
+    const heading = within(bills).getByRole("heading", { name: "Add a bill", level: 3 });
+    const row = within(bills).getByRole("listitem");
+    expect(heading.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const types = within(bills).getByLabelText("Type of new bill") as HTMLSelectElement;
     expect([...types.options].map((option) => option.textContent)).toEqual(["Rent", "Card", "Other"]);
+    expect(row.textContent).toContain("Rent");
+    expect(row.textContent).toContain("Due the 1st of each month");
+    expect(within(row).getByText("Change")).toBeDefined();
+    expect((within(row).getByLabelText("Name of Rent") as HTMLInputElement).value).toBe("Rent");
+    expect(within(row).getByRole("button", { name: "Remove Rent" })).toBeDefined();
+  });
+
+  it("picks the due day from the days of a month, as ordinals", async () => {
+    await renderAs(ADMIN);
+    const days = screen.getByLabelText("Due day of new bill") as HTMLSelectElement;
+    expect(days.options.length).toBe(31);
+    expect([days.options[0].textContent, days.options[21].textContent, days.options[30].textContent]).toEqual([
+      "1st",
+      "22nd",
+      "31st",
+    ]);
   });
 });
