@@ -638,6 +638,11 @@ still decide who may save. `household_people()` lists each member's name
 (or their email's first part) and whether they manage the budget, for
 the split form, income owners, and the first-run message a member sees.
 
+Every Finances date decision reads one clock: `householdToday()` in
+`lib/finances/budget-year.ts`, set to `America/New_York` because that is
+where the household is. The budget year, the month and the paydays
+therefore turn over on the household's own day, not the server's.
+
 Which budget year applies is worked out in code, not stored:
 `budgetYearStartFor(date)` in `lib/finances/budget-year.ts`. Paydays are
 projected the same way (`payDates` in `lib/finances/income.ts`) from one

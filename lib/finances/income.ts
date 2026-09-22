@@ -1,8 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Pay as it lands (REQ-51): a net amount per payment, how often it comes,
-// and one known payday to count from. Dates are plain "YYYY-MM-DD" days,
-// worked on in UTC so no clock change can move a payday.
+// and one known payday to count from. A payday is a plain "YYYY-MM-DD"
+// day with no time in it, so counting forward can't drift across a clock
+// change. Which day *today* is comes from householdToday().
 export const CADENCES = {
   weekly: "Every week",
   biweekly: "Every two weeks",

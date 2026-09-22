@@ -14,7 +14,8 @@
   one card: Start setup for an admin, and for a member, which admin to
   ask. Afterwards it lists the bills with their due dates, marked "Not
   entered" (entering them comes with monthly entry), and the year's split
-  in an Admin block. (REQ-50, REQ-51, REQ-94)
+  in an Admin block. Dates follow the household's own day, US Eastern.
+  (REQ-50, REQ-51, REQ-94)
 
 ## 0.2.0 - 2026-09-22
 
