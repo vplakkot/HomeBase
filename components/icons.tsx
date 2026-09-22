@@ -94,6 +94,17 @@ export function LockIcon({ size = 13 }: IconProps) {
   );
 }
 
+// A circled "i" for a card's one-line explanation, shown on hover or
+// focus rather than taking up a line of its own.
+export function InfoIcon({ size = 16 }: IconProps) {
+  return (
+    <Icon size={size}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 7.5h.01" />
+    </Icon>
+  );
+}
+
 export function PersonIcon({ size = 18 }: IconProps) {
   return (
     <Icon size={size}>

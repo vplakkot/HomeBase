@@ -614,7 +614,7 @@ screen's safe-area insets, so content clears the notch and the home bar.
 That part has not been checked on an iPhone. See
 [lesson 18](lessons/18-one-app-two-layouts.md).
 
-## Finances setup: budget year, income and bills
+## Finances setup: the split, income and bills
 
 The first real Finances data (REQ-50, 51, 94) is the yearly setup an
 admin does in the Budget year section, `/finances/budget-year`. Four
@@ -660,9 +660,9 @@ Every Finances date decision reads one clock: `householdToday()` in
 where the household is. The budget year, the month and the paydays
 therefore turn over on the household's own day, not the server's.
 
-The budget year itself is not stored: it is the April-to-March frame the
-March review (REQ-69) works in, worked out in code:
-`budgetYearStartFor(date)` in `lib/finances/budget-year.ts`. Paydays are
+The budget year itself is not stored, and nothing needs it any more: a
+split carries its own month, so the April-to-March frame comes back only
+when the March review (REQ-69) is built. Paydays are
 projected the same way (`payDates` in `lib/finances/income.ts`) from one
 real payday, so nothing is stored per payday. Months don't exist yet;
 monthly entry adds them and copies the bill list into each month when it

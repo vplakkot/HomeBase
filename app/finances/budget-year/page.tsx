@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
-import { LockIcon } from "../../../components/icons";
+import { InfoIcon, LockIcon } from "../../../components/icons";
 import { BILL_KINDS, dueLabel, listBills } from "../../../lib/finances/bills";
 import {
-  budgetYearSpoken,
-  budgetYearStartFor,
   HOUSEHOLD_TIME_ZONE,
   householdToday,
   listPeople,
@@ -48,13 +46,13 @@ function monthOptions(today: string): { value: string; label: string }[] {
 // tint, then what's already saved as rounded boxes below (#132).
 function Card({
   name,
-  note,
+  hint,
   addTitle,
   add,
   children,
 }: {
   name: string;
-  note: string;
+  hint: string;
   addTitle: string;
   add: ReactNode;
   children: ReactNode;
@@ -66,7 +64,18 @@ function Card({
         <h2 id={id} className={styles.name}>
           {name}
         </h2>
-        <p className={styles.note}>{note}</p>
+        {/* The explanation is a hint on the icon, so every card's head is
+            one line and they all line up (#133). */}
+        <span
+          className={styles.info}
+          data-hint={hint}
+          title={hint}
+          tabIndex={0}
+          role="note"
+          aria-label={hint}
+        >
+          <InfoIcon />
+        </span>
       </header>
       <div className={styles.addBlock}>
         <h3 className={styles.addTitle}>{addTitle}</h3>
@@ -86,7 +95,6 @@ function Entry({
   changeLabel,
   change,
   remove,
-  closed,
 }: {
   name: string;
   aside: ReactNode;
@@ -94,7 +102,6 @@ function Entry({
   changeLabel?: string;
   change?: ReactNode;
   remove?: ReactNode;
-  closed?: string;
 }) {
   return (
     <li className={styles.entry}>
@@ -103,9 +110,7 @@ function Entry({
         {aside}
       </div>
       <p className={styles.detail}>{detail}</p>
-      {closed ? (
-        <p className={styles.detail}>{closed}</p>
-      ) : (
+      {change || remove ? (
         <div className={styles.actions}>
           {change ? (
             <details className={styles.change}>
@@ -115,7 +120,7 @@ function Entry({
           ) : null}
           {remove}
         </div>
-      )}
+      ) : null}
     </li>
   );
 }
@@ -147,7 +152,6 @@ export default async function BudgetYearPage() {
   }
 
   const todayIso = householdToday();
-  const startYear = budgetYearStartFor(todayIso);
   const thisMonth = todayIso.slice(0, 7);
   const [people, splits, incomes, bills] = await Promise.all([
     listPeople(supabase),
@@ -165,71 +169,8 @@ export default async function BudgetYearPage() {
     <FinancesFrame canManageMembers={canManageMembers} account={account} section={SECTION}>
       <div className={styles.cards}>
         <Card
-          name="Split"
-          note={
-            current
-              ? `Your budget year runs ${budgetYearSpoken(startYear)}. This month splits ${sharesLine(current.shares)}.`
-              : `Your budget year runs ${budgetYearSpoken(startYear)}. No split covers this month yet.`
-          }
-          addTitle="Add a split"
-          add={<SplitForm people={people} months={months} month={thisMonth} />}
-        >
-          {splits.length === 0 ? (
-            <p className={styles.empty}>Nothing saved yet. A split says how you divide shared costs.</p>
-          ) : (
-            <ul className={styles.list}>
-              {splits.map((split) => {
-                // A split that has started belongs to the months it ran:
-                // to change how you divide costs now, add a new one.
-                const history = splitIsHistory(split, todayIso);
-                return (
-                  <Entry
-                    key={split.id}
-                    name={`From ${monthLabel(split.effective_from)}`}
-                    aside={
-                      split.id === current?.id ? <span className={styles.chip}>In force</span> : null
-                    }
-                    detail={sharesLine(split.shares)}
-                    closed={
-                      history
-                        ? "Already started, so it stays as it is. Save a split from a later month to change things."
-                        : undefined
-                    }
-                    changeLabel="Edit"
-                    change={
-                      <SplitForm
-                        people={people}
-                        months={months}
-                        month={split.effective_from.slice(0, 7)}
-                        percents={Object.fromEntries(
-                          split.shares.map((share) => [share.user_id, share.percent]),
-                        )}
-                        note={split.note}
-                        editing
-                      />
-                    }
-                    remove={
-                      <form action={removeSplit}>
-                        <input type="hidden" name="id" value={split.id} />
-                        <button
-                          type="submit"
-                          className={styles.quiet}
-                          aria-label={`Remove the split from ${monthLabel(split.effective_from)}`}
-                        >
-                          Remove
-                        </button>
-                      </form>
-                    }
-                  />
-                );
-              })}
-            </ul>
-          )}
-        </Card>
-
-        <Card
           name="Income sources"
-          note="What lands, and when. Editing one changes it from today; past paydays keep their amount."
+          hint="What lands, and when. Editing one changes it from today; past paydays keep their amount."
           addTitle="Add an income source"
           add={<IncomeForm people={people} />}
         >
@@ -265,7 +206,7 @@ export default async function BudgetYearPage() {
 
         <Card
           name="Bills"
-          note="Changes apply from the next month opened; months already open keep theirs."
+          hint="The bills you split every month. A change applies from the next month opened."
           addTitle="Add a bill"
           add={<BillForm />}
         >
@@ -294,6 +235,64 @@ export default async function BudgetYearPage() {
             </ul>
           )}
         </Card>
+        <Card
+          name="Split"
+          hint="How you divide shared costs. It applies from the month you pick onwards."
+          addTitle="Add a split"
+          add={<SplitForm people={people} months={months} month={thisMonth} />}
+        >
+          {splits.length === 0 ? (
+            <p className={styles.empty}>Nothing saved yet. A split says how you divide shared costs.</p>
+          ) : (
+            <ul className={styles.list}>
+              {splits.map((split) => {
+                // A split that has started belongs to the months it ran:
+                // to change how you divide costs now, add a new one.
+                const history = splitIsHistory(split, todayIso);
+                return (
+                  <Entry
+                    key={split.id}
+                    name={`From ${monthLabel(split.effective_from)}`}
+                    aside={
+                      split.id === current?.id ? <span className={styles.chip}>In force</span> : null
+                    }
+                    detail={sharesLine(split.shares)}
+                    changeLabel="Edit"
+                    change={
+                      history ? undefined : (
+                      <SplitForm
+                        people={people}
+                        months={months}
+                        month={split.effective_from.slice(0, 7)}
+                        percents={Object.fromEntries(
+                          split.shares.map((share) => [share.user_id, share.percent]),
+                        )}
+                        note={split.note}
+                        editing
+                      />
+                      )
+                    }
+                    remove={
+                      history ? undefined : (
+                      <form action={removeSplit}>
+                        <input type="hidden" name="id" value={split.id} />
+                        <button
+                          type="submit"
+                          className={styles.quiet}
+                          aria-label={`Remove the split from ${monthLabel(split.effective_from)}`}
+                        >
+                          Remove
+                        </button>
+                      </form>
+                      )
+                    }
+                  />
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+
       </div>
     </FinancesFrame>
   );
