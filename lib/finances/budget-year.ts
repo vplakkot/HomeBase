@@ -84,6 +84,13 @@ export async function listSplits(supabase: SupabaseClient): Promise<Split[]> {
   }));
 }
 
+// Can this split still be changed? Only one that hasn't started yet:
+// once a month has run on a split, editing it would rewrite what that
+// month was worked out from.
+export function splitIsHistory(split: Split, day: string): boolean {
+  return split.effective_from <= monthStart(day);
+}
+
 // The split a given month runs on: the latest one that had started by
 // then. A month opened before any split exists has none.
 export function splitInForce(splits: Split[], day: string): Split | null {

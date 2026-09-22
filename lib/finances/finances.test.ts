@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { dueDateIn, dueLabel, ordinal } from "./bills";
 import {
   budgetYearLabel,
+  monthLabel,
+  monthStart,
+  splitInForce,
+  splitIsHistory,
   budgetYearSpoken,
   budgetYearStartFor,
   formatPercent,
@@ -40,6 +44,30 @@ describe("budget years (REQ-50)", () => {
 
   it.each(["", "abc", "-5", "100.01", "150", "12.345"])("refuses %j as a percentage", (text) => {
     expect(parsePercent(text)).toBeNull();
+  });
+});
+
+describe("dated splits (REQ-50, #132)", () => {
+  const april = { id: "a", effective_from: "2026-04-01", note: "", shares: [] };
+  const october = { id: "o", effective_from: "2026-10-01", note: "", shares: [] };
+
+  it("reads a month from a day, and says it in words", () => {
+    expect(monthStart("2026-09-22")).toBe("2026-09-01");
+    expect(monthLabel("2026-09-01")).toBe("September 2026");
+  });
+
+  it("uses the latest split that had started, and no later one", () => {
+    const splits = [october, april];
+    expect(splitInForce(splits, "2026-09-22")?.id).toBe("a");
+    expect(splitInForce(splits, "2026-10-01")?.id).toBe("o");
+    expect(splitInForce(splits, "2026-10-31")?.id).toBe("o");
+    expect(splitInForce(splits, "2026-03-31")).toBeNull();
+  });
+
+  it("counts a split as history once its month has begun, mid-month too", () => {
+    expect(splitIsHistory(april, "2026-09-22")).toBe(true);
+    expect(splitIsHistory(october, "2026-10-15")).toBe(true);
+    expect(splitIsHistory(october, "2026-09-30")).toBe(false);
   });
 });
 

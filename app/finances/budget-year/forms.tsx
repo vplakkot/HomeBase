@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { BILL_KINDS, ordinal, type Bill } from "../../../lib/finances/bills";
-import { formatPercent, parsePercent, type Person } from "../../../lib/finances/budget-year";
+import { formatPercent, monthLabel, parsePercent, type Person } from "../../../lib/finances/budget-year";
 import { CADENCES, type IncomeSource } from "../../../lib/finances/income";
 import { saveBill, saveIncomeSource, saveSplit, type FormState } from "./actions";
 import styles from "./page.module.css";
@@ -41,20 +41,30 @@ export function SplitForm({
   const total = parsed.every((value) => value !== null)
     ? parsed.reduce<number>((sum, value) => sum + (value ?? 0), 0)
     : null;
-  const what = editing ? `the split from ${month}` : "the new split";
+  const what = editing ? `the split from ${monthLabel(`${month}-01`)}` : "the new split";
 
   return (
     <form action={formAction} className={styles.form}>
-      <label className={styles.field}>
-        <span>In force from</span>
-        <select name="effectiveFrom" defaultValue={month} aria-label={`Month ${what} starts`}>
-          {months.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {editing ? (
+        // A split being edited keeps its month: moving it would leave the
+        // old one behind and write a second split instead.
+        <>
+          <input type="hidden" name="effectiveFrom" value={month} />
+          <input type="hidden" name="editing" value="true" />
+          <p className={styles.total}>In force from {monthLabel(`${month}-01`)}</p>
+        </>
+      ) : (
+        <label className={styles.field}>
+          <span>In force from</span>
+          <select name="effectiveFrom" defaultValue={month} aria-label={`Month ${what} starts`}>
+            {months.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {people.map((person) => (
         <label key={person.user_id} className={styles.field}>
           <span>{person.name}</span>

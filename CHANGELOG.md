@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- The split can change during the year. Instead of one percentage per
+  budget year, you save a split that starts in a month you choose — "from
+  October 2026, 70/30" — and it holds until a later one starts. A split
+  that has already started can't be edited or removed: it's history, and
+  the months it covered keep it. Changing an income source works the same
+  way — the old one ends and a new one starts from today, so paydays
+  already past keep their amount — and removing one ends it rather than
+  erasing it.
+- The Budget year section looks like Finances. All three cards share one
+  shape — a brick head with the card's name, the form for adding on the
+  module's tint, then what's saved as rounded boxes — and every saved
+  split, income source and bill that can still change carries Edit as
+  well as Remove. An income source now reads in two lines instead of
+  four. (#132)
+
 - The Budget year setup reads better and asks less. The split no longer
   asks which year: it works the budget year out from today and says
   "Your budget year runs April 2026 to March 2027". Income sources now

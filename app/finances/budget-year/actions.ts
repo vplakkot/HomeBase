@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasPermission } from "../../../lib/auth/permissions";
-import { formatPercent, monthLabel, monthStart, parsePercent } from "../../../lib/finances/budget-year";
+import {
+  formatPercent,
+  householdToday,
+  monthLabel,
+  monthStart,
+  parsePercent,
+} from "../../../lib/finances/budget-year";
 import { isBillKind } from "../../../lib/finances/bills";
 import { isCadence } from "../../../lib/finances/income";
 import { parseAmount } from "../../../lib/finances/money";
@@ -35,6 +41,10 @@ export async function saveSplit(_previous: FormState, formData: FormData): Promi
     return { error: "Choose the month the new split starts in." };
   }
   const effectiveFrom = monthStart(`${month}-01`);
+  const thisMonth = monthStart(householdToday());
+  if (formData.get("editing") === "true" && effectiveFrom < thisMonth) {
+    return { error: "That split has already started. Add one from a later month instead." };
+  }
 
   const shares: { user_id: string; percent: number }[] = [];
   for (const [field, value] of formData.entries()) {
@@ -65,11 +75,17 @@ export async function saveSplit(_previous: FormState, formData: FormData): Promi
   return { saved: true, message: `Split saved, from ${monthLabel(effectiveFrom)} onwards.` };
 }
 
+// Only a split that hasn't started can be taken away; one that has run
+// is what its months were worked out from.
 export async function removeSplit(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   const supabase = await requireManageBudget();
-  const { error } = await supabase.from("splits").delete().eq("id", id);
+  const { error } = await supabase
+    .from("splits")
+    .delete()
+    .eq("id", id)
+    .gt("effective_from", monthStart(householdToday()));
   if (error) throw new Error(`Could not remove the split: ${error.message}`);
   refresh();
 }
@@ -98,6 +114,7 @@ export async function saveIncomeSource(_previous: FormState, formData: FormData)
         p_net_amount: amount,
         p_cadence: cadence,
         p_anchor_date: anchorDate,
+        p_on: householdToday(),
       })
     : await supabase.from("income_sources").insert({
         name,
@@ -105,6 +122,7 @@ export async function saveIncomeSource(_previous: FormState, formData: FormData)
         net_amount: amount,
         cadence,
         anchor_date: anchorDate,
+        effective_from: householdToday(),
       });
   if (error) return { error: error.message };
 
@@ -123,7 +141,7 @@ export async function removeIncomeSource(formData: FormData): Promise<void> {
   const supabase = await requireManageBudget();
   const { error } = await supabase
     .from("income_sources")
-    .update({ ended_on: new Date().toISOString().slice(0, 10) })
+    .update({ ended_on: householdToday() })
     .eq("id", id);
   if (error) throw new Error(`Could not remove the income source: ${error.message}`);
   refresh();

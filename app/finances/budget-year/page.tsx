@@ -10,6 +10,7 @@ import {
   listSplits,
   monthLabel,
   splitInForce,
+  splitIsHistory,
 } from "../../../lib/finances/budget-year";
 import { CADENCES, listIncomeSources, payDates } from "../../../lib/finances/income";
 import { formatMoney } from "../../../lib/finances/money";
@@ -31,9 +32,16 @@ function shortDate(iso: string): string {
 // The twenty-four months from the budget year's April, for choosing when
 // a split starts: this year and the next, and no browser date-picker
 // quirks (Safari has no month picker).
-function monthOptions(startYear: number): { value: string; label: string }[] {
-  return Array.from({ length: 24 }, (_, step) => {
-    const month = new Date(Date.UTC(startYear, 3 + step, 1));
+function monthOptions(startYear: number, earliest?: string): { value: string; label: string }[] {
+  const from = new Date(Date.UTC(startYear, 3, 1));
+  const oldest = earliest ? new Date(`${earliest}T00:00:00Z`) : from;
+  const start = oldest < from ? oldest : from;
+  const months = Math.max(
+    24,
+    (from.getUTCFullYear() - start.getUTCFullYear()) * 12 + from.getUTCMonth() - start.getUTCMonth() + 24,
+  );
+  return Array.from({ length: months }, (_, step) => {
+    const month = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + step, 1));
     const value = month.toISOString().slice(0, 7);
     return { value, label: monthLabel(`${value}-01`) };
   });
@@ -82,13 +90,15 @@ function Entry({
   changeLabel,
   change,
   remove,
+  closed,
 }: {
   name: string;
   aside: ReactNode;
   detail: string;
-  changeLabel: string;
-  change: ReactNode;
-  remove: ReactNode;
+  changeLabel?: string;
+  change?: ReactNode;
+  remove?: ReactNode;
+  closed?: string;
 }) {
   return (
     <li className={styles.entry}>
@@ -97,13 +107,19 @@ function Entry({
         {aside}
       </div>
       <p className={styles.detail}>{detail}</p>
-      <div className={styles.actions}>
-        <details className={styles.change}>
-          <summary>{changeLabel}</summary>
-          {change}
-        </details>
-        {remove}
-      </div>
+      {closed ? (
+        <p className={styles.detail}>{closed}</p>
+      ) : (
+        <div className={styles.actions}>
+          {change ? (
+            <details className={styles.change}>
+              <summary>{changeLabel}</summary>
+              {change}
+            </details>
+          ) : null}
+          {remove}
+        </div>
+      )}
     </li>
   );
 }
@@ -143,7 +159,7 @@ export default async function BudgetYearPage() {
     listIncomeSources(supabase),
     listBills(supabase),
   ]);
-  const months = monthOptions(startYear);
+  const months = monthOptions(startYear, splits.at(-1)?.effective_from);
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
   const current = splitInForce(splits, todayIso);
   const sharesLine = (shares: { user_id: string; percent: number }[]) =>
@@ -166,41 +182,51 @@ export default async function BudgetYearPage() {
             <p className={styles.empty}>Nothing saved yet. A split says how you divide shared costs.</p>
           ) : (
             <ul className={styles.list}>
-              {splits.map((split) => (
-                <Entry
-                  key={split.id}
-                  name={`From ${monthLabel(split.effective_from)}`}
-                  aside={
-                    split.id === current?.id ? <span className={styles.chip}>In force</span> : null
-                  }
-                  detail={sharesLine(split.shares)}
-                  changeLabel="Edit"
-                  change={
-                    <SplitForm
-                      people={people}
-                      months={months}
-                      month={split.effective_from.slice(0, 7)}
-                      percents={Object.fromEntries(
-                        split.shares.map((share) => [share.user_id, share.percent]),
-                      )}
-                      note={split.note}
-                      editing
-                    />
-                  }
-                  remove={
-                    <form action={removeSplit}>
-                      <input type="hidden" name="id" value={split.id} />
-                      <button
-                        type="submit"
-                        className={styles.quiet}
-                        aria-label={`Remove the split from ${monthLabel(split.effective_from)}`}
-                      >
-                        Remove
-                      </button>
-                    </form>
-                  }
-                />
-              ))}
+              {splits.map((split) => {
+                // A split that has started belongs to the months it ran:
+                // to change how you divide costs now, add a new one.
+                const history = splitIsHistory(split, todayIso);
+                return (
+                  <Entry
+                    key={split.id}
+                    name={`From ${monthLabel(split.effective_from)}`}
+                    aside={
+                      split.id === current?.id ? <span className={styles.chip}>In force</span> : null
+                    }
+                    detail={sharesLine(split.shares)}
+                    closed={
+                      history
+                        ? "Already started, so it stays as it is. Add a split to change things from a later month."
+                        : undefined
+                    }
+                    changeLabel="Edit"
+                    change={
+                      <SplitForm
+                        people={people}
+                        months={months}
+                        month={split.effective_from.slice(0, 7)}
+                        percents={Object.fromEntries(
+                          split.shares.map((share) => [share.user_id, share.percent]),
+                        )}
+                        note={split.note}
+                        editing
+                      />
+                    }
+                    remove={
+                      <form action={removeSplit}>
+                        <input type="hidden" name="id" value={split.id} />
+                        <button
+                          type="submit"
+                          className={styles.quiet}
+                          aria-label={`Remove the split from ${monthLabel(split.effective_from)}`}
+                        >
+                          Remove
+                        </button>
+                      </form>
+                    }
+                  />
+                );
+              })}
             </ul>
           )}
         </Card>

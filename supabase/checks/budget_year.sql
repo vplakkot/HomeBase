@@ -141,7 +141,7 @@ begin
   begin
     perform public.change_income_source(
       (select id from public.income_sources where anchor_date = '2999-01-01' limit 1),
-      'Check pay', member_id, 999, 'weekly', '2999-02-01');
+      'Check pay', member_id, 999, 'weekly', '2999-02-01', current_date);
     select count(*) into n from public.income_sources
      where ended_on is not null and anchor_date = '2999-01-01';
     report := report || format(

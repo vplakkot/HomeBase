@@ -32,6 +32,8 @@ const SPLIT = {
     { user_id: "u-sam", percent: 40 },
   ],
 };
+// One that hasn't started yet, so it can still be changed.
+const LATER = { ...SPLIT, id: "s-2", effective_from: "2026-11-01" };
 
 async function renderAs(permissions: string[], tables: FakeData["tables"] = {}) {
   vi.mocked(createClient).mockResolvedValue(
@@ -69,7 +71,7 @@ describe("the Budget year section", () => {
     ["Bills", "Add a bill"],
   ])("gives %s a head, an %s block first, then what's saved", async (card, addTitle) => {
     await renderAs(ADMIN, {
-      splits: [SPLIT],
+      splits: [LATER],
       income_sources: [
         { id: "i-1", name: "Day job", owner_id: "u-sam", net_amount: 2400, cadence: "biweekly", anchor_date: "2026-09-18" },
       ],
@@ -119,15 +121,26 @@ describe("the Budget year section", () => {
     expect(split.textContent).toContain("Nothing saved yet.");
   });
 
-  it("fills a saved split's own percentages into its Edit form", async () => {
-    await renderAs(ADMIN, { splits: [SPLIT] });
+  it("fills a split that hasn't started into its Edit form, with its month fixed", async () => {
+    await renderAs(ADMIN, { splits: [LATER] });
     const saved = within(screen.getByRole("region", { name: "Split" })).getByRole("listitem");
-    const what = "the split from 2026-04";
+    const what = "the split from November 2026";
     expect((within(saved).getByLabelText(`Alex's share of ${what}`) as HTMLInputElement).value).toBe("60");
-    expect((within(saved).getByLabelText(`Month ${what} starts`) as HTMLSelectElement).value).toBe("2026-04");
     expect((within(saved).getByLabelText(`What ${what} is based on`) as HTMLTextAreaElement).value).toBe(
       "Salaries as of March",
     );
+    // The month can't be moved from here, so editing can't strand a split.
+    expect(within(saved).queryByLabelText(`Month ${what} starts`)).toBeNull();
+    expect(saved.textContent).toContain("In force from November 2026");
+  });
+
+  // #132: a split that has begun is what its months ran on.
+  it("won't offer to edit or remove a split that has already started", async () => {
+    await renderAs(ADMIN, { splits: [SPLIT] });
+    const saved = within(screen.getByRole("region", { name: "Split" })).getByRole("listitem");
+    expect(saved.textContent).toContain("Already started, so it stays as it is.");
+    expect(within(saved).queryByText("Edit")).toBeNull();
+    expect(within(saved).queryByRole("button", { name: /Remove/ })).toBeNull();
   });
 
   // REQ-51 and #132: one line of detail, and Edit prefilled.

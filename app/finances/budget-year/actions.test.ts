@@ -1,7 +1,14 @@
 import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../../lib/supabase/server";
-import { removeBill, removeIncomeSource, saveBill, saveIncomeSource, saveSplit } from "./actions";
+import {
+  removeBill,
+  removeIncomeSource,
+  removeSplit,
+  saveBill,
+  saveIncomeSource,
+  saveSplit,
+} from "./actions";
 
 vi.mock("../../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -15,12 +22,15 @@ let rpc: ReturnType<typeof vi.fn>;
 let table: Record<string, ReturnType<typeof vi.fn>>;
 
 function given({ admin = true, error = null }: { admin?: boolean; error?: { message: string } | null } = {}) {
-  const eq = vi.fn().mockResolvedValue({ error });
+  const eq: ReturnType<typeof vi.fn> = vi.fn(() => chain) as never;
+  const gt = vi.fn().mockResolvedValue({ error });
+  const chain = { eq, gt, then: (go: (r: unknown) => unknown) => Promise.resolve({ error }).then(go) };
   table = {
     insert: vi.fn().mockResolvedValue({ error }),
-    update: vi.fn(() => ({ eq })),
-    delete: vi.fn(() => ({ eq })),
+    update: vi.fn(() => chain),
+    delete: vi.fn(() => chain),
     eq,
+    gt,
   };
   rpc = vi.fn(async (fn: string) =>
     fn === "has_permission" ? { data: admin, error: null } : { data: "year-id", error },
@@ -90,6 +100,35 @@ describe("saveSplit (REQ-50, #132)", () => {
     await expect(saveSplit({}, form(split))).rejects.toThrow("REDIRECT:/finances");
   });
 
+  // #132: editing may not reach back into a split that has run.
+  it("refuses to edit a split that has already started", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-12-01T16:00:00Z"));
+    given();
+    const result = await saveSplit({}, form({ ...split, editing: "true" }));
+    vi.useRealTimers();
+    expect(result).toEqual({
+      error: "That split has already started. Add one from a later month instead.",
+    });
+    expect(rpc).not.toHaveBeenCalledWith("save_split", expect.anything());
+  });
+
+  it("allows editing one that hasn't started yet", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-22T16:00:00Z"));
+    given();
+    const result = await saveSplit({}, form({ ...split, editing: "true" }));
+    vi.useRealTimers();
+    expect(result).toMatchObject({ saved: true });
+  });
+
+  it("only ever deletes a split that hasn't started", async () => {
+    given();
+    await removeSplit(form({ id: "s-1" }));
+    expect(table.delete).toHaveBeenCalled();
+    expect(table.gt).toHaveBeenCalledWith("effective_from", expect.stringMatching(/^\d{4}-\d{2}-01$/));
+  });
+
   it("shows the database's refusal as-is (it checks the total too)", async () => {
     given({ error: { message: "The percentages must total 100; these total 90" } });
     expect(await saveSplit({}, form(split))).toEqual({
@@ -116,6 +155,7 @@ describe("saveIncomeSource (REQ-51, #132)", () => {
       net_amount: 2400,
       cadence: "biweekly",
       anchor_date: "2026-09-18",
+      effective_from: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     });
   });
 
@@ -151,6 +191,7 @@ describe("saveIncomeSource (REQ-51, #132)", () => {
       p_net_amount: 2600,
       p_cadence: "biweekly",
       p_anchor_date: "2026-09-18",
+      p_on: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     });
     expect(table.insert).not.toHaveBeenCalled();
   });
