@@ -34,6 +34,7 @@
 }
 
 .info {
+  position: relative;
   display: flex;
   flex-shrink: 0;
   align-items: center;
@@ -45,6 +46,32 @@
   color: var(--module-on-loud);
   opacity: 0.85;
   cursor: help;
+}
+
+/* The hint itself, so it shows on keyboard focus too and not only on a
+   mouse hover, which is all the browser's own tooltip promises. */
+.info::after {
+  content: attr(data-hint);
+  position: absolute;
+  top: calc(100% - var(--space-2));
+  right: 0;
+  z-index: 1;
+  display: none;
+  width: max-content;
+  max-width: 240px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  color: var(--color-on-panel);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  text-align: left;
+  white-space: normal;
+}
+
+.info:hover::after,
+.info:focus-visible::after {
+  display: block;
 }
 
 .name {
@@ -140,12 +167,15 @@
   font-weight: 800;
 }
 
+/* A chip on a loud tile is solid, not see-through: white at 22% over
+   brick leaves 12px bold text at about 3.9 to 1, under the 4.5 the
+   design asks for (DESIGN.md §10). Brick on white is 5.9 to 1. */
 .chip {
   flex-shrink: 0;
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--color-surface) 22%, transparent);
-  color: var(--module-on-loud);
+  background: var(--color-surface);
+  color: var(--module-loud);
   font-size: var(--text-caption);
   font-weight: 700;
 }

@@ -7,7 +7,9 @@
   up; the cards run Income sources, Bills, then Split, which changes
   about once a year; a saved split shows only its month, whether it's in
   force, and each person's percentage; and everything saved is now a tile
-  in the Finances colour, like Home's module tiles. (#133)
+  in the Finances colour, like Home's module tiles, with chips solid
+  rather than see-through so the text stays readable on it. A card's hint
+  shows on keyboard focus as well as on hover. (#133)
 
 - The split can change during the year. Instead of one percentage per
   budget year, you save a split that starts in a month you choose — "from

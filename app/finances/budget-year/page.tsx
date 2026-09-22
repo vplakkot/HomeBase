@@ -2,8 +2,6 @@ import type { ReactNode } from "react";
 import { InfoIcon, LockIcon } from "../../../components/icons";
 import { BILL_KINDS, dueLabel, listBills } from "../../../lib/finances/bills";
 import {
-  budgetYearSpoken,
-  budgetYearStartFor,
   HOUSEHOLD_TIME_ZONE,
   householdToday,
   listPeople,
@@ -68,7 +66,14 @@ function Card({
         </h2>
         {/* The explanation is a hint on the icon, so every card's head is
             one line and they all line up (#133). */}
-        <span className={styles.info} title={hint} tabIndex={0} role="note" aria-label={hint}>
+        <span
+          className={styles.info}
+          data-hint={hint}
+          title={hint}
+          tabIndex={0}
+          role="note"
+          aria-label={hint}
+        >
           <InfoIcon />
         </span>
       </header>
@@ -147,7 +152,6 @@ export default async function BudgetYearPage() {
   }
 
   const todayIso = householdToday();
-  const startYear = budgetYearStartFor(todayIso);
   const thisMonth = todayIso.slice(0, 7);
   const [people, splits, incomes, bills] = await Promise.all([
     listPeople(supabase),
@@ -202,7 +206,7 @@ export default async function BudgetYearPage() {
 
         <Card
           name="Bills"
-          hint="The bills you split every month. A change applies from the next month opened; months already open keep theirs."
+          hint="The bills you split every month. A change applies from the next month opened."
           addTitle="Add a bill"
           add={<BillForm />}
         >
@@ -233,7 +237,7 @@ export default async function BudgetYearPage() {
         </Card>
         <Card
           name="Split"
-          hint={`How you divide shared costs. A split applies from the month you pick onwards, through ${budgetYearSpoken(startYear)} and beyond, until a later one starts.`}
+          hint="How you divide shared costs. It applies from the month you pick onwards."
           addTitle="Add a split"
           add={<SplitForm people={people} months={months} month={thisMonth} />}
         >

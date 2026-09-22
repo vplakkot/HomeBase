@@ -15,22 +15,6 @@ export function householdToday(now: Date = new Date()): string {
   }).format(now);
 }
 
-// A budget year runs April to March and is named by the year its April
-// falls in: 2026 covers April 2026 to March 2027 (REQ-50).
-export function budgetYearStartFor(day: string): number {
-  const [year, month] = day.split("-").map(Number);
-  return month >= 4 ? year : year - 1;
-}
-
-export function budgetYearLabel(startYear: number): string {
-  return `April ${startYear} – March ${startYear + 1}`;
-}
-
-// The same span inside a sentence, where a dash would read as a pause.
-export function budgetYearSpoken(startYear: number): string {
-  return `April ${startYear} to March ${startYear + 1}`;
-}
-
 // A percentage as typed into the form, in hundredths so that 33.33 +
 // 66.67 adds up to exactly 100 without floating-point drift. Null when it
 // isn't a number from 0 to 100 with at most two decimals.

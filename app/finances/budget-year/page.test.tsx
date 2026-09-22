@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../../lib/supabase/server";
 import { installDialogStandIn } from "../../../test/dialog";
 import { fakeSupabase, type FakeData } from "../../../test/fake-supabase";
+import { REPO_ROOT, styleOf } from "../../../test/css";
 import BudgetYearPage from "./page";
 
 vi.mock("../../../lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -48,6 +51,25 @@ async function renderAs(permissions: string[], tables: FakeData["tables"] = {}) 
 }
 
 describe("the Budget year section", () => {
+  // DESIGN.md §10: text on a loud tile has to clear 4.5 to 1, so a chip
+  // sitting on one is solid rather than see-through white.
+  it("keeps chips on a loud tile solid, for contrast", () => {
+    const css = readFileSync(join(REPO_ROOT, "app/finances/budget-year/page.module.css"), "utf-8");
+    const chip = styleOf(css, "chip", false);
+    expect(chip.get("background")).toBe("var(--color-surface)");
+    expect(chip.get("color")).toBe("var(--module-loud)");
+    const entry = styleOf(css, "entry", false);
+    expect(entry.get("background")).toBe("var(--module-loud)");
+    expect(entry.get("color")).toBe("var(--module-on-loud)");
+  });
+
+  // A hint only a mouse can reach isn't a hint (#133).
+  it("shows a card's hint on keyboard focus, not only on hover", () => {
+    const css = readFileSync(join(REPO_ROOT, "app/finances/budget-year/page.module.css"), "utf-8");
+    expect(css).toMatch(/\.info:hover::after,\s*\.info:focus-visible::after \{\s*display: block;/);
+    expect(css).toMatch(/content: attr\(data-hint\)/);
+  });
+
   it("is locked for a member: Admin only, no forms", async () => {
     await renderAs(["use_modules"]);
     const main = screen.getByRole("main");
@@ -90,10 +112,13 @@ describe("the Budget year section", () => {
   it("asks which month a split starts in, and marks the one in force", async () => {
     await renderAs(ADMIN, { splits: [SPLIT] });
     const split = screen.getByRole("region", { name: "Split" });
-    // The explanation is a hint on the head's icon, not a paragraph (#133).
-    expect(within(split).getByRole("note").getAttribute("title")).toContain(
-      "applies from the month you pick onwards",
+    // The explanation is a short hint on the head's icon, not a
+    // paragraph, and it doesn't repeat what the in-force tile shows (#133).
+    const hint = within(split).getByRole("note");
+    expect(hint.getAttribute("title")).toBe(
+      "How you divide shared costs. It applies from the month you pick onwards.",
     );
+    expect(hint.getAttribute("data-hint")).toBe(hint.getAttribute("title"));
     expect(split.textContent).not.toContain("Your budget year runs");
     const months = within(split).getByLabelText("Month the new split starts") as HTMLSelectElement;
     expect(months.value).toBe("2026-09");
@@ -166,8 +191,8 @@ describe("the Budget year section", () => {
     expect(saved.textContent).toContain("Saturday shifts");
     expect(saved.textContent).toContain("$2,400.00");
     expect(saved.textContent).toContain("Sam · Every two weeks · next Oct 2");
-    expect(within(income).getByRole("note").getAttribute("title")).toContain(
-      "past paydays keep their amount",
+    expect(within(income).getByRole("note").getAttribute("title")).toBe(
+      "What lands, and when. Editing one changes it from today; past paydays keep their amount.",
     );
     expect((within(saved).getByLabelText("Take-home per payment of Saturday shifts") as HTMLInputElement).value).toBe("2400");
   });
