@@ -90,8 +90,11 @@ describe("the Budget year section", () => {
   it("asks which month a split starts in, and marks the one in force", async () => {
     await renderAs(ADMIN, { splits: [SPLIT] });
     const split = screen.getByRole("region", { name: "Split" });
-    expect(split.textContent).toContain("Your budget year runs April 2026 to March 2027.");
-    expect(split.textContent).toContain("This month splits Alex 60% · Sam 40%.");
+    // The explanation is a hint on the head's icon, not a paragraph (#133).
+    expect(within(split).getByRole("note").getAttribute("title")).toContain(
+      "applies from the month you pick onwards",
+    );
+    expect(split.textContent).not.toContain("Your budget year runs");
     const months = within(split).getByLabelText("Month the new split starts") as HTMLSelectElement;
     expect(months.value).toBe("2026-09");
     // This month onwards: a month already gone can't be saved anyway.
@@ -115,11 +118,17 @@ describe("the Budget year section", () => {
     expect(within(split).getByText("Total: 100%")).toBeDefined();
   });
 
-  it("says plainly when no split covers this month", async () => {
+  it("says plainly when nothing is saved yet", async () => {
     await renderAs(ADMIN);
-    const split = screen.getByRole("region", { name: "Split" });
-    expect(split.textContent).toContain("No split covers this month yet.");
-    expect(split.textContent).toContain("Nothing saved yet.");
+    expect(screen.getByRole("region", { name: "Split" }).textContent).toContain("Nothing saved yet.");
+  });
+
+  // #133: the cards run Income sources, Bills, then Split, which changes
+  // about once a year.
+  it("puts the split last, after income sources and bills", async () => {
+    await renderAs(ADMIN);
+    const cards = screen.getAllByRole("region").map((card) => card.getAttribute("aria-labelledby"));
+    expect(cards).toEqual(["add-an-income-source", "add-a-bill", "add-a-split"]);
   });
 
   it("fills a split that hasn't started into its Edit form, with its month fixed", async () => {
@@ -139,7 +148,8 @@ describe("the Budget year section", () => {
   it("won't offer to edit or remove a split that has already started", async () => {
     await renderAs(ADMIN, { splits: [SPLIT] });
     const saved = within(screen.getByRole("region", { name: "Split" })).getByRole("listitem");
-    expect(saved.textContent).toContain("Already started, so it stays as it is.");
+    // Just the month, the chip and the percentages — no explaining (#133).
+    expect(saved.textContent).toBe("From April 2026In forceAlex 60% · Sam 40%");
     expect(within(saved).queryByText("Edit")).toBeNull();
     expect(within(saved).queryByRole("button", { name: /Remove/ })).toBeNull();
   });
@@ -156,7 +166,9 @@ describe("the Budget year section", () => {
     expect(saved.textContent).toContain("Saturday shifts");
     expect(saved.textContent).toContain("$2,400.00");
     expect(saved.textContent).toContain("Sam · Every two weeks · next Oct 2");
-    expect(income.textContent).toContain("past paydays keep their amount");
+    expect(within(income).getByRole("note").getAttribute("title")).toContain(
+      "past paydays keep their amount",
+    );
     expect((within(saved).getByLabelText("Take-home per payment of Saturday shifts") as HTMLInputElement).value).toBe("2400");
   });
 

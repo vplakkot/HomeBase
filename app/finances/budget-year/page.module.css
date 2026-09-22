@@ -19,14 +19,32 @@
 }
 
 /* The head carries the module's loud colour, as a tile does when it's
-   loud: the name in white on brick, the line under it see-through white. */
+   loud. It is one line in every card — the name, and the explanation on
+   the icon beside it — so the three cards line up (#133). */
 .head {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 64px;
   padding: var(--space-4);
   background: var(--module-loud);
   color: var(--module-on-loud);
+}
+
+.info {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-target-min);
+  height: var(--tap-target-min);
+  margin: calc(var(--space-2) * -1);
+  border-radius: var(--radius-pill);
+  color: var(--module-on-loud);
+  opacity: 0.85;
+  cursor: help;
 }
 
 .name {
@@ -92,15 +110,17 @@
   font-weight: 500;
 }
 
-/* One saved split, income source or bill. */
+/* One saved split, income source or bill: a loud tile in the module's
+   own colour, like Home's (docs/design/DESIGN.md §3). */
 .entry {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--module-loud);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--module-loud);
+  color: var(--module-on-loud);
 }
 
 .entryHead {
@@ -124,17 +144,17 @@
   flex-shrink: 0;
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-pill);
-  background: var(--module-quiet);
-  color: var(--module-quiet-title);
+  background: color-mix(in srgb, var(--color-surface) 22%, transparent);
+  color: var(--module-on-loud);
   font-size: var(--text-caption);
   font-weight: 700;
 }
 
 .detail {
   margin: 0;
-  color: var(--color-muted);
+  color: var(--module-on-loud);
   font-size: var(--text-body-sm);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Editing is folded away, so a list of things reads as a list. */
@@ -153,9 +173,10 @@
   display: flex;
   align-items: center;
   min-height: var(--tap-target-min);
-  color: var(--module-loud);
+  color: var(--module-on-loud);
   font-size: var(--text-body-sm);
   font-weight: 700;
+  text-decoration: underline;
   cursor: pointer;
 }
 
@@ -169,15 +190,33 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--color-muted);
+  color: var(--module-on-loud);
   font: inherit;
   font-size: var(--text-body-sm);
   font-weight: 700;
+  text-decoration: underline;
+  opacity: 0.85;
   cursor: pointer;
 }
 
 .quiet:hover {
-  color: var(--color-danger);
+  opacity: 1;
+}
+
+/* A form opened inside a loud tile: its own labels and messages are on
+   the loud colour, and its button flips so it can still be seen. */
+.entry .field,
+.entry .total,
+.entry .hint,
+.entry .error,
+.entry .saved {
+  color: var(--module-on-loud);
+}
+
+.entry .primary {
+  border-color: var(--color-surface);
+  background: var(--color-surface);
+  color: var(--module-loud);
 }
 
 .field {

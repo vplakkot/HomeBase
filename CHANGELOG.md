@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- The Budget year cards read more evenly. Each card's explanation moved
+  onto an info icon in its head, so all three heads are one line and line
+  up; the cards run Income sources, Bills, then Split, which changes
+  about once a year; a saved split shows only its month, whether it's in
+  force, and each person's percentage; and everything saved is now a tile
+  in the Finances colour, like Home's module tiles. (#133)
+
 - The split can change during the year. Instead of one percentage per
   budget year, you save a split that starts in a month you choose — "from
   October 2026, 70/30" — and it holds until a later one starts. A split
