@@ -166,6 +166,42 @@ describe("HomePage", () => {
     ]);
   });
 
+  // REQ-83: the card shows the most urgent items from the same stand-in
+  // the tiles read, so a loud tile always has its item nearby.
+  it("with ?demo, puts the three most urgent items in the card", async () => {
+    given({ email: "member@example.com" });
+    render(await home({ demo: "" }));
+    const section = screen.getByRole("region", { name: "Action items" });
+    expect(within(section).getByText("1 / 3")).toBeDefined();
+    expect(within(section).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Card bill due Friday$285 left to pay",
+      "Heartworm pill dueBoth dogs, today",
+      "Prescription readyPick up by Tuesday",
+    ]);
+  });
+
+  it("with ?demo=0, shows All clear and every tile quiet", async () => {
+    given({ email: "member@example.com" });
+    render(await home({ demo: "0" }));
+    const section = screen.getByRole("region", { name: "Action items" });
+    expect(section.textContent).toContain("All clear");
+    expect(tiles().filter((tile) => tile.loud)).toEqual([]);
+  });
+
+  it("with ?demo=4, lights four tiles but keeps the card to the three most urgent", async () => {
+    given({ email: "member@example.com" });
+    render(await home({ demo: "4" }));
+    expect(tiles().filter((tile) => tile.loud).map((tile) => tile.name)).toEqual([
+      "Finances",
+      "Calendar",
+      "Pets",
+      "Health",
+    ]);
+    const section = screen.getByRole("region", { name: "Action items" });
+    expect(within(section).getAllByRole("listitem")).toHaveLength(3);
+    expect(section.textContent).not.toContain("Confirm the dentist");
+  });
+
   // Phones get a bar fixed below the page; desktops get buttons beside the
   // greeting. The screen width shows one and hides the other.
   it("offers Quick add twice: a bar for phones, buttons for desktops", async () => {

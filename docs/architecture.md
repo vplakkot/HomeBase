@@ -586,6 +586,16 @@ Notion decision of 2026-09-21). Home draws tiles only for modules that
 are switched on; the admin console's switches come later, so for now
 none is off.
 
+The action items card at the top of Home reads the same stand-in: each
+item carries an urgency rank, and Home shows the three most urgent
+across the switched-on modules, so a loud tile's item is always there
+unless three more urgent ones fill the card. `?demo=0` to `?demo=4` show
+each state of the card, from All clear to more items than fit. The card
+([`components/action-items.tsx`](../components/action-items.tsx)) is
+one list that scrolls sideways and snaps to one card at a time on a
+phone, and lays the cards side by side on a desktop. It runs in the
+browser, to keep the "1 / 3" counter in step with the swipe.
+
 On a phone, Home has no navigation bar: the tiles and the Admin pill do
 that job, and Quick add stays at the bottom. Inside a module the bottom
 bar is Home · Sections · Modules. Sections and Modules open **bottom

@@ -25,7 +25,7 @@ const calm: ModuleStatus = {
 };
 const needsYou: ModuleStatus = {
   ...calm,
-  actionItems: [{ text: "Heartworm pill due", detail: "Both dogs, today" }],
+  actionItems: [{ text: "Heartworm pill due", detail: "Both dogs, today", rank: 1 }],
 };
 
 function tileFor(slug: string, status: ModuleStatus): HTMLElement {

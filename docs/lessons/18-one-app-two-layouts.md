@@ -97,3 +97,18 @@ page doesn't say what time zone it came from. So the page arrives
 saying "Hello", and the phone fills in its own greeting and date a
 moment later. Storing the household's time zone in the code would
 publish roughly where they live, and the repository is public.
+
+## Swiping without a gesture library
+
+On a phone, the action items are a stack you swipe through sideways.
+Swipes could be tracked by hand in JavaScript, or with a library, but
+the browser already knows how to scroll a list sideways under a finger.
+So the list simply scrolls, and **scroll snapping** makes it stop only
+on a whole card, like a slide viewer that always clicks to the next
+slide. The only JavaScript is a small listener that notices where the
+list stopped and updates the "1 / 3" counter and the dots. On a desktop,
+the same list stops scrolling and lays the cards side by side.
+
+Nothing in it runs on a timer, so the card never moves unless someone
+swipes. A test fails if anything schedules one.
+

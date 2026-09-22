@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Home's action items card now has the design's shape. On a phone it
+  shows one dark card at a time; with two or three items you swipe
+  sideways between them, and a "1 / 3" counter, dots and stacked edges
+  show where you are. On a desktop the cards sit side by side. Each card
+  shows the module's icon on its bright colour, a line of text, a line
+  of detail and an arrow, and Home shows only the three most urgent.
+  Modules have no data yet, so Home still says "All clear"; `?demo`
+  shows three items, and `?demo=0` to `?demo=4` show every state. The
+  cards don't open anything yet; that needs the screens they'll lead to.
+  (#114)
+
 - Home's module tiles now have both of the design's states. A tile turns
   its module's bright colour only when that module has an action item,
   and stays in its pale tint otherwise. On a desktop each tile shows a
