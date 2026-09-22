@@ -77,6 +77,23 @@ export function ChevronLeftIcon({ size = 20 }: IconProps) {
   );
 }
 
+export function ChevronDownIcon({ size = 16 }: IconProps) {
+  return (
+    <Icon size={size}>
+      <path d="M6 9l6 6 6-6" />
+    </Icon>
+  );
+}
+
+export function LockIcon({ size = 13 }: IconProps) {
+  return (
+    <Icon size={size}>
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 018 0v3" />
+    </Icon>
+  );
+}
+
 export function CheckIcon({ size = 18 }: IconProps) {
   return (
     <Icon size={size}>

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- The Finances page has its designed header: the Finances icon and
+  name, the month (from the phone's own clock) and a "No budget year"
+  status, since none is set up until v1.0. On a desktop its sections sit
+  in a row of tabs under the header, Overview first and Budget year
+  marked with a lock; Log payment will be a button of its own. Choosing
+  another month and opening a section come with v1.0. (#68)
+
 - Home's action items card now has the design's shape. On a phone it
   shows one dark card at a time; with two or three items you swipe
   sideways between them, and a "1 / 3" counter, dots and stacked edges

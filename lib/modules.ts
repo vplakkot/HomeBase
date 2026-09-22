@@ -11,6 +11,9 @@ export type ModuleSection = {
   description: string;
   // Admin-only sections are shown to members too, locked (DESIGN.md §7).
   adminOnly?: boolean;
+  // The module's most frequent action (DESIGN.md §6): a button of its own
+  // rather than a tab on a desktop.
+  pinned?: boolean;
 };
 
 export type Module = {
@@ -32,7 +35,7 @@ export const MODULES: readonly Module[] = [
     href: "/finances",
     sections: [
       { name: "Monthly entry", description: "Bills, personal charges, direct payments" },
-      { name: "Log payment", description: "Several times a month" },
+      { name: "Log payment", description: "Several times a month", pinned: true },
       { name: "Income", description: "Confirm paychecks, add ESPP, RSU, bonus" },
       { name: "Savings", description: "Verdict and what you actually saved" },
       { name: "Balances", description: "Enter and see trends" },

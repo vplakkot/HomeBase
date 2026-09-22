@@ -1,5 +1,47 @@
+/* On a phone: the icon and name, then the month and its status on a row
+   of their own. On a desktop all four share one row. */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.name,
+.month {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.month {
+  justify-content: space-between;
+}
+
+.chip {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--module-loud);
+  color: var(--module-on-loud);
+}
+
 .title {
   margin: 0;
+  font-size: var(--text-display-lg);
+}
+
+/* The status chip (DESIGN.md §7). "No budget year" is the neutral one. */
+.status {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-track);
+  color: var(--color-ink);
+  font-size: var(--text-caption);
+  font-weight: 700;
 }
 
 .soon {
@@ -8,6 +50,16 @@
 }
 
 @media (min-width: 1024px) {
+  .header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .chip {
+    width: 40px;
+    height: 40px;
+  }
+
   .title {
     font-size: var(--text-display-xl);
   }
