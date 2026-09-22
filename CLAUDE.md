@@ -11,24 +11,43 @@ learning a maintainable process as much as shipping.
 - Code, history, truth: this repo
 
 ## Picking up work
-When I say "next requirement":
+A **batch** is the unit of work: 3-4 Ready requirements from the current
+milestone that belong together — they touch the same screen, the same
+tables, or one can't be tested without another. Smaller is fine when
+nothing else fits; more than four is too much to review in one go. A bug
+or a chore is a batch of one.
+
+When I say "next batch" (or "next requirement"):
 1. In Notion (HomeBase HQ → Requirements), check requirements that are
-   In progress. If a requirement's pull request has merged, set it to Done.
-2. Find the Ready requirement in the current milestone with the lowest ID.
-3. If its Github Issue field is empty, create the GitHub issue: title = the
-   requirement name, body = REQ ID and Notion link, milestone = the
-   requirement's Milestone. Write the issue URL back to its Github Issue field.
-4. Set the requirement to In progress.
-5. The Notion page is the spec: acceptance criteria, out of scope, and
+   In progress. If a requirement's pull request has merged and every
+   acceptance criterion is now met, set it to Done. One whose remaining
+   criteria wait on a later batch stays In progress.
+2. Pick the next batch. Follow the milestone's batch plan if one exists
+   (in Notion or in your memory); otherwise group the Ready requirements
+   yourself, in dependency order rather than by ID, and say which you
+   picked and why before building.
+3. Create one GitHub issue for the batch: title = what the batch
+   delivers, body = each requirement's ID, name and Notion link, and any
+   criteria you already know wait for a later batch; milestone = the
+   requirements' Milestone. Write the issue URL into the Github Issue
+   field of every requirement in it.
+4. Set each of them to In progress.
+5. The Notion pages are the spec: acceptance criteria, out of scope, and
    decisions. Don't copy it elsewhere. Ask if anything is unclear.
 6. Restate your plan in plain words, then start building. Stop for my
    go-ahead only when the plan holds a decision that's mine to make (a
    product choice the docs don't settle, a new dependency, an architecture
    change) or a step only I can take.
+7. One batch per session. When it's merged, tell me what landed and stop;
+   start the next one in a new session, so the conversation doesn't grow
+   for the rest of the day.
 
 ## Rules
 - Never commit to main. Always a branch, then a pull request.
-- One issue per pull request. Reference it in the PR description.
+- One issue per pull request, and one pull request per batch. Reference
+  the issue in the PR description. When a requirement in the batch has
+  criteria only a later batch can prove, name them in the pull request
+  and leave that requirement In progress.
 - Never commit secrets. Keys and passwords live in Vercel, never in git.
 - Database structure changes go through migration files in git, never by hand
   in the Supabase console.
@@ -93,9 +112,10 @@ catch things.
 
 ## Definition of Done
 Every pull request must satisfy all of these:
-- [ ] Linked to a GitHub issue — a feature from a Ready requirement, a bug,
+- [ ] Linked to a GitHub issue — a batch of Ready requirements, a bug,
       or a chore
-- [ ] Every acceptance criterion has a passing test
+- [ ] Every acceptance criterion has a passing test, except those the
+      pull request names as waiting for a later batch
 - [ ] All automated checks pass
 - [ ] Verified in a browser — locally by you, and on the preview link by me
       whenever I choose to (Vercel's own login no longer guards previews,
@@ -105,8 +125,9 @@ Every pull request must satisfy all of these:
 - [ ] No secrets in code
 - [ ] A lesson doc added or updated in docs/lessons/ when there is a
       genuinely new concept (see Writing)
-- [ ] Notion requirement set to Done once merged (you do this; see Picking
-      up work) — not applicable to bug or chore issues
+- [ ] Every Notion requirement in the batch set to Done once merged, or
+      left In progress with its waiting criteria named (you do this; see
+      Picking up work) — not applicable to bug or chore issues
 
 ## Working style
 - Restate what you understood before starting. Wait for my confirmation
