@@ -8,7 +8,10 @@
   box-sizing: border-box;
 }
 
+/* No browser margin: pages fill the screen exactly, so a page one screen
+   tall (like sign-in) doesn't scroll by the margin. */
 body {
+  margin: 0;
   background: var(--color-ground);
   color: var(--color-ink);
   font-family: var(--font-body);

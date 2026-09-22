@@ -40,4 +40,12 @@ describe("SetPasswordPage", () => {
     expect(screen.getByRole("button", { name: "Save password" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Sign out" })).toBeDefined();
   });
+
+  // REQ-86: the same page as sign-up and set-password, with the logo.
+  it("shows the HomeBase icon and name above the form", async () => {
+    given(true);
+    render(await SetPasswordPage());
+    expect(document.querySelector('img[src="/icon.svg"]')).not.toBeNull();
+    expect(screen.getByText("HomeBase")).toBeDefined();
+  });
 });

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AuthPage } from "../../components/auth-page";
 import { householdExists, SIGN_UP_CLOSED_MESSAGE } from "../../lib/household";
 import { createClient } from "../../lib/supabase/server";
 import { SignUpForm } from "./sign-up-form";
@@ -8,24 +9,24 @@ export default async function SignUpPage() {
 
   if (await householdExists(supabase)) {
     return (
-      <>
+      <AuthPage>
         <h1>Sign-up is closed</h1>
         <p>{SIGN_UP_CLOSED_MESSAGE}</p>
         <p>
           <Link href="/sign-in">Sign in</Link>
         </p>
-      </>
+      </AuthPage>
     );
   }
 
   return (
-    <>
+    <AuthPage>
       <h1>Create your household</h1>
       <p>
         You are the first one here. Signing up creates the household and
         makes you its admin.
       </p>
       <SignUpForm />
-    </>
+    </AuthPage>
   );
 }
