@@ -4,8 +4,8 @@
 
 - Sign-in now looks like HomeBase: the app icon and name above the form,
   in one centred column on a phone and a desktop. Fields are 52 px tall
-  with 16 px text, so an iPhone doesn't zoom in when you tap one, and the
-  Sign in button is full width. A wrong password shows in red above the
+  with 16 px text, the size iPhones need so they don't zoom in on a tap
+  (not yet checked on an iPhone), and the Sign in button is full width. A wrong password shows in red above the
   button. Sign-up and set-password get the same look. (#119)
 
 - The admin console has the design's three cards: People, Notifications

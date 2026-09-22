@@ -29,6 +29,12 @@ describe("every page", () => {
     expect(body.get("background")).toBe("var(--color-ground)");
   });
 
+  // Found in review of #120: a page one screen tall scrolled by the
+  // browser's default 8 px margin, top and bottom.
+  it("leaves no browser margin around the page", () => {
+    expect(stylesFor("body").get("margin")).toBe("0");
+  });
+
   it.each(["h1", "h2", "h3", "h4", "h5", "h6"])(
     "sets %s in the display font at weight 800",
     (heading) => {
