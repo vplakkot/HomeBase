@@ -27,7 +27,7 @@ function refresh() {
 const SHARE_FIELD = "share:";
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-// REQ-50, #131: a split starts on a month and stays in force until a
+// REQ-50, #132: a split starts on a month and stays in force until a
 // later one starts. Saving a month that already has a split replaces it.
 export async function saveSplit(_previous: FormState, formData: FormData): Promise<FormState> {
   const month = String(formData.get("effectiveFrom") ?? "");

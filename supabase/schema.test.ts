@@ -456,7 +456,7 @@ describe("receipt hash migration", () => {
   });
 });
 
-describe("dated splits and income history (#131)", () => {
+describe("dated splits and income history (#132)", () => {
   const dated = readMigration("20260922210000");
 
   it("carries the saved budget years over as splits starting that April", () => {

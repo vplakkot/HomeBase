@@ -1,4 +1,4 @@
--- The split gets a date, and income sources get a history (#131).
+-- The split gets a date, and income sources get a history (#132).
 --
 -- Vin: "I should be able to change % mid-year as salary changes ... doesn't
 -- mean change everything backwards." So a split is no longer one row per

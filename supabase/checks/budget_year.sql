@@ -1,4 +1,4 @@
--- Live check of the Finances setup rules (REQ-50, 51, 94, #131), as real
+-- Live check of the Finances setup rules (REQ-50, 51, 94, #132), as real
 -- household members, against the hosted project. Needs at least one Admin
 -- and one Member. Run it with:
 --

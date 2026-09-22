@@ -41,7 +41,7 @@ function monthOptions(startYear: number): { value: string; label: string }[] {
 
 // Every card on this page is the same shape: a tinted head with its name
 // and a line of plain English, the form for adding on the module's quiet
-// tint, then what's already saved as rounded boxes below (#131).
+// tint, then what's already saved as rounded boxes below (#132).
 function Card({
   name,
   note,

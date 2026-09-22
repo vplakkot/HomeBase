@@ -61,7 +61,7 @@ describe("the Budget year section", () => {
     expect(within(tabs).getByRole("link", { name: "Overview" }).getAttribute("aria-current")).toBeNull();
   });
 
-  // #131: the three cards are the same shape — a head, the add form, then
+  // #132: the three cards are the same shape — a head, the add form, then
   // what's saved — so the page reads as one thing.
   it.each([
     ["Split", "Add a split"],
@@ -83,7 +83,7 @@ describe("the Budget year section", () => {
     expect(within(saved).getAllByRole("button").map((b) => b.textContent)).toContain("Remove");
   });
 
-  // REQ-50 and #131: no year to pick; a split starts in a month you choose
+  // REQ-50 and #132: no year to pick; a split starts in a month you choose
   // and the one in force is marked.
   it("asks which month a split starts in, and marks the one in force", async () => {
     await renderAs(ADMIN, { splits: [SPLIT] });
@@ -130,7 +130,7 @@ describe("the Budget year section", () => {
     );
   });
 
-  // REQ-51 and #131: one line of detail, and Edit prefilled.
+  // REQ-51 and #132: one line of detail, and Edit prefilled.
   it("shows an income source in two lines and offers to edit it", async () => {
     await renderAs(ADMIN, {
       income_sources: [

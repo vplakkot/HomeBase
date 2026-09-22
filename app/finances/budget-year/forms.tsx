@@ -16,7 +16,7 @@ function Outcome({ state, saved }: { state: FormState; saved: string }) {
   return null;
 }
 
-// REQ-50, #131: a split starts in a month and holds until a later one
+// REQ-50, #132: a split starts in a month and holds until a later one
 // starts, so changing it never reaches back into months already run.
 export function SplitForm({
   people,
@@ -94,7 +94,7 @@ export function SplitForm({
 }
 
 // REQ-51: a name, whose pay, take-home per payment, how often and one real
-// payday. Changing one ends it today and starts a new one (#131), so the
+// payday. Changing one ends it today and starts a new one (#132), so the
 // paydays it already covered keep their amount.
 export function IncomeForm({ people, source }: { people: Person[]; source?: IncomeSource }) {
   const [state, formAction, pending] = useActionState(saveIncomeSource, initialState);

@@ -104,7 +104,7 @@ describe("the Finances page", () => {
     expect(card.textContent).toContain("Ask Alex or Sam to set up the budget year.");
   });
 
-  // REQ-50, #131: the split in force is the latest one that had started
+  // REQ-50, #132: the split in force is the latest one that had started
   // by today; a later one doesn't reach back.
   it("uses the split in force this month, not a later one", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });

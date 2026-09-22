@@ -39,7 +39,7 @@ function form(fields: Record<string, string>): FormData {
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("saveSplit (REQ-50, #131)", () => {
+describe("saveSplit (REQ-50, #132)", () => {
   const split = {
     effectiveFrom: "2026-10",
     "share:u-alex": "60",
@@ -98,7 +98,7 @@ describe("saveSplit (REQ-50, #131)", () => {
   });
 });
 
-describe("saveIncomeSource (REQ-51, #131)", () => {
+describe("saveIncomeSource (REQ-51, #132)", () => {
   const pay = {
     name: " Day job ",
     ownerId: "u-sam",
@@ -135,7 +135,7 @@ describe("saveIncomeSource (REQ-51, #131)", () => {
     await expect(saveIncomeSource({}, form(pay))).rejects.toThrow("REDIRECT:/finances");
   });
 
-  // #131: a change starts a new source today rather than rewriting the
+  // #132: a change starts a new source today rather than rewriting the
   // old one, so paydays already past keep the amount they were paid at.
   it("changing one ends it today and starts a new one", async () => {
     given();
