@@ -59,8 +59,8 @@ to break. A new sidebar link with no phone equivalent would quietly
 strand phone users. So a test renders the pages the way both layouts
 receive them. It collects every place the sidebar can reach, and checks
 each one can also be reached from the parts a phone shows. The admin
-console, for example, is the sidebar's last link on desktop and the
-Admin pill on a phone.
+console, for example, is a sidebar link on desktop and an item in the
+account pill's menu on a phone.
 
 ## One list of modules
 

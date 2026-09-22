@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { cookies } from "next/headers";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { DEVICE_COOKIE } from "../lib/notifications/device";
@@ -87,6 +87,19 @@ function tiles() {
     });
 }
 
+// The account pill at the top right of phone Home, and what it opens.
+function pill(): HTMLElement {
+  return screen.getByRole("main").querySelector("header button[aria-haspopup]") as HTMLElement;
+}
+
+function openMenu(item?: "Profile" | "Settings"): HTMLElement {
+  fireEvent.click(pill());
+  const menu = screen.getByRole("dialog", { name: "Account" });
+  if (!item) return menu;
+  fireEvent.click(within(menu).getByRole("button", { name: item }));
+  return screen.getByRole("dialog", { name: item });
+}
+
 describe("HomePage", () => {
   afterEach(() => {
     cleanup();
@@ -101,13 +114,13 @@ describe("HomePage", () => {
     const main = screen.getByRole("main");
     const header = main.firstElementChild!;
     expect(header.tagName).toBe("HEADER");
-    expect(header.textContent).toBe("HomeBaseAdmin");
+    expect(header.firstElementChild?.textContent).toBe("HomeBase");
+    expect(pill().textContent).toBe("AAccount");
     const [greeting, ...sections] = within(main).getAllByRole("heading");
     expect(greeting.tagName).toBe("H1");
     expect(sections.map((heading) => heading.textContent)).toEqual([
       "Action items",
       "Modules",
-      "Account",
     ]);
   });
 
@@ -229,16 +242,38 @@ describe("HomePage", () => {
     expect(within(phoneBar).queryAllByRole("navigation")).toEqual([]);
   });
 
-  it("keeps who is signed in on the page", async () => {
+  // REQ-85: who you are, sign-out and notifications moved into the pill.
+  it("shows who is signed in under the pill's Profile", async () => {
     given({ email: "member@example.com" });
     render(await home());
-    expect(screen.getByText("Signed in as member@example.com")).toBeDefined();
+    expect(openMenu("Profile").textContent).toContain("Signed in as member@example.com");
   });
 
-  it("offers sign-out", async () => {
+  it("keeps nothing about the account at the bottom of Home any more", async () => {
     given({ email: "member@example.com" });
     render(await home());
-    expect(screen.getByRole("button", { name: "Sign out" })).toBeDefined();
+    const main = screen.getByRole("main");
+    expect(within(main).queryByRole("region", { name: "Account" })).toBeNull();
+    expect(within(main).queryByRole("button", { name: "Sign out" })).toBeNull();
+    expect(within(main).queryByTestId("notifications")).toBeNull();
+  });
+
+  it("names the pill after the person, when the account has a name", async () => {
+    given({ email: "sam@example.com", name: "Sam Example" });
+    render(await home());
+    expect(pill().textContent).toBe("SSam");
+  });
+
+  it("offers Profile, Settings and Sign out in the pill's menu", async () => {
+    given({ email: "member@example.com" });
+    render(await home());
+    const menu = openMenu();
+    expect(within(menu).getAllByRole("button").map((b) => b.textContent)).toEqual([
+      "Close",
+      "Profile",
+      "Settings",
+      "Sign out",
+    ]);
   });
 
   it("sends a signed-out visitor to sign-in", async () => {
@@ -246,19 +281,17 @@ describe("HomePage", () => {
     await expect(home()).rejects.toThrow("REDIRECT:/sign-in");
   });
 
-  it("shows an admin the Admin pill, top-right, opening the admin console", async () => {
+  it("gives an admin the admin console in the pill's menu", async () => {
     given({ email: "admin@example.com", permissions: ["manage_members"] });
-    const { container } = render(await home());
-    const pill = screen.getByRole("link", { name: "Admin" });
-    expect(pill.getAttribute("href")).toBe("/admin");
-    // After the brand lockup in the header, which lays the two out left and right.
-    expect(container.querySelector("header")?.lastElementChild).toBe(pill);
+    render(await home());
+    const link = within(openMenu()).getByRole("link", { name: "Admin console" });
+    expect(link.getAttribute("href")).toBe("/admin");
   });
 
-  it("never shows a member the Admin pill", async () => {
+  it("never offers a member the admin console", async () => {
     given({ email: "member@example.com", permissions: ["use_modules"] });
     render(await home());
-    expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
+    expect(within(openMenu()).queryByRole("link", { name: "Admin console" })).toBeNull();
   });
 
   // v0.1 kept an "admin mode" in a cookie. It's gone, and so is anything
@@ -270,7 +303,7 @@ describe("HomePage", () => {
       otherCookies: { "homebase-mode": "admin" },
     });
     render(await home());
-    expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
+    expect(within(openMenu()).queryByRole("link", { name: "Admin console" })).toBeNull();
   });
 
   // The one case where v0.1 behaved differently: an admin whose browser
@@ -283,7 +316,7 @@ describe("HomePage", () => {
       otherCookies: { "homebase-mode": "admin" },
     });
     render(await home());
-    expect(screen.getByRole("link", { name: "Admin" }).getAttribute("href")).toBe("/admin");
+    expect(within(openMenu()).getByRole("link", { name: "Admin console" })).toBeDefined();
     expect(screen.queryByText("Admin mode")).toBeNull();
     expect(screen.queryByRole("button", { name: "Back to member view" })).toBeNull();
   });
@@ -295,11 +328,11 @@ describe("HomePage", () => {
     expect(screen.queryByRole("button", { name: "Back to member view" })).toBeNull();
   });
 
-  it("offers notifications, handing over the push key and this device's note", async () => {
+  it("offers this device's notifications under Settings, with the push key and note", async () => {
     given({ email: "member@example.com", device: "https://web.push.apple.com/this" });
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public-push-key");
     render(await home());
-    expect(screen.getByTestId("notifications").textContent).toBe(
+    expect(within(openMenu("Settings")).getByTestId("notifications").textContent).toBe(
       "public-push-key · https://web.push.apple.com/this",
     );
   });
@@ -308,17 +341,19 @@ describe("HomePage", () => {
     given({ email: "member@example.com" });
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public-push-key");
     render(await home());
-    expect(screen.getByTestId("notifications").textContent).toBe(
+    expect(within(openMenu("Settings")).getByTestId("notifications").textContent).toBe(
       "public-push-key · no device",
     );
   });
 
-  it("falls back to placeholder build info when Vercel env vars are unset", async () => {
+  it("shows the build under Settings, a placeholder off Vercel", async () => {
     given({ email: "member@example.com" });
     vi.stubEnv("VERCEL_GIT_COMMIT_REF", "");
     vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "");
     render(await home());
-    expect(screen.getByTestId("build-info").textContent).toBe("dev · local");
+    expect(within(openMenu("Settings")).getByTestId("build-info").textContent).toBe(
+      "dev · local",
+    );
   });
 
   it("shows the ref and short commit hash when Vercel env vars are set", async () => {
@@ -326,7 +361,7 @@ describe("HomePage", () => {
     vi.stubEnv("VERCEL_GIT_COMMIT_REF", "main");
     vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "abcdef1234567890");
     render(await home());
-    expect(screen.getByTestId("build-info").textContent).toBe(
+    expect(within(openMenu("Settings")).getByTestId("build-info").textContent).toBe(
       "main · abcdef1",
     );
   });

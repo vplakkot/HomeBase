@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Your account has one place of its own. On a phone, the pill at the top
+  right of Home (where the Admin pill was) shows your initial and name
+  and opens a menu: Profile, Settings, Sign out, and Admin console for
+  admins. On a desktop, Profile, Settings and Sign out are three buttons
+  at the bottom of the sidebar, under Admin console. Profile shows who
+  you're signed in as; Settings holds this device's notifications and
+  the build line. None of it sits at the bottom of Home any more. (#122)
+
 - Sign-in now looks like HomeBase: the app icon and name above the form,
   in one centred column on a phone and a desktop. Fields are 52 px tall
   with 16 px text, the size iPhones need so they don't zoom in on a tap

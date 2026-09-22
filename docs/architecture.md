@@ -259,11 +259,12 @@ sends the visitor back to `/sign-in`.
 ## Admin access
 
 A role decides what someone *may* do. Admins reach the console at
-[`app/admin/`](../app/admin/page.tsx) from an **Admin pill** on Home
-([`components/admin-pill.tsx`](../components/admin-pill.tsx)), shown only
-to holders of `manage_members`. The console checks the same permission
-itself, so hiding the pill is a courtesy and the page's check is the
-lock: a member who types `/admin` is sent home. Both ask for the
+[`app/admin/`](../app/admin/page.tsx) from the sidebar on a desktop, and
+on a phone from the account pill's menu on Home
+([`components/account-menu.tsx`](../components/account-menu.tsx)). Both
+are shown only to holders of `manage_members`. The console checks the
+same permission itself, so hiding the way in is a courtesy and the
+page's check is the lock: a member who types `/admin` is sent home. Both ask for the
 permission, never a role's name.
 
 v0.1 also had an admin *mode*: admins saw the member view until they
@@ -304,8 +305,9 @@ renewal, in the proxy. See
 
 ## Turning notifications on
 
-The home page carries a small browser-side control,
+The account menu's Settings sheet carries a small browser-side control,
 [`app/notifications/enable-notifications.tsx`](../app/notifications/enable-notifications.tsx).
+It runs only while that sheet is open.
 In a normal browser tab it explains that notifications need the
 home-screen install. In the installed app it registers the service
 worker, [`public/sw.js`](../public/sw.js), which the phone keeps running
@@ -560,7 +562,7 @@ flowchart TB
       Sidebar[Sidebar: Home, modules, Admin console]
     end
     subgraph Phone["Below 1024 px"]
-      Tiles[Home: module tiles + Admin pill] --> QuickAdd[Quick add bar]
+      Tiles[Home: module tiles + account pill] --> QuickAdd[Quick add bar]
       Bar[Inside a module: Home · Sections · Modules] --> Switcher[Module switcher sheet]
     end
 ```
@@ -596,7 +598,7 @@ one list that scrolls sideways and snaps to one card at a time on a
 phone, and lays the cards side by side on a desktop. It runs in the
 browser, to keep the "1 / 3" counter in step with the swipe.
 
-On a phone, Home has no navigation bar: the tiles and the Admin pill do
+On a phone, Home has no navigation bar: the tiles and the account pill do
 that job, and Quick add stays at the bottom. Inside a module the bottom
 bar is Home · Sections · Modules. Sections and Modules open **bottom
 sheets** ([`components/bottom-sheet.tsx`](../components/bottom-sheet.tsx)),

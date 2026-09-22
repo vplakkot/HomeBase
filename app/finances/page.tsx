@@ -5,6 +5,7 @@ import { MODULE_ICONS } from "../../components/icons";
 import { ModuleBar } from "../../components/module-bar";
 import { MonthPicker } from "../../components/month-picker";
 import { SectionTabs } from "../../components/section-tabs";
+import { readAccount } from "../../lib/account";
 import { hasPermission } from "../../lib/auth/permissions";
 import { moduleBySlug, moduleColours } from "../../lib/modules";
 import { createClient } from "../../lib/supabase/server";
@@ -22,6 +23,7 @@ export default async function FinancesPage() {
     redirect("/sign-in");
   }
   const canManageMembers = await hasPermission(supabase, "manage_members");
+  const account = await readAccount(data.claims);
   const finances = moduleBySlug("finances");
   const Icon = MODULE_ICONS[finances.slug];
 
@@ -29,6 +31,7 @@ export default async function FinancesPage() {
     <AppFrame
       current={finances.slug}
       canAdminister={canManageMembers}
+      account={account}
       phoneBar={<ModuleBar module={finances} />}
     >
       <header className={styles.header} style={moduleColours(finances) as CSSProperties}>

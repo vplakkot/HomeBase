@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import type { Account } from "../lib/account";
 import { MODULES, moduleColours } from "../lib/modules";
+import { AccountButtons } from "./account-menu";
 import { BrandLockup } from "./brand-lockup";
 import { AdminConsoleIcon, HomeIcon } from "./icons";
 import { SectionLabel } from "./section-label";
@@ -10,9 +12,18 @@ import styles from "./sidebar.module.css";
 export type Place = "home" | "admin" | (string & {});
 
 // Desktop navigation (docs/design/DESIGN.md §4): the brand, Home, every
-// module, and the admin console for admins. Below 1024 px it isn't shown;
-// phones get Home's tiles and the bars at the bottom of the screen.
-export function Sidebar({ current, canAdminister }: { current: Place; canAdminister: boolean }) {
+// module, then at the bottom the admin console for admins and your own
+// Profile, Settings and Sign out (REQ-85). Below 1024 px it isn't shown;
+// phones get Home's tiles, the account pill and the bars at the bottom.
+export function Sidebar({
+  current,
+  canAdminister,
+  account,
+}: {
+  current: Place;
+  canAdminister: boolean;
+  account: Account;
+}) {
   return (
     <nav aria-label="Main" className={styles.sidebar}>
       <div className={styles.brand}>
@@ -53,16 +64,19 @@ export function Sidebar({ current, canAdminister }: { current: Place; canAdminis
           ))}
         </ul>
       </div>
-      {canAdminister ? (
-        <Link
-          href="/admin"
-          className={`${styles.row} ${styles.bottom}`}
-          aria-current={current === "admin" ? "page" : undefined}
-        >
-          <AdminConsoleIcon />
-          Admin console
-        </Link>
-      ) : null}
+      <div className={styles.bottom}>
+        {canAdminister ? (
+          <Link
+            href="/admin"
+            className={styles.row}
+            aria-current={current === "admin" ? "page" : undefined}
+          >
+            <AdminConsoleIcon />
+            Admin console
+          </Link>
+        ) : null}
+        <AccountButtons account={account} className={`${styles.row} ${styles.button}`} />
+      </div>
     </nav>
   );
 }

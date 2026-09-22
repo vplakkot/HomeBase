@@ -13,6 +13,7 @@ vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./send-test-form", () => ({
   SendTestForm: () => <button type="button">Send test now</button>,
 }));
+vi.mock("next/headers", () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);

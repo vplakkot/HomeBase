@@ -94,6 +94,35 @@ export function LockIcon({ size = 13 }: IconProps) {
   );
 }
 
+export function PersonIcon({ size = 18 }: IconProps) {
+  return (
+    <Icon size={size}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
+    </Icon>
+  );
+}
+
+export function SettingsIcon({ size = 18 }: IconProps) {
+  return (
+    <Icon size={size}>
+      <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
+      <circle cx="15" cy="6" r="2" />
+      <circle cx="9" cy="12" r="2" />
+      <circle cx="17" cy="18" r="2" />
+    </Icon>
+  );
+}
+
+export function SignOutIcon({ size = 18 }: IconProps) {
+  return (
+    <Icon size={size}>
+      <path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3" />
+      <path d="M10 17l-5-5 5-5M5 12h11" />
+    </Icon>
+  );
+}
+
 export function CheckIcon({ size = 18 }: IconProps) {
   return (
     <Icon size={size}>
