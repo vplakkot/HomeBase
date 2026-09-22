@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { BILL_KINDS, type Bill } from "../../../lib/finances/bills";
+import { BILL_KINDS, ordinal, type Bill } from "../../../lib/finances/bills";
 import { formatPercent, parsePercent, type Person } from "../../../lib/finances/budget-year";
 import { CADENCES } from "../../../lib/finances/income";
 import { addIncomeSource, saveBill, saveBudgetYear, type FormState } from "./actions";
 import styles from "./page.module.css";
 
 const initialState: FormState = {};
+const DAYS = Array.from({ length: 31 }, (_, index) => index + 1);
 
 function Outcome({ state, saved }: { state: FormState; saved: string }) {
   if (state.error) return <p role="alert" className={styles.error}>{state.error}</p>;
@@ -15,9 +16,9 @@ function Outcome({ state, saved }: { state: FormState; saved: string }) {
   return null;
 }
 
-// REQ-50: the April start year, a percentage for each person, and a note of
-// what the split was based on. The running total is a courtesy; the server
-// and the database both refuse anything that isn't 100.
+// REQ-50: a percentage for each person and a note of what the split was
+// based on. The budget year isn't asked for — it's today's, worked out
+// from the calendar and said in words above the form.
 export function SplitForm({
   people,
   startYear,
@@ -40,20 +41,21 @@ export function SplitForm({
 
   return (
     <form action={formAction} className={styles.form}>
-      <label className={styles.field}>
-        <span>Budget year starting April</span>
-        <input name="startYear" type="number" inputMode="numeric" defaultValue={startYear} required />
-      </label>
+      <input type="hidden" name="startYear" value={startYear} />
       {people.map((person) => (
         <label key={person.user_id} className={styles.field}>
-          <span>{person.name}&apos;s share (%)</span>
-          <input
-            name={`share:${person.user_id}`}
-            inputMode="decimal"
-            value={typed[person.user_id]}
-            onChange={(event) => setTyped({ ...typed, [person.user_id]: event.target.value })}
-            required
-          />
+          <span>{person.name}&apos;s share</span>
+          <span className={styles.withSuffix}>
+            <input
+              name={`share:${person.user_id}`}
+              aria-label={`${person.name}'s share`}
+              inputMode="decimal"
+              value={typed[person.user_id]}
+              onChange={(event) => setTyped({ ...typed, [person.user_id]: event.target.value })}
+              required
+            />
+            <span aria-hidden="true">%</span>
+          </span>
         </label>
       ))}
       <p className={styles.total} aria-live="polite">
@@ -72,11 +74,16 @@ export function SplitForm({
   );
 }
 
-// REQ-51: owner, take-home amount per payment, how often, one real payday.
+// REQ-51: a name, whose pay it is, take-home per payment, how often, and
+// one real payday. The name is what tells two jobs apart.
 export function IncomeForm({ people }: { people: Person[] }) {
   const [state, formAction, pending] = useActionState(addIncomeSource, initialState);
   return (
     <form action={formAction} className={styles.form}>
+      <label className={styles.field}>
+        <span>Name</span>
+        <input name="name" placeholder="Day job, Saturday shifts…" required />
+      </label>
       <label className={styles.field}>
         <span>Whose pay</span>
         <select name="ownerId" required>
@@ -88,8 +95,17 @@ export function IncomeForm({ people }: { people: Person[] }) {
         </select>
       </label>
       <label className={styles.field}>
-        <span>Take-home per payment ($)</span>
-        <input name="netAmount" inputMode="decimal" required />
+        <span>Take-home per payment</span>
+        <span className={styles.withPrefix}>
+          <span aria-hidden="true">$</span>
+          <input
+            name="netAmount"
+            aria-label="Take-home per payment"
+            inputMode="decimal"
+            placeholder="2,400.00"
+            required
+          />
+        </span>
       </label>
       <label className={styles.field}>
         <span>How often</span>
@@ -113,17 +129,24 @@ export function IncomeForm({ people }: { people: Person[] }) {
   );
 }
 
-// REQ-94: a bill's name, type and due day. With a bill, it changes that
-// one; without, it adds a new one.
+// REQ-94: a bill's name, type and the day of the month it's due — a day,
+// not a date, because the same bill comes round every month. With a bill,
+// the form changes that one; without, it adds a new one.
 export function BillForm({ bill }: { bill?: Bill }) {
   const [state, formAction, pending] = useActionState(saveBill, initialState);
   const what = bill ? bill.name : "new bill";
   return (
-    <form action={formAction} className={bill ? styles.inlineForm : styles.form}>
+    <form action={formAction} className={styles.form}>
       {bill ? <input type="hidden" name="id" value={bill.id} /> : null}
       <label className={styles.field}>
         <span>Name</span>
-        <input name="name" defaultValue={bill?.name} aria-label={`Name of ${what}`} required />
+        <input
+          name="name"
+          defaultValue={bill?.name}
+          placeholder="Rent, joint card…"
+          aria-label={`Name of ${what}`}
+          required
+        />
       </label>
       <label className={styles.field}>
         <span>Type</span>
@@ -136,20 +159,17 @@ export function BillForm({ bill }: { bill?: Bill }) {
         </select>
       </label>
       <label className={styles.field}>
-        <span>Due day</span>
-        <input
-          name="dueDay"
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={31}
-          defaultValue={bill?.due_day}
-          aria-label={`Due day of ${what}`}
-          required
-        />
+        <span>Due every month on the</span>
+        <select name="dueDay" defaultValue={bill?.due_day ?? 1} aria-label={`Due day of ${what}`}>
+          {DAYS.map((day) => (
+            <option key={day} value={day}>
+              {ordinal(day)}
+            </option>
+          ))}
+        </select>
       </label>
-      <button type="submit" className={bill ? styles.secondary : styles.primary} disabled={pending}>
-        {pending ? "Saving…" : bill ? "Save" : "Add bill"}
+      <button type="submit" className={styles.primary} disabled={pending}>
+        {pending ? "Saving…" : bill ? "Save changes" : "Add bill"}
       </button>
       <Outcome state={state} saved={bill ? "Saved. It applies from the next month opened." : "Bill added."} />
     </form>

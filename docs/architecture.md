@@ -624,7 +624,7 @@ tables, all in the one household, so none carries a household id:
 |---|---|---|
 | `budget_years` | an April-to-March year | `start_year` (the April's year, unique), `note` |
 | `budget_year_shares` | one person's percentage for a year | `budget_year_id`, `user_id`, `percent` |
-| `income_sources` | one person's regular pay | `owner_id`, `net_amount`, `cadence` (weekly, biweekly, monthly), `anchor_date` |
+| `income_sources` | one person's regular pay | `name`, `owner_id`, `net_amount`, `cadence` (weekly, biweekly, monthly), `anchor_date` |
 | `bills` | one recurring bill | `name`, `kind` (rent, card, other), `due_day` |
 
 Any member reads all four; writing needs the `manage_budget` permission,

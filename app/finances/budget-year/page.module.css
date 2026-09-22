@@ -1,5 +1,5 @@
 /* The Budget year section: three cards, stacked on a phone, side by side
-   on a desktop. */
+   on a desktop. Each card is: title, the add block, then what's saved. */
 .cards {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -18,18 +18,125 @@
   padding: 0 var(--space-4) var(--space-4);
 }
 
-.form,
-.inlineForm {
+/* What you add sits at the top of its card on a tinted block, so it's
+   never confused with what's already saved below and never moves when
+   something is added (#128). */
+.addBlock {
+  background: var(--color-ground);
+  border-top: 1px solid var(--color-line-soft);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.addTitle {
+  margin: 0;
+  padding: var(--space-3) var(--space-4) 0;
+  font-size: var(--text-label);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.form {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.padTop {
+  padding-top: var(--space-3);
+}
+
+/* One saved income source or bill. */
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--color-line-soft);
 }
 
-.inlineForm {
-  padding: 0;
+.entry:first-child {
   border-top: 0;
+}
+
+.entryHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.entryName {
+  font-size: var(--text-body-lg);
+  font-weight: 700;
+}
+
+.amount {
+  font-weight: 700;
+}
+
+.kind {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-track);
+  color: var(--color-ink);
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+
+/* Editing a saved bill is folded away, so the list reads as a list. */
+.change summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap-target-min);
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.change .form {
+  padding: 0 0 var(--space-2);
+}
+
+.quiet {
+  align-self: flex-start;
+  min-height: var(--tap-target-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-danger);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* A field with a $ before it or a % after it, inside the same box. */
+.withPrefix,
+.withSuffix {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.withPrefix input,
+.withSuffix input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .field {

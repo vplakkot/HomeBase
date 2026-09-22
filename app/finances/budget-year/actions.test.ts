@@ -94,12 +94,19 @@ describe("saveBudgetYear (REQ-50)", () => {
 });
 
 describe("addIncomeSource (REQ-51)", () => {
-  const pay = { ownerId: "u-sam", netAmount: "$2,400.00", cadence: "biweekly", anchorDate: "2026-09-18" };
+  const pay = {
+    name: " Day job ",
+    ownerId: "u-sam",
+    netAmount: "$2,400.00",
+    cadence: "biweekly",
+    anchorDate: "2026-09-18",
+  };
 
-  it("records the owner, net amount per payment, cadence and anchor date", async () => {
+  it("records the name, owner, net amount per payment, cadence and anchor date", async () => {
     given();
     expect(await addIncomeSource({}, form(pay))).toEqual({ saved: true });
     expect(table.insert).toHaveBeenCalledWith({
+      name: "Day job",
       owner_id: "u-sam",
       net_amount: 2400,
       cadence: "biweekly",
@@ -108,6 +115,7 @@ describe("addIncomeSource (REQ-51)", () => {
   });
 
   it.each([
+    [{ name: " " }, "Name the source, so two jobs can be told apart."],
     [{ netAmount: "lots" }, "Enter the take-home amount of one payment, like 2400.00."],
     [{ cadence: "hourly" }, "Choose how often it's paid."],
     [{ anchorDate: "" }, "Enter the date of one real payday."],
