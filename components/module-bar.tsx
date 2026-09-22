@@ -10,8 +10,8 @@ import styles from "./module-bar.module.css";
 // The bar fixed to the bottom of a phone screen inside a module: exactly
 // Home, Sections and Modules, the same in every module
 // (docs/design/DESIGN.md §6). Sections shows as selected while you're on
-// the module's own home, which in v0.2 is the only page there is.
-export function ModuleBar({ module }: { module: Module }) {
+// the module's own home; `current` names the section page you're on.
+export function ModuleBar({ module, current }: { module: Module; current?: string }) {
   const [sheet, setSheet] = useState<"sections" | "modules" | null>(null);
   const close = () => setSheet(null);
 
@@ -44,20 +44,45 @@ export function ModuleBar({ module }: { module: Module }) {
         {/* The sheet sits outside the bar, so it needs the colours too. */}
         <ul className={styles.list} style={moduleColours(module) as CSSProperties}>
           <li>
-            <Link href={module.href ?? "/"} className={styles.row} aria-current="page" onClick={close}>
+            <Link
+              href={module.href ?? "/"}
+              className={styles.row}
+              aria-current={current ? undefined : "page"}
+              onClick={close}
+            >
               <span className={styles.rowName}>Overview</span>
             </Link>
           </li>
-          {module.sections.map((section) => (
-            <li key={section.name} className={styles.row}>
-              <span className={styles.rowText}>
-                <span className={styles.rowName}>{section.name}</span>
-                <span className={styles.rowNote}>{section.description}</span>
-              </span>
-              {section.adminOnly ? <span className={styles.chip}>Admin only</span> : null}
-              <span className={styles.chip}>Coming soon</span>
-            </li>
-          ))}
+          {module.sections.map((section) => {
+            const text = (
+              <>
+                <span className={styles.rowText}>
+                  <span className={styles.rowName}>{section.name}</span>
+                  <span className={styles.rowNote}>{section.description}</span>
+                </span>
+                {section.adminOnly ? <span className={styles.chip}>Admin only</span> : null}
+              </>
+            );
+            return (
+              <li key={section.name}>
+                {section.href ? (
+                  <Link
+                    href={section.href}
+                    className={styles.row}
+                    aria-current={current === section.name ? "page" : undefined}
+                    onClick={close}
+                  >
+                    {text}
+                  </Link>
+                ) : (
+                  <span className={styles.row}>
+                    {text}
+                    <span className={styles.chip}>Coming soon</span>
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </BottomSheet>
 

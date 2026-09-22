@@ -14,6 +14,8 @@ export type ModuleSection = {
   // The module's most frequent action (DESIGN.md §6): a button of its own
   // rather than a tab on a desktop.
   pinned?: boolean;
+  // The section's page, once it has one; until then it's listed as coming.
+  href?: string;
 };
 
 export type Module = {
@@ -40,7 +42,12 @@ export const MODULES: readonly Module[] = [
       { name: "Savings", description: "Verdict and what you actually saved" },
       { name: "Balances", description: "Enter and see trends" },
       { name: "History", description: "Closed months, read-only" },
-      { name: "Budget year", description: "Split % and income sources", adminOnly: true },
+      {
+        name: "Budget year",
+        description: "Split %, income sources and bills",
+        adminOnly: true,
+        href: "/finances/budget-year",
+      },
     ],
   },
   { slug: "calendar", name: "Calendar", tokens: "calendar", href: null, sections: [] },

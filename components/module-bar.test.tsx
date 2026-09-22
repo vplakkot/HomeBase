@@ -42,7 +42,7 @@ describe("the bar inside a module, on a phone", () => {
 });
 
 describe("the Sections sheet", () => {
-  it("lists the overview, then the module's seven sections, all coming soon", () => {
+  it("lists the overview, then the module's seven sections, Budget year open, the rest coming", () => {
     render(<ModuleBar module={finances} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const sheet = openSheet();
@@ -55,7 +55,7 @@ describe("the Sections sheet", () => {
       "SavingsVerdict and what you actually savedComing soon",
       "BalancesEnter and see trendsComing soon",
       "HistoryClosed months, read-onlyComing soon",
-      "Budget yearSplit % and income sourcesAdmin onlyComing soon",
+      "Budget yearSplit %, income sources and billsAdmin only",
     ]);
   });
 
@@ -68,14 +68,22 @@ describe("the Sections sheet", () => {
     expect(list.style.getPropertyValue("--module-quiet-ink")).toBe("var(--finances-quiet-ink)");
   });
 
-  it("links only the overview, which is where you are", () => {
+  it("links the overview, where you are, and the sections that have a page", () => {
     render(<ModuleBar module={finances} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const links = within(openSheet()).getAllByRole("link");
     expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["Overview", "/finances"],
+      ["Budget yearSplit %, income sources and billsAdmin only", "/finances/budget-year"],
     ]);
-    expect(links[0].getAttribute("aria-current")).toBe("page");
+    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual(["page", null]);
+  });
+
+  it("marks a section as where you are when you're on its page", () => {
+    render(<ModuleBar module={finances} current="Budget year" />);
+    fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
+    const links = within(openSheet()).getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual([null, "page"]);
   });
 });
 

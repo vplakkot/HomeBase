@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../lib/supabase/server";
 import { REPO_ROOT, styleOf } from "../../test/css";
 import { installDialogStandIn } from "../../test/dialog";
+import { fakeSupabase } from "../../test/fake-supabase";
 import FinancesPage from "./page";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -19,20 +20,50 @@ vi.mock("next/navigation", () => ({
 beforeAll(installDialogStandIn);
 afterEach(cleanup);
 
-function given({ signedIn, permissions = [] }: { signedIn: boolean; permissions?: string[] }) {
-  vi.mocked(createClient).mockResolvedValue({
-    auth: {
-      getClaims: vi.fn().mockResolvedValue({
-        data: signedIn ? { claims: { sub: "user-1" } } : null,
-        error: null,
-      }),
-    },
-    rpc: vi.fn(async (_fn: string, args: { permission: string }) => ({
-      data: permissions.includes(args.permission),
-      error: null,
-    })),
-  } as unknown as Awaited<ReturnType<typeof createClient>>);
+const PEOPLE = [
+  { user_id: "u-alex", name: "Alex", manages_budget: true },
+  { user_id: "u-sam", name: "Sam", manages_budget: false },
+];
+const YEAR_2026 = {
+  id: "y-2026",
+  start_year: 2026,
+  note: "",
+  shares: [
+    { user_id: "u-alex", percent: 60 },
+    { user_id: "u-sam", percent: 40 },
+  ],
+};
+const BILLS = [
+  { id: "b-rent", name: "Rent", kind: "rent", due_day: 1 },
+  { id: "b-card", name: "Joint card", kind: "card", due_day: 22 },
+];
+
+let fake: ReturnType<typeof fakeSupabase>;
+
+function given({
+  signedIn,
+  permissions = [],
+  budgetYear = null,
+  bills = [],
+}: {
+  signedIn: boolean;
+  permissions?: string[];
+  budgetYear?: typeof YEAR_2026 | null;
+  bills?: typeof BILLS;
+}) {
+  fake = fakeSupabase({
+    signedIn,
+    permissions,
+    people: PEOPLE,
+    tables: { budget_years: budgetYear ? [budgetYear] : [], bills },
+  });
+  vi.mocked(createClient).mockResolvedValue(
+    fake as unknown as Awaited<ReturnType<typeof createClient>>,
+  );
 }
+
+const ADMIN = ["use_modules", "manage_members", "manage_budget"];
+const MEMBER = ["use_modules"];
 
 describe("the Finances page", () => {
   it("sends a signed-out visitor to sign-in", async () => {
@@ -40,15 +71,73 @@ describe("the Finances page", () => {
     await expect(FinancesPage()).rejects.toThrow("REDIRECT:/sign-in");
   });
 
-  it.each([
-    ["a member", ["use_modules"]],
-    ["an admin", ["use_modules", "manage_members"]],
-  ])("is open to %s, as an empty shell saying it's coming", async (_who, permissions) => {
-    given({ signedIn: true, permissions });
+  // REQ-50, first run (DESIGN.md §7): before a budget year exists the page
+  // is one card; an admin gets Start setup.
+  it("asks an admin to set up the budget year, with Start setup", async () => {
+    given({ signedIn: true, permissions: ADMIN });
     render(await FinancesPage());
-    const main = screen.getByRole("main");
-    expect(within(main).getByRole("heading", { level: 1 }).textContent).toBe("Finances");
-    expect(main.textContent).toContain("Coming soon");
+    const card = screen.getByRole("region", { name: "Set up your budget year" });
+    const start = within(card).getByRole("link", { name: "Start setup" });
+    expect(start.getAttribute("href")).toBe("/finances/budget-year");
+    expect(screen.queryByRole("region", { name: "Bills" })).toBeNull();
+  });
+
+  it("tells a member which admin sets it up, with no button", async () => {
+    given({ signedIn: true, permissions: MEMBER });
+    render(await FinancesPage());
+    const card = screen.getByRole("region", { name: "Set up your budget year" });
+    expect(card.textContent).toContain(
+      "Finances isn't set up yet. Alex, your admin, needs to set up the budget year.",
+    );
+    expect(within(card).queryByRole("link")).toBeNull();
+  });
+
+  // REQ-50: any month from April through the following March uses the
+  // budget year named by that April.
+  it.each([
+    [new Date(2026, 3, 1), 2026],
+    [new Date(2027, 2, 31), 2026],
+    [new Date(2027, 3, 1), 2027],
+  ])("on %s reads the budget year starting in April %i", async (today, startYear) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(today);
+    given({ signedIn: true, permissions: MEMBER, budgetYear: YEAR_2026 });
+    render(await FinancesPage());
+    vi.useRealTimers();
+    const budgetYears = fake.from.mock.calls.findIndex(([table]) => table === "budget_years");
+    const query = fake.from.mock.results[budgetYears].value;
+    expect(query.eq).toHaveBeenCalledWith("start_year", startYear);
+  });
+
+  // REQ-94: every bill in the list is a row on Finances home, with its due
+  // date. Nothing can be entered yet, so the month reads as incomplete.
+  it("shows each bill as a row with its due date once the budget year exists", async () => {
+    given({ signedIn: true, permissions: MEMBER, budgetYear: YEAR_2026, bills: BILLS });
+    render(await FinancesPage());
+    const bills = screen.getByRole("region", { name: "Bills" });
+    expect(within(bills).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
+      "RentDue the 1stNot entered",
+      "Joint cardDue the 22ndNot entered",
+    ]);
+    expect(screen.getByText("Incomplete")).toBeDefined();
+  });
+
+  it("shows the year's split in the Admin block, locked for a member", async () => {
+    given({ signedIn: true, permissions: MEMBER, budgetYear: YEAR_2026 });
+    render(await FinancesPage());
+    const admin = screen.getByRole("region", { name: "Admin" });
+    expect(admin.textContent).toContain("April 2026 – March 2027 · Alex 60% · Sam 40%");
+    expect(admin.textContent).toContain("Admin only");
+    expect(within(admin).queryByRole("link")).toBeNull();
+  });
+
+  it("lets an admin open the budget year from the Admin block", async () => {
+    given({ signedIn: true, permissions: ADMIN, budgetYear: YEAR_2026 });
+    render(await FinancesPage());
+    const admin = screen.getByRole("region", { name: "Admin" });
+    expect(within(admin).getByRole("link", { name: "Open" }).getAttribute("href")).toBe(
+      "/finances/budget-year",
+    );
   });
 
   it("puts the module bar below the page, for phones", async () => {

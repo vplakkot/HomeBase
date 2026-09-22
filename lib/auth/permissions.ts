@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type Permission = "use_modules" | "manage_members" | "manage_roles";
+export type Permission = "use_modules" | "manage_members" | "manage_roles" | "manage_budget";
 
 export async function hasPermission(
   supabase: SupabaseClient,
