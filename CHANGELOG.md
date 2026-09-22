@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- How work is picked up changed: CLAUDE.md now treats a batch of 3-4
+  related requirements as one pull request, with one GitHub issue, one
+  review and one session each, and says what a batch is. Nothing in the
+  app changed. (#126)
+
 - Finances can be set up. An admin opens the new Budget year section
   (from Start setup on Finances, the desktop tab or the phone's Sections
   sheet) and sets three things: the split, each person's percentage for
