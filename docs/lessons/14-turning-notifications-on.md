@@ -18,8 +18,8 @@ returns, before anything else has had a chance to run.
 **The service worker.** [`public/sw.js`](../../public/sw.js) is a small
 script the phone keeps running in the background, after the app is
 closed. It's what receives a notification and puts it on the screen. A
-device can't sign up without one, so the app registers it as soon as it
-opens. (Since v0.2 the control itself lives in the account menu's
+device can't sign up without one, so the app registers it as soon as
+it opens. (Since v0.2 the control itself lives in the account menu's
 Settings; Home still runs the same check on every load, out of sight.) It lives at the site's root because it only covers pages at or
 below where it sits. Its tests run the file's own text against a
 stand-in for the phone.

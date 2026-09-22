@@ -307,7 +307,8 @@ renewal, in the proxy. See
 
 The account menu's Settings sheet carries a small browser-side control,
 [`app/notifications/enable-notifications.tsx`](../app/notifications/enable-notifications.tsx).
-It runs only while that sheet is open.
+The control shows only in that sheet, but Home runs the same check on
+every load, out of sight (`KeepThisDevice`).
 In a normal browser tab it explains that notifications need the
 home-screen install. In the installed app it registers the service
 worker, [`public/sw.js`](../public/sw.js), which the phone keeps running
