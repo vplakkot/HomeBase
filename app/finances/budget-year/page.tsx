@@ -3,6 +3,7 @@ import { BILL_KINDS, dueLabel, listBills } from "../../../lib/finances/bills";
 import {
   budgetYearLabel,
   budgetYearStartFor,
+  HOUSEHOLD_TIME_ZONE,
   householdToday,
   listPeople,
   readBudgetYear,
@@ -18,10 +19,10 @@ import styles from "./page.module.css";
 const SECTION = "Budget year";
 
 function shortDate(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-    timeZone: "UTC",
+    timeZone: HOUSEHOLD_TIME_ZONE,
   });
 }
 

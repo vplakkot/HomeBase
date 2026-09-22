@@ -2,9 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Which day it is for the household, as "YYYY-MM-DD". Every Finances date
 // decision reads this one clock, so the budget year, the month and the
-// paydays can't disagree. The zone is UTC until the household's own is
-// confirmed; changing it here moves them all together.
-export const HOUSEHOLD_TIME_ZONE = "UTC";
+// paydays can't disagree. The household is on the US east coast; changing
+// the zone here moves them all together.
+export const HOUSEHOLD_TIME_ZONE = "America/New_York";
 
 export function householdToday(now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {

@@ -20,8 +20,9 @@ describe("budget years (REQ-50)", () => {
   });
 
   it("reads the household's day from one clock, in one time zone", () => {
-    expect(householdToday(new Date("2027-03-31T23:30:00Z"))).toBe("2027-03-31");
-    expect(householdToday(new Date("2027-04-01T00:30:00Z"))).toBe("2027-04-01");
+    // Late on 31 March in the household's own evening is still March.
+    expect(householdToday(new Date("2027-04-01T03:30:00Z"))).toBe("2027-03-31");
+    expect(householdToday(new Date("2027-04-01T05:30:00Z"))).toBe("2027-04-01");
   });
 
   it("names a budget year by its April and March", () => {
