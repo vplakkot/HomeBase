@@ -1,15 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { dueLabel, ordinal } from "./bills";
-import { budgetYearLabel, budgetYearStartFor, formatPercent, parsePercent } from "./budget-year";
+import {
+  budgetYearLabel,
+  budgetYearStartFor,
+  formatPercent,
+  householdToday,
+  parsePercent,
+} from "./budget-year";
 import { payDates } from "./income";
 import { formatMoney, parseAmount } from "./money";
 
 describe("budget years (REQ-50)", () => {
   it("puts every month from April through the following March in the same year", () => {
-    const months = Array.from({ length: 12 }, (_, i) => new Date(2026, 3 + i, 15));
+    const months = ["04", "05", "06", "07", "08", "09", "10", "11", "12"].map((m) => `2026-${m}-15`);
+    months.push("2027-01-15", "2027-02-15", "2027-03-31");
     expect(months.map(budgetYearStartFor)).toEqual(Array(12).fill(2026));
-    expect(budgetYearStartFor(new Date(2026, 2, 31))).toBe(2025);
-    expect(budgetYearStartFor(new Date(2027, 3, 1))).toBe(2027);
+    expect(budgetYearStartFor("2026-03-31")).toBe(2025);
+    expect(budgetYearStartFor("2027-04-01")).toBe(2027);
+  });
+
+  it("reads the household's day from one clock, in one time zone", () => {
+    expect(householdToday(new Date("2027-03-31T23:30:00Z"))).toBe("2027-03-31");
+    expect(householdToday(new Date("2027-04-01T00:30:00Z"))).toBe("2027-04-01");
   });
 
   it("names a budget year by its April and March", () => {

@@ -484,6 +484,14 @@ describe("Finances setup migration (REQ-50, 51, 94)", () => {
     expect(setup).not.toMatch(/to anon/);
   });
 
+  it("takes the default table access away from signed-out visitors", () => {
+    for (const table of tables) {
+      expect(setup).toMatch(new RegExp(`revoke all on public\\.${table} from anon;`));
+    }
+    expect(setup).toMatch(/revoke all on function public\.household_people\(\) from public, anon;/);
+    expect(setup).toMatch(/revoke all on function public\.save_budget_year\(integer, text, jsonb\) from public, anon;/);
+  });
+
   it("refuses a split that doesn't total 100, checked when the save commits", () => {
     expect(setup).toMatch(/if total <> 100 then\s+raise exception/);
     for (const table of ["budget_years", "budget_year_shares"]) {

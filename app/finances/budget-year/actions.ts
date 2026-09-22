@@ -3,13 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasPermission } from "../../../lib/auth/permissions";
-import { formatPercent, parsePercent } from "../../../lib/finances/budget-year";
+import { budgetYearLabel, formatPercent, parsePercent } from "../../../lib/finances/budget-year";
 import { isBillKind } from "../../../lib/finances/bills";
 import { isCadence } from "../../../lib/finances/income";
 import { parseAmount } from "../../../lib/finances/money";
 import { createClient } from "../../../lib/supabase/server";
 
-export type FormState = { error?: string; saved?: boolean };
+export type FormState = { error?: string; saved?: boolean; message?: string };
 
 async function requireManageBudget() {
   const supabase = await createClient();
@@ -59,7 +59,7 @@ export async function saveBudgetYear(_previous: FormState, formData: FormData): 
   if (error) return { error: error.message };
 
   refresh();
-  return { saved: true };
+  return { saved: true, message: `Split saved for ${budgetYearLabel(startYear)}.` };
 }
 
 export async function addIncomeSource(_previous: FormState, formData: FormData): Promise<FormState> {

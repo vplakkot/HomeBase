@@ -53,8 +53,13 @@ with the owner's powers and skipped them.
 
 The app checks the total too, and shows "The percentages add up to 90%.
 They must total 100%." before bothering the database. That check is for
-a friendly message. The database's check is the one that can't be
-skipped: by a bug, a stale page, or a future screen that forgets.
+a friendly message. The database's check is the one a bug, a stale page
+or a future screen can't skip when it saves a split.
+
+One gap, on purpose: deleting a share isn't checked. When a person leaves
+the household their share goes with them, and refusing that would block
+removing them. So a year can be left totalling less than 100 until an
+admin saves it again.
 
 ## How it's proven
 

@@ -11,7 +11,7 @@ const initialState: FormState = {};
 
 function Outcome({ state, saved }: { state: FormState; saved: string }) {
   if (state.error) return <p role="alert" className={styles.error}>{state.error}</p>;
-  if (state.saved) return <p role="status" className={styles.saved}>{saved}</p>;
+  if (state.saved) return <p role="status" className={styles.saved}>{state.message ?? saved}</p>;
   return null;
 }
 

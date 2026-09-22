@@ -3,6 +3,7 @@ import { LockIcon } from "../../components/icons";
 import {
   budgetYearLabel,
   budgetYearStartFor,
+  householdToday,
   listPeople,
   readBudgetYear,
 } from "../../lib/finances/budget-year";
@@ -17,7 +18,7 @@ import styles from "./page.module.css";
 // until monthly entry arrives, so the month reads as incomplete.
 export default async function FinancesPage() {
   const { supabase, canManageMembers, canManageBudget, account } = await financesViewer();
-  const startYear = budgetYearStartFor(new Date());
+  const startYear = budgetYearStartFor(householdToday());
   const [budgetYear, bills, people] = await Promise.all([
     readBudgetYear(supabase, startYear),
     listBills(supabase),
@@ -46,9 +47,11 @@ export default async function FinancesPage() {
           ) : (
             <p className={styles.firstRunText}>
               Finances isn&apos;t set up yet.{" "}
-              {admins.length > 0
-                ? `${admins.join(" or ")}, your admin, needs to set up the budget year.`
-                : "Your admin needs to set up the budget year."}
+              {admins.length === 1
+                ? `${admins[0]}, your admin, needs to set up the budget year.`
+                : admins.length > 1
+                  ? `Ask ${admins.join(" or ")} to set up the budget year.`
+                  : "Your admin needs to set up the budget year."}
             </p>
           )}
         </section>

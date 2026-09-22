@@ -3,6 +3,7 @@ import { BILL_KINDS, dueLabel, listBills } from "../../../lib/finances/bills";
 import {
   budgetYearLabel,
   budgetYearStartFor,
+  householdToday,
   listPeople,
   readBudgetYear,
 } from "../../../lib/finances/budget-year";
@@ -46,9 +47,8 @@ export default async function BudgetYearPage() {
     );
   }
 
-  const today = new Date();
-  const startYear = budgetYearStartFor(today);
-  const todayIso = today.toISOString().slice(0, 10);
+  const todayIso = householdToday();
+  const startYear = budgetYearStartFor(todayIso);
   const [people, budgetYear, incomes, bills] = await Promise.all([
     listPeople(supabase),
     readBudgetYear(supabase, startYear),

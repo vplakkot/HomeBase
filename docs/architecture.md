@@ -629,7 +629,9 @@ tables, all in the one household, so none carries a household id:
 
 Any member reads all four; writing needs the `manage_budget` permission,
 which the migration gives to Admin. A year's percentages must total 100:
-a constraint trigger checks the sum when the transaction commits, and
+a constraint trigger checks the sum when a transaction that saves a year
+or a share commits (deleting a share, as when a person leaves, isn't
+checked, so the total can then drop below 100), and
 `save_budget_year()` writes a year and all its shares in one transaction
 so the check sees the whole set. It runs as the caller, so the policies
 still decide who may save. `household_people()` lists each member's name

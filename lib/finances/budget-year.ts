@@ -1,10 +1,25 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// Which day it is for the household, as "YYYY-MM-DD". Every Finances date
+// decision reads this one clock, so the budget year, the month and the
+// paydays can't disagree. The zone is UTC until the household's own is
+// confirmed; changing it here moves them all together.
+export const HOUSEHOLD_TIME_ZONE = "UTC";
+
+export function householdToday(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: HOUSEHOLD_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
 // A budget year runs April to March and is named by the year its April
 // falls in: 2026 covers April 2026 to March 2027 (REQ-50).
-export function budgetYearStartFor(date: Date): number {
-  const APRIL = 3;
-  return date.getMonth() >= APRIL ? date.getFullYear() : date.getFullYear() - 1;
+export function budgetYearStartFor(day: string): number {
+  const [year, month] = day.split("-").map(Number);
+  return month >= 4 ? year : year - 1;
 }
 
 export function budgetYearLabel(startYear: number): string {

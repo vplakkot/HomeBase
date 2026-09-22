@@ -125,6 +125,13 @@ begin
     report := report || E'11. a signed-out visitor cannot read budget years (wants this)\n';
   end;
 
+  begin
+    select count(*) into n from public.household_people();
+    report := report || format('12. a signed-out visitor lists %s people (wants 0)%s', n, E'\n');
+  exception when others then
+    report := report || E'12. a signed-out visitor cannot list the household (wants this)\n';
+  end;
+
   reset role;
   raise exception 'RESULTS (all undone):%', report;
 end $$;

@@ -50,6 +50,14 @@ alter table public.budget_year_shares enable row level security;
 alter table public.income_sources enable row level security;
 alter table public.bills enable row level security;
 
+-- A second lock for signed-out visitors, as for the tables before these:
+-- every policy below is for signed-in people only, and this takes away
+-- the table access Supabase grants the anon role by default.
+revoke all on public.budget_years from anon;
+revoke all on public.budget_year_shares from anon;
+revoke all on public.income_sources from anon;
+revoke all on public.bills from anon;
+
 -- Everything in the household is shared: any member reads all of it. Only
 -- the manage_budget key changes it.
 create policy "members read budget years"
@@ -94,7 +102,8 @@ create policy "manage bills"
 -- share because the second isn't there yet. It runs whenever a year is saved
 -- (a year with no shares totals 0) and whenever a share is written.
 -- Deleting a share isn't checked, so removing a person from the household
--- is never blocked by an old budget year.
+-- is never blocked by an old budget year; the year's total then drops
+-- below 100 until an admin saves it again.
 create function public.check_budget_year_total()
 returns trigger
 language plpgsql
@@ -124,7 +133,7 @@ begin
 end;
 $$;
 
-revoke all on function public.check_budget_year_total() from public;
+revoke all on function public.check_budget_year_total() from public, anon, authenticated;
 
 create constraint trigger budget_year_total_on_save
   after insert or update on public.budget_years
@@ -168,7 +177,7 @@ begin
 end;
 $$;
 
-revoke all on function public.save_budget_year(integer, text, jsonb) from public;
+revoke all on function public.save_budget_year(integer, text, jsonb) from public, anon;
 grant execute on function public.save_budget_year(integer, text, jsonb) to authenticated;
 
 -- The people in the household, for any member: who a percentage or an
@@ -196,5 +205,5 @@ as $$
   order by hm.created_at, hm.user_id;
 $$;
 
-revoke all on function public.household_people() from public;
+revoke all on function public.household_people() from public, anon;
 grant execute on function public.household_people() to authenticated;

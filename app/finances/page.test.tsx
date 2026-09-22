@@ -92,12 +92,24 @@ describe("the Finances page", () => {
     expect(within(card).queryByRole("link")).toBeNull();
   });
 
+  it("names both admins plainly when there are two", async () => {
+    given({ signedIn: true, permissions: MEMBER });
+    fake.rpc.mockImplementation(async (fn: string) =>
+      fn === "household_people"
+        ? { data: PEOPLE.map((person) => ({ ...person, manages_budget: true })), error: null }
+        : { data: false, error: null },
+    );
+    render(await FinancesPage());
+    const card = screen.getByRole("region", { name: "Set up your budget year" });
+    expect(card.textContent).toContain("Ask Alex or Sam to set up the budget year.");
+  });
+
   // REQ-50: any month from April through the following March uses the
   // budget year named by that April.
   it.each([
-    [new Date(2026, 3, 1), 2026],
-    [new Date(2027, 2, 31), 2026],
-    [new Date(2027, 3, 1), 2027],
+    [new Date("2026-04-01T12:00:00Z"), 2026],
+    [new Date("2027-03-31T12:00:00Z"), 2026],
+    [new Date("2027-04-01T12:00:00Z"), 2027],
   ])("on %s reads the budget year starting in April %i", async (today, startYear) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(today);

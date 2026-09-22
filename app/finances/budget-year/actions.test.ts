@@ -44,7 +44,10 @@ describe("saveBudgetYear (REQ-50)", () => {
 
   it("saves the April start year, each person's percentage and the note in one call", async () => {
     given();
-    expect(await saveBudgetYear({}, form(split))).toEqual({ saved: true });
+    expect(await saveBudgetYear({}, form(split))).toEqual({
+      saved: true,
+      message: "Split saved for April 2026 – March 2027.",
+    });
     expect(rpc).toHaveBeenCalledWith("save_budget_year", {
       p_start_year: 2026,
       p_note: "Both salaries as of March",
@@ -66,7 +69,7 @@ describe("saveBudgetYear (REQ-50)", () => {
   it("accepts a split with decimals that totals exactly 100", async () => {
     given();
     const result = await saveBudgetYear({}, form({ ...split, "share:u-alex": "66.67", "share:u-sam": "33.33" }));
-    expect(result).toEqual({ saved: true });
+    expect(result).toMatchObject({ saved: true });
   });
 
   it.each([
