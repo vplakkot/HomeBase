@@ -629,9 +629,10 @@ tables, all in the one household, so none carries a household id:
 
 A split holds until a later one starts, so the household can change the
 percentages mid-year without touching the months already run: a month
-uses the split in force when it opens (REQ-52). A split that has already started can't be edited or
-removed, on screen or by the server: it is what its months were worked
-out from. An income source is never rewritten either — changing one sets
+uses the split in force when it opens (REQ-52). A split whose month has passed can't be saved over, edited
+or removed — by the screen, the server action, or `save_split()` itself:
+it is what those months were worked out from. The month now running is
+still open, which is how the first split is saved. An income source is never rewritten either — changing one sets
 `ended_on` on the old row and starts a new one from the same day, so
 paydays already past keep their amount. A source is in force on a day
 when `effective_from <= day` and (`ended_on` is null or `day <

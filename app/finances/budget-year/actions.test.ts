@@ -23,14 +23,14 @@ let table: Record<string, ReturnType<typeof vi.fn>>;
 
 function given({ admin = true, error = null }: { admin?: boolean; error?: { message: string } | null } = {}) {
   const eq: ReturnType<typeof vi.fn> = vi.fn(() => chain) as never;
-  const gt = vi.fn().mockResolvedValue({ error });
-  const chain = { eq, gt, then: (go: (r: unknown) => unknown) => Promise.resolve({ error }).then(go) };
+  const gte = vi.fn().mockResolvedValue({ error });
+  const chain = { eq, gte, then: (go: (r: unknown) => unknown) => Promise.resolve({ error }).then(go) };
   table = {
     insert: vi.fn().mockResolvedValue({ error }),
     update: vi.fn(() => chain),
     delete: vi.fn(() => chain),
     eq,
-    gt,
+    gte,
   };
   rpc = vi.fn(async (fn: string) =>
     fn === "has_permission" ? { data: admin, error: null } : { data: "year-id", error },
@@ -50,8 +50,10 @@ function form(fields: Record<string, string>): FormData {
 beforeEach(() => vi.clearAllMocks());
 
 describe("saveSplit (REQ-50, #132)", () => {
+  // Dated ahead of any real "today", so the month-has-passed rule never
+  // catches the ordinary cases below.
   const split = {
-    effectiveFrom: "2026-10",
+    effectiveFrom: "2099-10",
     "share:u-alex": "60",
     "share:u-sam": "40",
     note: " Both salaries as of March ",
@@ -61,10 +63,11 @@ describe("saveSplit (REQ-50, #132)", () => {
     given();
     expect(await saveSplit({}, form(split))).toEqual({
       saved: true,
-      message: "Split saved, from October 2026 onwards.",
+      message: "Split saved, from October 2099 onwards.",
     });
     expect(rpc).toHaveBeenCalledWith("save_split", {
-      p_effective_from: "2026-10-01",
+      p_effective_from: "2099-10-01",
+      p_today: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       p_note: "Both salaries as of March",
       p_shares: [
         { user_id: "u-alex", percent: 60 },
@@ -88,7 +91,7 @@ describe("saveSplit (REQ-50, #132)", () => {
   });
 
   it.each([
-    [{ effectiveFrom: "2026" }, "Choose the month the new split starts in."],
+    [{ effectiveFrom: "2099" }, "Choose the month the new split starts in."],
     [{ "share:u-sam": "forty" }, "Each percentage must be a number from 0 to 100, with at most two decimals."],
   ])("refuses a bad form %j", async (change, error) => {
     given();
@@ -100,33 +103,38 @@ describe("saveSplit (REQ-50, #132)", () => {
     await expect(saveSplit({}, form(split))).rejects.toThrow("REDIRECT:/finances");
   });
 
-  // #132: editing may not reach back into a split that has run.
-  it("refuses to edit a split that has already started", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-12-01T16:00:00Z"));
-    given();
-    const result = await saveSplit({}, form({ ...split, editing: "true" }));
-    vi.useRealTimers();
-    expect(result).toEqual({
-      error: "That split has already started. Add one from a later month instead.",
-    });
-    expect(rpc).not.toHaveBeenCalledWith("save_split", expect.anything());
-  });
+  // #132: no door may reach back into a split whose month has passed —
+  // not Edit, and not Add saving over the same month.
+  it.each([["editing", "true"], ["adding", ""]])(
+    "refuses %s a split whose month has passed",
+    async (_door, editing) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2099-12-01T16:00:00Z"));
+      given();
+      const result = await saveSplit({}, form({ ...split, editing }));
+      vi.useRealTimers();
+      expect(result).toEqual({
+        error: "That split has already started. Save one from this month or a later one.",
+      });
+      expect(rpc).not.toHaveBeenCalledWith("save_split", expect.anything());
+    },
+  );
 
-  it("allows editing one that hasn't started yet", async () => {
+  it("allows the month now running, which is how the first split is saved", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-09-22T16:00:00Z"));
+    vi.setSystemTime(new Date("2099-10-20T16:00:00Z"));
     given();
     const result = await saveSplit({}, form({ ...split, editing: "true" }));
     vi.useRealTimers();
     expect(result).toMatchObject({ saved: true });
+    expect(rpc).toHaveBeenCalledWith("save_split", expect.objectContaining({ p_today: "2099-10-20" }));
   });
 
   it("only ever deletes a split that hasn't started", async () => {
     given();
     await removeSplit(form({ id: "s-1" }));
     expect(table.delete).toHaveBeenCalled();
-    expect(table.gt).toHaveBeenCalledWith("effective_from", expect.stringMatching(/^\d{4}-\d{2}-01$/));
+    expect(table.gte).toHaveBeenCalledWith("effective_from", expect.stringMatching(/^\d{4}-\d{2}-01$/));
   });
 
   it("shows the database's refusal as-is (it checks the total too)", async () => {

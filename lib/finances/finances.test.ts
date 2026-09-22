@@ -64,9 +64,12 @@ describe("dated splits (REQ-50, #132)", () => {
     expect(splitInForce(splits, "2026-03-31")).toBeNull();
   });
 
-  it("counts a split as history once its month has begun, mid-month too", () => {
+  it("counts a split as history once its month has passed, but not the month now running", () => {
     expect(splitIsHistory(april, "2026-09-22")).toBe(true);
-    expect(splitIsHistory(october, "2026-10-15")).toBe(true);
+    expect(splitIsHistory(october, "2026-11-01")).toBe(true);
+    // The month now running can still be changed: nothing has settled it,
+    // and the first split of all is saved from this month.
+    expect(splitIsHistory(october, "2026-10-15")).toBe(false);
     expect(splitIsHistory(october, "2026-09-30")).toBe(false);
   });
 });

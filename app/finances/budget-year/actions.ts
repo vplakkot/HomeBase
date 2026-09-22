@@ -41,9 +41,11 @@ export async function saveSplit(_previous: FormState, formData: FormData): Promi
     return { error: "Choose the month the new split starts in." };
   }
   const effectiveFrom = monthStart(`${month}-01`);
-  const thisMonth = monthStart(householdToday());
-  if (formData.get("editing") === "true" && effectiveFrom < thisMonth) {
-    return { error: "That split has already started. Add one from a later month instead." };
+  // Every door, not only Edit: saving a month that already has a split
+  // replaces it, so a past month must be refused here too.
+  const today = householdToday();
+  if (effectiveFrom < monthStart(today)) {
+    return { error: "That split has already started. Save one from this month or a later one." };
   }
 
   const shares: { user_id: string; percent: number }[] = [];
@@ -68,6 +70,7 @@ export async function saveSplit(_previous: FormState, formData: FormData): Promi
     p_effective_from: effectiveFrom,
     p_note: String(formData.get("note") ?? "").trim(),
     p_shares: shares,
+    p_today: today,
   });
   if (error) return { error: error.message };
 
@@ -85,7 +88,7 @@ export async function removeSplit(formData: FormData): Promise<void> {
     .from("splits")
     .delete()
     .eq("id", id)
-    .gt("effective_from", monthStart(householdToday()));
+    .gte("effective_from", monthStart(householdToday()));
   if (error) throw new Error(`Could not remove the split: ${error.message}`);
   refresh();
 }

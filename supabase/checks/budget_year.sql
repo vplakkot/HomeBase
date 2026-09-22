@@ -39,7 +39,7 @@ begin
   begin
     perform public.save_split('2999-01-01'::date, 'check', jsonb_build_array(
       jsonb_build_object('user_id', admin_id, 'percent', 60),
-      jsonb_build_object('user_id', member_id, 'percent', 40)));
+      jsonb_build_object('user_id', member_id, 'percent', 40)), current_date);
     set constraints all immediate;
     set constraints all deferred;
     report := report || E'1. admin saves a 60/40 split (wants this)\n';
@@ -50,7 +50,7 @@ begin
   begin
     perform public.save_split('2998-01-01'::date, 'check', jsonb_build_array(
       jsonb_build_object('user_id', admin_id, 'percent', 60),
-      jsonb_build_object('user_id', member_id, 'percent', 30)));
+      jsonb_build_object('user_id', member_id, 'percent', 30)), current_date);
     set constraints all immediate;
     report := report || E'2. admin SAVED a 60/30 split -- WRONG, must total 100\n';
   exception when others then
@@ -69,8 +69,8 @@ begin
 
   begin
     insert into public.bills (name, kind, due_day) values ('Check bill', 'card', 2);
-    insert into public.income_sources (owner_id, net_amount, cadence, anchor_date)
-    values (member_id, 1234.56, 'biweekly', '2999-01-01');
+    insert into public.income_sources (owner_id, net_amount, cadence, anchor_date, effective_from)
+    values (member_id, 1234.56, 'biweekly', '2999-01-01', current_date);
     report := report || E'4. admin adds a bill and an income source (wants this)\n';
   exception when others then
     report := report || format('4. admin could NOT add a bill or income -- WRONG: %s%s', sqlerrm, E'\n');
@@ -94,7 +94,7 @@ begin
 
   begin
     perform public.save_split('2998-01-01'::date, 'forged', jsonb_build_array(
-      jsonb_build_object('user_id', member_id, 'percent', 100)));
+      jsonb_build_object('user_id', member_id, 'percent', 100)), current_date);
     set constraints all immediate;
     report := report || E'8. member SAVED a budget year -- WRONG\n';
   exception when others then
@@ -131,6 +131,23 @@ begin
   exception when others then
     report := report || E'12. a signed-out visitor cannot list the household (wants this)\n';
   end;
+
+  ------------------------------------------ a started split stays put
+  reset role;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', admin_id, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+
+  begin
+    perform public.save_split('2000-01-01'::date, 'backdated', jsonb_build_array(
+      jsonb_build_object('user_id', admin_id, 'percent', 50),
+      jsonb_build_object('user_id', member_id, 'percent', 50)), current_date);
+    set constraints all immediate;
+    report := report || E'15. admin SAVED a split for a month gone by -- WRONG\n';
+  exception when others then
+    report := report || E'15. a split for a month gone by is refused (wants this)\n';
+  end;
+  set constraints all deferred;
 
   ------------------------------------------- income sources keep history
   reset role;

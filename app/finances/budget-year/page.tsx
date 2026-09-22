@@ -32,17 +32,13 @@ function shortDate(iso: string): string {
 // The twenty-four months from the budget year's April, for choosing when
 // a split starts: this year and the next, and no browser date-picker
 // quirks (Safari has no month picker).
-function monthOptions(startYear: number, earliest?: string): { value: string; label: string }[] {
-  const from = new Date(Date.UTC(startYear, 3, 1));
-  const oldest = earliest ? new Date(`${earliest}T00:00:00Z`) : from;
-  const start = oldest < from ? oldest : from;
-  const months = Math.max(
-    24,
-    (from.getUTCFullYear() - start.getUTCFullYear()) * 12 + from.getUTCMonth() - start.getUTCMonth() + 24,
-  );
-  return Array.from({ length: months }, (_, step) => {
-    const month = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + step, 1));
-    const value = month.toISOString().slice(0, 7);
+// The months a new split may start in: this one and the next two years'
+// worth. A month already gone isn't offered, because it can't be saved.
+function monthOptions(today: string): { value: string; label: string }[] {
+  const [year, month] = today.split("-").map(Number);
+  return Array.from({ length: 24 }, (_, step) => {
+    const when = new Date(Date.UTC(year, month - 1 + step, 1));
+    const value = when.toISOString().slice(0, 7);
     return { value, label: monthLabel(`${value}-01`) };
   });
 }
@@ -159,7 +155,7 @@ export default async function BudgetYearPage() {
     listIncomeSources(supabase),
     listBills(supabase),
   ]);
-  const months = monthOptions(startYear, splits.at(-1)?.effective_from);
+  const months = monthOptions(todayIso);
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
   const current = splitInForce(splits, todayIso);
   const sharesLine = (shares: { user_id: string; percent: number }[]) =>
@@ -196,7 +192,7 @@ export default async function BudgetYearPage() {
                     detail={sharesLine(split.shares)}
                     closed={
                       history
-                        ? "Already started, so it stays as it is. Add a split to change things from a later month."
+                        ? "Already started, so it stays as it is. Save a split from a later month to change things."
                         : undefined
                     }
                     changeLabel="Edit"

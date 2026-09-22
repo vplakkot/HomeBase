@@ -493,6 +493,30 @@ describe("dated splits and income history (#132)", () => {
   });
 });
 
+describe("the household's clock, and a started split (#132 reviews)", () => {
+  const clock = readMigration("20260922230000");
+  const locked = readMigration("20260923010000");
+
+  it("takes the day from the caller, never from the database server", () => {
+    expect(clock).toMatch(/create function public\.change_income_source\([\s\S]*?p_on date\s*\)/);
+    expect(clock).toMatch(/set ended_on = p_on/);
+    expect(locked).toMatch(/create function public\.save_split\([\s\S]*?p_today date\s*\)/);
+    expect(locked).toMatch(/alter column effective_from drop default/);
+    expect(locked).toMatch(/at time zone 'America\/New_York'/);
+  });
+
+  it("refuses to save a split whose month has already passed", () => {
+    expect(locked).toMatch(
+      /if starts < date_trunc\('month', p_today\)::date then\s+raise exception/,
+    );
+  });
+
+  it("re-issues the keys it took away when it replaced each function", () => {
+    expect(clock).toMatch(/grant execute on function public\.change_income_source\(uuid, text, uuid, numeric, text, date, date\)\s+to authenticated;/);
+    expect(locked).toMatch(/grant execute on function public\.save_split\(date, text, jsonb, date\) to authenticated;/);
+  });
+});
+
 describe("Finances setup migration (REQ-50, 51, 94)", () => {
   const setup = readMigration("20260922120000");
   const tables = ["budget_years", "budget_year_shares", "income_sources", "bills"];

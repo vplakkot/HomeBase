@@ -46,10 +46,17 @@ Storing history is half of it. If the screen still shows Edit on a split
 that has already started, someone will use it and the app will do exactly
 what this design was meant to prevent.
 
-So a split that has begun shows neither Edit nor Remove, and says why:
-"Already started, so it stays as it is. Add a split to change things from
-a later month." The server refuses it too — screens can be stale, and the
-rule matters more than the button.
+So a split whose month has passed shows neither Edit nor Remove, and says
+why: "Already started, so it stays as it is. Save a split from a later
+month to change things."
+
+Closing one door isn't enough, though. The first version of this only
+guarded Edit — and the Add form, saving the same month, quietly replaced
+that split, because saving is an upsert. The rule has to sit where the
+write happens, not on each door: the server refuses any save for a month
+gone by, and so does `save_split()` in the database. The month now
+running is still open, which is also how the very first split gets
+saved.
 
 ## Two things to settle early
 

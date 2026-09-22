@@ -5,8 +5,9 @@
 - The split can change during the year. Instead of one percentage per
   budget year, you save a split that starts in a month you choose — "from
   October 2026, 70/30" — and it holds until a later one starts. A split
-  that has already started can't be edited or removed: it's history, and
-  the months it covered keep it. Changing an income source works the same
+  whose month has passed can't be changed, saved over or removed: it's
+  history, and the months it covered keep it. The month you're in can
+  still change. Changing an income source works the same
   way — the old one ends and a new one starts from today, so paydays
   already past keep their amount — and removing one ends it rather than
   erasing it.

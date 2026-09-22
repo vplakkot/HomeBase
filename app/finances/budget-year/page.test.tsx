@@ -94,9 +94,10 @@ describe("the Budget year section", () => {
     expect(split.textContent).toContain("This month splits Alex 60% · Sam 40%.");
     const months = within(split).getByLabelText("Month the new split starts") as HTMLSelectElement;
     expect(months.value).toBe("2026-09");
+    // This month onwards: a month already gone can't be saved anyway.
     expect([months.options[0].textContent, months.options[23].textContent]).toEqual([
-      "April 2026",
-      "March 2028",
+      "September 2026",
+      "August 2028",
     ]);
     const saved = within(split).getByRole("listitem");
     expect(saved.textContent).toContain("From April 2026");
