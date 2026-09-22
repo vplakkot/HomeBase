@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Switch } from "../../components/switch";
 import { setNotifications, type NotificationsState } from "./actions";
 
 const initialState: NotificationsState = {};
@@ -28,9 +29,7 @@ export function NotificationsForm({
     <form action={formAction}>
       <input type="hidden" name="userId" value={userId} />
       <input type="hidden" name="enabled" value={on ? "false" : "true"} />
-      <button type="submit" disabled={pending} aria-label={label}>
-        {pending ? "Saving…" : on ? "On — turn off" : "Off — turn on"}
-      </button>
+      <Switch type="submit" on={on} label={label} busy={pending} />
       {state.error ? <p role="alert">{state.error}</p> : null}
     </form>
   );

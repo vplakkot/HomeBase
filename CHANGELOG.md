@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- The admin console has the design's three cards: People, Notifications
+  and Modules (on a phone in that order: Notifications, Modules, People;
+  on a desktop, People and Notifications beside Modules). Everything
+  that already worked still works: adding a person (now behind "Add
+  person"), changing a role, resetting a password, each person's
+  notification switch (now a real on/off switch) and the test to
+  everyone. The module switches and a test for one person are shown but
+  can't be pressed yet. The notification log stays below the cards.
+  (#117)
+
 - The Finances page has its designed header: the Finances icon and
   name, the month (from the phone's own clock) and a "No budget year"
   status, since none is set up until v1.0. On a desktop its sections sit

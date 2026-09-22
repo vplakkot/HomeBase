@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { MODULES } from "../../lib/modules";
 import { createClient } from "../../lib/supabase/server";
+import { REPO_ROOT, styleOf } from "../../test/css";
+import { installDialogStandIn } from "../../test/dialog";
 import AdminPage from "./page";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -87,6 +92,8 @@ function given({
   } as unknown as Awaited<ReturnType<typeof createClient>>);
 }
 
+beforeAll(installDialogStandIn);
+
 describe("AdminPage", () => {
   afterEach(cleanup);
 
@@ -120,13 +127,13 @@ describe("AdminPage", () => {
     expect(here.map((link) => link.textContent)).toEqual(["Admin console"]);
   });
 
-  it("lists every member with name, email and role", async () => {
+  it("lists every member in the People card, with name, email and role", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());
-    const rows = screen.getAllByRole("row").slice(1);
+    const people = screen.getByRole("region", { name: "People" });
+    const rows = within(people).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
-    expect(within(rows[0]).getByText("—")).toBeDefined();
-    expect(within(rows[0]).getByText("first@example.com")).toBeDefined();
+    expect(rows[0].textContent).toContain("first@example.com");
     expect(within(rows[1]).getByText("Sam")).toBeDefined();
     expect(within(rows[1]).getByText("sam@example.com")).toBeDefined();
     const samRole = screen.getByRole("combobox", { name: "Role for Sam" }) as HTMLSelectElement;
@@ -145,26 +152,28 @@ describe("AdminPage", () => {
   it("shows each member's notification switch, reflecting what it is now", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());
-    const first = screen.getByRole("button", { name: "Notifications for first@example.com" });
-    const sam = screen.getByRole("button", { name: "Notifications for Sam" });
-    expect(first.textContent).toBe("Off — turn on");
-    expect(sam.textContent).toBe("On — turn off");
+    const first = screen.getByRole("switch", { name: "Notifications for first@example.com" });
+    const sam = screen.getByRole("switch", { name: "Notifications for Sam" });
+    expect(first.getAttribute("aria-checked")).toBe("false");
+    expect(sam.getAttribute("aria-checked")).toBe("true");
   });
 
   it("asks for the opposite state, so submitting twice can't flip someone back", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());
-    const off = screen.getByRole("button", { name: "Notifications for first@example.com" });
-    const on = screen.getByRole("button", { name: "Notifications for Sam" });
+    const off = screen.getByRole("switch", { name: "Notifications for first@example.com" });
+    const on = screen.getByRole("switch", { name: "Notifications for Sam" });
     const asked = (button: HTMLElement) =>
       button.closest("form")?.querySelector<HTMLInputElement>('input[name="enabled"]')?.value;
     expect(asked(off)).toBe("true");
     expect(asked(on)).toBe("false");
   });
 
-  it("still offers the create-member form", async () => {
+  it("still offers the create-member form, behind Add person", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());
+    const people = screen.getByRole("region", { name: "People" });
+    fireEvent.click(within(people).getByRole("button", { name: "Add person" }));
     expect(screen.getByLabelText("Name")).toBeDefined();
     expect(screen.getByLabelText("Email")).toBeDefined();
     expect(screen.getByRole("button", { name: "Create member" })).toBeDefined();
@@ -173,11 +182,46 @@ describe("AdminPage", () => {
   it("offers a test notification, explaining who gets it", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());
-    const section = screen.getByRole("region", { name: "Test notification" });
+    const section = screen.getByRole("region", { name: "Notifications" });
     expect(within(section).getByRole("button", { name: "Send test now" })).toBeDefined();
     expect(
       within(section).getByText(/every device of every member whose switch is on/),
     ).toBeDefined();
+  });
+
+  // REQ-84: DESIGN.md §8's three cards, in the design's order per screen.
+  it("shows People, Notifications and Modules cards, in each screen's order", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    for (const name of ["People", "Notifications", "Modules"]) {
+      expect(screen.getByRole("region", { name })).toBeDefined();
+    }
+    const css = readFileSync(join(REPO_ROOT, "app/admin/page.module.css"), "utf-8");
+    const areas = (desktop: boolean) =>
+      styleOf(css, "cards", desktop).get("grid-template-areas")?.replace(/\s+/g, " ");
+    expect(areas(false)).toBe('"notifications" "modules" "people"');
+    expect(areas(true)).toBe('"people modules" "notifications modules"');
+  });
+
+  it("shows a row per module, its switch there but not yet working", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    const modules = screen.getByRole("region", { name: "Modules" });
+    const switches = within(modules).getAllByRole("switch");
+    expect(switches.map((s) => s.getAttribute("aria-label"))).toEqual(
+      MODULES.map((module) => `${module.name} module`),
+    );
+    for (const s of switches) expect((s as HTMLButtonElement).disabled).toBe(true);
+    expect(modules.textContent).toContain("coming soon");
+  });
+
+  it("shows a Send test per person, not yet working", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    const notifications = screen.getByRole("region", { name: "Notifications" });
+    const perPerson = within(notifications).getAllByRole("button", { name: "Send test" });
+    expect(perPerson).toHaveLength(2);
+    for (const button of perPerson) expect((button as HTMLButtonElement).disabled).toBe(true);
   });
 
   // REQ-22.
@@ -204,11 +248,11 @@ describe("AdminPage", () => {
   // The log is the least important thing on this page. If it fails, the
   // members table must still be there — otherwise one broken read takes
   // account management down with it.
-  it("still shows the members table when the log can't be read", async () => {
+  it("still shows the members when the log can't be read", async () => {
     given({ signedIn: true, permissions: ["manage_members"], logFails: true });
     vi.spyOn(console, "error").mockImplementation(() => {});
     render(await AdminPage());
-    expect(screen.getByText("sam@example.com")).toBeDefined();
+    expect(screen.getAllByText("sam@example.com").length).toBeGreaterThan(0);
     expect(
       within(logSection()).getByText(/log could not be read/),
     ).toBeDefined();
