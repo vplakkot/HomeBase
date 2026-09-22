@@ -1,0 +1,37 @@
+.switch {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-height: var(--tap-target-min);
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.switch:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.track {
+  display: flex;
+  justify-content: flex-start;
+  width: 48px;
+  height: 28px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-toggle-off);
+}
+
+.on {
+  justify-content: flex-end;
+  background: var(--color-success);
+}
+
+.knob {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+}

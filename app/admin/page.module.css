@@ -16,3 +16,227 @@
     display: none;
   }
 }
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-display-lg);
+}
+
+.lede {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+}
+
+/* DESIGN.md §8: on a phone, Notifications, then Modules, then People. */
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "notifications"
+    "modules"
+    "people";
+  gap: var(--space-4);
+}
+
+.people {
+  grid-area: people;
+}
+
+.notifications {
+  grid-area: notifications;
+}
+
+.modules {
+  grid-area: modules;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.cardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--text-display-md);
+}
+
+.cardNote {
+  margin: var(--space-1) 0 0;
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.rowMain {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 40px;
+}
+
+.avatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--color-ink);
+  color: var(--color-surface);
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--space-1);
+  background: var(--module-loud);
+}
+
+.who {
+  display: flex;
+  flex-grow: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* One line each: a long email ends in "…" rather than running into the
+   buttons beside it. */
+.rowName,
+.rowNote {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowName {
+  font-size: var(--text-body);
+  font-weight: 700;
+}
+
+.rowNote {
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+  font-weight: 500;
+}
+
+/* Role names are the household's own data (lesson 09), so every role
+   gets the same neutral chip. */
+.chip {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-track);
+  color: var(--color-ink);
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+
+.button,
+.cardFoot button {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--tap-target-min);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button:disabled,
+.cardFoot button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.manage {
+  padding: 0 0 var(--space-2) calc(36px + var(--space-3));
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+}
+
+.manage summary {
+  min-height: var(--tap-target-min);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cardFoot {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-line-soft);
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+  font-weight: 500;
+}
+
+.cardFoot p {
+  margin: 0 0 var(--space-2);
+}
+
+.log {
+  overflow-x: auto;
+  padding: 0 var(--space-4) var(--space-4);
+  font-size: var(--text-body-sm);
+}
+
+@media (min-width: 1024px) {
+  .title {
+    font-size: var(--text-display-xl);
+  }
+
+  .cards {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "people modules"
+      "notifications modules";
+    align-items: start;
+  }
+
+  .modules {
+    align-self: start;
+  }
+}
