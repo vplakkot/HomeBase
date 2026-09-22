@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AdminPill } from "../components/admin-pill";
-import { AllClear } from "../components/all-clear";
+import { ActionItems } from "../components/action-items";
 import { AppFrame } from "../components/app-frame";
 import { BrandLockup } from "../components/brand-lockup";
 import { Greeting } from "../components/greeting";
@@ -9,7 +9,7 @@ import { ModuleTile } from "../components/module-tile";
 import { QuickAdd } from "../components/quick-add";
 import { SectionLabel } from "../components/section-label";
 import { hasPermission } from "../lib/auth/permissions";
-import { moduleStatus } from "../lib/module-status";
+import { demoFrom, moduleStatus, mostUrgent } from "../lib/module-status";
 import { NOTHING_SWITCHED_OFF, modulesSwitchedOn } from "../lib/modules";
 import { DEVICE_COOKIE } from "../lib/notifications/device";
 import { createClient } from "../lib/supabase/server";
@@ -39,9 +39,9 @@ function firstName(metadata: unknown): string | null {
 // bottom. On a desktop the sidebar takes over the brand and the way to
 // the admin console, and Quick add moves up beside the greeting.
 //
-// ?demo in the address swaps what the tiles say for the design's invented
-// example, so every state can be seen before modules have data (a Notion
-// decision of 2026-09-21; lib/module-status.ts).
+// ?demo in the address swaps what the tiles and action items say for the
+// design's invented example, so every state can be seen before modules
+// have data (a Notion decision of 2026-09-21; lib/module-status.ts).
 export default async function HomePage({
   searchParams,
 }: {
@@ -57,7 +57,11 @@ export default async function HomePage({
   const email = data.claims.email ?? null;
   const canManageMembers = await hasPermission(supabase, "manage_members");
   const cookieStore = await cookies();
-  const demo = (await searchParams).demo !== undefined;
+  const demo = demoFrom((await searchParams).demo);
+  const modules = modulesSwitchedOn(NOTHING_SWITCHED_OFF).map((module) => ({
+    module,
+    status: moduleStatus(module, demo),
+  }));
 
   return (
     <AppFrame
@@ -78,16 +82,15 @@ export default async function HomePage({
       </div>
 
       <section className={styles.section} aria-labelledby="action-items">
-        <SectionLabel id="action-items">Action items</SectionLabel>
-        <AllClear />
+        <ActionItems labelId="action-items" items={mostUrgent(modules)} />
       </section>
 
       <section className={styles.section} aria-labelledby="modules">
         <SectionLabel id="modules">Modules</SectionLabel>
         <ul className={styles.tiles}>
-          {modulesSwitchedOn(NOTHING_SWITCHED_OFF).map((module) => (
+          {modules.map(({ module, status }) => (
             <li key={module.slug}>
-              <ModuleTile module={module} status={moduleStatus(module, { demo })} />
+              <ModuleTile module={module} status={status} />
             </li>
           ))}
         </ul>

@@ -10,7 +10,9 @@ import type { Module } from "./modules";
 // the design's mockups draw instead, so the loud and quiet states can be
 // seen side by side (a Notion decision of 2026-09-21).
 
-export type ActionItem = { text: string; detail: string };
+// Where the item comes in urgency order across all modules: 1 is the most
+// urgent. Home shows the three with the lowest ranks (DESIGN.md §5).
+export type ActionItem = { text: string; detail: string; rank: number };
 
 export type Fact = { label: string; value: string };
 
@@ -32,7 +34,9 @@ const COMING_SOON: ModuleStatus = {
 // The mockups' three-item example (home-phone-3-actions and
 // home-desktop-3-actions): Finances, Pets and Health need someone, the
 // rest are calm. Finances' item differs from the mockup's "Groceries over
-// by $142", because DESIGN.md rules out spending categories.
+// by $142", because DESIGN.md rules out spending categories. Calendar's
+// item is a fourth, shown only with ?demo=4, where it makes Calendar loud
+// but is too far down to reach the card.
 const DEMO: Record<string, ModuleStatus> = {
   finances: {
     status: "$285 due",
@@ -41,7 +45,7 @@ const DEMO: Record<string, ModuleStatus> = {
       { label: "Joint savings, projected", value: "$1,150" },
       { label: "Bills left this month", value: "$285" },
     ],
-    actionItems: [{ text: "Card bill due Friday", detail: "$285 left to pay" }],
+    actionItems: [{ text: "Card bill due Friday", detail: "$285 left to pay", rank: 1 }],
   },
   calendar: {
     status: "Dentist Thu",
@@ -50,7 +54,7 @@ const DEMO: Record<string, ModuleStatus> = {
       { label: "This week", value: "4 events" },
       { label: "Next shared", value: "Dinner, Sat" },
     ],
-    actionItems: [],
+    actionItems: [{ text: "Confirm the dentist", detail: "Thu 3:00 PM", rank: 4 }],
   },
   pets: {
     status: "Pill due today",
@@ -59,7 +63,7 @@ const DEMO: Record<string, ModuleStatus> = {
       { label: "Walk", value: "5:00 PM" },
       { label: "Vet check-up", value: "12 Oct" },
     ],
-    actionItems: [{ text: "Heartworm pill due", detail: "Both dogs, today" }],
+    actionItems: [{ text: "Heartworm pill due", detail: "Both dogs, today", rank: 2 }],
   },
   wine: {
     status: "9 bottles",
@@ -86,12 +90,41 @@ const DEMO: Record<string, ModuleStatus> = {
       { label: "Pick up by", value: "Tuesday" },
       { label: "Next appointment", value: "2 Oct" },
     ],
-    actionItems: [{ text: "Prescription ready", detail: "Pick up by Tuesday" }],
+    actionItems: [{ text: "Prescription ready", detail: "Pick up by Tuesday", rank: 3 }],
   },
 };
 
-export function moduleStatus(module: Module, { demo }: { demo: boolean }): ModuleStatus {
-  return (demo && DEMO[module.slug]) || COMING_SOON;
+// How much of the example Home shows: null normally, or with ?demo how
+// many of its action items, most urgent first. Plain ?demo is the
+// mockups' three; ?demo=0 to ?demo=4 show every state the card has, from
+// All clear to more items than fit.
+export type Demo = number | null;
+
+const DEMO_ITEMS = 3;
+const MOST_DEMO_ITEMS = 4;
+
+export function demoFrom(param: string | string[] | undefined): Demo {
+  const value = Array.isArray(param) ? param[0] : param;
+  if (value === undefined) return null;
+  if (!/^\d+$/.test(value)) return DEMO_ITEMS;
+  return Math.min(Number(value), MOST_DEMO_ITEMS);
+}
+
+export function moduleStatus(module: Module, demo: Demo): ModuleStatus {
+  const example = DEMO[module.slug];
+  if (demo === null || !example) return COMING_SOON;
+  return { ...example, actionItems: example.actionItems.filter((item) => item.rank <= demo) };
+}
+
+// The action items Home shows: across the given modules, the three most
+// urgent, most urgent first (DESIGN.md §5).
+export function mostUrgent(
+  statuses: readonly { module: Module; status: ModuleStatus }[],
+): { module: Module; item: ActionItem }[] {
+  return statuses
+    .flatMap(({ module, status }) => status.actionItems.map((item) => ({ module, item })))
+    .sort((a, b) => a.item.rank - b.item.rank)
+    .slice(0, 3);
 }
 
 // DESIGN.md §1: colour means "needs you". A tile is loud if and only if
