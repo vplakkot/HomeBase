@@ -160,6 +160,7 @@ export function BillForm({ bill }: { bill?: Bill }) {
       </label>
       <label className={styles.field}>
         <span>Due every month on the</span>
+        <span className={styles.hint}>Shorter months use their last day.</span>
         <select name="dueDay" defaultValue={bill?.due_day ?? 1} aria-label={`Due day of ${what}`}>
           {DAYS.map((day) => (
             <option key={day} value={day}>

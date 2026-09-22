@@ -58,7 +58,11 @@ describe("the Budget year section", () => {
     await renderAs(ADMIN);
     const split = screen.getByRole("region", { name: "Split" });
     expect(split.textContent).toContain("Your budget year runs April 2026 to March 2027.");
+    expect(split.textContent).toContain("No split saved for it yet.");
     expect(within(split).queryByLabelText(/Budget year starting/)).toBeNull();
+    // The year still has to reach the server, hidden.
+    const hidden = split.querySelector('input[name="startYear"]') as HTMLInputElement;
+    expect([hidden.type, hidden.value]).toEqual(["hidden", "2026"]);
     expect(within(split).getByLabelText("Alex's share")).toBeDefined();
     expect(within(split).getByLabelText("Sam's share")).toBeDefined();
     expect(within(split).getByLabelText("Based on (optional)")).toBeDefined();
@@ -93,6 +97,19 @@ describe("the Budget year section", () => {
     expect((within(split).getByLabelText("Based on (optional)") as HTMLTextAreaElement).value).toBe(
       "Salaries as of March",
     );
+    expect(split.textContent).toContain("Every month in it uses this split.");
+  });
+
+  // Sources saved before names existed keep working: the owner stands in.
+  it("falls back to the owner's name for a source saved without one", async () => {
+    await renderAs(ADMIN, {
+      income_sources: [
+        { id: "i-0", name: "", owner_id: "u-alex", net_amount: 100, cadence: "monthly", anchor_date: "2026-09-01" },
+      ],
+    });
+    const row = within(screen.getByRole("region", { name: "Income sources" })).getByRole("listitem");
+    expect(row.textContent).toContain("Alex");
+    expect(within(row).getByRole("button", { name: "Remove income source" })).toBeDefined();
   });
 
   // REQ-51 and #128: a name tells two jobs apart, and the add form stays
@@ -117,6 +134,7 @@ describe("the Budget year section", () => {
     for (const label of ["Name", "Whose pay", "Take-home per payment", "How often", "One real payday"]) {
       expect(within(income).getByLabelText(label)).toBeDefined();
     }
+    expect(within(income).getByRole("heading", { name: "Add an income source", level: 3 })).toBeDefined();
     const [addFirst] = within(income).getAllByRole("button");
     expect(addFirst.textContent).toBe("Add income source");
   });
@@ -128,7 +146,12 @@ describe("the Budget year section", () => {
     const bills = screen.getByRole("region", { name: "Bills" });
     const [addFirst] = within(bills).getAllByRole("button");
     expect(addFirst.textContent).toBe("Add bill");
+    // The add block is titled and comes before anything saved.
+    const heading = within(bills).getByRole("heading", { name: "Add a bill", level: 3 });
     const row = within(bills).getByRole("listitem");
+    expect(heading.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const types = within(bills).getByLabelText("Type of new bill") as HTMLSelectElement;
+    expect([...types.options].map((option) => option.textContent)).toEqual(["Rent", "Card", "Other"]);
     expect(row.textContent).toContain("Rent");
     expect(row.textContent).toContain("Due the 1st of each month");
     expect(within(row).getByText("Change")).toBeDefined();

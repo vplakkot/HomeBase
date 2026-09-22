@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { dueLabel, ordinal } from "./bills";
+import { dueDateIn, dueLabel, ordinal } from "./bills";
 import {
   budgetYearLabel,
+  budgetYearSpoken,
   budgetYearStartFor,
   formatPercent,
   householdToday,
@@ -25,8 +26,9 @@ describe("budget years (REQ-50)", () => {
     expect(householdToday(new Date("2027-04-01T05:30:00Z"))).toBe("2027-04-01");
   });
 
-  it("names a budget year by its April and March", () => {
+  it("names a budget year by its April and March, in a list and in a sentence", () => {
     expect(budgetYearLabel(2026)).toBe("April 2026 – March 2027");
+    expect(budgetYearSpoken(2026)).toBe("April 2026 to March 2027");
   });
 
   it("reads percentages in hundredths, so 33.33 and 66.67 total exactly 100", () => {
@@ -72,6 +74,13 @@ describe("bills and money", () => {
       "1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "31st",
     ]);
     expect(dueLabel(1)).toBe("Due the 1st");
+  });
+
+  it("puts a bill due after a short month's end on that month's last day", () => {
+    expect(dueDateIn(31, 2027, 1)).toBe("2027-01-31");
+    expect(dueDateIn(31, 2027, 2)).toBe("2027-02-28");
+    expect(dueDateIn(29, 2028, 2)).toBe("2028-02-29");
+    expect(dueDateIn(1, 2027, 6)).toBe("2027-06-01");
   });
 
   it("reads a typed amount and writes dollars", () => {

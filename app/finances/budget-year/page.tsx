@@ -1,7 +1,7 @@
 import { LockIcon } from "../../../components/icons";
 import { BILL_KINDS, dueLabel, listBills } from "../../../lib/finances/bills";
 import {
-  budgetYearLabel,
+  budgetYearSpoken,
   budgetYearStartFor,
   HOUSEHOLD_TIME_ZONE,
   householdToday,
@@ -72,8 +72,10 @@ export default async function BudgetYearPage() {
             Split
           </h2>
           <p className={`${shared.cardNote} ${styles.pad}`}>
-            Your budget year runs {budgetYearLabel(startYear).replace(" – ", " to ")}. Every month
-            in it uses this split.
+            Your budget year runs {budgetYearSpoken(startYear)}.{" "}
+            {budgetYear
+              ? "Every month in it uses this split."
+              : "No split saved for it yet."}
           </p>
           <SplitForm
             people={people}
