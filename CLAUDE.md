@@ -6,8 +6,9 @@ learning a maintainable process as much as shipping.
 
 ## Where things live
 - Requirements, decisions, architecture: Notion (HomeBase HQ, linked from README)
-- Work items: GitHub issues, one per feature or bug. Feature issues are
-  created by you from Ready requirements (see Picking up work)
+- Work items: GitHub issues, one per batch of requirements, bug or chore.
+  Batch issues are created by you from Ready requirements (see Picking up
+  work)
 - Code, history, truth: this repo
 
 ## Picking up work
@@ -132,6 +133,7 @@ Every pull request must satisfy all of these:
 ## Working style
 - Restate what you understood before starting. Wait for my confirmation
   only when there's a decision in it for me (see Picking up work, step 6).
-- Small steps. One concern per pull request.
+- Small steps. One batch per pull request, and the requirements in it
+  have to belong together — a pull request is still about one thing.
 - Direct and concise. Say when something is a bad idea.
 - Use analogies for new concepts.
