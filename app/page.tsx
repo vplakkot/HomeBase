@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AdminPill } from "../components/admin-pill";
+import { AccountPill } from "../components/account-menu";
 import { ActionItems } from "../components/action-items";
 import { AppFrame } from "../components/app-frame";
 import { BrandLockup } from "../components/brand-lockup";
@@ -8,35 +7,18 @@ import { Greeting } from "../components/greeting";
 import { ModuleTile } from "../components/module-tile";
 import { QuickAdd } from "../components/quick-add";
 import { SectionLabel } from "../components/section-label";
+import { readAccount } from "../lib/account";
 import { hasPermission } from "../lib/auth/permissions";
 import { demoFrom, moduleStatus, mostUrgent } from "../lib/module-status";
 import { NOTHING_SWITCHED_OFF, modulesSwitchedOn } from "../lib/modules";
-import { DEVICE_COOKIE } from "../lib/notifications/device";
 import { createClient } from "../lib/supabase/server";
-import { EnableNotifications } from "./notifications/enable-notifications";
+import { KeepThisDevice } from "./notifications/enable-notifications";
 import styles from "./page.module.css";
-import { SignOutForm } from "./sign-out/sign-out-form";
-
-function getBuildInfo() {
-  const ref = process.env.VERCEL_GIT_COMMIT_REF || "dev";
-  const sha = process.env.VERCEL_GIT_COMMIT_SHA;
-  const commit = sha ? sha.slice(0, 7) : "local";
-  return `${ref} · ${commit}`;
-}
-
-// The first word of the name an admin gave the account, if any. The
-// household's first account was made by signing up, which never asked for
-// a name, so it has none and Home just says "Morning".
-function firstName(metadata: unknown): string | null {
-  const name = (metadata as { name?: unknown } | undefined)?.name;
-  if (typeof name !== "string") return null;
-  return name.trim().split(/\s+/)[0] || null;
-}
 
 // Home (docs/design/DESIGN.md §4). On a phone, top to bottom: the brand
-// and the Admin pill, the greeting, action items, then the module tiles,
-// which are the only navigation Home needs; Quick add stays fixed at the
-// bottom. On a desktop the sidebar takes over the brand and the way to
+// and the account pill (REQ-85), the greeting, action items, then the
+// module tiles, which are the only navigation Home needs; Quick add stays
+// fixed at the bottom. On a desktop the sidebar takes over the brand and the way to
 // the admin console, and Quick add moves up beside the greeting.
 //
 // ?demo in the address swaps what the tiles and action items say for the
@@ -54,9 +36,8 @@ export default async function HomePage({
     // the proxy's matcher might miss.
     redirect("/sign-in");
   }
-  const email = data.claims.email ?? null;
   const canManageMembers = await hasPermission(supabase, "manage_members");
-  const cookieStore = await cookies();
+  const account = await readAccount(data.claims);
   const demo = demoFrom((await searchParams).demo);
   const modules = modulesSwitchedOn(NOTHING_SWITCHED_OFF).map((module) => ({
     module,
@@ -67,15 +48,17 @@ export default async function HomePage({
     <AppFrame
       current="home"
       canAdminister={canManageMembers}
+      account={account}
       phoneBar={<QuickAdd variant="bar" />}
     >
       <header className={styles.header}>
         <BrandLockup />
-        {canManageMembers ? <AdminPill /> : null}
+        <AccountPill account={account} canAdminister={canManageMembers} />
       </header>
+      <KeepThisDevice publicKey={account.publicKey} knownDevice={account.knownDevice} />
 
       <div className={styles.intro}>
-        <Greeting name={firstName(data.claims.user_metadata)} />
+        <Greeting name={account.name?.split(/\s+/)[0] ?? null} />
         <div className={styles.desktopQuickAdd}>
           <QuickAdd variant="buttons" />
         </div>
@@ -94,21 +77,6 @@ export default async function HomePage({
             </li>
           ))}
         </ul>
-      </section>
-
-      {/* Not in the design: these move into a profile menu later (a Draft
-          requirement). Until then they stay on Home, where v0.1 had them. */}
-      <section className={styles.section} aria-labelledby="account">
-        <SectionLabel id="account">Account</SectionLabel>
-        <p className={styles.signedIn}>{email ? `Signed in as ${email}` : "Signed in"}</p>
-        <EnableNotifications
-          publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY}
-          knownDevice={cookieStore.get(DEVICE_COOKIE)?.value ?? null}
-        />
-        <SignOutForm />
-        <p data-testid="build-info" className={styles.build}>
-          {getBuildInfo()}
-        </p>
       </section>
     </AppFrame>
   );

@@ -5,6 +5,7 @@ import { AppFrame } from "../../components/app-frame";
 import { ChevronLeftIcon } from "../../components/icons";
 import { Switch } from "../../components/switch";
 import { MODULES, moduleColours } from "../../lib/modules";
+import { readAccount } from "../../lib/account";
 import { listMembers, listRoles } from "../../lib/auth/members";
 import { listRecentLog, SHOW_DAYS } from "../../lib/notifications/log";
 import { hasPermission } from "../../lib/auth/permissions";
@@ -27,9 +28,10 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  const [members, roles] = await Promise.all([
+  const [members, roles, account] = await Promise.all([
     listMembers(supabase),
     listRoles(supabase),
+    readAccount(data.claims),
   ]);
   // Read separately, and forgiven if it fails. The log is the least
   // important thing on this page; losing it must not take member
@@ -73,7 +75,7 @@ export default async function AdminPage() {
   );
 
   return (
-    <AppFrame current="admin" canAdminister>
+    <AppFrame current="admin" canAdminister account={account}>
       <Link href="/" className={styles.back}>
         <ChevronLeftIcon />
         Home
