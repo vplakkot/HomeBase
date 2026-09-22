@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../lib/supabase/server";
+import { REPO_ROOT, styleOf } from "../../test/css";
 import { installDialogStandIn } from "../../test/dialog";
 import FinancesPage from "./page";
 
@@ -62,5 +65,43 @@ describe("the Finances page", () => {
       .getAllByRole("link")
       .filter((link) => link.getAttribute("aria-current") === "page");
     expect(here.map((link) => link.textContent)).toEqual(["Finances"]);
+  });
+
+  // REQ-17: the designed header (DESIGN.md §7).
+  it("heads the page with the Finances icon and name, the month and its status", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 8, 22, 9));
+    given({ signedIn: true });
+    await act(async () => render(await FinancesPage()));
+    vi.useRealTimers();
+    const header = screen.getByRole("main").querySelector("header")!;
+    expect(header.querySelector("svg")).not.toBeNull();
+    expect(within(header).getByRole("heading", { level: 1 }).textContent).toBe("Finances");
+    const month = within(header).getByRole("button", { name: "September 2026" });
+    expect((month as HTMLButtonElement).disabled).toBe(true);
+    expect(within(header).getByText("No budget year")).toBeDefined();
+  });
+
+  it("shows the sections as tabs on a desktop, Overview first, Budget year locked", async () => {
+    given({ signedIn: true });
+    render(await FinancesPage());
+    const tabs = screen.getByRole("navigation", { name: "Finances sections" });
+    const items = within(tabs).getAllByRole("listitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Overview",
+      "Monthly entry",
+      "Income",
+      "Savings",
+      "Balances",
+      "History",
+      "Budget yearAdmin only",
+    ]);
+    expect(within(tabs).getByRole("link", { name: "Overview" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
+    expect(items[6].querySelector("svg")).not.toBeNull();
+    const css = readFileSync(join(REPO_ROOT, "components/section-tabs.module.css"), "utf-8");
+    expect(styleOf(css, "tabs", false).get("display")).toBe("none");
+    expect(styleOf(css, "tabs", true).get("display")).toBe("block");
   });
 });
