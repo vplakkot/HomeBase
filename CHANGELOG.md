@@ -10,7 +10,9 @@
   block and stays there, with what's already saved listed below it as
   rows; changing a saved bill is folded behind "Change". A bill's due
   day is picked from a list of days of the month (1st, 2nd, 22nd)
-  instead of typed as a number. (#128)
+  instead of typed as a number, and the form says that shorter months
+  use their last day. Before a split is saved, the card says so rather
+  than talking as if one existed. (#128)
 
 - How work is picked up changed: CLAUDE.md now treats a batch of 3-4
   related requirements as one pull request, with one GitHub issue, one
