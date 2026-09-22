@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { cookies } from "next/headers";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createClient } from "../lib/supabase/server";
+import { fakeSupabase } from "../test/fake-supabase";
 import { installDialogStandIn } from "../test/dialog";
 import FinancesPage from "./finances/page";
 import HomePage from "./page";
@@ -36,10 +37,8 @@ function signedInWith(permissions: string[]) {
         error: null,
       }),
     },
-    rpc: vi.fn(async (_fn: string, args: { permission: string }) => ({
-      data: permissions.includes(args.permission),
-      error: null,
-    })),
+    rpc: fakeSupabase({ permissions }).rpc,
+    from: fakeSupabase().from,
   } as unknown as Awaited<ReturnType<typeof createClient>>);
   vi.mocked(cookies).mockResolvedValue({
     get: () => undefined,

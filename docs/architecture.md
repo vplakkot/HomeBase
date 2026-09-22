@@ -614,6 +614,43 @@ screen's safe-area insets, so content clears the notch and the home bar.
 That part has not been checked on an iPhone. See
 [lesson 18](lessons/18-one-app-two-layouts.md).
 
+## Finances setup: budget year, income and bills
+
+The first real Finances data (REQ-50, 51, 94) is the yearly setup an
+admin does in the Budget year section, `/finances/budget-year`. Four
+tables, all in the one household, so none carries a household id:
+
+| Table | One row is | Key facts |
+|---|---|---|
+| `budget_years` | an April-to-March year | `start_year` (the April's year, unique), `note` |
+| `budget_year_shares` | one person's percentage for a year | `budget_year_id`, `user_id`, `percent` |
+| `income_sources` | one person's regular pay | `owner_id`, `net_amount`, `cadence` (weekly, biweekly, monthly), `anchor_date` |
+| `bills` | one recurring bill | `name`, `kind` (rent, card, other), `due_day` |
+
+Any member reads all four; writing needs the `manage_budget` permission,
+which the migration gives to Admin. A year's percentages must total 100:
+a constraint trigger checks the sum when a transaction that saves a year
+or a share commits (deleting a share, as when a person leaves, isn't
+checked, so the total can then drop below 100), and
+`save_budget_year()` writes a year and all its shares in one transaction
+so the check sees the whole set. It runs as the caller, so the policies
+still decide who may save. `household_people()` lists each member's name
+(or their email's first part) and whether they manage the budget, for
+the split form, income owners, and the first-run message a member sees.
+
+Every Finances date decision reads one clock: `householdToday()` in
+`lib/finances/budget-year.ts`, set to `America/New_York` because that is
+where the household is. The budget year, the month and the paydays
+therefore turn over on the household's own day, not the server's.
+
+Which budget year applies is worked out in code, not stored:
+`budgetYearStartFor(date)` in `lib/finances/budget-year.ts`. Paydays are
+projected the same way (`payDates` in `lib/finances/income.ts`) from one
+real payday, so nothing is stored per payday. Months don't exist yet;
+monthly entry adds them and copies the bill list into each month when it
+opens, which is what keeps a changed bill from rewriting an open or
+closed month.
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
@@ -621,11 +658,12 @@ These are deliberately absent at this stage, not overlooked:
 - **Little state** — the forms' pending/error state, the notifications
   control, which checks the device when the page opens and changes as the
   phone's question is answered, and which sheet is open.
-- **Screens still to design** — Home and the frame are designed. The
-  Finances module has a plain placeholder until REQ-17 gives it its
-  header, and the admin console works but gets the design's cards only in
-  REQ-84. Sign-in, sign-up and set-password have no mockup, so they keep
-  a plain layout in the design's fonts and colours.
+- **Screens still to design** — Sign-in, sign-up and set-password have
+  no mockup, so they keep a plain layout in the design's fonts and
+  colours.
+- **The rest of Finances** — months, monthly entry, payments, closing a
+  month, savings, balances and reminders arrive in batches after the
+  setup above.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.

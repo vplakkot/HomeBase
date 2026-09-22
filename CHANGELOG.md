@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- Finances can be set up. An admin opens the new Budget year section
+  (from Start setup on Finances, the desktop tab or the phone's Sections
+  sheet) and sets three things: the split, each person's percentage for
+  a budget year running April to March, which must total exactly 100,
+  with a note of what it was based on; each person's income sources,
+  as take-home per payment, how often, and one real payday, with the
+  next three paydays worked out; and the household's bills, each with a
+  type (rent, card or other) and the day it's due. Members see the
+  section locked, "Admin only". Until a budget year exists, Finances is
+  one card: Start setup for an admin, and for a member, which admin to
+  ask. Afterwards it lists the bills with their due dates, marked "Not
+  entered" (entering them comes with monthly entry), and the year's split
+  in an Admin block. Dates follow the household's own day, US Eastern.
+  (REQ-50, REQ-51, REQ-94)
+
 ## 0.2.0 - 2026-09-22
 
 HomeBase in its design: tokens and fonts, the icon, phone and desktop

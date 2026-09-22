@@ -455,3 +455,65 @@ describe("receipt hash migration", () => {
     expect(statements).not.toMatch(/drop table/);
   });
 });
+
+describe("Finances setup migration (REQ-50, 51, 94)", () => {
+  const setup = readMigration("20260922120000");
+  const tables = ["budget_years", "budget_year_shares", "income_sources", "bills"];
+
+  it("hands the new manage_budget key to Admin, by permission not by role", () => {
+    expect(setup).toMatch(/insert into public\.role_permissions[\s\S]*'manage_budget' from public\.roles where name = 'Admin'/);
+  });
+
+  it("switches row-level security on for all four tables", () => {
+    for (const table of tables) {
+      expect(setup).toMatch(new RegExp(`alter table public\\.${table} enable row level security`));
+    }
+  });
+
+  it("lets any member read each table and only the manage_budget key change it", () => {
+    for (const table of tables) {
+      expect(setup).toMatch(
+        new RegExp(`on public\\.${table} for select to authenticated\\s+using \\(\\(select public\\.is_member\\(\\)\\)\\)`),
+      );
+      expect(setup).toMatch(
+        new RegExp(
+          `on public\\.${table} for all to authenticated\\s+using \\(\\(select public\\.has_permission\\('manage_budget'\\)\\)\\)\\s+with check \\(\\(select public\\.has_permission\\('manage_budget'\\)\\)\\)`,
+        ),
+      );
+    }
+    expect(setup).not.toMatch(/to anon/);
+  });
+
+  it("takes the default table access away from signed-out visitors", () => {
+    for (const table of tables) {
+      expect(setup).toMatch(new RegExp(`revoke all on public\\.${table} from anon;`));
+    }
+    expect(setup).toMatch(/revoke all on function public\.household_people\(\) from public, anon;/);
+    expect(setup).toMatch(/revoke all on function public\.save_budget_year\(integer, text, jsonb\) from public, anon;/);
+  });
+
+  it("refuses a split that doesn't total 100, checked when the save commits", () => {
+    expect(setup).toMatch(/if total <> 100 then\s+raise exception/);
+    for (const table of ["budget_years", "budget_year_shares"]) {
+      expect(setup).toMatch(
+        new RegExp(`after insert or update on public\\.${table}\\s+deferrable initially deferred`),
+      );
+    }
+  });
+
+  it("saves a year and its shares in one call that runs as the caller, so the policies apply", () => {
+    expect(setup).toMatch(/create function public\.save_budget_year[\s\S]*?security invoker/);
+  });
+
+  it("keeps the amounts, cadences, bill types and due days to what the forms allow", () => {
+    expect(setup).toMatch(/cadence in \('weekly', 'biweekly', 'monthly'\)/);
+    expect(setup).toMatch(/kind in \('rent', 'card', 'other'\)/);
+    expect(setup).toMatch(/due_day between 1 and 31/);
+    expect(setup).toMatch(/net_amount > 0/);
+  });
+
+  it("shows the household's people to members only", () => {
+    expect(setup).toMatch(/create function public\.household_people\(\)[\s\S]*?where \(select public\.is_member\(\)\)/);
+    expect(setup).toMatch(/grant execute on function public\.household_people\(\) to authenticated;/);
+  });
+});

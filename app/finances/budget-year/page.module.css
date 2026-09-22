@@ -1,0 +1,115 @@
+/* The Budget year section: three cards, stacked on a phone, side by side
+   on a desktop. */
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.pad {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.lockedNote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.form,
+.inlineForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.inlineForm {
+  padding: 0;
+  border-top: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.field input,
+.field select,
+.field textarea {
+  min-height: var(--tap-target-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+
+.total {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+}
+
+.primary,
+.secondary {
+  min-height: var(--tap-target-min);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary {
+  border-color: var(--finances-loud);
+  background: var(--finances-loud);
+  color: var(--finances-on-loud);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.error,
+.saved {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+.saved {
+  color: var(--color-success);
+}
+
+.billItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-line-soft);
+}
+
+@media (min-width: 1024px) {
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

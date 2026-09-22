@@ -1,56 +1,115 @@
-import { redirect } from "next/navigation";
-import type { CSSProperties } from "react";
-import { AppFrame } from "../../components/app-frame";
-import { MODULE_ICONS } from "../../components/icons";
-import { ModuleBar } from "../../components/module-bar";
-import { MonthPicker } from "../../components/month-picker";
-import { SectionTabs } from "../../components/section-tabs";
-import { readAccount } from "../../lib/account";
-import { hasPermission } from "../../lib/auth/permissions";
-import { moduleBySlug, moduleColours } from "../../lib/modules";
-import { createClient } from "../../lib/supabase/server";
+import Link from "next/link";
+import { LockIcon } from "../../components/icons";
+import {
+  budgetYearLabel,
+  budgetYearStartFor,
+  householdToday,
+  listPeople,
+  readBudgetYear,
+} from "../../lib/finances/budget-year";
+import { dueLabel, listBills } from "../../lib/finances/bills";
+import { FinancesFrame, financesViewer } from "./frame";
 import styles from "./page.module.css";
 
-// The Finances module's home: an empty shell in v0.2, open to admins and
-// members alike, with the designed header (docs/design/DESIGN.md §7): the
-// module's icon and name, the month and its status. No budget year exists
-// until v1.0 sets one up, so the status says so. On a desktop the sections
-// sit in tabs below; on a phone they're in the Sections sheet.
+// The Finances module's home: the current month (docs/design/DESIGN.md §7).
+// Until a budget year covers this month, the whole page is one card asking
+// for setup: an admin gets Start setup, a member is told who to ask. Once
+// it exists, the bills show as rows. Nothing can be entered against them
+// until monthly entry arrives, so the month reads as incomplete.
 export default async function FinancesPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  if (!data?.claims) {
-    redirect("/sign-in");
+  const { supabase, canManageMembers, canManageBudget, account } = await financesViewer();
+  const startYear = budgetYearStartFor(householdToday());
+  const [budgetYear, bills, people] = await Promise.all([
+    readBudgetYear(supabase, startYear),
+    listBills(supabase),
+    listPeople(supabase),
+  ]);
+
+  if (!budgetYear) {
+    const admins = people.filter((person) => person.manages_budget).map((person) => person.name);
+    return (
+      <FinancesFrame canManageMembers={canManageMembers} account={account} status="No budget year">
+        <section className={styles.firstRun} aria-labelledby="first-run">
+          <h2 id="first-run" className={styles.firstRunTitle}>
+            Set up your budget year
+          </h2>
+          {canManageBudget ? (
+            <>
+              <p className={styles.firstRunText}>
+                Before anything else, choose how you split shared costs and add each
+                person&apos;s income sources and the household&apos;s bills. You only do it
+                once a year.
+              </p>
+              <Link href="/finances/budget-year" className={styles.firstRunButton}>
+                Start setup
+              </Link>
+            </>
+          ) : (
+            <p className={styles.firstRunText}>
+              Finances isn&apos;t set up yet.{" "}
+              {admins.length === 1
+                ? `${admins[0]}, your admin, needs to set up the budget year.`
+                : admins.length > 1
+                  ? `Ask ${admins.join(" or ")} to set up the budget year.`
+                  : "Your admin needs to set up the budget year."}
+            </p>
+          )}
+        </section>
+      </FinancesFrame>
+    );
   }
-  const canManageMembers = await hasPermission(supabase, "manage_members");
-  const account = await readAccount(data.claims);
-  const finances = moduleBySlug("finances");
-  const Icon = MODULE_ICONS[finances.slug];
+
+  const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
+  const split = budgetYear.shares
+    .map((share) => `${nameOf.get(share.user_id) ?? "Someone"} ${share.percent}%`)
+    .join(" · ");
 
   return (
-    <AppFrame
-      current={finances.slug}
-      canAdminister={canManageMembers}
-      account={account}
-      phoneBar={<ModuleBar module={finances} />}
-    >
-      <header className={styles.header} style={moduleColours(finances) as CSSProperties}>
-        <div className={styles.name}>
-          <span className={styles.chip} aria-hidden="true">
-            <Icon size={20} />
+    <FinancesFrame canManageMembers={canManageMembers} account={account} status="Incomplete">
+      <section className={styles.card} aria-labelledby="bills">
+        <h2 id="bills" className={styles.cardTitle}>
+          Bills
+        </h2>
+        {bills.length === 0 ? (
+          <p className={styles.cardNote}>No bills in the list yet.</p>
+        ) : (
+          <ul className={styles.rows}>
+            {bills.map((bill) => (
+              <li key={bill.id} className={styles.billRow}>
+                <span className={styles.billText}>
+                  <span className={styles.billName}>{bill.name}</span>
+                  <span className={styles.cardNote}>{dueLabel(bill.due_day)}</span>
+                </span>
+                <span className={styles.status}>Not entered</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className={styles.card} aria-labelledby="admin">
+        <h2 id="admin" className={styles.cardTitle}>
+          Admin
+        </h2>
+        <div className={styles.billRow}>
+          <span className={styles.billText}>
+            <span className={styles.billName}>Budget year</span>
+            <span className={styles.cardNote}>
+              {budgetYearLabel(budgetYear.start_year)} · {split}
+            </span>
           </span>
-          <h1 className={styles.title}>{finances.name}</h1>
+          {canManageBudget ? (
+            <Link href="/finances/budget-year" className={styles.button}>
+              Open
+            </Link>
+          ) : (
+            <span className={styles.locked}>
+              <LockIcon />
+              Admin only
+            </span>
+          )}
         </div>
-        <div className={styles.month}>
-          <MonthPicker />
-          <span className={styles.status}>No budget year</span>
-        </div>
-      </header>
-      <SectionTabs module={finances} />
-      <p className={styles.soon}>
-        Coming soon. This is where the month&apos;s bills, payments and savings
-        will live.
-      </p>
-    </AppFrame>
+      </section>
+    </FinancesFrame>
   );
 }
