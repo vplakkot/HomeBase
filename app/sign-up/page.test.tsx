@@ -33,4 +33,12 @@ describe("SignUpPage", () => {
     expect(screen.queryByLabelText("Email")).toBeNull();
     expect(screen.queryByRole("button", { name: "Create household" })).toBeNull();
   });
+
+  // REQ-86: the same page as sign-in and set-password, with the logo.
+  it("shows the HomeBase icon and name above the form", async () => {
+    givenHouseholdExists(false);
+    render(await SignUpPage());
+    expect(document.querySelector('img[src="/icon.svg"]')).not.toBeNull();
+    expect(screen.getByText("HomeBase")).toBeDefined();
+  });
 });
