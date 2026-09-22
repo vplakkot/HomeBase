@@ -24,9 +24,9 @@ const PEOPLE = [
   { user_id: "u-alex", name: "Alex", manages_budget: true },
   { user_id: "u-sam", name: "Sam", manages_budget: false },
 ];
-const YEAR_2026 = {
-  id: "y-2026",
-  start_year: 2026,
+const SPLIT = {
+  id: "s-1",
+  effective_from: "2026-04-01",
   note: "",
   shares: [
     { user_id: "u-alex", percent: 60 },
@@ -43,19 +43,19 @@ let fake: ReturnType<typeof fakeSupabase>;
 function given({
   signedIn,
   permissions = [],
-  budgetYear = null,
+  split = null,
   bills = [],
 }: {
   signedIn: boolean;
   permissions?: string[];
-  budgetYear?: typeof YEAR_2026 | null;
+  split?: typeof SPLIT | null;
   bills?: typeof BILLS;
 }) {
   fake = fakeSupabase({
     signedIn,
     permissions,
     people: PEOPLE,
-    tables: { budget_years: budgetYear ? [budgetYear] : [], bills },
+    tables: { splits: split ? [split] : [], bills },
   });
   vi.mocked(createClient).mockResolvedValue(
     fake as unknown as Awaited<ReturnType<typeof createClient>>,
@@ -104,27 +104,44 @@ describe("the Finances page", () => {
     expect(card.textContent).toContain("Ask Alex or Sam to set up the budget year.");
   });
 
-  // REQ-50: any month from April through the following March uses the
-  // budget year named by that April.
-  it.each([
-    [new Date("2026-04-01T12:00:00Z"), 2026],
-    [new Date("2027-03-31T12:00:00Z"), 2026],
-    [new Date("2027-04-01T12:00:00Z"), 2027],
-  ])("on %s reads the budget year starting in April %i", async (today, startYear) => {
+  // REQ-50, #131: the split in force is the latest one that had started
+  // by today; a later one doesn't reach back.
+  it("uses the split in force this month, not a later one", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(today);
-    given({ signedIn: true, permissions: MEMBER, budgetYear: YEAR_2026 });
+    vi.setSystemTime(new Date("2026-10-15T12:00:00Z"));
+    given({
+      signedIn: true,
+      permissions: MEMBER,
+      split: SPLIT,
+    });
+    fake.from.mockImplementation((table: string) => {
+      const rows =
+        table === "splits"
+          ? [
+              { ...SPLIT, id: "s-2", effective_from: "2026-11-01", shares: [{ user_id: "u-alex", percent: 90 }, { user_id: "u-sam", percent: 10 }] },
+              SPLIT,
+            ]
+          : [];
+      const result = { data: rows, error: null };
+      const query: Record<string, unknown> = {
+        then: (resolve: (value: typeof result) => unknown) => Promise.resolve(result).then(resolve),
+        maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
+      };
+      for (const method of ["select", "eq", "is", "order", "insert", "update", "delete"]) {
+        query[method] = () => query;
+      }
+      return query;
+    });
     render(await FinancesPage());
     vi.useRealTimers();
-    const budgetYears = fake.from.mock.calls.findIndex(([table]) => table === "budget_years");
-    const query = fake.from.mock.results[budgetYears].value;
-    expect(query.eq).toHaveBeenCalledWith("start_year", startYear);
+    const admin = screen.getByRole("region", { name: "Admin" });
+    expect(admin.textContent).toContain("From April 2026 · Alex 60% · Sam 40%");
   });
 
   // REQ-94: every bill in the list is a row on Finances home, with its due
   // date. Nothing can be entered yet, so the month reads as incomplete.
   it("shows each bill as a row with its due date once the budget year exists", async () => {
-    given({ signedIn: true, permissions: MEMBER, budgetYear: YEAR_2026, bills: BILLS });
+    given({ signedIn: true, permissions: MEMBER, split: SPLIT, bills: BILLS });
     render(await FinancesPage());
     const bills = screen.getByRole("region", { name: "Bills" });
     expect(within(bills).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
@@ -135,16 +152,16 @@ describe("the Finances page", () => {
   });
 
   it("shows the year's split in the Admin block, locked for a member", async () => {
-    given({ signedIn: true, permissions: MEMBER, budgetYear: YEAR_2026 });
+    given({ signedIn: true, permissions: MEMBER, split: SPLIT });
     render(await FinancesPage());
     const admin = screen.getByRole("region", { name: "Admin" });
-    expect(admin.textContent).toContain("April 2026 – March 2027 · Alex 60% · Sam 40%");
+    expect(admin.textContent).toContain("From April 2026 · Alex 60% · Sam 40%");
     expect(admin.textContent).toContain("Admin only");
     expect(within(admin).queryByRole("link")).toBeNull();
   });
 
   it("lets an admin open the budget year from the Admin block", async () => {
-    given({ signedIn: true, permissions: ADMIN, budgetYear: YEAR_2026 });
+    given({ signedIn: true, permissions: ADMIN, split: SPLIT });
     render(await FinancesPage());
     const admin = screen.getByRole("region", { name: "Admin" });
     expect(within(admin).getByRole("link", { name: "Open" }).getAttribute("href")).toBe(

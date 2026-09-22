@@ -622,17 +622,24 @@ tables, all in the one household, so none carries a household id:
 
 | Table | One row is | Key facts |
 |---|---|---|
-| `budget_years` | an April-to-March year | `start_year` (the April's year, unique), `note` |
-| `budget_year_shares` | one person's percentage for a year | `budget_year_id`, `user_id`, `percent` |
+| `splits` | a percentage set that starts in a month | `effective_from` (the 1st of that month, unique), `note` |
+| `split_shares` | one person's percentage in that split | `split_id`, `user_id`, `percent` |
 | `income_sources` | one person's regular pay | `name`, `owner_id`, `net_amount`, `cadence` (weekly, biweekly, monthly), `anchor_date` |
 | `bills` | one recurring bill | `name`, `kind` (rent, card, other), `due_day` |
 
-Any member reads all four; writing needs the `manage_budget` permission,
-which the migration gives to Admin. A year's percentages must total 100:
+A split holds until a later one starts, so the household can change the
+percentages mid-year without touching the months already run: a month
+uses the split in force when it opens (REQ-52). An income source is never
+rewritten either — changing one sets `ended_on` on the old row and starts
+a new one from today, so paydays already past keep their amount.
+
+Any member reads all of them; writing needs the `manage_budget`
+permission, which the migration gives to Admin. A split's percentages
+must total 100:
 a constraint trigger checks the sum when a transaction that saves a year
 or a share commits (deleting a share, as when a person leaves, isn't
 checked, so the total can then drop below 100), and
-`save_budget_year()` writes a year and all its shares in one transaction
+`save_split()` writes a split and all its shares in one transaction
 so the check sees the whole set. It runs as the caller, so the policies
 still decide who may save. `household_people()` lists each member's name
 (or their email's first part) and whether they manage the budget, for
@@ -643,7 +650,8 @@ Every Finances date decision reads one clock: `householdToday()` in
 where the household is. The budget year, the month and the paydays
 therefore turn over on the household's own day, not the server's.
 
-Which budget year applies is worked out in code, not stored:
+The budget year itself is not stored: it is the April-to-March frame the
+March review (REQ-69) works in, worked out in code:
 `budgetYearStartFor(date)` in `lib/finances/budget-year.ts`. Paydays are
 projected the same way (`payDates` in `lib/finances/income.ts`) from one
 real payday, so nothing is stored per payday. Months don't exist yet;

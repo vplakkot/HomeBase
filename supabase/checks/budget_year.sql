@@ -1,4 +1,4 @@
--- Live check of the Finances setup rules (REQ-50, 51, 94), as real
+-- Live check of the Finances setup rules (REQ-50, 51, 94, #131), as real
 -- household members, against the hosted project. Needs at least one Admin
 -- and one Member. Run it with:
 --
@@ -37,7 +37,7 @@ begin
   set local role authenticated;
 
   begin
-    perform public.save_budget_year(2999, 'check', jsonb_build_array(
+    perform public.save_split('2999-01-01'::date, 'check', jsonb_build_array(
       jsonb_build_object('user_id', admin_id, 'percent', 60),
       jsonb_build_object('user_id', member_id, 'percent', 40)));
     set constraints all immediate;
@@ -48,7 +48,7 @@ begin
   end;
 
   begin
-    perform public.save_budget_year(2998, 'check', jsonb_build_array(
+    perform public.save_split('2998-01-01'::date, 'check', jsonb_build_array(
       jsonb_build_object('user_id', admin_id, 'percent', 60),
       jsonb_build_object('user_id', member_id, 'percent', 30)));
     set constraints all immediate;
@@ -59,7 +59,7 @@ begin
   set constraints all deferred;
 
   begin
-    insert into public.budget_years (start_year) values (2998);
+    insert into public.splits (effective_from) values ('2998-01-01');
     set constraints all immediate;
     report := report || E'3. admin SAVED a year with no split -- WRONG\n';
   exception when others then
@@ -82,8 +82,8 @@ begin
     json_build_object('sub', member_id, 'role', 'authenticated')::text, true);
   set local role authenticated;
 
-  select count(*) into n from public.budget_year_shares s
-    join public.budget_years y on y.id = s.budget_year_id where y.start_year = 2999;
+  select count(*) into n from public.split_shares s
+    join public.splits y on y.id = s.split_id where y.effective_from = '2999-01-01';
   report := report || format('5. member reads the 2999 split: %s shares (wants 2)%s', n, E'\n');
 
   select count(*) into n from public.bills where name = 'Check bill';
@@ -93,7 +93,7 @@ begin
   report := report || format('7. member sees who manages the budget: %s people (wants 1 or more)%s', n, E'\n');
 
   begin
-    perform public.save_budget_year(2998, 'forged', jsonb_build_array(
+    perform public.save_split('2998-01-01'::date, 'forged', jsonb_build_array(
       jsonb_build_object('user_id', member_id, 'percent', 100)));
     set constraints all immediate;
     report := report || E'8. member SAVED a budget year -- WRONG\n';
@@ -119,10 +119,10 @@ begin
   set local role anon;
 
   begin
-    select count(*) into n from public.budget_years;
-    report := report || format('11. a signed-out visitor sees %s budget years (wants 0)%s', n, E'\n');
+    select count(*) into n from public.splits;
+    report := report || format('11. a signed-out visitor sees %s splits (wants 0)%s', n, E'\n');
   exception when others then
-    report := report || E'11. a signed-out visitor cannot read budget years (wants this)\n';
+    report := report || E'11. a signed-out visitor cannot read splits (wants this)\n';
   end;
 
   begin
@@ -130,6 +130,27 @@ begin
     report := report || format('12. a signed-out visitor lists %s people (wants 0)%s', n, E'\n');
   exception when others then
     report := report || E'12. a signed-out visitor cannot list the household (wants this)\n';
+  end;
+
+  ------------------------------------------- income sources keep history
+  reset role;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', admin_id, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+
+  begin
+    perform public.change_income_source(
+      (select id from public.income_sources where anchor_date = '2999-01-01' limit 1),
+      'Check pay', member_id, 999, 'weekly', '2999-02-01');
+    select count(*) into n from public.income_sources
+     where ended_on is not null and anchor_date = '2999-01-01';
+    report := report || format(
+      '13. changing a source ends the old row: %s ended (wants 1)%s', n, E'\n');
+    select count(*) into n from public.income_sources where name = 'Check pay' and ended_on is null;
+    report := report || format(
+      '14. and starts a new one in force: %s (wants 1)%s', n, E'\n');
+  exception when others then
+    report := report || format('13. changing a source FAILED -- %s%s', sqlerrm, E'\n');
   end;
 
   reset role;

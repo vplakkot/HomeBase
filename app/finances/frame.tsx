@@ -52,8 +52,9 @@ export function FinancesFrame({
       canAdminister={canManageMembers}
       account={account}
       phoneBar={<ModuleBar module={finances} current={section} />}
+      style={moduleColours(finances) as CSSProperties}
     >
-      <header className={styles.header} style={moduleColours(finances) as CSSProperties}>
+      <header className={styles.header}>
         <div className={styles.name}>
           <span className={styles.chip} aria-hidden="true">
             <Icon size={20} />

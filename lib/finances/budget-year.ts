@@ -46,9 +46,24 @@ export function formatPercent(hundredths: number): string {
   return `${(hundredths / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}%`;
 }
 
+// The month a split starts, as "YYYY-MM-01", and how it reads.
+export function monthStart(day: string): string {
+  return `${day.slice(0, 7)}-01`;
+}
+
+export function monthLabel(day: string): string {
+  const [year, month] = day.split("-").map(Number);
+  return `${MONTHS[month - 1]} ${year}`;
+}
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
 export type Person = { user_id: string; name: string; manages_budget: boolean };
 export type Share = { user_id: string; percent: number };
-export type BudgetYear = { id: string; start_year: number; note: string; shares: Share[] };
+export type Split = { id: string; effective_from: string; note: string; shares: Share[] };
 
 export async function listPeople(supabase: SupabaseClient): Promise<Person[]> {
   const { data, error } = await supabase.rpc("household_people");
@@ -56,17 +71,26 @@ export async function listPeople(supabase: SupabaseClient): Promise<Person[]> {
   return (data ?? []) as Person[];
 }
 
-export async function readBudgetYear(
-  supabase: SupabaseClient,
-  startYear: number,
-): Promise<BudgetYear | null> {
+// Every split the household has saved, newest first.
+export async function listSplits(supabase: SupabaseClient): Promise<Split[]> {
   const { data, error } = await supabase
-    .from("budget_years")
-    .select("id, start_year, note, shares:budget_year_shares(user_id, percent)")
-    .eq("start_year", startYear)
-    .maybeSingle();
-  if (error) throw new Error(`Could not read the budget year: ${error.message}`);
-  if (!data) return null;
-  const year = data as unknown as BudgetYear;
-  return { ...year, shares: year.shares.map((s) => ({ ...s, percent: Number(s.percent) })) };
+    .from("splits")
+    .select("id, effective_from, note, shares:split_shares(user_id, percent)")
+    .order("effective_from", { ascending: false });
+  if (error) throw new Error(`Could not read the splits: ${error.message}`);
+  return ((data ?? []) as unknown as Split[]).map((split) => ({
+    ...split,
+    shares: split.shares.map((share) => ({ ...share, percent: Number(share.percent) })),
+  }));
+}
+
+// The split a given month runs on: the latest one that had started by
+// then. A month opened before any split exists has none.
+export function splitInForce(splits: Split[], day: string): Split | null {
+  const month = monthStart(day);
+  return (
+    [...splits]
+      .sort((a, b) => b.effective_from.localeCompare(a.effective_from))
+      .find((split) => split.effective_from <= month) ?? null
+  );
 }

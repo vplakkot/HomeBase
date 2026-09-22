@@ -1,5 +1,7 @@
-/* The Budget year section: three cards, stacked on a phone, side by side
-   on a desktop. Each card is: title, the add block, then what's saved. */
+/* The Budget year section. Every card is the same three parts — a tinted
+   head, the form for adding, then what's saved as rounded boxes — and
+   they take the module's own colours, the ones Home's tiles use
+   (docs/design/DESIGN.md §3), so Finances looks like Finances. */
 .cards {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -7,34 +9,60 @@
   gap: var(--space-4);
 }
 
-.pad {
-  padding: 0 var(--space-4) var(--space-3);
+.card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--module-quiet-line);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
 }
 
-.lockedNote {
+/* The head carries the module's loud colour, as a tile does when it's
+   loud: the name in white on brick, the line under it see-through white. */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--module-loud);
+  color: var(--module-on-loud);
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-display-md);
+  font-weight: 800;
+  letter-spacing: var(--tracking-display);
+}
+
+.note {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0 var(--space-4) var(--space-4);
+  margin: 0;
+  color: var(--module-on-loud);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  opacity: 0.85;
 }
 
-/* What you add sits at the top of its card on a tinted block, so it's
-   never confused with what's already saved below and never moves when
-   something is added (#128). */
+/* Adding sits under the head on the module's quiet tint, so it reads as
+   one block and never moves when something is added. */
 .addBlock {
-  background: var(--color-ground);
-  border-top: 1px solid var(--color-line-soft);
-  border-bottom: 1px solid var(--color-line);
+  background: var(--module-quiet);
+  border-bottom: 1px solid var(--module-quiet-line);
 }
 
 .addTitle {
   margin: 0;
-  padding: var(--space-3) var(--space-4) 0;
+  padding: var(--space-4) var(--space-4) 0;
+  color: var(--module-quiet-title);
   font-size: var(--text-label);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
-  color: var(--color-muted);
 }
 
 .form {
@@ -44,21 +72,35 @@
   padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
-.padTop {
-  padding-top: var(--space-3);
+.entries {
+  padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
-/* One saved income source or bill. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+}
+
+/* One saved split, income source or bill. */
 .entry {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--color-line-soft);
-}
-
-.entry:first-child {
-  border-top: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
 }
 
 .entryHead {
@@ -74,46 +116,90 @@
 }
 
 .amount {
-  font-weight: 700;
+  flex-shrink: 0;
+  font-weight: 800;
 }
 
-.kind {
+.chip {
   flex-shrink: 0;
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-pill);
-  background: var(--color-track);
-  color: var(--color-ink);
+  background: var(--module-quiet);
+  color: var(--module-quiet-title);
   font-size: var(--text-caption);
   font-weight: 700;
 }
 
-/* Editing a saved bill is folded away, so the list reads as a list. */
+.detail {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+}
+
+/* Editing is folded away, so a list of things reads as a list. */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.change {
+  flex: 1;
+  min-width: 0;
+}
+
 .change summary {
   display: flex;
   align-items: center;
   min-height: var(--tap-target-min);
-  color: var(--color-muted);
+  color: var(--module-loud);
   font-size: var(--text-body-sm);
   font-weight: 700;
   cursor: pointer;
 }
 
 .change .form {
-  padding: 0 0 var(--space-2);
+  padding: var(--space-2) 0 0;
 }
 
 .quiet {
-  align-self: flex-start;
+  flex-shrink: 0;
   min-height: var(--tap-target-min);
   padding: 0;
   border: 0;
   background: none;
-  color: var(--color-danger);
+  color: var(--color-muted);
   font: inherit;
   font-size: var(--text-body-sm);
   font-weight: 700;
-  text-decoration: underline;
   cursor: pointer;
+}
+
+.quiet:hover {
+  color: var(--color-danger);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.field textarea {
+  min-height: var(--tap-target-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: 500;
 }
 
 /* A field with a $ before it or a % after it, inside the same box. */
@@ -139,28 +225,6 @@
   padding-right: 0;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: var(--text-body-sm);
-  font-weight: 600;
-}
-
-.field input,
-.field select,
-.field textarea {
-  min-height: var(--tap-target-min);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-ink);
-  font: inherit;
-  font-size: var(--text-body);
-  font-weight: 500;
-}
-
 .hint {
   color: var(--color-muted);
   font-size: var(--text-caption);
@@ -169,31 +233,24 @@
 
 .total {
   margin: 0;
+  color: var(--module-quiet-title);
   font-size: var(--text-body-sm);
-  font-weight: 700;
+  font-weight: 800;
 }
 
-.primary,
-.secondary {
+.primary {
   min-height: var(--tap-target-min);
   padding: 0 var(--space-4);
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--module-loud);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-ink);
+  background: var(--module-loud);
+  color: var(--module-on-loud);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
 }
 
-.primary {
-  border-color: var(--finances-loud);
-  background: var(--finances-loud);
-  color: var(--finances-on-loud);
-}
-
-.primary:disabled,
-.secondary:disabled {
+.primary:disabled {
   cursor: default;
   opacity: 0.5;
 }
@@ -211,14 +268,6 @@
 
 .saved {
   color: var(--color-success);
-}
-
-.billItem {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--color-line-soft);
 }
 
 @media (min-width: 1024px) {
