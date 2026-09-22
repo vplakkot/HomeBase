@@ -2,9 +2,9 @@
 
 import { useActionState, useState } from "react";
 import { BILL_KINDS, ordinal, type Bill } from "../../../lib/finances/bills";
-import { formatPercent, parsePercent, type Person } from "../../../lib/finances/budget-year";
-import { CADENCES } from "../../../lib/finances/income";
-import { addIncomeSource, saveBill, saveBudgetYear, type FormState } from "./actions";
+import { formatPercent, monthLabel, parsePercent, type Person } from "../../../lib/finances/budget-year";
+import { CADENCES, type IncomeSource } from "../../../lib/finances/income";
+import { saveBill, saveIncomeSource, saveSplit, type FormState } from "./actions";
 import styles from "./page.module.css";
 
 const initialState: FormState = {};
@@ -16,39 +16,62 @@ function Outcome({ state, saved }: { state: FormState; saved: string }) {
   return null;
 }
 
-// REQ-50: a percentage for each person and a note of what the split was
-// based on. The budget year isn't asked for — it's today's, worked out
-// from the calendar and said in words above the form.
+// REQ-50, #132: a split starts in a month and holds until a later one
+// starts, so changing it never reaches back into months already run.
 export function SplitForm({
   people,
-  startYear,
+  months,
+  month,
   percents,
   note,
+  editing,
 }: {
   people: Person[];
-  startYear: number;
-  percents: Record<string, number>;
-  note: string;
+  months: { value: string; label: string }[];
+  month: string;
+  percents?: Record<string, number>;
+  note?: string;
+  editing?: boolean;
 }) {
-  const [state, formAction, pending] = useActionState(saveBudgetYear, initialState);
+  const [state, formAction, pending] = useActionState(saveSplit, initialState);
   const [typed, setTyped] = useState<Record<string, string>>(() =>
-    Object.fromEntries(people.map((p) => [p.user_id, percents[p.user_id]?.toString() ?? ""])),
+    Object.fromEntries(people.map((p) => [p.user_id, percents?.[p.user_id]?.toString() ?? ""])),
   );
   const parsed = Object.values(typed).map(parsePercent);
   const total = parsed.every((value) => value !== null)
     ? parsed.reduce<number>((sum, value) => sum + (value ?? 0), 0)
     : null;
+  const what = editing ? `the split from ${monthLabel(`${month}-01`)}` : "the new split";
 
   return (
     <form action={formAction} className={styles.form}>
-      <input type="hidden" name="startYear" value={startYear} />
+      {editing ? (
+        // A split being edited keeps its month: moving it would leave the
+        // old one behind and write a second split instead.
+        <>
+          <input type="hidden" name="effectiveFrom" value={month} />
+          <input type="hidden" name="editing" value="true" />
+          <p className={styles.total}>In force from {monthLabel(`${month}-01`)}</p>
+        </>
+      ) : (
+        <label className={styles.field}>
+          <span>In force from</span>
+          <select name="effectiveFrom" defaultValue={month} aria-label={`Month ${what} starts`}>
+            {months.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {people.map((person) => (
         <label key={person.user_id} className={styles.field}>
-          <span>{person.name}&apos;s share</span>
+          <span>{person.name}</span>
           <span className={styles.withSuffix}>
             <input
               name={`share:${person.user_id}`}
-              aria-label={`${person.name}'s share`}
+              aria-label={`${person.name}'s share of ${what}`}
               inputMode="decimal"
               value={typed[person.user_id]}
               onChange={(event) => setTyped({ ...typed, [person.user_id]: event.target.value })}
@@ -64,29 +87,49 @@ export function SplitForm({
       </p>
       <label className={styles.field}>
         <span>Based on (optional)</span>
-        <textarea name="note" rows={3} defaultValue={note} placeholder="The incomes and savings you assumed" />
+        <textarea
+          name="note"
+          rows={2}
+          defaultValue={note}
+          aria-label={`What ${what} is based on`}
+          placeholder="The incomes and savings you assumed"
+        />
       </label>
       <button type="submit" className={styles.primary} disabled={pending}>
-        {pending ? "Saving…" : "Save split"}
+        {pending ? "Saving…" : editing ? "Save split" : "Add split"}
       </button>
       <Outcome state={state} saved="Split saved." />
     </form>
   );
 }
 
-// REQ-51: a name, whose pay it is, take-home per payment, how often, and
-// one real payday. The name is what tells two jobs apart.
-export function IncomeForm({ people }: { people: Person[] }) {
-  const [state, formAction, pending] = useActionState(addIncomeSource, initialState);
+// REQ-51: a name, whose pay, take-home per payment, how often and one real
+// payday. Changing one ends it today and starts a new one (#132), so the
+// paydays it already covered keep their amount.
+export function IncomeForm({ people, source }: { people: Person[]; source?: IncomeSource }) {
+  const [state, formAction, pending] = useActionState(saveIncomeSource, initialState);
+  const what = source ? source.name || "this source" : "new income source";
   return (
     <form action={formAction} className={styles.form}>
+      {source ? <input type="hidden" name="id" value={source.id} /> : null}
       <label className={styles.field}>
         <span>Name</span>
-        <input name="name" placeholder="Day job, Saturday shifts…" required />
+        <input
+          name="name"
+          defaultValue={source?.name}
+          aria-label={`Name of ${what}`}
+          placeholder="Day job, Saturday shifts…"
+          required
+        />
       </label>
       <label className={styles.field}>
         <span>Whose pay</span>
-        <select name="ownerId" required>
+        <select
+          name="ownerId"
+          defaultValue={source?.owner_id}
+          aria-label={`Whose pay ${what} is`}
+          required
+        >
           {people.map((person) => (
             <option key={person.user_id} value={person.user_id}>
               {person.name}
@@ -100,7 +143,8 @@ export function IncomeForm({ people }: { people: Person[] }) {
           <span aria-hidden="true">$</span>
           <input
             name="netAmount"
-            aria-label="Take-home per payment"
+            defaultValue={source?.net_amount}
+            aria-label={`Take-home per payment of ${what}`}
             inputMode="decimal"
             placeholder="2,400.00"
             required
@@ -109,7 +153,11 @@ export function IncomeForm({ people }: { people: Person[] }) {
       </label>
       <label className={styles.field}>
         <span>How often</span>
-        <select name="cadence" defaultValue="biweekly">
+        <select
+          name="cadence"
+          defaultValue={source?.cadence ?? "biweekly"}
+          aria-label={`How often ${what} is paid`}
+        >
           {Object.entries(CADENCES).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
@@ -119,19 +167,24 @@ export function IncomeForm({ people }: { people: Person[] }) {
       </label>
       <label className={styles.field}>
         <span>One real payday</span>
-        <input name="anchorDate" type="date" required />
+        <input
+          name="anchorDate"
+          type="date"
+          defaultValue={source?.anchor_date}
+          aria-label={`A real payday of ${what}`}
+          required
+        />
       </label>
       <button type="submit" className={styles.primary} disabled={pending}>
-        {pending ? "Adding…" : "Add income source"}
+        {pending ? "Saving…" : source ? "Save changes" : "Add income source"}
       </button>
       <Outcome state={state} saved="Income source added." />
     </form>
   );
 }
 
-// REQ-94: a bill's name, type and the day of the month it's due — a day,
-// not a date, because the same bill comes round every month. With a bill,
-// the form changes that one; without, it adds a new one.
+// REQ-94: name, type and the day of the month it's due — a day, not a
+// date, because the same bill comes round every month.
 export function BillForm({ bill }: { bill?: Bill }) {
   const [state, formAction, pending] = useActionState(saveBill, initialState);
   const what = bill ? bill.name : "new bill";
@@ -160,8 +213,15 @@ export function BillForm({ bill }: { bill?: Bill }) {
       </label>
       <label className={styles.field}>
         <span>Due every month on the</span>
-        <span className={styles.hint}>Shorter months use their last day.</span>
-        <select name="dueDay" defaultValue={bill?.due_day ?? 1} aria-label={`Due day of ${what}`}>
+        <span className={styles.hint} id={`due-hint-${bill?.id ?? "new"}`}>
+          Shorter months use their last day.
+        </span>
+        <select
+          name="dueDay"
+          defaultValue={bill?.due_day ?? 1}
+          aria-label={`Due day of ${what}`}
+          aria-describedby={`due-hint-${bill?.id ?? "new"}`}
+        >
           {DAYS.map((day) => (
             <option key={day} value={day}>
               {ordinal(day)}

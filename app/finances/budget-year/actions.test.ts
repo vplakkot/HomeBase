@@ -1,7 +1,14 @@
 import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../../lib/supabase/server";
-import { addIncomeSource, removeBill, saveBill, saveBudgetYear } from "./actions";
+import {
+  removeBill,
+  removeIncomeSource,
+  removeSplit,
+  saveBill,
+  saveIncomeSource,
+  saveSplit,
+} from "./actions";
 
 vi.mock("../../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -15,12 +22,15 @@ let rpc: ReturnType<typeof vi.fn>;
 let table: Record<string, ReturnType<typeof vi.fn>>;
 
 function given({ admin = true, error = null }: { admin?: boolean; error?: { message: string } | null } = {}) {
-  const eq = vi.fn().mockResolvedValue({ error });
+  const eq: ReturnType<typeof vi.fn> = vi.fn(() => chain) as never;
+  const gte = vi.fn().mockResolvedValue({ error });
+  const chain = { eq, gte, then: (go: (r: unknown) => unknown) => Promise.resolve({ error }).then(go) };
   table = {
     insert: vi.fn().mockResolvedValue({ error }),
-    update: vi.fn(() => ({ eq })),
-    delete: vi.fn(() => ({ eq })),
+    update: vi.fn(() => chain),
+    delete: vi.fn(() => chain),
     eq,
+    gte,
   };
   rpc = vi.fn(async (fn: string) =>
     fn === "has_permission" ? { data: admin, error: null } : { data: "year-id", error },
@@ -39,17 +49,25 @@ function form(fields: Record<string, string>): FormData {
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("saveBudgetYear (REQ-50)", () => {
-  const split = { startYear: "2026", "share:u-alex": "60", "share:u-sam": "40", note: " Both salaries as of March " };
+describe("saveSplit (REQ-50, #132)", () => {
+  // Dated ahead of any real "today", so the month-has-passed rule never
+  // catches the ordinary cases below.
+  const split = {
+    effectiveFrom: "2099-10",
+    "share:u-alex": "60",
+    "share:u-sam": "40",
+    note: " Both salaries as of March ",
+  };
 
-  it("saves the April start year, each person's percentage and the note in one call", async () => {
+  it("saves the month it starts, each person's percentage and the note in one call", async () => {
     given();
-    expect(await saveBudgetYear({}, form(split))).toEqual({
+    expect(await saveSplit({}, form(split))).toEqual({
       saved: true,
-      message: "Split saved for April 2026 – March 2027.",
+      message: "Split saved, from October 2099 onwards.",
     });
-    expect(rpc).toHaveBeenCalledWith("save_budget_year", {
-      p_start_year: 2026,
+    expect(rpc).toHaveBeenCalledWith("save_split", {
+      p_effective_from: "2099-10-01",
+      p_today: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       p_note: "Both salaries as of March",
       p_shares: [
         { user_id: "u-alex", percent: 60 },
@@ -61,39 +79,73 @@ describe("saveBudgetYear (REQ-50)", () => {
 
   it("refuses percentages that don't total 100, before asking the database", async () => {
     given();
-    const result = await saveBudgetYear({}, form({ ...split, "share:u-sam": "30" }));
+    const result = await saveSplit({}, form({ ...split, "share:u-sam": "30" }));
     expect(result).toEqual({ error: "The percentages add up to 90%. They must total 100%." });
-    expect(rpc).not.toHaveBeenCalledWith("save_budget_year", expect.anything());
+    expect(rpc).not.toHaveBeenCalledWith("save_split", expect.anything());
   });
 
   it("accepts a split with decimals that totals exactly 100", async () => {
     given();
-    const result = await saveBudgetYear({}, form({ ...split, "share:u-alex": "66.67", "share:u-sam": "33.33" }));
+    const result = await saveSplit({}, form({ ...split, "share:u-alex": "66.67", "share:u-sam": "33.33" }));
     expect(result).toMatchObject({ saved: true });
   });
 
   it.each([
-    [{ startYear: "26" }, "Enter the year the budget year's April falls in, like 2026."],
+    [{ effectiveFrom: "2099" }, "Choose the month the new split starts in."],
     [{ "share:u-sam": "forty" }, "Each percentage must be a number from 0 to 100, with at most two decimals."],
   ])("refuses a bad form %j", async (change, error) => {
     given();
-    expect(await saveBudgetYear({}, form({ ...split, ...change }))).toEqual({ error });
+    expect(await saveSplit({}, form({ ...split, ...change }))).toEqual({ error });
   });
 
   it("sends anyone without the manage_budget key back to Finances", async () => {
     given({ admin: false });
-    await expect(saveBudgetYear({}, form(split))).rejects.toThrow("REDIRECT:/finances");
+    await expect(saveSplit({}, form(split))).rejects.toThrow("REDIRECT:/finances");
+  });
+
+  // #132: no door may reach back into a split whose month has passed —
+  // not Edit, and not Add saving over the same month.
+  it.each([["editing", "true"], ["adding", ""]])(
+    "refuses %s a split whose month has passed",
+    async (_door, editing) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2099-12-01T16:00:00Z"));
+      given();
+      const result = await saveSplit({}, form({ ...split, editing }));
+      vi.useRealTimers();
+      expect(result).toEqual({
+        error: "That split has already started. Save one from this month or a later one.",
+      });
+      expect(rpc).not.toHaveBeenCalledWith("save_split", expect.anything());
+    },
+  );
+
+  it("allows the month now running, which is how the first split is saved", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2099-10-20T16:00:00Z"));
+    given();
+    const result = await saveSplit({}, form({ ...split, editing: "true" }));
+    vi.useRealTimers();
+    expect(result).toMatchObject({ saved: true });
+    expect(rpc).toHaveBeenCalledWith("save_split", expect.objectContaining({ p_today: "2099-10-20" }));
+  });
+
+  it("only ever deletes a split that hasn't started", async () => {
+    given();
+    await removeSplit(form({ id: "s-1" }));
+    expect(table.delete).toHaveBeenCalled();
+    expect(table.gte).toHaveBeenCalledWith("effective_from", expect.stringMatching(/^\d{4}-\d{2}-01$/));
   });
 
   it("shows the database's refusal as-is (it checks the total too)", async () => {
     given({ error: { message: "The percentages must total 100; these total 90" } });
-    expect(await saveBudgetYear({}, form(split))).toEqual({
+    expect(await saveSplit({}, form(split))).toEqual({
       error: "The percentages must total 100; these total 90",
     });
   });
 });
 
-describe("addIncomeSource (REQ-51)", () => {
+describe("saveIncomeSource (REQ-51, #132)", () => {
   const pay = {
     name: " Day job ",
     ownerId: "u-sam",
@@ -104,13 +156,14 @@ describe("addIncomeSource (REQ-51)", () => {
 
   it("records the name, owner, net amount per payment, cadence and anchor date", async () => {
     given();
-    expect(await addIncomeSource({}, form(pay))).toEqual({ saved: true });
+    expect(await saveIncomeSource({}, form(pay))).toMatchObject({ saved: true });
     expect(table.insert).toHaveBeenCalledWith({
       name: "Day job",
       owner_id: "u-sam",
       net_amount: 2400,
       cadence: "biweekly",
       anchor_date: "2026-09-18",
+      effective_from: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     });
   });
 
@@ -121,13 +174,41 @@ describe("addIncomeSource (REQ-51)", () => {
     [{ anchorDate: "" }, "Enter the date of one real payday."],
   ])("refuses %j", async (change, error) => {
     given();
-    expect(await addIncomeSource({}, form({ ...pay, ...change }))).toEqual({ error });
+    expect(await saveIncomeSource({}, form({ ...pay, ...change }))).toEqual({ error });
     expect(table.insert).not.toHaveBeenCalled();
   });
 
   it("is for admins only", async () => {
     given({ admin: false });
-    await expect(addIncomeSource({}, form(pay))).rejects.toThrow("REDIRECT:/finances");
+    await expect(saveIncomeSource({}, form(pay))).rejects.toThrow("REDIRECT:/finances");
+  });
+
+  // #132: a change starts a new source today rather than rewriting the
+  // old one, so paydays already past keep the amount they were paid at.
+  it("changing one ends it today and starts a new one", async () => {
+    given();
+    const result = await saveIncomeSource({}, form({ ...pay, id: "i-1", netAmount: "2600" }));
+    expect(result).toEqual({
+      saved: true,
+      message: "Changed, from today onwards. Past paydays keep the old amount.",
+    });
+    expect(rpc).toHaveBeenCalledWith("change_income_source", {
+      p_id: "i-1",
+      p_name: "Day job",
+      p_owner_id: "u-sam",
+      p_net_amount: 2600,
+      p_cadence: "biweekly",
+      p_anchor_date: "2026-09-18",
+      p_on: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    });
+    expect(table.insert).not.toHaveBeenCalled();
+  });
+
+  it("removing one ends it rather than deleting it", async () => {
+    given();
+    await removeIncomeSource(form({ id: "i-1" }));
+    expect(table.update).toHaveBeenCalledWith({ ended_on: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
+    expect(table.delete).not.toHaveBeenCalled();
   });
 });
 

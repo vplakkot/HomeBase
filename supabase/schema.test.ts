@@ -456,6 +456,67 @@ describe("receipt hash migration", () => {
   });
 });
 
+describe("dated splits and income history (#132)", () => {
+  const dated = readMigration("20260922210000");
+
+  it("carries the saved budget years over as splits starting that April", () => {
+    expect(dated).toMatch(/insert into public\.splits[\s\S]*make_date\(start_year, 4, 1\)/);
+    expect(dated).toMatch(/insert into public\.split_shares[\s\S]*from public\.budget_year_shares/);
+    expect(dated).toMatch(/drop table public\.budget_years/);
+  });
+
+  it("keeps the same rules on the new tables: members read, the key writes", () => {
+    for (const table of ["splits", "split_shares"]) {
+      expect(dated).toMatch(new RegExp(`alter table public\\.${table} enable row level security`));
+      expect(dated).toMatch(new RegExp(`revoke all on public\\.${table} from anon;`));
+      expect(dated).toMatch(
+        new RegExp(`on public\\.${table} for select to authenticated\\s+using \\(\\(select public\\.is_member\\(\\)\\)\\)`),
+      );
+      expect(dated).toMatch(
+        new RegExp(`on public\\.${table} for all to authenticated\\s+using \\(\\(select public\\.has_permission\\('manage_budget'\\)\\)\\)`),
+      );
+      expect(dated).toMatch(
+        new RegExp(`after insert or update on public\\.${table}\\s+deferrable initially deferred`),
+      );
+    }
+  });
+
+  it("starts a split on the first of a month, so months can't half-match", () => {
+    expect(dated).toMatch(/effective_from date not null unique check \(extract\(day from effective_from\) = 1\)/);
+    expect(dated).toMatch(/date_trunc\('month', p_effective_from\)/);
+  });
+
+  it("changes an income source by ending the old row and starting a new one", () => {
+    expect(dated).toMatch(/add column effective_from date not null default current_date,\s+add column ended_on date/);
+    expect(dated).toMatch(/create function public\.change_income_source[\s\S]*set ended_on = current_date[\s\S]*insert into public\.income_sources/);
+    expect(dated).toMatch(/create function public\.change_income_source[\s\S]*?security invoker/);
+  });
+});
+
+describe("the household's clock, and a started split (#132 reviews)", () => {
+  const clock = readMigration("20260922230000");
+  const locked = readMigration("20260923010000");
+
+  it("takes the day from the caller, never from the database server", () => {
+    expect(clock).toMatch(/create function public\.change_income_source\([\s\S]*?p_on date\s*\)/);
+    expect(clock).toMatch(/set ended_on = p_on/);
+    expect(locked).toMatch(/create function public\.save_split\([\s\S]*?p_today date\s*\)/);
+    expect(locked).toMatch(/alter column effective_from drop default/);
+    expect(locked).toMatch(/at time zone 'America\/New_York'/);
+  });
+
+  it("refuses to save a split whose month has already passed", () => {
+    expect(locked).toMatch(
+      /if starts < date_trunc\('month', p_today\)::date then\s+raise exception/,
+    );
+  });
+
+  it("re-issues the keys it took away when it replaced each function", () => {
+    expect(clock).toMatch(/grant execute on function public\.change_income_source\(uuid, text, uuid, numeric, text, date, date\)\s+to authenticated;/);
+    expect(locked).toMatch(/grant execute on function public\.save_split\(date, text, jsonb, date\) to authenticated;/);
+  });
+});
+
 describe("Finances setup migration (REQ-50, 51, 94)", () => {
   const setup = readMigration("20260922120000");
   const tables = ["budget_years", "budget_year_shares", "income_sources", "bills"];

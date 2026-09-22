@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasPermission } from "../../../lib/auth/permissions";
-import { budgetYearLabel, formatPercent, parsePercent } from "../../../lib/finances/budget-year";
+import {
+  formatPercent,
+  householdToday,
+  monthLabel,
+  monthStart,
+  parsePercent,
+} from "../../../lib/finances/budget-year";
 import { isBillKind } from "../../../lib/finances/bills";
 import { isCadence } from "../../../lib/finances/income";
 import { parseAmount } from "../../../lib/finances/money";
@@ -27,10 +33,19 @@ function refresh() {
 const SHARE_FIELD = "share:";
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function saveBudgetYear(_previous: FormState, formData: FormData): Promise<FormState> {
-  const startYear = Number(formData.get("startYear"));
-  if (!Number.isInteger(startYear) || startYear < 2000 || startYear > 2999) {
-    return { error: "Enter the year the budget year's April falls in, like 2026." };
+// REQ-50, #132: a split starts on a month and stays in force until a
+// later one starts. Saving a month that already has a split replaces it.
+export async function saveSplit(_previous: FormState, formData: FormData): Promise<FormState> {
+  const month = String(formData.get("effectiveFrom") ?? "");
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return { error: "Choose the month the new split starts in." };
+  }
+  const effectiveFrom = monthStart(`${month}-01`);
+  // Every door, not only Edit: saving a month that already has a split
+  // replaces it, so a past month must be refused here too.
+  const today = householdToday();
+  if (effectiveFrom < monthStart(today)) {
+    return { error: "That split has already started. Save one from this month or a later one." };
   }
 
   const shares: { user_id: string; percent: number }[] = [];
@@ -51,18 +66,37 @@ export async function saveBudgetYear(_previous: FormState, formData: FormData): 
   }
 
   const supabase = await requireManageBudget();
-  const { error } = await supabase.rpc("save_budget_year", {
-    p_start_year: startYear,
+  const { error } = await supabase.rpc("save_split", {
+    p_effective_from: effectiveFrom,
     p_note: String(formData.get("note") ?? "").trim(),
     p_shares: shares,
+    p_today: today,
   });
   if (error) return { error: error.message };
 
   refresh();
-  return { saved: true, message: `Split saved for ${budgetYearLabel(startYear)}.` };
+  return { saved: true, message: `Split saved, from ${monthLabel(effectiveFrom)} onwards.` };
 }
 
-export async function addIncomeSource(_previous: FormState, formData: FormData): Promise<FormState> {
+// Only a split that hasn't started can be taken away; one that has run
+// is what its months were worked out from.
+export async function removeSplit(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const supabase = await requireManageBudget();
+  const { error } = await supabase
+    .from("splits")
+    .delete()
+    .eq("id", id)
+    .gte("effective_from", monthStart(householdToday()));
+  if (error) throw new Error(`Could not remove the split: ${error.message}`);
+  refresh();
+}
+
+// Adding a source, or changing one: a change ends the old source today
+// and starts a new one, so past paydays keep the amount they were paid at.
+export async function saveIncomeSource(_previous: FormState, formData: FormData): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const ownerId = String(formData.get("ownerId") ?? "");
   const amount = parseAmount(String(formData.get("netAmount") ?? ""));
@@ -75,24 +109,43 @@ export async function addIncomeSource(_previous: FormState, formData: FormData):
   if (!ISO_DAY.test(anchorDate)) return { error: "Enter the date of one real payday." };
 
   const supabase = await requireManageBudget();
-  const { error } = await supabase.from("income_sources").insert({
-    name,
-    owner_id: ownerId,
-    net_amount: amount,
-    cadence,
-    anchor_date: anchorDate,
-  });
+  const { error } = id
+    ? await supabase.rpc("change_income_source", {
+        p_id: id,
+        p_name: name,
+        p_owner_id: ownerId,
+        p_net_amount: amount,
+        p_cadence: cadence,
+        p_anchor_date: anchorDate,
+        p_on: householdToday(),
+      })
+    : await supabase.from("income_sources").insert({
+        name,
+        owner_id: ownerId,
+        net_amount: amount,
+        cadence,
+        anchor_date: anchorDate,
+        effective_from: householdToday(),
+      });
   if (error) return { error: error.message };
 
   refresh();
-  return { saved: true };
+  return {
+    saved: true,
+    message: id ? "Changed, from today onwards. Past paydays keep the old amount." : undefined,
+  };
 }
 
+// Removing a source ends it rather than deleting it: months already
+// worked out from it must not change underneath.
 export async function removeIncomeSource(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   const supabase = await requireManageBudget();
-  const { error } = await supabase.from("income_sources").delete().eq("id", id);
+  const { error } = await supabase
+    .from("income_sources")
+    .update({ ended_on: householdToday() })
+    .eq("id", id);
   if (error) throw new Error(`Could not remove the income source: ${error.message}`);
   refresh();
 }

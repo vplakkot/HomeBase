@@ -23,6 +23,9 @@ export type IncomeSource = {
   net_amount: number;
   cadence: Cadence;
   anchor_date: string;
+  // A source that has been changed or removed is ended rather than
+  // rewritten, so paydays already past keep what they were paid at.
+  ended_on?: string | null;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -79,7 +82,8 @@ export function payDates(
 export async function listIncomeSources(supabase: SupabaseClient): Promise<IncomeSource[]> {
   const { data, error } = await supabase
     .from("income_sources")
-    .select("id, name, owner_id, net_amount, cadence, anchor_date")
+    .select("id, name, owner_id, net_amount, cadence, anchor_date, ended_on")
+    .is("ended_on", null)
     .order("created_at");
   if (error) throw new Error(`Could not list income sources: ${error.message}`);
   return ((data ?? []) as IncomeSource[]).map((s) => ({ ...s, net_amount: Number(s.net_amount) }));

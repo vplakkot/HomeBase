@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { Account } from "../lib/account";
 import { Sidebar, type Place } from "./sidebar";
 import styles from "./app-frame.module.css";
@@ -14,19 +14,24 @@ export function AppFrame({
   canAdminister,
   account,
   phoneBar,
+  style,
   children,
 }: {
   current: Place;
   canAdminister: boolean;
   account: Account;
   phoneBar?: ReactNode;
+  // A module's colour tokens, so everything on its page can use them.
+  style?: CSSProperties;
   children: ReactNode;
 }) {
   return (
     <div className={styles.frame}>
       <Sidebar current={current} canAdminister={canAdminister} account={account} />
       <div className={styles.column}>
-        <main className={styles.main}>{children}</main>
+        <main className={styles.main} style={style}>
+          {children}
+        </main>
         {phoneBar ? <div className={styles.phoneBar}>{phoneBar}</div> : null}
       </div>
     </div>

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { LockIcon } from "../../components/icons";
 import {
-  budgetYearLabel,
-  budgetYearStartFor,
   householdToday,
   listPeople,
-  readBudgetYear,
+  listSplits,
+  monthLabel,
+  splitInForce,
 } from "../../lib/finances/budget-year";
 import { dueLabel, listBills } from "../../lib/finances/bills";
 import { FinancesFrame, financesViewer } from "./frame";
@@ -18,14 +18,15 @@ import styles from "./page.module.css";
 // until monthly entry arrives, so the month reads as incomplete.
 export default async function FinancesPage() {
   const { supabase, canManageMembers, canManageBudget, account } = await financesViewer();
-  const startYear = budgetYearStartFor(householdToday());
-  const [budgetYear, bills, people] = await Promise.all([
-    readBudgetYear(supabase, startYear),
+  const todayIso = householdToday();
+  const [splits, bills, people] = await Promise.all([
+    listSplits(supabase),
     listBills(supabase),
     listPeople(supabase),
   ]);
+  const split = splitInForce(splits, todayIso);
 
-  if (!budgetYear) {
+  if (!split) {
     const admins = people.filter((person) => person.manages_budget).map((person) => person.name);
     return (
       <FinancesFrame canManageMembers={canManageMembers} account={account} status="No budget year">
@@ -60,7 +61,7 @@ export default async function FinancesPage() {
   }
 
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
-  const split = budgetYear.shares
+  const sharesLine = split.shares
     .map((share) => `${nameOf.get(share.user_id) ?? "Someone"} ${share.percent}%`)
     .join(" · ");
 
@@ -95,7 +96,7 @@ export default async function FinancesPage() {
           <span className={styles.billText}>
             <span className={styles.billName}>Budget year</span>
             <span className={styles.cardNote}>
-              {budgetYearLabel(budgetYear.start_year)} · {split}
+              From {monthLabel(split.effective_from)} · {sharesLine}
             </span>
           </span>
           {canManageBudget ? (
