@@ -13,6 +13,11 @@
   picker switches between opened months. Changing a bill in the Budget
   year now leaves months already opened alone. (#138)
 
+- While this month is open, adding, changing or removing a bill in the
+  Budget year asks whether this month takes it too, ticked by default.
+  A removed bill that wasn't entered yet counts as $0 this month;
+  one already entered keeps its amount. (#140)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each
