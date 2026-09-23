@@ -29,6 +29,13 @@
     max(var(--screen-pad-phone), env(safe-area-inset-left));
 }
 
+/* A flex column shrinks its children to fit before it scrolls, which
+   squashed the last card on a long page and clipped what was inside it.
+   Children keep their own height, so the page scrolls instead. */
+.main > * {
+  flex-shrink: 0;
+}
+
 .phoneBar {
   flex-shrink: 0;
 }
