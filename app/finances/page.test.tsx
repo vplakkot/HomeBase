@@ -235,7 +235,7 @@ describe("the Finances page", () => {
       "Sam$590.00outstanding · paid $650.00 of $1,240.00",
     ]);
     expect(people.textContent).toContain("Shared$3,100.00");
-    expect(people.textContent).toContain("Sam: 40% of $3,100.00 = $1,240.00 owed. Paid $650.00 ($100.00 of it in one-time payments).");
+    expect(people.textContent).toContain("Sam: 40% of $3,100.00 = $1,240.00 owed. Paid $650.00 ($100.00 of it in One-time Payments).");
 
     const bills = screen.getByRole("region", { name: "Bills" });
     expect(bills.textContent).toContain("$450.00 of $3,000.00 left");

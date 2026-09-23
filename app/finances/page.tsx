@@ -143,7 +143,7 @@ export default async function FinancesPage({
               ? "Copies in the bill list, ready to enter"
               : toEnter > 0
                 ? `${toEnter} bill${toEnter === 1 ? "" : "s"} still to enter`
-                : "Bills, personal charges and one-time payments"}
+                : "Bills, personal charges and One-time Payments"}
           </span>
         </span>
         <ChevronRightIcon />
@@ -195,7 +195,7 @@ export default async function FinancesPage({
                 <dd>{formatMoney(totals.expenses)}</dd>
                 <dt>Less personal charges</dt>
                 <dd>− {formatMoney(totals.personal)}</dd>
-                <dt>Plus one-time payments</dt>
+                <dt>Plus One-time Payments</dt>
                 <dd>+ {formatMoney(totals.direct)}</dd>
                 <dt>Shared</dt>
                 <dd>{formatMoney(totals.sharedBase)}</dd>
@@ -210,14 +210,14 @@ export default async function FinancesPage({
                       ? `, plus ${formatMoney(person.personal)} of their own personal charges = ${formatMoney(person.obligation)}`
                       : ""}{" "}
                     owed. Paid {formatMoney(person.paid)}
-                    {person.fronted > 0 ? ` (${formatMoney(person.fronted)} of it in one-time payments)` : ""}
+                    {person.fronted > 0 ? ` (${formatMoney(person.fronted)} of it in One-time Payments)` : ""}
                     .
                   </p>
                 );
               })}
               <p className={styles.cardNote}>
                 Together that&apos;s {formatMoney(totals.expenses + totals.direct)}: the bills plus the
-                one-time payments.
+                One-time Payments.
               </p>
             </details>
           </section>

@@ -81,7 +81,7 @@ describe("Monthly entry in an opened month", () => {
     expect(rent.className).toContain("todo");
     expect(rent.querySelector("details")).toBeNull();
     expect(card.className).toContain("entry");
-    expect(card.textContent).toContain("Due 22 Sep · $45.00 personal");
+    expect(card.querySelector("p")?.textContent).toBe("Due 22 Sep");
     expect(card.querySelector(":scope > details > summary")?.textContent).toBe("Change");
   });
 
@@ -123,9 +123,10 @@ describe("Monthly entry in an opened month", () => {
   it("says only charges still inside the balance count", async () => {
     given({ months: [SEPTEMBER] });
     await page();
-    expect(
-      screen.getByText(/Anything paid off before the statement closed stays out/),
-    ).toBeDefined();
+    const hints = screen.getAllByRole("note").map((note) => note.getAttribute("aria-label"));
+    expect(hints).toContain(
+      "Only charges still in the balance. Anything paid off before the statement closed stays out.",
+    );
   });
 
   // REQ-54: an amount, whose, and an optional note.
@@ -144,13 +145,16 @@ describe("Monthly entry in an opened month", () => {
   it("logs direct payments with payer, total and note, and points card spend at its statement", async () => {
     given({ months: [SEPTEMBER] });
     await page();
-    const direct = screen.getByRole("region", { name: "One-time payments" });
-    expect(direct.textContent).toContain("Anything on Joint card is already in its statement, so don't log it here.");
-    expect(within(direct).getByRole("combobox", { name: "Who paid the one-time payment" })).toBeDefined();
-    expect(within(direct).getByRole("textbox", { name: "Total of the one-time payment" })).toBeDefined();
-    const note = within(direct).getByRole("textbox", { name: "What the one-time payment was for" });
+    const direct = screen.getByRole("region", { name: "One-time Payments" });
+    // The explanation is a hint on the info icon, not text on the card.
+    expect(within(direct).getByRole("note").getAttribute("aria-label")).toContain(
+      "Anything on Joint card is already in its statement.",
+    );
+    expect(within(direct).getByRole("combobox", { name: "Who paid the One-time Payment" })).toBeDefined();
+    expect(within(direct).getByRole("textbox", { name: "Total of the One-time Payment" })).toBeDefined();
+    const note = within(direct).getByRole("textbox", { name: "What the One-time Payment was for" });
     expect((note as HTMLInputElement).required).toBe(true);
-    expect(direct.textContent).toContain("Groceries, Venmo$64.20Paid by Alex");
+    expect(direct.textContent).toContain("Groceries, Venmo$64.20Alex · 5 Sep");
   });
 
   // REQ-53: entry is shared. The page shows every entry whoever made it:
@@ -159,7 +163,7 @@ describe("Monthly entry in an opened month", () => {
     given({ months: [SEPTEMBER] });
     await page();
     expect(screen.getByText("Sam · $45.00 · Birthday gift")).toBeDefined();
-    expect(screen.getByText("Paid by Alex on 5 Sep")).toBeDefined();
+    expect(screen.getByText("Alex · 5 Sep")).toBeDefined();
   });
 
   it("reads Open once every bill is entered", async () => {

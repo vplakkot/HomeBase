@@ -14,6 +14,7 @@ import {
 import { formatMoney } from "../../../lib/finances/money";
 import styles from "../budget-year/page.module.css";
 import { FinancesFrame, financesViewer } from "../frame";
+import { Hint } from "../hint";
 import { openMonth, removeDirectPayment, removePersonalCharge } from "./actions";
 import { BillEntryForm, DirectPaymentForm, PersonalChargeForm } from "./forms";
 
@@ -101,9 +102,7 @@ export default async function MonthlyEntryPage({
             <h2 id="month-bills" className={styles.name}>
               Bills
             </h2>
-            <p className={styles.note}>
-              This month&apos;s statements plus this month&apos;s rent.
-            </p>
+            <Hint text="This month's statements plus this month's rent." />
           </header>
           <div className={styles.entries}>
             {month.bills.length === 0 ? (
@@ -152,15 +151,7 @@ export default async function MonthlyEntryPage({
                           <span className={styles.amount}>{formatMoney(bill.amount ?? 0)}</span>
                         )}
                       </div>
-                      <p className={styles.detail}>
-                        {dueInMonth(bill.due_day, month.starts_on)}
-                        {!gap && bill.kind === "card" && bill.personal_charges.length === 0
-                          ? " · no personal charges"
-                          : ""}
-                        {!gap && bill.personal_charges.length > 0
-                          ? ` · ${formatMoney(bill.personal_charges.reduce((sum, c) => sum + c.amount, 0))} personal`
-                          : ""}
-                      </p>
+                      <p className={styles.detail}>{dueInMonth(bill.due_day, month.starts_on)}</p>
                       {gap ? (
                         <>
                           <BillEntryForm bill={bill} />
@@ -184,48 +175,43 @@ export default async function MonthlyEntryPage({
         <section className={styles.card} aria-labelledby="direct-payments">
           <header className={styles.head}>
             <h2 id="direct-payments" className={styles.name}>
-              One-time payments
+              One-time Payments
             </h2>
-          </header>
-          <div className={styles.addBlock}>
-            <p className={styles.empty}>
-              Shared spend one of you paid by cash, Venmo or a personal card. The other owes
-              their share of it.
-              {cards.length > 0
-                ? ` Anything on ${cards.join(" or ")} is already in its statement, so don't log it here.`
-                : " Anything on a tracked card is already in its statement, so don't log it here."}
-            </p>
-            <DirectPaymentForm
-              monthId={month.id}
-              people={people}
-              firstDay={month.starts_on}
-              lastDay={lastDay}
+            <Hint
+              text={`Shared spend one of you paid by cash, Venmo or a personal card; the other owes their share. Anything on ${cards.length > 0 ? cards.join(" or ") : "a tracked card"} is already in its statement.`}
             />
-          </div>
+          </header>
           <div className={styles.entries}>
-            {month.direct_payments.length === 0 ? (
-              <p className={styles.empty}>None logged this month.</p>
-            ) : (
-              <ul className={styles.list}>
-                {month.direct_payments.map((payment) => (
-                  <li key={payment.id} className={styles.entry}>
-                    <div className={styles.entryHead}>
-                      <span className={styles.entryName}>{payment.note}</span>
-                      <span className={styles.amount}>{formatMoney(payment.amount)}</span>
-                    </div>
-                    <p className={styles.detail}>
-                      Paid by {nameOf.get(payment.payer_id) ?? "someone"} on {dayLabel(payment.paid_on)}
-                    </p>
-                    <form action={removeDirectPayment}>
-                      <input type="hidden" name="id" value={payment.id} />
-                      <button type="submit" className={styles.quiet}>
-                        Remove
-                      </button>
-                    </form>
-                  </li>
-                ))}
-              </ul>
-            )}
+            {/* Same shapes as Bills: the form is a pale tile (still to do),
+                each logged payment a brick one (done). */}
+            <ul className={styles.list}>
+              <li className={styles.todo}>
+                <span className={styles.entryName}>New One-time Payment</span>
+                <DirectPaymentForm
+                  monthId={month.id}
+                  people={people}
+                  firstDay={month.starts_on}
+                  lastDay={lastDay}
+                />
+              </li>
+              {month.direct_payments.map((payment) => (
+                <li key={payment.id} className={styles.entry}>
+                  <div className={styles.entryHead}>
+                    <span className={styles.entryName}>{payment.note}</span>
+                    <span className={styles.amount}>{formatMoney(payment.amount)}</span>
+                  </div>
+                  <p className={styles.detail}>
+                    {nameOf.get(payment.payer_id) ?? "Someone"} · {dayLabel(payment.paid_on)}
+                  </p>
+                  <form action={removeDirectPayment}>
+                    <input type="hidden" name="id" value={payment.id} />
+                    <button type="submit" className={styles.quiet}>
+                      Remove
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
       </div>

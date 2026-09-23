@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { InfoIcon, LockIcon } from "../../../components/icons";
+import { LockIcon } from "../../../components/icons";
 import { BILL_KINDS, dueLabel, listBills } from "../../../lib/finances/bills";
 import {
   HOUSEHOLD_TIME_ZONE,
@@ -14,6 +14,7 @@ import {
 import { listOpenedMonths } from "../../../lib/finances/month";
 import { CADENCES, listIncomeSources, payDates } from "../../../lib/finances/income";
 import { formatMoney } from "../../../lib/finances/money";
+import { Hint } from "../hint";
 import { FinancesFrame, financesViewer } from "../frame";
 import { removeBill, removeIncomeSource, removeSplit } from "./actions";
 import { BillForm, IncomeForm, SplitForm } from "./forms";
@@ -66,18 +67,7 @@ function Card({
         <h2 id={id} className={styles.name}>
           {name}
         </h2>
-        {/* The explanation is a hint on the icon, so every card's head is
-            one line and they all line up (#133). */}
-        <span
-          className={styles.info}
-          data-hint={hint}
-          title={hint}
-          tabIndex={0}
-          role="note"
-          aria-label={hint}
-        >
-          <InfoIcon />
-        </span>
+        <Hint text={hint} />
       </header>
       <div className={styles.addBlock}>
         <h3 className={styles.addTitle}>{addTitle}</h3>

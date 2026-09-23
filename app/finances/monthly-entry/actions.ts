@@ -120,7 +120,7 @@ export async function addDirectPayment(_previous: FormState, formData: FormData)
   if (!startsOn || paidOn.slice(0, 7) !== startsOn.slice(0, 7)) {
     return { error: "The date paid has to be in this month." };
   }
-  if (paidOn > householdToday()) return { error: "A one-time payment is already paid, so its date can't be in the future." };
+  if (paidOn > householdToday()) return { error: "A One-time Payment is already paid, so its date can't be in the future." };
 
   const { error } = await supabase
     .from("direct_payments")
