@@ -52,7 +52,11 @@ export const MODULES: readonly Module[] = [
         description: "Confirm paychecks, add ESPP, RSU, bonus",
         href: "/finances/income",
       },
-      { name: "Savings", description: "Verdict and what you actually saved" },
+      {
+        name: "Savings",
+        description: "Verdict and what you actually saved",
+        href: "/finances/savings",
+      },
       { name: "Balances", description: "Enter and see trends" },
       { name: "History", description: "Closed months, read-only" },
       {

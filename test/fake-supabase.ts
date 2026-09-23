@@ -26,7 +26,7 @@ export function fakeSupabase({ signedIn = true, permissions = [], people = [], t
         Promise.resolve(result).then(resolve, reject),
       maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
     };
-    for (const method of ["select", "eq", "is", "gte", "order", "insert", "update", "delete"]) {
+    for (const method of ["select", "eq", "is", "gte", "order", "insert", "update", "upsert", "delete"]) {
       query[method] = vi.fn(() => query);
     }
     return query;

@@ -435,13 +435,15 @@ describe("closing a month and the verdict", () => {
     expect(screen.queryByRole("button", { name: /^Close / })).toBeNull();
   });
 
-  it("says the month moved you forward, with the amount and each person's leftover", async () => {
+  it("says the month moved you forward, with joint savings from the lower leftover and what's each person's", async () => {
     await show({
       bills: [rentPaidBy([])],
       income: [paycheck("u-alex", "2500.00"), paycheck("u-sam", "1000.00")],
     });
     const verdict = screen.getByRole("region", { name: "This month" });
-    expect(verdict.textContent).toContain("On track to move you forward$1,500.00Alex $1,300.00 · Sam $200.00 left");
+    expect(verdict.textContent).toContain(
+      "On track to move you forward$200.00Joint savings, projectedAlex: $100.00 to joint · $1,200.00 yoursSam: $100.00 to joint · $100.00 yours",
+    );
     expect(within(verdict).getByRole("note").getAttribute("aria-label")).toContain("Leftover excludes personal card spend");
   });
 
@@ -452,17 +454,33 @@ describe("closing a month and the verdict", () => {
     });
     const verdict = screen.getByRole("region", { name: "This month" });
     expect(verdict.textContent).toContain("Nothing to save this month");
-    expect(verdict.textContent).toContain("Your shares came to $100.00 more than the income logged.");
+    expect(verdict.textContent).toContain("Alex's income didn't cover their share: $200.00 came out of savings.");
     expect(verdict.textContent).toContain("Alex −$200.00 · Sam $100.00 left");
   });
 
-  it("says so when income exactly covers the shares", async () => {
+  it("has nothing to save when one person has nothing left, even if the other has plenty", async () => {
     await show({
       bills: [rentPaidBy([])],
-      income: [paycheck("u-alex", "1200.00"), paycheck("u-sam", "800.00")],
+      income: [paycheck("u-alex", "5000.00"), paycheck("u-sam", "800.00")],
     });
     const verdict = screen.getByRole("region", { name: "This month" });
-    expect(verdict.textContent).toContain("Nothing to save this monthYour shares came to exactly the income logged.");
+    expect(verdict.textContent).toContain("Nothing to save this monthSam has nothing left after their share.");
+  });
+
+  it("says Moved you forward, not projected, once the month is closed", async () => {
+    await show({
+      bills: [rentPaidBy([["u-alex", "1200.00"], ["u-sam", "800.00"]])],
+      income: [paycheck("u-alex", "2500.00"), paycheck("u-sam", "1000.00")],
+      closed_at: "2026-09-30T14:00:00Z",
+      split_from: "2026-04-01",
+      people: [
+        { user_id: "u-alex", percent: "60.00", outstanding: "0.00" },
+        { user_id: "u-sam", percent: "40.00", outstanding: "0.00" },
+      ],
+    }, ADMIN, "2026-10-05T16:00:00Z");
+    const verdict = screen.getByRole("region", { name: "This month" });
+    expect(verdict.textContent).toContain("Moved you forward$200.00Joint savings");
+    expect(verdict.textContent).not.toContain("projected");
   });
 
   it("points to Income when nothing is logged yet", async () => {

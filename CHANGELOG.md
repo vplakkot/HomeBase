@@ -67,6 +67,14 @@
   income. Finances home says whether the month moved you forward, with
   each person's leftover. (#152)
 
+- Savings. The verdict card now shows what goes into joint savings:
+  each of you puts in half of the lower leftover, rounded down to the
+  dollar, and the rest is yours. When anyone has nothing left it says
+  "Nothing to save this month" with the reason in words, such as whose
+  income didn't cover their share. The new Savings section records what
+  you actually put into joint and saved on your own, and sets each
+  closed month's record beside what was available. (#154)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each
