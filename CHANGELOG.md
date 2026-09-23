@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 - 2026-09-22
+
+The Finances module gets its setup: an admin sets the split, each
+person's income sources and the household's bills, in a section that
+looks like Finances. Nothing enters a month yet — that comes next. Built
+over one afternoon and three rounds of your review, so the entries below
+run newest first.
 
 - A saved split lists each person on their own line with their
   percentage in the same size as an income source's amount, and an
