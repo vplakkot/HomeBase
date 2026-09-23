@@ -50,8 +50,10 @@ end;
 $$;
 
 -- save_bill takes the amount now, so the old one goes. With the tick, a
--- rent amount also becomes the open month's figure for it (refused, like
--- any lower figure, if more than that is already paid toward it).
+-- changed rent amount also becomes the open month's figure for it
+-- (refused, like any lower figure, if more than that is already paid
+-- toward it). Saving rent without changing its amount — a rename, say —
+-- leaves a figure Monthly entry changed for this month alone.
 drop function public.save_bill(uuid, text, text, integer, boolean, date);
 
 create function public.save_bill(
@@ -73,6 +75,7 @@ declare
   the_month uuid;
   copy public.month_bills;
   rent numeric := case when p_kind = 'rent' then p_amount end;
+  was_rent numeric;
 begin
   if not public.has_permission('manage_budget') then
     raise exception 'Only an admin changes the bill list'
@@ -84,6 +87,7 @@ begin
     values (p_name, p_kind, p_due_day, rent)
     returning id into the_bill;
   else
+    select amount into was_rent from public.bills where id = the_bill;
     update public.bills set name = p_name, kind = p_kind, due_day = p_due_day, amount = rent
     where id = the_bill;
     if not found then
@@ -114,7 +118,7 @@ begin
         amount = rent, personal_answer = null,
         entered_at = case when rent is not null then now() end
     where id = copy.id;
-  elsif rent is not null then
+  elsif rent is not null and (copy.kind <> 'rent' or rent is distinct from was_rent) then
     update public.month_bills
     set name = p_name, kind = p_kind, due_day = p_due_day, amount = rent, entered_at = now()
     where id = copy.id;

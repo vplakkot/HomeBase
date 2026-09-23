@@ -14,6 +14,7 @@ declare
   report text := E'\n';
   v_month uuid;
   v_rent uuid;
+  v_card uuid;
   rent_row uuid;
   v_amount numeric;
   v_entered timestamptz;
@@ -40,8 +41,8 @@ begin
     report := report || format('1. rent needs its amount (wants this): %s%s', sqlerrm, E'\n');
   end;
 
-  v_rent := public.save_bill(null, 'Check card', 'card', 9, 500, false, '2999-01-15'::date);
-  select amount into v_amount from public.bills where id = v_rent;
+  v_card := public.save_bill(null, 'Check card', 'card', 9, 500, false, '2999-01-15'::date);
+  select amount into v_amount from public.bills where id = v_card;
   report := report || format('2. an amount given for a card is dropped: %s (wants null)%s',
     coalesce(v_amount::text, 'null'), E'\n');
 
@@ -73,15 +74,19 @@ begin
   select amount into v_amount from public.month_bills where id = rent_row;
   report := report || format('5. without the tick the open month keeps its rent: $%s (wants 1850)%s', v_amount, E'\n');
 
+  perform public.save_bill(v_rent, 'Check rent renamed', 'rent', 1, 2000, true, '2999-01-15'::date);
+  select amount into v_amount from public.month_bills where id = rent_row;
+  report := report || format('6. a ticked save that leaves the amount alone keeps this month''s: $%s (wants 1850)%s', v_amount, E'\n');
+
   perform public.save_bill(v_rent, 'Check rent', 'rent', 1, 1900, true, '2999-01-15'::date);
   select amount into v_amount from public.month_bills where id = rent_row;
-  report := report || format('6. with the tick it takes the new rent: $%s (wants 1900)%s', v_amount, E'\n');
+  report := report || format('7. with the tick a changed rent reaches the month: $%s (wants 1900)%s', v_amount, E'\n');
 
   begin
     perform public.save_bill(v_rent, 'Check rent', 'rent', 1, 1500, true, '2999-01-15'::date);
-    report := report || E'7. rent LOWERED below what''s paid this month -- WRONG\n';
+    report := report || E'8. rent LOWERED below what''s paid this month -- WRONG\n';
   exception when others then
-    report := report || format('7. rent can''t drop below what''s paid this month (wants this): %s%s', sqlerrm, E'\n');
+    report := report || format('8. rent can''t drop below what''s paid this month (wants this): %s%s', sqlerrm, E'\n');
   end;
 
   reset role;

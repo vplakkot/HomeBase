@@ -190,6 +190,14 @@ export function IncomeForm({ people, source }: { people: Person[]; source?: Inco
 export function BillForm({ bill, openMonth }: { bill?: Bill; openMonth?: string }) {
   const [state, formAction, pending] = useActionState(saveBill, initialState);
   const [kind, setKind] = useState(bill?.kind ?? "card");
+  // A new bill's form clears once it's added, so its type goes back to
+  // the default too. (Set while rendering, when the outcome changes, as
+  // React suggests for state that follows another.)
+  const [outcome, setOutcome] = useState(state);
+  if (outcome !== state) {
+    setOutcome(state);
+    if (state.saved && !bill) setKind("card");
+  }
   const what = bill ? bill.name : "new bill";
   return (
     <form action={formAction} className={styles.form}>
