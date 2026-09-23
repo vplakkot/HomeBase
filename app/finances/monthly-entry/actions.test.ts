@@ -198,7 +198,7 @@ describe("addDirectPayment (REQ-55)", () => {
       "The date paid has to be in this month.",
     );
     expect((await addDirectPayment({}, form({ ...base, paidOn: "2026-09-23" }))).error).toBe(
-      "A one-time payment is already paid, so its date can't be in the future.",
+      "A One-time Payment is already paid, so its date can't be in the future.",
     );
     expect(table.insert).not.toHaveBeenCalled();
   });

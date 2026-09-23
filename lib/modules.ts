@@ -38,7 +38,7 @@ export const MODULES: readonly Module[] = [
     sections: [
       {
         name: "Monthly entry",
-        description: "Bills, personal charges, one-time payments",
+        description: "Bills, personal charges, One-time Payments",
         href: "/finances/monthly-entry",
       },
       {

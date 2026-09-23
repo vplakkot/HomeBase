@@ -74,6 +74,23 @@
   display: block;
 }
 
+/* On a pale tile the icon takes the tile's ink; white would vanish. */
+.todo .info {
+  color: var(--module-quiet-ink);
+}
+
+/* Beside a question it sits in the line of text, and its hint opens to
+   the right, inside the tile. */
+legend .info {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+legend .info::after {
+  right: auto;
+  left: 0;
+}
+
 .name {
   margin: 0;
   font-family: var(--font-display);

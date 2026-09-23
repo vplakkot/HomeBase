@@ -50,6 +50,12 @@
   amount, with Change folded away. On the overview each person is a
   brick tile, green once paid up. (#148)
 
+- Monthly entry's two cards have the same shape: a header, then tiles.
+  The One-time Payments form is a pale tile like a bill still to enter,
+  and each logged payment a brick one. Explanations moved onto info
+  icons, and an entered bill shows only its due date. "One-time
+  Payments" is capitalised everywhere. (#150)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each

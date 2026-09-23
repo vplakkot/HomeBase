@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import type { Person } from "../../../lib/finances/budget-year";
 import type { MonthBill } from "../../../lib/finances/month";
 import styles from "../budget-year/page.module.css";
+import { Hint } from "../hint";
 import { addDirectPayment, addPersonalCharge, enterBill, type FormState } from "./actions";
 
 const initialState: FormState = {};
@@ -39,12 +40,11 @@ export function BillEntryForm({ bill }: { bill: MonthBill }) {
         </span>
       </label>
       {isCard ? (
-        <fieldset className={styles.field}>
-          <legend>Any personal charges still inside this balance?</legend>
-          <span className={styles.hint}>
-            Only charges still in the balance. Anything paid off before the statement closed
-            stays out.
-          </span>
+        <fieldset className={styles.field} aria-labelledby={`personal-${bill.id}`}>
+          <legend>
+            <span id={`personal-${bill.id}`}>Any personal charges still inside this balance?</span>{" "}
+            <Hint text="Only charges still in the balance. Anything paid off before the statement closed stays out." />
+          </legend>
           <label>
             <input
               type="radio"
@@ -136,7 +136,7 @@ export function DirectPaymentForm({
       <input type="hidden" name="monthId" value={monthId} />
       <label className={styles.field}>
         <span>Who paid</span>
-        <select name="payerId" aria-label="Who paid the one-time payment" required>
+        <select name="payerId" aria-label="Who paid the One-time Payment" required>
           {people.map((person) => (
             <option key={person.user_id} value={person.user_id}>
               {person.name}
@@ -150,7 +150,7 @@ export function DirectPaymentForm({
           <span aria-hidden="true">$</span>
           <input
             name="amount"
-            aria-label="Total of the one-time payment"
+            aria-label="Total of the One-time Payment"
             inputMode="decimal"
             placeholder="64.20"
             required
@@ -162,7 +162,7 @@ export function DirectPaymentForm({
         <input
           type="date"
           name="paidOn"
-          aria-label="Date the one-time payment was paid"
+          aria-label="Date the One-time Payment was paid"
           defaultValue={lastDay}
           min={firstDay}
           max={lastDay}
@@ -173,15 +173,15 @@ export function DirectPaymentForm({
         <span>Note</span>
         <input
           name="note"
-          aria-label="What the one-time payment was for"
+          aria-label="What the One-time Payment was for"
           placeholder="Groceries, paid on Venmo"
           required
         />
       </label>
       <button type="submit" className={styles.primary} disabled={pending}>
-        {pending ? "Saving…" : "Log one-time payment"}
+        {pending ? "Saving…" : "Log One-time Payment"}
       </button>
-      <Outcome state={state} saved="One-time payment logged." />
+      <Outcome state={state} saved="One-time Payment logged." />
     </form>
   );
 }

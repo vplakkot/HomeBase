@@ -49,7 +49,7 @@ describe("the Sections sheet", () => {
     const rows = within(sheet).getAllByRole("listitem");
     expect(rows.map((row) => row.textContent)).toEqual([
       "Overview",
-      "Monthly entryBills, personal charges, one-time payments",
+      "Monthly entryBills, personal charges, One-time Payments",
       "Log paymentSeveral times a month",
       "IncomeConfirm paychecks, add ESPP, RSU, bonusComing soon",
       "SavingsVerdict and what you actually savedComing soon",
@@ -74,7 +74,7 @@ describe("the Sections sheet", () => {
     const links = within(openSheet()).getAllByRole("link");
     expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["Overview", "/finances"],
-      ["Monthly entryBills, personal charges, one-time payments", "/finances/monthly-entry"],
+      ["Monthly entryBills, personal charges, One-time Payments", "/finances/monthly-entry"],
       ["Log paymentSeveral times a month", "/finances/log-payment"],
       ["Budget yearSplit %, income sources and billsAdmin only", "/finances/budget-year"],
     ]);
