@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { LockIcon } from "../../components/icons";
+import { ChevronRightIcon, LockIcon } from "../../components/icons";
+import { SectionLabel } from "../../components/section-label";
 import {
   householdToday,
   listPeople,
@@ -109,6 +110,7 @@ export default async function FinancesPage({
               ? { text: "Paid", done: true }
               : null,
           left: money && billEntered(bill) && money.left > 0 ? money.left : null,
+          share: money && billEntered(bill) && money.total > 0 ? Math.min(money.paid / money.total, 1) : null,
         };
       })
     : bills.map((bill) => ({
@@ -117,7 +119,9 @@ export default async function FinancesPage({
         note: dueLabel(bill.due_day),
         chip: { text: "Not entered", done: false },
         left: null,
+        share: null,
       }));
+  const toEnter = month ? month.bills.filter((bill) => !billEntered(bill)).length : 0;
   const billsLeft = totals ? totals.bills.reduce((sum, row) => sum + Math.max(row.left, 0), 0) : 0;
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
   const sharesLine = split.shares
@@ -131,12 +135,24 @@ export default async function FinancesPage({
       status={monthStatus(month)}
       month={picker}
     >
+      <Link href={`/finances/monthly-entry?month=${startsOn.slice(0, 7)}`} className={styles.entryRow}>
+        <span className={styles.rowText}>
+          <span className={styles.billName}>{month ? "Monthly entry" : `Open ${monthLabel(startsOn)}`}</span>
+          <span className={styles.cardNote}>
+            {!month
+              ? "Copies in the bill list, ready to enter"
+              : toEnter > 0
+                ? `${toEnter} bill${toEnter === 1 ? "" : "s"} still to enter`
+                : "Bills, personal charges and one-time payments"}
+          </span>
+        </span>
+        <ChevronRightIcon />
+      </Link>
+
       <div className={styles.columns}>
         {totals && totals.people.length > 0 ? (
-          <section className={styles.card} aria-labelledby="who-owes">
-            <h2 id="who-owes" className={styles.cardTitle}>
-              Who owes what
-            </h2>
+          <section className={styles.group} aria-labelledby="who-owes">
+            <SectionLabel id="who-owes">Who owes what</SectionLabel>
             <ul className={styles.people}>
               {totals.people.map((person) => {
                 const name = nameOf.get(person.user_id) ?? "Someone";
@@ -144,14 +160,12 @@ export default async function FinancesPage({
                 const done = person.obligation > 0 ? Math.min(person.paid / person.obligation, 1) : 1;
                 return (
                   <li key={person.user_id} className={styles.person}>
-                    <div className={styles.personHead}>
-                      <span className={styles.billName}>{name}</span>
-                      {settled ? (
-                        <span className={styles.paidUp}>Paid up</span>
-                      ) : (
-                        <span className={styles.owed}>{formatMoney(person.outstanding)}</span>
-                      )}
-                    </div>
+                    <span className={styles.personName}>{name}</span>
+                    {settled ? (
+                      <span className={`${styles.figure} ${styles.paidUp}`}>Paid up</span>
+                    ) : (
+                      <span className={styles.figure}>{formatMoney(person.outstanding)}</span>
+                    )}
                     <span className={styles.cardNote}>
                       {settled ? "" : "outstanding · "}paid {formatMoney(person.paid)} of{" "}
                       {formatMoney(person.obligation)}
@@ -165,7 +179,10 @@ export default async function FinancesPage({
                       aria-valuemax={100}
                       aria-valuenow={Math.round(done * 100)}
                     >
-                      <span className={styles.progressFill} style={{ width: `${done * 100}%` }} />
+                      <span
+                        className={settled ? `${styles.progressFill} ${styles.done}` : styles.progressFill}
+                        style={{ width: `${done * 100}%` }}
+                      />
                     </span>
                   </li>
                 );
@@ -206,64 +223,75 @@ export default async function FinancesPage({
           </section>
         ) : null}
 
-        <section className={styles.card} aria-labelledby="bills">
-          <div className={styles.cardHead}>
-            <div className={styles.billsHead}>
-            <h2 id="bills" className={styles.cardTitle}>
-              Bills
-            </h2>
+        <section className={styles.group} aria-labelledby="bills">
+          <div className={styles.groupHead}>
+            <SectionLabel id="bills">Bills</SectionLabel>
             {totals ? (
-              <span className={styles.cardNote}>
+              <span className={styles.groupNote}>
                 {formatMoney(billsLeft)} of {formatMoney(totals.expenses)} left
               </span>
             ) : null}
           </div>
-            <Link href={`/finances/monthly-entry?month=${startsOn.slice(0, 7)}`} className={styles.button}>
-              {month ? "Enter bills" : `Open ${monthLabel(startsOn)}`}
-            </Link>
+          <div className={styles.card}>
+            {rows.length === 0 ? (
+              <p className={styles.cardNote}>No bills in the list yet.</p>
+            ) : (
+              <ul className={styles.rows}>
+                {rows.map((row) => (
+                  <li key={row.id} className={styles.billRow}>
+                    <span className={styles.billLine}>
+                      <span className={styles.billText}>
+                        <span className={styles.billName}>{row.name}</span>
+                        <span className={styles.cardNote}>{row.note}</span>
+                      </span>
+                      {row.chip ? (
+                        <span className={row.chip.done ? styles.paidChip : styles.status}>{row.chip.text}</span>
+                      ) : row.left !== null ? (
+                        <span className={styles.owed}>{formatMoney(row.left)} left</span>
+                      ) : null}
+                    </span>
+                    {row.share !== null ? (
+                      <span className={styles.thinTrack} aria-hidden="true">
+                        <span
+                          className={row.share >= 1 ? `${styles.progressFill} ${styles.done}` : styles.progressFill}
+                          style={{ width: `${row.share * 100}%` }}
+                        />
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          {rows.length === 0 ? (
-            <p className={styles.cardNote}>No bills in the list yet.</p>
-          ) : (
-            <ul className={styles.rows}>
-              {rows.map((row) => (
-                <li key={row.id} className={styles.billRow}>
-                  <span className={styles.billText}>
-                    <span className={styles.billName}>{row.name}</span>
-                    <span className={styles.cardNote}>{row.note}</span>
-                  </span>
-                  {row.chip ? (
-                    <span className={row.chip.done ? styles.paidChip : styles.status}>{row.chip.text}</span>
-                  ) : row.left !== null ? (
-                    <span className={styles.owed}>{formatMoney(row.left)} left</span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
         </section>
       </div>
 
-      <section className={styles.card} aria-labelledby="admin">
-        <h2 id="admin" className={styles.cardTitle}>
-          Admin
-        </h2>
-        <div className={styles.billRow}>
-          <span className={styles.billText}>
-            <span className={styles.billName}>Budget year</span>
-            <span className={styles.cardNote}>
-              From {monthLabel(split.effective_from)} · {sharesLine}
-            </span>
-          </span>
+      <section className={styles.group} aria-labelledby="admin">
+        <SectionLabel id="admin">Admin</SectionLabel>
+        <div className={styles.card}>
           {canManageBudget ? (
-            <Link href="/finances/budget-year" className={styles.button}>
-              Open
+            <Link href="/finances/budget-year" className={styles.entryRowInner}>
+              <span className={styles.rowText}>
+                <span className={styles.billName}>Budget year</span>
+                <span className={styles.cardNote}>
+                  From {monthLabel(split.effective_from)} · {sharesLine}
+                </span>
+              </span>
+              <ChevronRightIcon />
             </Link>
           ) : (
-            <span className={styles.locked}>
-              <LockIcon />
-              Admin only
-            </span>
+            <div className={styles.entryRowInner}>
+              <span className={styles.rowText}>
+                <span className={styles.billName}>Budget year</span>
+                <span className={styles.cardNote}>
+                  From {monthLabel(split.effective_from)} · {sharesLine}
+                </span>
+              </span>
+              <span className={styles.locked}>
+                <LockIcon />
+                Admin only
+              </span>
+            </div>
           )}
         </div>
       </section>

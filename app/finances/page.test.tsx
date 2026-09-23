@@ -186,9 +186,10 @@ describe("the Finances page", () => {
       "RentDue 1 Sep · $0.00 of $2,000.00$2,000.00 left",
       "Joint cardDue 22 SepNot entered",
     ]);
-    expect(within(bills).getByRole("link", { name: "Enter bills" }).getAttribute("href")).toBe(
-      "/finances/monthly-entry?month=2026-09",
-    );
+    // Vin, 2026-09-23: Monthly entry is reachable from home, clearly.
+    const entry = screen.getByRole("link", { name: /still to enter/ });
+    expect(entry.textContent).toBe("Monthly entry1 bill still to enter");
+    expect(entry.getAttribute("href")).toBe("/finances/monthly-entry?month=2026-09");
     expect(screen.getByText("Incomplete")).toBeDefined();
   });
 
@@ -258,9 +259,25 @@ describe("the Finances page", () => {
     given({ signedIn: true, permissions: ADMIN, split: SPLIT });
     render(await FinancesPage());
     const admin = screen.getByRole("region", { name: "Admin" });
-    expect(within(admin).getByRole("link", { name: "Open" }).getAttribute("href")).toBe(
+    expect(within(admin).getByRole("link", { name: /^Budget year/ }).getAttribute("href")).toBe(
       "/finances/budget-year",
     );
+  });
+
+  // Vin, 2026-09-23: a phone has no tabs, so the header says where you are.
+  it("names the section under the title, on a phone only", async () => {
+    given({ signedIn: true, permissions: ADMIN, split: SPLIT });
+    render(await FinancesPage());
+    expect(screen.getByRole("banner").textContent).toContain("FinancesOverview");
+    const css = readFileSync(join(REPO_ROOT, "app/finances/page.module.css"), "utf-8");
+    expect(styleOf(css, "where", true).get("display")).toBe("none");
+  });
+
+  // Vin, 2026-09-23: the page couldn't scroll to the Admin block; the
+  // column squashed the cards instead. Children now keep their height.
+  it("lets a long page scroll rather than squash its cards", () => {
+    const css = readFileSync(join(REPO_ROOT, "components/app-frame.module.css"), "utf-8");
+    expect(css).toMatch(/\.main > \* \{\s*flex-shrink: 0;/);
   });
 
   it("puts the module bar below the page, for phones", async () => {

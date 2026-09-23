@@ -28,7 +28,8 @@ export async function financesViewer() {
 }
 
 // Every Finances page shares the designed header (docs/design/DESIGN.md §7)
-// and the section tabs (desktop) or module bar (phone). The month picker
+// and the section tabs (desktop) or module bar (phone). A phone has no
+// tabs, so the section you're in is named under the title instead. The month picker
 // and status chip belong to the month, so only pages about a month show
 // them: the module's home and Monthly entry.
 export function FinancesFrame({
@@ -61,7 +62,10 @@ export function FinancesFrame({
           <span className={styles.chip} aria-hidden="true">
             <Icon size={20} />
           </span>
-          <h1 className={styles.title}>{finances.name}</h1>
+          <span className={styles.titles}>
+            <h1 className={styles.title}>{finances.name}</h1>
+            <span className={styles.where}>{section ?? "Overview"}</span>
+          </span>
         </div>
         {status ? (
           <div className={styles.month}>

@@ -30,6 +30,14 @@
   Switching a bill between rent and other keeps this month's amount;
   only a switch to or from a card clears it. (#142)
 
+- Finances home scrolls all the way to the Admin block again (long
+  pages squashed their last card instead of scrolling). On a phone the
+  header names the section you're in. Who owes what and Bills now look
+  like the design: small labels above them, a tile per person with the
+  amount in large type, and neutral progress bars filled in the module
+  colour, green once settled. A Monthly entry row sits at the top of the
+  page, saying how many bills are still to enter. (#144)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each
