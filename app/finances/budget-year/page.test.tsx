@@ -233,6 +233,21 @@ describe("the Budget year section", () => {
     expect([...types.options].map((option) => option.textContent)).toEqual(["Rent", "Card", "Other"]);
   });
 
+  // Vin, 2026-09-23: rent is the same every month, so a rent bill carries
+  // its amount. Only rent asks for it.
+  it("asks a rent bill for its monthly amount, and shows it in the list", async () => {
+    await renderAs(ADMIN, {
+      bills: [{ id: "b-1", name: "Rent", kind: "rent", due_day: 1, amount: "1850.00" }],
+    });
+    const bills = screen.getByRole("region", { name: "Bills" });
+    expect(within(bills).getByRole("listitem").textContent).toContain("$1,850.00 · Due the 1st of each month");
+    expect(within(bills).queryByLabelText("Monthly amount of new bill")).toBeNull();
+    fireEvent.change(within(bills).getByLabelText("Type of new bill"), { target: { value: "rent" } });
+    const amount = within(bills).getByLabelText("Monthly amount of new bill") as HTMLInputElement;
+    expect(amount.required).toBe(true);
+    expect((within(bills).getByLabelText("Monthly amount of Rent") as HTMLInputElement).defaultValue).toBe("1850.00");
+  });
+
   // REQ-94, revised 2026-09-23: while this month is open, adding,
   // changing or removing a bill asks whether the month takes it too.
   it("asks whether an open month takes a bill change, ticked by default", async () => {

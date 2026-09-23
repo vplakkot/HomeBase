@@ -31,7 +31,7 @@ begin
     raise exception 'Need one admin and one member to test with';
   end if;
 
-  insert into public.bills (name, kind, due_day) values ('Check rent', 'rent', 1) returning id into v_rent;
+  insert into public.bills (name, kind, due_day, amount) values ('Check rent', 'rent', 1, 2000) returning id into v_rent;
   insert into public.bills (name, kind, due_day) values ('Check card', 'card', 22) returning id into v_card;
 
   ---------------------------------------------------------------- member
@@ -103,12 +103,12 @@ begin
    where mb.month_id = v_month;
   report := report || format('9. the admin sees the payments the member logged: %s (wants 1)%s', n, E'\n');
 
-  perform public.save_bill(v_rent, 'Check rent', 'other', 1, true, '2999-01-15'::date);
+  perform public.save_bill(v_rent, 'Check rent', 'other', 1, null, true, '2999-01-15'::date);
   select amount into v_amount from public.month_bills where id = rent_row;
   report := report || format('10. rent changed to other keeps the month''s amount: $%s (wants 2000)%s', v_amount, E'\n');
 
   begin
-    perform public.save_bill(v_rent, 'Check rent', 'card', 1, true, '2999-01-15'::date);
+    perform public.save_bill(v_rent, 'Check rent', 'card', 1, null, true, '2999-01-15'::date);
     report := report || E'11. a paid bill SWITCHED to a card, losing its amount -- WRONG\n';
   exception when others then
     report := report || format('11. a paid bill can''t switch to a card in the open month (wants this): %s%s', sqlerrm, E'\n');

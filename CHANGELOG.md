@@ -38,6 +38,11 @@
   colour, green once settled. A Monthly entry row sits at the top of the
   page, saying how many bills are still to enter. (#144)
 
+- A rent bill carries its monthly amount: the Budget year asks for it
+  once, and each month opens with rent already filled in. Monthly entry
+  can still change a month's figure, and with "Also apply" ticked, a
+  changed rent reaches the month already open. (#145)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each

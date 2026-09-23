@@ -10,7 +10,9 @@ export function isBillKind(value: string): value is BillKind {
   return Object.hasOwn(BILL_KINDS, value);
 }
 
-export type Bill = { id: string; name: string; kind: BillKind; due_day: number };
+// Rent carries its monthly amount, since it's the same every month
+// (Vin, 2026-09-23); a card or other bill is entered month by month.
+export type Bill = { id: string; name: string; kind: BillKind; due_day: number; amount: number | null };
 
 export function ordinal(day: number): string {
   const tens = day % 100;
@@ -34,9 +36,13 @@ export function dueDateIn(day: number, year: number, month: number): string {
 export async function listBills(supabase: SupabaseClient): Promise<Bill[]> {
   const { data, error } = await supabase
     .from("bills")
-    .select("id, name, kind, due_day")
+    .select("id, name, kind, due_day, amount")
     .order("due_day")
     .order("name");
   if (error) throw new Error(`Could not list bills: ${error.message}`);
-  return (data ?? []) as Bill[];
+  // Postgres hands numeric columns back as strings.
+  return ((data ?? []) as (Omit<Bill, "amount"> & { amount?: string | number | null })[]).map((bill) => ({
+    ...bill,
+    amount: bill.amount === null || bill.amount === undefined ? null : Number(bill.amount),
+  }));
 }

@@ -189,6 +189,7 @@ export function IncomeForm({ people, source }: { people: Person[]; source?: Inco
 // takes the change too (REQ-94, revised 2026-09-23).
 export function BillForm({ bill, openMonth }: { bill?: Bill; openMonth?: string }) {
   const [state, formAction, pending] = useActionState(saveBill, initialState);
+  const [kind, setKind] = useState(bill?.kind ?? "card");
   const what = bill ? bill.name : "new bill";
   return (
     <form action={formAction} className={styles.form}>
@@ -205,7 +206,12 @@ export function BillForm({ bill, openMonth }: { bill?: Bill; openMonth?: string 
       </label>
       <label className={styles.field}>
         <span>Type</span>
-        <select name="kind" defaultValue={bill?.kind ?? "card"} aria-label={`Type of ${what}`}>
+        <select
+          name="kind"
+          value={kind}
+          onChange={(event) => setKind(event.target.value as typeof kind)}
+          aria-label={`Type of ${what}`}
+        >
           {Object.entries(BILL_KINDS).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
@@ -213,6 +219,26 @@ export function BillForm({ bill, openMonth }: { bill?: Bill; openMonth?: string 
           ))}
         </select>
       </label>
+      {kind === "rent" ? (
+        <label className={styles.field}>
+          <span>Amount each month</span>
+          <span className={styles.hint} id={`rent-hint-${bill?.id ?? "new"}`}>
+            Each month opened starts with this. Monthly entry can still change it.
+          </span>
+          <span className={styles.withPrefix}>
+            <span aria-hidden="true">$</span>
+            <input
+              name="amount"
+              aria-label={`Monthly amount of ${what}`}
+              aria-describedby={`rent-hint-${bill?.id ?? "new"}`}
+              inputMode="decimal"
+              placeholder="2000.00"
+              defaultValue={bill?.amount?.toFixed(2)}
+              required
+            />
+          </span>
+        </label>
+      ) : null}
       <label className={styles.field}>
         <span>Due every month on the</span>
         <span className={styles.hint} id={`due-hint-${bill?.id ?? "new"}`}>
