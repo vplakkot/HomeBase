@@ -16,6 +16,7 @@ import { nothingToSaveReasons, savingsPlan } from "../../../lib/finances/savings
 import styles from "../budget-year/page.module.css";
 import { FinancesFrame, financesViewer } from "../frame";
 import { Hint } from "../hint";
+import { removeSavings } from "./actions";
 import { SavingsForm } from "./forms";
 import local from "./page.module.css";
 
@@ -142,6 +143,14 @@ export default async function SavingsPage({
                 people={onMonth.map((userId) => ({ user_id: userId, name: nameOf(userId) }))}
                 recorded={month.savings}
               />
+              {month.savings.length > 0 ? (
+                <form action={removeSavings}>
+                  <input type="hidden" name="monthId" value={month.id} />
+                  <button type="submit" className={styles.quiet}>
+                    Remove {monthLabel(month.starts_on)}&apos;s record
+                  </button>
+                </form>
+              ) : null}
             </div>
           </section>
         ) : null}

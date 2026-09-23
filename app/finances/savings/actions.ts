@@ -15,6 +15,12 @@ function savedAmount(text: string): number | null {
   return parseAmount(trimmed);
 }
 
+async function requireMember() {
+  const supabase = await createClient();
+  if (!(await hasPermission(supabase, "use_modules"))) redirect("/finances");
+  return supabase;
+}
+
 // REQ-66: what each person actually put into joint savings and saved on
 // their own in a month. Any member records it for either person, and it
 // can be corrected later, even once the month is closed.
@@ -31,10 +37,20 @@ export async function recordSavings(_previous: FormState, formData: FormData): P
     rows.push({ month_id: monthId, user_id: userId, to_joint: toJoint, own, updated_at: new Date().toISOString() });
   }
 
-  const supabase = await createClient();
-  if (!(await hasPermission(supabase, "use_modules"))) redirect("/finances");
+  const supabase = await requireMember();
   const { error } = await supabase.from("month_savings").upsert(rows, { onConflict: "month_id,user_id" });
   if (error) return { error: error.message };
   revalidatePath("/finances", "layout");
   return { saved: true };
+}
+
+// Takes a month's record away entirely, back to "Not recorded", so a
+// Save made by mistake never sticks, even in a closed month.
+export async function removeSavings(formData: FormData): Promise<void> {
+  const monthId = String(formData.get("monthId") ?? "");
+  if (!monthId) return;
+  const supabase = await requireMember();
+  const { error } = await supabase.from("month_savings").delete().eq("month_id", monthId);
+  if (error) throw new Error(`Could not remove the savings: ${error.message}`);
+  revalidatePath("/finances", "layout");
 }

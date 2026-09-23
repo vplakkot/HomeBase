@@ -73,7 +73,8 @@
   "Nothing to save this month" with the reason in words, such as whose
   income didn't cover their share. The new Savings section records what
   you actually put into joint and saved on your own, and sets each
-  closed month's record beside what was available. (#154)
+  closed month's record beside what was available. A month's record can
+  be removed again at any time, even once the month is closed. (#154)
 
 ## 0.3.0 - 2026-09-22
 

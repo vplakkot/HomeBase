@@ -122,14 +122,18 @@ describe("Savings", () => {
     expect(row.textContent).toContain(
       "Sam: $60.00 of $100.00 into joint · $0.00 of $100.00 saved on their own · differs",
     );
-    // Recording stays open after the month closes: saving happens later.
+    // Recording stays open after the month closes: saving happens later,
+    // and a record can always be taken away again.
     expect(screen.getByRole("button", { name: "Save" })).toBeDefined();
+    const remove = screen.getByRole("button", { name: "Remove September 2026's record" });
+    expect(new FormData(remove.closest("form")!).get("monthId")).toBe("m-sep");
   });
 
   it("says a closed month with nothing recorded is not recorded", async () => {
     await page([CLOSED], "2026-10-05T16:00:00Z");
     const closed = screen.getByRole("region", { name: "Closed months" });
     expect(within(closed).getByRole("listitem").textContent).toBe("September 2026Not recorded");
+    expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
   });
 
   it("points to Income when nothing is logged yet", async () => {

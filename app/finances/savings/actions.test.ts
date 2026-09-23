@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../../lib/supabase/server";
 import { fakeSupabase } from "../../../test/fake-supabase";
-import { recordSavings } from "./actions";
+import { recordSavings, removeSavings } from "./actions";
 
 vi.mock("../../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -65,5 +65,19 @@ describe("recordSavings (REQ-66)", () => {
   it("sends someone who can't use the modules back to Finances", async () => {
     given({ member: false });
     await expect(recordSavings({}, form(both))).rejects.toThrow("REDIRECT:/finances");
+  });
+});
+
+describe("removeSavings (REQ-66)", () => {
+  it("takes the month's whole record away, back to not recorded", async () => {
+    given();
+    await removeSavings(form([["monthId", "m-sep"]]));
+    expect(savingsQuery()!.delete).toHaveBeenCalled();
+    expect(savingsQuery()!.eq).toHaveBeenCalledWith("month_id", "m-sep");
+  });
+
+  it("sends someone who can't use the modules back to Finances", async () => {
+    given({ member: false });
+    await expect(removeSavings(form([["monthId", "m-sep"]]))).rejects.toThrow("REDIRECT:/finances");
   });
 });

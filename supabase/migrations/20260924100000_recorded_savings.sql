@@ -33,3 +33,9 @@ create policy "members correct savings"
   on public.month_savings for update to authenticated
   using ((select public.has_permission('use_modules')))
   with check ((select public.has_permission('use_modules')));
+
+-- A record saved by mistake can be removed, so a month can always go
+-- back to "not recorded"; nothing here is ever stuck.
+create policy "members remove savings"
+  on public.month_savings for delete to authenticated
+  using ((select public.has_permission('use_modules')));

@@ -63,14 +63,19 @@ begin
   select to_joint into v_joint from public.month_savings where month_id = v_month and user_id = member_id;
   report := report || format('4. a closed month''s savings can be corrected: %s (wants 100.00)%s', v_joint, E'\n');
 
-  -- 5. Someone signed out sees none of it.
+  -- 5. And the record can be removed entirely, even closed.
+  delete from public.month_savings where month_id = v_month;
+  select count(*) into v_count from public.month_savings where month_id = v_month;
+  report := report || format('5. a closed month''s record can be removed: %s rows left (wants 0)%s', v_count, E'\n');
+
+  -- 6. Someone signed out sees none of it.
   reset role;
   set local role anon;
   begin
     select count(*) into v_count from public.month_savings;
-    report := report || format('5. signed out sees %s rows (wants refused or 0)%s', v_count, E'\n');
+    report := report || format('6. signed out sees %s rows (wants refused or 0)%s', v_count, E'\n');
   exception when others then
-    report := report || format('5. signed out is refused (wants this): %s%s', sqlerrm, E'\n');
+    report := report || format('6. signed out is refused (wants this): %s%s', sqlerrm, E'\n');
   end;
 
   reset role;

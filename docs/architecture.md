@@ -787,7 +787,7 @@ actually put away is stored (REQ-66):
 
 | Table | One row is | Key facts |
 |---|---|---|
-| `month_savings` | one person's savings for a month | `to_joint`, `own`, both 0 or more; any member records it for either person, and it stays open after the month closes, because saving happens after the month ends |
+| `month_savings` | one person's savings for a month | `to_joint`, `own`, both 0 or more; any member records, corrects or removes it for either person, and it stays open after the month closes, because saving happens after the month ends |
 
 `/finances/savings` shows this month's plan, the form, and each closed
 month with what was saved beside what was available.
