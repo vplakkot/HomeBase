@@ -159,11 +159,14 @@ export async function saveBill(_previous: FormState, formData: FormData): Promis
   const kind = String(formData.get("kind") ?? "");
   const dueDay = Number(formData.get("dueDay"));
   const apply = formData.get("applyToMonth") === "on";
+  // Rent carries its monthly amount; other bills are entered each month.
+  const amount = kind === "rent" ? parseAmount(String(formData.get("amount") ?? "")) : null;
   if (!name) return { error: "Give the bill a name." };
   if (!isBillKind(kind)) return { error: "Choose rent, card or other." };
   if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
     return { error: "The due day is a day of the month, 1 to 31." };
   }
+  if (kind === "rent" && amount === null) return { error: "Enter the monthly rent, like 2000.00." };
 
   const supabase = await requireManageBudget();
   const { error } = await supabase.rpc("save_bill", {
@@ -171,13 +174,14 @@ export async function saveBill(_previous: FormState, formData: FormData): Promis
     p_name: name,
     p_kind: kind,
     p_due_day: dueDay,
+    p_amount: amount,
     p_apply: apply,
     p_today: householdToday(),
   });
   if (error) {
     return {
       error: error.message.includes("more than the bill")
-        ? "Payments are already logged toward this bill this month, so it can't change to or from a card there. Delete them first, or leave this month out."
+        ? "More is already paid toward this bill this month than that allows. Change those payments first, or leave this month out."
         : error.message,
     };
   }

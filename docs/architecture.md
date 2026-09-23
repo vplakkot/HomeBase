@@ -625,7 +625,7 @@ tables, all in the one household, so none carries a household id:
 | `splits` | a percentage set that starts in a month | `effective_from` (the 1st of that month, unique), `note` |
 | `split_shares` | one person's percentage in that split | `split_id`, `user_id`, `percent` |
 | `income_sources` | one person's regular pay | `name`, `owner_id`, `net_amount`, `cadence` (weekly, biweekly, monthly), `anchor_date` |
-| `bills` | one recurring bill | `name`, `kind` (rent, card, other), `due_day` |
+| `bills` | one recurring bill | `name`, `kind` (rent, card, other), `due_day`, `amount` (rent only: the same every month) |
 
 A split holds until a later one starts, so the household can change the
 percentages mid-year without touching the months already run: a month
@@ -679,11 +679,12 @@ A month exists once someone opens it in Monthly entry,
 | `direct_payments` | shared spend one person paid off the tracked cards ("one-time payments" on screen) | `month_id`, `payer_id`, `amount`, `note`, `paid_on` |
 
 `open_month()` opens only the month now running (the day passed in from
-`householdToday()`) and copies the bill list in, so a bill changed or
+`householdToday()`) and copies the bill list in (rent arrives already
+entered, with its amount from the bill), so a bill changed or
 removed later reaches only months opened after that (REQ-94). While the
 month now running is open, the Budget year form asks whether it takes a
 change too: `save_bill()` adds or updates its copy (a change to or from
-a card clears that bill's entry), and `remove_bill()` sets a not-yet-entered
+a card clears that bill's entry; a rent amount becomes the month's figure), and `remove_bill()` sets a not-yet-entered
 copy to $0 rather than deleting it. Both check `manage_budget`
 themselves, since members can't write a month bill's name or type. Entering
 is shared: any member with `use_modules` enters amounts and adds or

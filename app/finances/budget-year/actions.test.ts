@@ -215,18 +215,29 @@ describe("saveIncomeSource (REQ-51, #132)", () => {
 describe("the bill list (REQ-94)", () => {
   const TODAY = expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/);
 
-  it("adds a bill with its name, type and due day", async () => {
+  // Vin, 2026-09-23: rent carries its monthly amount.
+  it("adds a bill with its name, type, due day and, for rent, the monthly amount", async () => {
     given();
-    const result = await saveBill({}, form({ name: " Rent ", kind: "rent", dueDay: "1" }));
+    const result = await saveBill({}, form({ name: " Rent ", kind: "rent", dueDay: "1", amount: "1,850.00" }));
     expect(result).toEqual({ saved: true, message: "Bill added." });
     expect(rpc).toHaveBeenCalledWith("save_bill", {
       p_id: null,
       p_name: "Rent",
       p_kind: "rent",
       p_due_day: 1,
+      p_amount: 1850,
       p_apply: false,
       p_today: TODAY,
     });
+  });
+
+  it("asks rent for its amount, and sends none for a card", async () => {
+    given();
+    expect(await saveBill({}, form({ name: "Rent", kind: "rent", dueDay: "1" }))).toEqual({
+      error: "Enter the monthly rent, like 2000.00.",
+    });
+    await saveBill({}, form({ name: "Joint card", kind: "card", dueDay: "22", amount: "500" }));
+    expect(rpc).toHaveBeenCalledWith("save_bill", expect.objectContaining({ p_kind: "card", p_amount: null }));
   });
 
   it("changes a bill when the form carries its id, from the next month opened", async () => {
@@ -254,7 +265,9 @@ describe("the bill list (REQ-94)", () => {
     [{ dueDay: "32" }, "The due day is a day of the month, 1 to 31."],
   ])("refuses %j", async (change, error) => {
     given();
-    expect(await saveBill({}, form({ name: "Rent", kind: "rent", dueDay: "1", ...change }))).toEqual({ error });
+    expect(
+      await saveBill({}, form({ name: "Rent", kind: "rent", dueDay: "1", amount: "1850", ...change })),
+    ).toEqual({ error });
   });
 
   it("retires a bill, leaving the open month alone unless asked", async () => {
@@ -267,7 +280,7 @@ describe("the bill list (REQ-94)", () => {
 
   it("won't let a member change the list", async () => {
     given({ admin: false });
-    await expect(saveBill({}, form({ name: "Rent", kind: "rent", dueDay: "1" }))).rejects.toThrow(
+    await expect(saveBill({}, form({ name: "Rent", kind: "rent", dueDay: "1", amount: "1850" }))).rejects.toThrow(
       "REDIRECT:/finances",
     );
     await expect(removeBill(form({ id: "b-1" }))).rejects.toThrow("REDIRECT:/finances");

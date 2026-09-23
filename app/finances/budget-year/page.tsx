@@ -229,7 +229,13 @@ export default async function BudgetYearPage() {
                   key={bill.id}
                   name={bill.name}
                   aside={<span className={styles.chip}>{BILL_KINDS[bill.kind]}</span>}
-                  detail={`${dueLabel(bill.due_day)} of each month`}
+                  detail={
+                    bill.kind === "rent" && bill.amount !== null
+                      ? `${formatMoney(bill.amount)} · ${dueLabel(bill.due_day)} of each month`
+                      : bill.kind === "rent"
+                        ? `${dueLabel(bill.due_day)} of each month · add the amount`
+                        : `${dueLabel(bill.due_day)} of each month`
+                  }
                   changeLabel="Edit"
                   change={<BillForm bill={bill} openMonth={openMonth} />}
                   remove={

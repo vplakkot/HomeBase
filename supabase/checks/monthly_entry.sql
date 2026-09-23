@@ -106,11 +106,11 @@ begin
 
   -- REQ-94, revised 2026-09-23: bill changes reach the open month only
   -- when the admin asks.
-  v_new := public.save_bill(null, 'Check extra', 'other', 5, true, '2999-01-15'::date);
+  v_new := public.save_bill(null, 'Check extra', 'other', 5, null, true, '2999-01-15'::date);
   select count(*) into n from public.month_bills where month_id = v_month and bill_id = v_new;
   report := report || format('11. a bill added with the tick reaches the open month: %s (wants 1)%s', n, E'\n');
 
-  perform public.save_bill(null, 'Check unticked', 'other', 6, false, '2999-01-15'::date);
+  perform public.save_bill(null, 'Check unticked', 'other', 6, null, false, '2999-01-15'::date);
   select count(*) into n from public.month_bills where month_id = v_month and name = 'Check unticked';
   report := report || format('12. without the tick it does not: %s (wants 0)%s', n, E'\n');
 
@@ -120,7 +120,7 @@ begin
   report := report || format('13. removing a bill not yet entered: month copy $%s (wants 0), still in the list: %s (wants 0)%s',
     v_amount, n, E'\n');
 
-  perform public.save_bill(v_bill, 'Check card', 'other', 22, true, '2999-01-15'::date);
+  perform public.save_bill(v_bill, 'Check card', 'other', 22, null, true, '2999-01-15'::date);
   select kind, amount into v_kind, v_amount from public.month_bills where id = card_row;
   report := report || format('14. changing the card to other clears its entry: %s, amount %s (wants other, null)%s',
     v_kind, coalesce(v_amount::text, 'null'), E'\n');
@@ -135,7 +135,7 @@ begin
     json_build_object('sub', member_id, 'role', 'authenticated')::text, true);
   set local role authenticated;
   begin
-    perform public.save_bill(null, 'Member bill', 'other', 1, true, '2999-01-15'::date);
+    perform public.save_bill(null, 'Member bill', 'other', 1, null, true, '2999-01-15'::date);
     report := report || E'16. a member ADDED a bill -- WRONG\n';
   exception when others then
     report := report || format('16. a member can''t change the bill list (wants this): %s%s', sqlerrm, E'\n');
