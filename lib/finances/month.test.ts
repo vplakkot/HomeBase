@@ -45,6 +45,7 @@ function month(bills: MonthBill[], direct: Month["direct_payments"] = []): Month
     closed_automatically: false,
     split_from: null,
     people: [],
+    savings: [],
   };
 }
 

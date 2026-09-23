@@ -42,7 +42,7 @@ describe("the bar inside a module, on a phone", () => {
 });
 
 describe("the Sections sheet", () => {
-  it("lists the overview, then the module's seven sections, Monthly entry, Log payment, Income and Budget year open, the rest coming", () => {
+  it("lists the overview, then the module's seven sections, Monthly entry, Log payment, Income, Savings and Budget year open, the rest coming", () => {
     render(<ModuleBar module={finances} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const sheet = openSheet();
@@ -52,7 +52,7 @@ describe("the Sections sheet", () => {
       "Monthly entryBills, personal charges, One-time Payments",
       "Log paymentSeveral times a month",
       "IncomeConfirm paychecks, add ESPP, RSU, bonus",
-      "SavingsVerdict and what you actually savedComing soon",
+      "SavingsVerdict and what you actually saved",
       "BalancesEnter and see trendsComing soon",
       "HistoryClosed months, read-onlyComing soon",
       "Budget yearSplit %, income sources and billsAdmin only",
@@ -77,16 +77,17 @@ describe("the Sections sheet", () => {
       ["Monthly entryBills, personal charges, One-time Payments", "/finances/monthly-entry"],
       ["Log paymentSeveral times a month", "/finances/log-payment"],
       ["IncomeConfirm paychecks, add ESPP, RSU, bonus", "/finances/income"],
+      ["SavingsVerdict and what you actually saved", "/finances/savings"],
       ["Budget yearSplit %, income sources and billsAdmin only", "/finances/budget-year"],
     ]);
-    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual(["page", null, null, null, null]);
+    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual(["page", null, null, null, null, null]);
   });
 
   it("marks a section as where you are when you're on its page", () => {
     render(<ModuleBar module={finances} current="Budget year" />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const links = within(openSheet()).getAllByRole("link");
-    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual([null, null, null, null, "page"]);
+    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual([null, null, null, null, null, "page"]);
   });
 });
 

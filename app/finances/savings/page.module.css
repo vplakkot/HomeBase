@@ -1,0 +1,14 @@
+/* One person's two boxes, without the browser's fieldset frame. */
+.person {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* A closed month where what was saved differs from what was available. */
+.diverged {
+  font-weight: 700;
+}

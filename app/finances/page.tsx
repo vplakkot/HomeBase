@@ -23,6 +23,7 @@ import {
   readMonth,
 } from "../../lib/finances/month";
 import { formatMoney } from "../../lib/finances/money";
+import { nothingToSaveReasons, savingsPlan } from "../../lib/finances/savings";
 import { closeMonthWithBalance } from "./actions";
 import { FinancesFrame, financesViewer } from "./frame";
 import { Hint } from "./hint";
@@ -39,7 +40,8 @@ import styles from "./page.module.css";
 // Incomplete; one squared closes on its own that night, and an admin can
 // close one with a balance left (REQ-59). A closed month is shown as it
 // closed, with the percentages written on it (REQ-52). The verdict card
-// says whether the month moved you forward (REQ-61). Action items come
+// says whether the month moved you forward (REQ-61), with what goes into
+// joint savings (REQ-63) or, in words, why nothing does (REQ-64). Action items come
 // with REQ-68.
 export default async function FinancesPage({
   searchParams,
@@ -105,6 +107,9 @@ export default async function FinancesPage({
   const totals = month ? monthTotals(month, shares) : null;
   const status = monthStatus(month, shares, todayIso);
   const verdict = month && totals && totals.people.length > 0 ? leftovers(totals, month.income) : null;
+  // What goes into joint savings (REQ-63), or why nothing does (REQ-64).
+  const plan = verdict ? savingsPlan(verdict.people) : null;
+  const ended = Boolean(month?.closed_at) || status === "Ended · not squared";
   const rows = month
     ? month.bills.map((bill) => {
         const due = dueInMonth(bill.due_day, startsOn);
@@ -199,32 +204,45 @@ export default async function FinancesPage({
                 <ChevronRightIcon />
               </Link>
             ) : (
-              <div className={verdict.joint > 0 ? styles.verdict : styles.verdictQuiet}>
+              <div className={plan && plan.joint > 0 ? styles.verdict : styles.verdictQuiet}>
                 <span className={styles.verdictTitle}>
-                  {verdict.joint > 0
-                    ? month?.closed_at || status === "Ended · not squared"
+                  {plan && plan.joint > 0
+                    ? ended
                       ? "Moved you forward"
                       : "On track to move you forward"
                     : "Nothing to save this month"}
                 </span>
-                {verdict.joint > 0 ? (
-                  <span className={styles.figure}>{formatMoney(verdict.joint)}</span>
+                {plan && plan.joint > 0 ? (
+                  <>
+                    <span className={styles.figure}>{formatMoney(plan.joint)}</span>
+                    <span className={styles.verdictLabel}>Joint savings{ended ? "" : ", projected"}</span>
+                    {plan.people.map((person) => (
+                      <span key={person.user_id} className={styles.cardNote}>
+                        {nameOf.get(person.user_id) ?? "Someone"}: {formatMoney(person.toJoint)} to joint ·{" "}
+                        {formatMoney(person.yours)} yours
+                      </span>
+                    ))}
+                  </>
                 ) : (
-                  <span className={styles.cardNote}>
-                    {verdict.joint === 0
-                      ? "Your shares came to exactly the income logged."
-                      : `Your shares came to ${formatMoney(-verdict.joint)} more than the income logged.`}
-                  </span>
+                  <>
+                    {plan
+                      ? nothingToSaveReasons(plan, (id) => nameOf.get(id) ?? "Someone").map((reason) => (
+                          <span key={reason} className={styles.cardNote}>
+                            {reason}
+                          </span>
+                        ))
+                      : null}
+                    <span className={styles.cardNote}>
+                      {verdict.people
+                        .map(
+                          (person) =>
+                            `${nameOf.get(person.user_id) ?? "Someone"} ${person.leftover < 0 ? "−" : ""}${formatMoney(Math.abs(person.leftover))}`,
+                        )
+                        .join(" · ")}{" "}
+                      left
+                    </span>
+                  </>
                 )}
-                <span className={styles.cardNote}>
-                  {verdict.people
-                    .map(
-                      (person) =>
-                        `${nameOf.get(person.user_id) ?? "Someone"} ${person.leftover < 0 ? "−" : ""}${formatMoney(Math.abs(person.leftover))}`,
-                    )
-                    .join(" · ")}{" "}
-                  left
-                </span>
               </div>
             )}
           </section>

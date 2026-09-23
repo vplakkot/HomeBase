@@ -396,6 +396,14 @@
   font-weight: 700;
 }
 
+/* "Joint savings, projected" under the figure, softer than the notes. */
+.verdictLabel {
+  margin-top: calc(-1 * var(--space-2));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  opacity: 0.8;
+}
+
 /* Close month with balance folds its confirmation away. */
 .closeRow summary {
   cursor: pointer;

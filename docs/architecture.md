@@ -776,6 +776,22 @@ today, to confirm, and takes any other income by hand. Finances home's
 verdict card is each person's income minus their obligation, and the
 two together (REQ-61).
 
+### Savings
+
+What a month allows into joint savings is worked out, never stored:
+`savingsPlan()` in `lib/finances/savings.ts` takes each person's
+leftover and has each put in half the lower one, rounded down to the
+dollar (REQ-63). If anyone's leftover is zero or below, nobody saves
+jointly and the verdict card says why in words (REQ-64). Only what was
+actually put away is stored (REQ-66):
+
+| Table | One row is | Key facts |
+|---|---|---|
+| `month_savings` | one person's savings for a month | `to_joint`, `own`, both 0 or more; any member records, corrects or removes it for either person, and it stays open after the month closes, because saving happens after the month ends |
+
+`/finances/savings` shows this month's plan, the form, and each closed
+month with what was saved beside what was available.
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
@@ -786,8 +802,8 @@ These are deliberately absent at this stage, not overlooked:
 - **Screens still to design** — Sign-in, sign-up and set-password have
   no mockup, so they keep a plain layout in the design's fonts and
   colours.
-- **The rest of Finances** — savings, balances, action items and
-  reminders arrive in batches after the months above.
+- **The rest of Finances** — balances, action items and reminders
+  arrive in batches after the months above.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.

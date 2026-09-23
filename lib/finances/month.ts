@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BillKind } from "./bills";
 import { monthStart, splitInForce, type Share, type Split } from "./budget-year";
+import type { RecordedSavings } from "./savings";
 
 // A month of household spending (REQ-53, 54, 55). Opening it copies the
 // bill list in; members then enter each bill's amount, declare personal
@@ -45,11 +46,14 @@ export type Month = {
   closed_automatically: boolean;
   split_from: string | null;
   people: ClosedPerson[];
+  // What was actually put away (REQ-66).
+  savings: RecordedSavings[];
 };
 
 const MONTH_FIELDS = `id, starts_on, closed_at, closed_by, closed_automatically, split_from,
   people:month_people(user_id, percent, outstanding),
   income:month_income(id, owner_id, kind, amount, received_on, income_source_id, note),
+  savings:month_savings(user_id, to_joint, own),
   bills:month_bills(id, name, kind, due_day, amount, personal_answer,
     personal_charges(id, owner_id, amount, note),
     payments(id, payer_id, amount, created_at)),
@@ -93,6 +97,11 @@ export async function readMonth(supabase: SupabaseClient, startsOn: string): Pro
       ...p,
       percent: Number(p.percent),
       outstanding: Number(p.outstanding),
+    })),
+    savings: (month.savings ?? []).map((row) => ({
+      ...row,
+      to_joint: Number(row.to_joint),
+      own: Number(row.own),
     })),
   };
 }
