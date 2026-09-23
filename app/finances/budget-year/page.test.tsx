@@ -101,7 +101,8 @@ describe("the Budget year section", () => {
     });
     const section = screen.getByRole("region", { name: card });
     const add = within(section).getByRole("heading", { name: addTitle, level: 3 });
-    const saved = within(section).getByRole("listitem");
+    // A split tile holds a list of its own, so take the outer one.
+    const [saved] = within(section).getAllByRole("listitem");
     expect(add.compareDocumentPosition(saved) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(saved).getByText("Edit")).toBeDefined();
     expect(within(saved).getAllByRole("button").map((b) => b.textContent)).toContain("Remove");
@@ -127,10 +128,10 @@ describe("the Budget year section", () => {
       "September 2026",
       "August 2028",
     ]);
-    const saved = within(split).getByRole("listitem");
+    const [saved] = within(split).getAllByRole("listitem");
     expect(saved.textContent).toContain("From April 2026");
     expect(saved.textContent).toContain("In force");
-    expect(saved.textContent).toContain("Alex 60% · Sam 40%");
+    expect(saved.textContent).toContain("Alex60%");
   });
 
   it("keeps a running total and says when it isn't 100", async () => {
@@ -158,7 +159,7 @@ describe("the Budget year section", () => {
 
   it("fills a split that hasn't started into its Edit form, with its month fixed", async () => {
     await renderAs(ADMIN, { splits: [LATER] });
-    const saved = within(screen.getByRole("region", { name: "Split" })).getByRole("listitem");
+    const [saved] = within(screen.getByRole("region", { name: "Split" })).getAllByRole("listitem");
     const what = "the split from November 2026";
     expect((within(saved).getByLabelText(`Alex's share of ${what}`) as HTMLInputElement).value).toBe("60");
     expect((within(saved).getByLabelText(`What ${what} is based on`) as HTMLTextAreaElement).value).toBe(
@@ -172,9 +173,14 @@ describe("the Budget year section", () => {
   // #132: a split that has begun is what its months ran on.
   it("won't offer to edit or remove a split that has already started", async () => {
     await renderAs(ADMIN, { splits: [SPLIT] });
-    const saved = within(screen.getByRole("region", { name: "Split" })).getByRole("listitem");
-    // Just the month, the chip and the percentages — no explaining (#133).
-    expect(saved.textContent).toBe("From April 2026In forceAlex 60% · Sam 40%");
+    const [saved] = within(screen.getByRole("region", { name: "Split" })).getAllByRole("listitem");
+    // Month, chip, then a person per line with the percentage sized
+    // like an income amount (#135).
+    expect(saved.textContent).toBe("From April 2026In forceAlex60%Sam40%");
+    expect(within(saved).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
+      "Alex60%",
+      "Sam40%",
+    ]);
     expect(within(saved).queryByText("Edit")).toBeNull();
     expect(within(saved).queryByRole("button", { name: /Remove/ })).toBeNull();
   });
@@ -204,7 +210,10 @@ describe("the Budget year section", () => {
       ],
     });
     const saved = within(screen.getByRole("region", { name: "Income sources" })).getByRole("listitem");
+    // The owner stands in as the title, so it isn't said twice (#135).
     expect(saved.textContent).toContain("Alex");
+    expect(saved.textContent).not.toContain("Alex · Every month");
+    expect(saved.textContent).toContain("Every month · next");
     expect(within(saved).getByRole("button", { name: "Remove income source" })).toBeDefined();
   });
 
