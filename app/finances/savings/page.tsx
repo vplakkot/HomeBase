@@ -97,35 +97,38 @@ export default async function SavingsPage({
             </h2>
             <Hint text="Each of you puts half the lower leftover into joint, rounded down to the dollar. The rest of your leftover is yours. Leftover excludes personal card spend." />
           </header>
-          <div className={styles.entries}>
-            {!plan ? (
-              <p className={styles.detail}>
-                <Link href={`/finances/income?month=${startsOn.slice(0, 7)}`}>Log income</Link> to see what&apos;s
-                left.
-              </p>
-            ) : plan.joint > 0 ? (
-              <ul className={styles.list}>
-                {plan.people.map((person) => (
-                  <li key={person.user_id} className={styles.entry}>
-                    <div className={styles.entryHead}>
-                      <span className={styles.entryName}>{nameOf(person.user_id)}</span>
-                      <span className={styles.amount}>{formatMoney(person.toJoint)} to joint</span>
-                    </div>
-                    <p className={styles.detail}>{formatMoney(person.yours)} yours</p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <>
-                <p className={styles.entryName}>Nothing to save this month</p>
-                {nothingToSaveReasons(plan, nameOf).map((reason) => (
-                  <p key={reason} className={styles.detail}>
-                    {reason}
-                  </p>
-                ))}
-              </>
-            )}
-          </div>
+          {!plan ? (
+            <div className={styles.addBlock}>
+              <Link href={`/finances/income?month=${startsOn.slice(0, 7)}`} className={styles.primary}>
+                Log income
+              </Link>
+            </div>
+          ) : (
+            <div className={styles.entries}>
+              {plan.joint > 0 ? (
+                <ul className={styles.list}>
+                  {plan.people.map((person) => (
+                    <li key={person.user_id} className={styles.entry}>
+                      <div className={styles.entryHead}>
+                        <span className={styles.entryName}>{nameOf(person.user_id)}</span>
+                        <span className={styles.amount}>{formatMoney(person.toJoint)} to joint</span>
+                      </div>
+                      <p className={styles.detail}>{formatMoney(person.yours)} yours</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <>
+                  <p className={styles.entryName}>Nothing to save this month</p>
+                  {nothingToSaveReasons(plan, nameOf).map((reason) => (
+                    <p key={reason} className={styles.detail}>
+                      {reason}
+                    </p>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
         </section>
 
         {onMonth.length > 0 ? (
