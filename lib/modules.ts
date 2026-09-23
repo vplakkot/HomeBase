@@ -38,10 +38,15 @@ export const MODULES: readonly Module[] = [
     sections: [
       {
         name: "Monthly entry",
-        description: "Bills, personal charges, direct payments",
+        description: "Bills, personal charges, one-time payments",
         href: "/finances/monthly-entry",
       },
-      { name: "Log payment", description: "Several times a month", pinned: true },
+      {
+        name: "Log payment",
+        description: "Several times a month",
+        pinned: true,
+        href: "/finances/log-payment",
+      },
       { name: "Income", description: "Confirm paychecks, add ESPP, RSU, bonus" },
       { name: "Savings", description: "Verdict and what you actually saved" },
       { name: "Balances", description: "Enter and see trends" },

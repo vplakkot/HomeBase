@@ -244,7 +244,7 @@ describe("the Budget year section", () => {
     for (const name of [
       "Also apply the new bill to September 2026",
       "Also apply the change to Chase Visa to September 2026",
-      "Also leave Chase Visa out of September 2026",
+      "Also set Chase Visa to $0 in September 2026 if not entered yet",
     ]) {
       expect((within(bills).getByRole("checkbox", { name }) as HTMLInputElement).checked).toBe(true);
     }

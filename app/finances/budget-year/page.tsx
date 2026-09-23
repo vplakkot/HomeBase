@@ -241,7 +241,7 @@ export default async function BudgetYearPage() {
                             type="checkbox"
                             name="applyToMonth"
                             defaultChecked
-                            aria-label={`Also leave ${bill.name} out of ${openMonth}`}
+                            aria-label={`Also set ${bill.name} to $0 in ${openMonth} if not entered yet`}
                           />
                           Also in {openMonth}: $0 if not entered yet
                         </label>

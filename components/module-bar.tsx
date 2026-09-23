@@ -10,13 +10,22 @@ import styles from "./module-bar.module.css";
 // The bar fixed to the bottom of a phone screen inside a module: exactly
 // Home, Sections and Modules, the same in every module
 // (docs/design/DESIGN.md §6). Sections shows as selected while you're on
-// the module's own home; `current` names the section page you're on.
+// the module's own home; `current` names the section page you're on. A
+// module's pinned action (Finances: Log payment) sits just above the bar.
 export function ModuleBar({ module, current }: { module: Module; current?: string }) {
   const [sheet, setSheet] = useState<"sections" | "modules" | null>(null);
   const close = () => setSheet(null);
+  const pinned = module.sections.find((section) => section.pinned && section.href);
 
   return (
     <>
+      {pinned?.href && current !== pinned.name ? (
+        <div className={styles.pinnedRow} style={moduleColours(module) as CSSProperties}>
+          <Link href={pinned.href} className={styles.pinned}>
+            {pinned.name}
+          </Link>
+        </div>
+      ) : null}
       <nav aria-label={`${module.name} navigation`} className={styles.bar} style={moduleColours(module) as CSSProperties}>
         <Link href="/" className={styles.item}>
           <HomeIcon />

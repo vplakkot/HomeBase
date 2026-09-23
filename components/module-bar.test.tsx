@@ -42,15 +42,15 @@ describe("the bar inside a module, on a phone", () => {
 });
 
 describe("the Sections sheet", () => {
-  it("lists the overview, then the module's seven sections, Monthly entry and Budget year open, the rest coming", () => {
+  it("lists the overview, then the module's seven sections, Monthly entry, Log payment and Budget year open, the rest coming", () => {
     render(<ModuleBar module={finances} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const sheet = openSheet();
     const rows = within(sheet).getAllByRole("listitem");
     expect(rows.map((row) => row.textContent)).toEqual([
       "Overview",
-      "Monthly entryBills, personal charges, direct payments",
-      "Log paymentSeveral times a monthComing soon",
+      "Monthly entryBills, personal charges, one-time payments",
+      "Log paymentSeveral times a month",
       "IncomeConfirm paychecks, add ESPP, RSU, bonusComing soon",
       "SavingsVerdict and what you actually savedComing soon",
       "BalancesEnter and see trendsComing soon",
@@ -74,17 +74,29 @@ describe("the Sections sheet", () => {
     const links = within(openSheet()).getAllByRole("link");
     expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["Overview", "/finances"],
-      ["Monthly entryBills, personal charges, direct payments", "/finances/monthly-entry"],
+      ["Monthly entryBills, personal charges, one-time payments", "/finances/monthly-entry"],
+      ["Log paymentSeveral times a month", "/finances/log-payment"],
       ["Budget yearSplit %, income sources and billsAdmin only", "/finances/budget-year"],
     ]);
-    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual(["page", null, null]);
+    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual(["page", null, null, null]);
   });
 
   it("marks a section as where you are when you're on its page", () => {
     render(<ModuleBar module={finances} current="Budget year" />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const links = within(openSheet()).getAllByRole("link");
-    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual([null, null, "page"]);
+    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual([null, null, null, "page"]);
+  });
+});
+
+// DESIGN.md §6: the module's most frequent action, pinned above the bar.
+describe("the pinned action", () => {
+  it("puts Log payment above the bar, except on its own page", () => {
+    render(<ModuleBar module={finances} />);
+    expect(screen.getByRole("link", { name: "Log payment" }).getAttribute("href")).toBe("/finances/log-payment");
+    cleanup();
+    render(<ModuleBar module={finances} current="Log payment" />);
+    expect(screen.queryByRole("link", { name: "Log payment" })).toBeNull();
   });
 });
 

@@ -95,3 +95,23 @@
   border-radius: var(--radius-pill);
   background: var(--module-loud);
 }
+
+/* The pinned action (DESIGN.md §6): one loud button across the screen,
+   just above the bar. */
+.pinnedRow {
+  padding: var(--space-3) max(var(--space-4), env(safe-area-inset-right)) var(--space-3)
+    max(var(--space-4), env(safe-area-inset-left));
+  background: var(--color-ground);
+}
+
+.pinned {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-target-min);
+  border-radius: var(--radius-pill);
+  background: var(--module-loud);
+  color: var(--module-on-loud);
+  font-weight: 700;
+  text-decoration: none;
+}

@@ -676,14 +676,14 @@ A month exists once someone opens it in Monthly entry,
 | `months` | an opened month | `starts_on` (the 1st, unique) |
 | `month_bills` | one bill in that month, copied from `bills` when it opened | `name`, `kind`, `due_day` (copies), `amount`, `personal_answer` (none, some) |
 | `personal_charges` | a charge inside a card statement that is one person's | `month_bill_id`, `owner_id`, `amount`, `note` |
-| `direct_payments` | shared spend one person paid off the tracked cards | `month_id`, `payer_id`, `amount`, `note` |
+| `direct_payments` | shared spend one person paid off the tracked cards ("one-time payments" on screen) | `month_id`, `payer_id`, `amount`, `note`, `paid_on` |
 
 `open_month()` opens only the month now running (the day passed in from
 `householdToday()`) and copies the bill list in, so a bill changed or
 removed later reaches only months opened after that (REQ-94). While the
 month now running is open, the Budget year form asks whether it takes a
-change too: `save_bill()` adds or updates its copy (a change of type
-clears that bill's entry), and `remove_bill()` sets a not-yet-entered
+change too: `save_bill()` adds or updates its copy (a change to or from
+a card clears that bill's entry), and `remove_bill()` sets a not-yet-entered
 copy to $0 rather than deleting it. Both check `manage_budget`
 themselves, since members can't write a month bill's name or type. Entering
 is shared: any member with `use_modules` enters amounts and adds or
@@ -697,9 +697,33 @@ charges that come to more than the statement.
 The money is worked out in code, not stored: `monthTotals()` in
 `lib/finances/month.ts` adds the entered bills, takes the personal
 charges out and adds the direct payments to get the shared base, then
-gives each person their percentage of it, plus their own charges. Who
-owes what shows it on screen in the next batch. Closing a month, and
-locking it, comes later.
+gives each person their percentage of it, plus their own charges.
+
+## Finances months: payments and who owes what
+
+A payment is money one person sent to one of the month's bills,
+logged on `/finances/log-payment` (REQ-57). One more table:
+
+| Table | One row is | Key facts |
+|---|---|---|
+| `payments` | money one person paid toward one month bill | `month_bill_id`, `payer_id`, `amount` |
+
+Logging is shared like entering: any member with `use_modules` logs,
+changes or deletes a payment for either person. A trigger checked at
+both doors refuses a bill's payments coming to more than the bill:
+when a payment is logged or changed, and when the bill's amount is
+changed (a bill not entered counts as $0, so it can't be paid toward).
+The page says the same thing in words first.
+
+`monthTotals()` then gives each person their obligation, what they paid
+(payments toward bills plus any one-time payment they fronted) and what
+is outstanding, and each bill its paid and left (REQ-56, 58). Each share
+is rounded to the cent, and the last person takes the cent the rounding
+left over, so the obligations always add up to the bills plus one-time
+payments exactly. Finances home shows the result for the month picked
+(REQ-92): a card per person, the bills with paid of total, and the
+workings folded under the cards. The month runs on the split that had
+started by its 1st. Closing a month, and locking it, comes later.
 
 ## Not yet built
 
@@ -711,9 +735,8 @@ These are deliberately absent at this stage, not overlooked:
 - **Screens still to design** — Sign-in, sign-up and set-password have
   no mockup, so they keep a plain layout in the design's fonts and
   colours.
-- **The rest of Finances** — months, monthly entry, payments, closing a
-  month, savings, balances and reminders arrive in batches after the
-  setup above.
+- **The rest of Finances** — closing a month, savings, balances and
+  reminders arrive in batches after the months above.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.

@@ -18,6 +18,18 @@
   A removed bill that wasn't entered yet counts as $0 this month;
   one already entered keeps its amount. (#140)
 
+- Who owes what. Finances home now shows a card per person with what
+  they owe this month, what they've paid and what's still outstanding
+  (or "Paid up" in green), and each bill with how much of it is paid
+  and what's left. "How this was worked out" shows the sums. The two
+  people's shares always add up to the bills to the cent. Log payment,
+  pinned above the phone bar and in the desktop tabs, records who paid,
+  how much and which bill; payments can be edited or deleted, and one
+  bigger than what's left on its bill is refused. Direct payments are
+  now called one-time payments and record the date they were paid.
+  Switching a bill between rent and other keeps this month's amount;
+  only a switch to or from a card clears it. (#142)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each

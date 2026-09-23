@@ -3,6 +3,7 @@ import { householdToday, listPeople, monthLabel, monthStart } from "../../../lib
 import {
   billEntered,
   chosenMonth,
+  dayLabel,
   dueInMonth,
   listOpenedMonths,
   monthStatus,
@@ -27,7 +28,8 @@ function missing(bill: MonthBill): string | null {
 
 // The Monthly entry section (docs/design/DESIGN.md §7): open the month,
 // then enter every bill (REQ-53), declare personal charges inside card
-// statements (REQ-54) and log shared spend one person paid (REQ-55).
+// statements (REQ-54) and log shared spend one person paid (REQ-55,
+// "one-time payments" on screen).
 // Entry is shared: every member sees what the other entered.
 export default async function MonthlyEntryPage({
   searchParams,
@@ -85,6 +87,11 @@ export default async function MonthlyEntryPage({
   }
 
   const cards = month.bills.filter((bill) => bill.kind === "card").map((bill) => bill.name);
+  // The date field runs from the 1st to today, or to the month's last day
+  // for a month gone by.
+  const [year, monthNumber] = month.starts_on.split("-").map(Number);
+  const monthEnd = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+  const lastDay = todayIso < monthEnd ? todayIso : monthEnd;
 
   return (
     <FinancesFrame {...frame}>
@@ -157,7 +164,7 @@ export default async function MonthlyEntryPage({
         <section className={styles.card} aria-labelledby="direct-payments">
           <header className={styles.head}>
             <h2 id="direct-payments" className={styles.name}>
-              Direct payments
+              One-time payments
             </h2>
           </header>
           <div className={styles.addBlock}>
@@ -168,7 +175,12 @@ export default async function MonthlyEntryPage({
                 ? ` Anything on ${cards.join(" or ")} is already in its statement, so don't log it here.`
                 : " Anything on a tracked card is already in its statement, so don't log it here."}
             </p>
-            <DirectPaymentForm monthId={month.id} people={people} />
+            <DirectPaymentForm
+              monthId={month.id}
+              people={people}
+              firstDay={month.starts_on}
+              lastDay={lastDay}
+            />
           </div>
           <div className={styles.entries}>
             {month.direct_payments.length === 0 ? (
@@ -181,7 +193,9 @@ export default async function MonthlyEntryPage({
                       <span className={styles.entryName}>{payment.note}</span>
                       <span className={styles.amount}>{formatMoney(payment.amount)}</span>
                     </div>
-                    <p className={styles.detail}>Paid by {nameOf.get(payment.payer_id) ?? "someone"}</p>
+                    <p className={styles.detail}>
+                      Paid by {nameOf.get(payment.payer_id) ?? "someone"} on {dayLabel(payment.paid_on)}
+                    </p>
                     <form action={removeDirectPayment}>
                       <input type="hidden" name="id" value={payment.id} />
                       <button type="submit" className={styles.quiet}>

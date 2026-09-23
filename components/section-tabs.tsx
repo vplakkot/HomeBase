@@ -6,10 +6,12 @@ import styles from "./section-tabs.module.css";
 // A module's sections as a row of tabs under its title, on a desktop
 // (docs/design/DESIGN.md §6); a phone lists them in the Sections sheet
 // instead. Overview is the module's home. Admin-only sections carry a
-// lock. The pinned action (Finances: Log payment) is a button, not a tab.
-// A section without a page yet is listed but can't be opened.
+// lock. The pinned action (Finances: Log payment) is a button at the end
+// of the row, not a tab. A section without a page yet is listed but
+// can't be opened.
 export function SectionTabs({ module, current }: { module: Module; current?: string }) {
   const tabClass = (here: boolean) => (here ? `${styles.tab} ${styles.current}` : styles.tab);
+  const pinned = module.sections.find((section) => section.pinned && section.href);
   return (
     <nav className={styles.tabs} aria-label={`${module.name} sections`}>
       <ul className={styles.list}>
@@ -48,6 +50,17 @@ export function SectionTabs({ module, current }: { module: Module; current?: str
               </li>
             );
           })}
+        {pinned?.href ? (
+          <li className={styles.pinnedItem}>
+            <Link
+              href={pinned.href}
+              className={styles.pinned}
+              aria-current={current === pinned.name ? "page" : undefined}
+            >
+              {pinned.name}
+            </Link>
+          </li>
+        ) : null}
       </ul>
     </nav>
   );

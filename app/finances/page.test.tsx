@@ -170,8 +170,8 @@ describe("the Finances page", () => {
             id: "m-sep",
             starts_on: "2026-09-01",
             bills: [
-              { id: "mb-rent", name: "Rent", kind: "rent", due_day: 1, amount: "2000.00", personal_answer: null, personal_charges: [] },
-              { id: "mb-card", name: "Joint card", kind: "card", due_day: 22, amount: null, personal_answer: null, personal_charges: [] },
+              { id: "mb-rent", name: "Rent", kind: "rent", due_day: 1, amount: "2000.00", personal_answer: null, personal_charges: [], payments: [] },
+              { id: "mb-card", name: "Joint card", kind: "card", due_day: 22, amount: null, personal_answer: null, personal_charges: [], payments: [] },
             ],
             direct_payments: [],
           },
@@ -183,13 +183,66 @@ describe("the Finances page", () => {
     vi.useRealTimers();
     const bills = screen.getByRole("region", { name: "Bills" });
     expect(within(bills).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "RentDue 1 Sep · $2,000.00",
+      "RentDue 1 Sep · $0.00 of $2,000.00$2,000.00 left",
       "Joint cardDue 22 SepNot entered",
     ]);
     expect(within(bills).getByRole("link", { name: "Enter bills" }).getAttribute("href")).toBe(
       "/finances/monthly-entry?month=2026-09",
     );
     expect(screen.getByText("Incomplete")).toBeDefined();
+  });
+
+  // REQ-56, 57, 58, 92: the month in focus shows each person's owed, paid
+  // and outstanding, and each bill's paid of total and what's left. Alex
+  // paid rent, Sam paid the Amazon card, and the joint card is still open.
+  it("shows who owes what and what's left on each bill", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-22T16:00:00Z"));
+    const bill = (id: string, name: string, due_day: number, amount: string, payments: unknown[]) => ({
+      id, name, kind: "card", due_day, amount, personal_answer: "none", personal_charges: [], payments,
+    });
+    fake = fakeSupabase({
+      permissions: MEMBER,
+      people: PEOPLE,
+      tables: {
+        splits: [SPLIT],
+        bills: [],
+        months: [
+          {
+            id: "m-sep",
+            starts_on: "2026-09-01",
+            bills: [
+              { ...bill("mb-rent", "Rent", 1, "2000.00", [{ id: "p-1", payer_id: "u-alex", amount: "2000.00", created_at: "2026-09-01" }]), kind: "rent", personal_answer: null },
+              bill("mb-amazon", "Amazon card", 10, "400.00", [{ id: "p-2", payer_id: "u-sam", amount: "400.00", created_at: "2026-09-10" }]),
+              bill("mb-joint", "Joint card", 22, "600.00", [{ id: "p-3", payer_id: "u-sam", amount: "150.00", created_at: "2026-09-12" }]),
+            ],
+            direct_payments: [{ id: "d-1", payer_id: "u-sam", amount: "100.00", note: "Taxi", paid_on: "2026-09-03" }],
+          },
+        ],
+      },
+    });
+    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+    render(await FinancesPage());
+    vi.useRealTimers();
+
+    // Shared: 3,000 of bills + 100 one-time = 3,100. Alex 60% = 1,860,
+    // paid 2,000: a 140 credit. Sam 40% = 1,240, paid 400 + 150 + the
+    // 100 taxi = 650, so 590 outstanding.
+    const people = screen.getByRole("region", { name: "Who owes what" });
+    expect(within(people).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
+      "AlexPaid uppaid $2,000.00 of $1,860.00 · $140.00 credit",
+      "Sam$590.00outstanding · paid $650.00 of $1,240.00",
+    ]);
+    expect(people.textContent).toContain("Shared$3,100.00");
+    expect(people.textContent).toContain("Sam: 40% of $3,100.00 = $1,240.00 owed. Paid $650.00 ($100.00 of it in one-time payments).");
+
+    const bills = screen.getByRole("region", { name: "Bills" });
+    expect(bills.textContent).toContain("$450.00 of $3,000.00 left");
+    expect(within(bills).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
+      "RentDue 1 Sep · $2,000.00 of $2,000.00Paid",
+      "Amazon cardDue 10 Sep · $400.00 of $400.00Paid",
+      "Joint cardDue 22 Sep · $150.00 of $600.00$450.00 left",
+    ]);
   });
 
   it("shows the year's split in the Admin block, locked for a member", async () => {
@@ -257,7 +310,11 @@ describe("the Finances page", () => {
       "Balances",
       "History",
       "Budget yearAdmin only",
+      "Log payment",
     ]);
+    expect(within(tabs).getByRole("link", { name: "Log payment" }).getAttribute("href")).toBe(
+      "/finances/log-payment",
+    );
     expect(within(tabs).getByRole("link", { name: "Overview" }).getAttribute("aria-current")).toBe(
       "page",
     );

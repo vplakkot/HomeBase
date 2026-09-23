@@ -68,3 +68,19 @@ check `supabase/checks/budget_year.sql` runs against the real database
 as a real admin and member, and forces the deferred check early with
 `set constraints all immediate`, because that script never commits (it
 undoes everything at the end).
+
+## The same idea in money: the cent nobody owns
+
+Payments toward a bill follow the same pattern (batch 3): one payment
+on its own is fine, but together they mustn't come to more than the
+bill. A trigger checks the sum whenever a payment is logged or changed,
+and whenever the bill's amount changes, because lowering the bill is
+the other door into the same broken state.
+
+Splitting has its own across-rows rule: the two obligations must add up
+to the bills exactly. Rounding each share on its own can break that:
+$10.05 split 50/50 is $5.025 each, both round up to $5.03, and the two
+come to $10.06 — a cent that was never spent, like cutting a cake in
+half and ending up with a crumb too many. `monthTotals()` rounds
+every share but the last, and gives the last person whatever is left,
+so the crumb always lands on someone's plate and the sum is exact.

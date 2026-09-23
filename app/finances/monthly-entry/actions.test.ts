@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../../lib/supabase/server";
 import {
   addDirectPayment,
@@ -24,9 +24,11 @@ let table: Record<string, ReturnType<typeof vi.fn>>;
 // A member holds use_modules; `member: false` is someone without it.
 function given({ member = true, error = null }: { member?: boolean; error?: { message: string } | null } = {}) {
   const eq = vi.fn().mockResolvedValue({ error });
+  const maybeSingle = vi.fn().mockResolvedValue({ data: { starts_on: "2026-09-01" }, error: null });
   table = {
     insert: vi.fn().mockResolvedValue({ error }),
     delete: vi.fn(() => ({ eq })),
+    select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle })) })),
     eq,
   };
   rpc = vi.fn(async (fn: string) =>
@@ -153,30 +155,50 @@ describe("addPersonalCharge (REQ-54)", () => {
 });
 
 describe("addDirectPayment (REQ-55)", () => {
-  it("records the payer, the total and a note", async () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-22T16:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const base = { monthId: "m-1", payerId: "u-alex", amount: "64.20", paidOn: "2026-09-05", note: "Groceries, Venmo" };
+
+  it("records the payer, the total, the date paid and a note", async () => {
     given();
-    const result = await addDirectPayment(
-      {},
-      form({ monthId: "m-1", payerId: "u-alex", amount: "64.20", note: "Groceries, Venmo" }),
-    );
+    const result = await addDirectPayment({}, form(base));
     expect(result).toEqual({ saved: true });
     expect(table.insert).toHaveBeenCalledWith({
       month_id: "m-1",
       payer_id: "u-alex",
       amount: 64.2,
       note: "Groceries, Venmo",
+      paid_on: "2026-09-05",
     });
   });
 
-  it("needs all three", async () => {
+  it("needs all four", async () => {
     given();
-    const base = { monthId: "m-1", payerId: "u-alex", amount: "10", note: "Taxi" };
     expect((await addDirectPayment({}, form({ ...base, payerId: "" }))).error).toBe("Who paid?");
     expect((await addDirectPayment({}, form({ ...base, amount: "-3" }))).error).toBe(
       "Enter the total, like 64.20.",
     );
+    expect((await addDirectPayment({}, form({ ...base, paidOn: "" }))).error).toBe("Enter the date it was paid.");
     expect((await addDirectPayment({}, form({ ...base, note: "  " }))).error).toBe(
       "Add a note saying what it was for.",
+    );
+    expect(table.insert).not.toHaveBeenCalled();
+  });
+
+  // Vin, 2026-09-23: always already paid, so no future dates.
+  it("keeps the date paid inside the month and not after today", async () => {
+    given();
+    expect((await addDirectPayment({}, form({ ...base, paidOn: "2026-08-31" }))).error).toBe(
+      "The date paid has to be in this month.",
+    );
+    expect((await addDirectPayment({}, form({ ...base, paidOn: "2026-09-23" }))).error).toBe(
+      "A one-time payment is already paid, so its date can't be in the future.",
     );
     expect(table.insert).not.toHaveBeenCalled();
   });
