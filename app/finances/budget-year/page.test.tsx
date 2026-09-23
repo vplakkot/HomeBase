@@ -233,6 +233,14 @@ describe("the Budget year section", () => {
     expect([...types.options].map((option) => option.textContent)).toEqual(["Rent", "Card", "Other"]);
   });
 
+  // Vin, 2026-09-23: with a month open, Remove carries a tick box, and it
+  // squeezed an opened Edit form to a sliver. An open form takes the row.
+  it("gives an opened edit form the whole row", () => {
+    const css = readFileSync(join(REPO_ROOT, "app/finances/budget-year/page.module.css"), "utf-8");
+    expect(styleOf(css, "actions", false).get("flex-wrap")).toBe("wrap");
+    expect(css).toMatch(/\.change\[open\] \{\s*flex-basis: 100%;/);
+  });
+
   // Vin, 2026-09-23: rent is the same every month, so a rent bill carries
   // its amount. Only rent asks for it.
   it("asks a rent bill for its monthly amount, and shows it in the list", async () => {

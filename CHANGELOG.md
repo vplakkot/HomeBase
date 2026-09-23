@@ -43,6 +43,13 @@
   can still change a month's figure, and with "Also apply" ticked, a
   changed rent reaches the month already open. (#145)
 
+- Finances looks like one thing. In the Budget year an opened Edit form
+  takes the whole row again instead of being squeezed beside Remove.
+  Monthly entry reads as a checklist: a bill still to enter is a pale
+  tile with its form, and once entered it turns brick, showing the
+  amount, with Change folded away. On the overview each person is a
+  brick tile, green once paid up. (#148)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each

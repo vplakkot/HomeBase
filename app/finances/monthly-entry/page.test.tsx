@@ -70,6 +70,21 @@ describe("Monthly entry before the month is opened", () => {
 });
 
 describe("Monthly entry in an opened month", () => {
+  // Vin, 2026-09-23: pale while still to do, brick once entered, as in
+  // the Budget year. An entered bill folds its form away under Change.
+  it("shows a bill still to enter as a pale tile with its form, and an entered one as a brick tile", async () => {
+    given({ months: [SEPTEMBER] });
+    await page();
+    const bills = screen.getByRole("region", { name: "Bills" });
+    const rent = within(bills).getByText("Rent").closest("li") as HTMLElement;
+    const card = within(bills).getByText("Joint card").closest("li") as HTMLElement;
+    expect(rent.className).toContain("todo");
+    expect(rent.querySelector("details")).toBeNull();
+    expect(card.className).toContain("entry");
+    expect(card.textContent).toContain("Due 22 Sep · $45.00 personal");
+    expect(card.querySelector(":scope > details > summary")?.textContent).toBe("Change");
+  });
+
   // REQ-53: every bill in the month gets an entry field.
   it("gives every bill in the month its own entry field, in due order", async () => {
     given({ months: [SEPTEMBER] });
@@ -118,7 +133,7 @@ describe("Monthly entry in an opened month", () => {
     given({ months: [SEPTEMBER] });
     await page();
     const charges = screen.getByRole("region", { name: "Personal charges on Joint card" });
-    expect(charges.textContent).toContain("Sam$45.00Birthday gift");
+    expect(charges.textContent).toContain("Sam · $45.00 · Birthday gift");
     expect(within(charges).getByRole("textbox", { name: "Amount of a personal charge on Joint card" })).toBeDefined();
     expect(within(charges).getByRole("combobox", { name: "Whose personal charge on Joint card" })).toBeDefined();
     const note = within(charges).getByRole("textbox", { name: "Note for a personal charge on Joint card" });
@@ -143,7 +158,7 @@ describe("Monthly entry in an opened month", () => {
   it("shows entries made by either person", async () => {
     given({ months: [SEPTEMBER] });
     await page();
-    expect(screen.getByText("Birthday gift")).toBeDefined();
+    expect(screen.getByText("Sam · $45.00 · Birthday gift")).toBeDefined();
     expect(screen.getByText("Paid by Alex on 5 Sep")).toBeDefined();
   });
 
