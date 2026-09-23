@@ -456,6 +456,15 @@ describe("closing a month and the verdict", () => {
     expect(verdict.textContent).toContain("Alex −$200.00 · Sam $100.00 left");
   });
 
+  it("says so when income exactly covers the shares", async () => {
+    await show({
+      bills: [rentPaidBy([])],
+      income: [paycheck("u-alex", "1200.00"), paycheck("u-sam", "800.00")],
+    });
+    const verdict = screen.getByRole("region", { name: "This month" });
+    expect(verdict.textContent).toContain("Nothing to save this monthYour shares came to exactly the income logged.");
+  });
+
   it("points to Income when nothing is logged yet", async () => {
     await show({ bills: [rentPaidBy([])] });
     const verdict = screen.getByRole("region", { name: "This month" });

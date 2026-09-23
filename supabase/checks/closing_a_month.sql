@@ -86,11 +86,20 @@ begin
   insert into public.payments (month_bill_id, payer_id, amount) values (rent_row, high_id, 500.00)
   returning id into v_payment;
 
+  begin
+    perform public.month_balances(v_jan);
+    report := report || E'4a. a signed-in user CALLED month_balances -- WRONG\n';
+  exception when others then
+    report := report || format('4a. month_balances is the database''s own (wants this): %s%s', sqlerrm, E'\n');
+  end;
+
+  reset role;
   select string_agg(format('%s owes %s', case when b.user_id = high_id then 'last' else 'first' end, b.outstanding), ', '
                     order by b.user_id)
     into v_text from public.month_balances(v_jan) b;
   report := report || format('4. balances: %s (wants first owes 500.02, last owes 0.01: the last takes the rounding cent)%s', v_text, E'\n');
   report := report || format('5. squared with money owed? %s (wants false)%s', public.month_is_squared(v_jan), E'\n');
+  set local role authenticated;
 
   perform public.close_month_with_balance(v_jan);
   select format('closed_by admin %s, split_from %s', closed_by = admin_id, split_from)
@@ -164,9 +173,8 @@ begin
   perform public.enter_bill(mb.id, 0, case when mb.kind = 'card' then 'none' end)
     from public.month_bills mb where mb.month_id = v_feb and mb.id <> rent_row;
   insert into public.payments (month_bill_id, payer_id, amount) values (rent_row, low_id, 500.02), (rent_row, high_id, 500.01);
-  report := report || format('16. every bill paid, both at zero: squared? %s (wants true)%s', public.month_is_squared(v_feb), E'\n');
-
   reset role;
+  report := report || format('16. every bill paid, both at zero: squared? %s (wants true)%s', public.month_is_squared(v_feb), E'\n');
 
   -- REQ-52: a later change to the percentages doesn't reach a closed month.
   update public.split_shares set percent = case when user_id = admin_id then 70 else 30 end where split_id = v_split;
@@ -177,7 +185,7 @@ begin
 
   -- What the nightly job does to a squared month.
   perform public.close_month(v_feb, null);
-  select format('closed %s, closed_by empty %s', closed_at is not null, closed_by is null)
+  select format('closed %s, closed on its own %s', closed_at is not null, closed_automatically)
     into v_text from public.months where id = v_feb;
   report := report || format('19. a squared month closed on its own: %s (wants true, true)%s', v_text, E'\n');
   select count(*) into n from cron.job where jobname = 'close-squared-months' and schedule = '5 * * * *';
@@ -188,6 +196,14 @@ begin
   delete from public.bills where id = v_rent;
   select count(*) into n from public.month_bills where month_id in (v_jan, v_feb) and bill_id is null and name = 'Check rent';
   report := report || format('21. rent removed from the list; closed months keep their copies: %s (wants 2)%s', n, E'\n');
+
+  -- A closed month's record can't lose a person.
+  begin
+    delete from public.household_members where user_id = member_id;
+    report := report || E'22. a member on a closed month REMOVED -- WRONG\n';
+  exception when others then
+    report := report || format('22. a member on a closed month can''t be removed (wants this): %s%s', sqlerrm, E'\n');
+  end;
 
   raise exception 'Results (all undone):%', report;
 end;

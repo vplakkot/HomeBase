@@ -25,8 +25,8 @@ true.
 A padlock catches things you didn't plan for. Removing a bill from the
 household's list quietly edits every month's copy of it (it empties
 `bill_id`). The trigger lets that one through, because it changes no
-figure. Removing a member is refused, because their payments would
-vanish from a closed month.
+figure. Removing a member who appears on a closed month is refused,
+because their line would vanish from the record.
 
 ## 2. Work that happens when nobody is looking
 

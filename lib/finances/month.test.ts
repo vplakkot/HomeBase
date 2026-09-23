@@ -42,6 +42,7 @@ function month(bills: MonthBill[], direct: Month["direct_payments"] = []): Month
     income: [],
     closed_at: null,
     closed_by: null,
+    closed_automatically: false,
     split_from: null,
     people: [],
   };
@@ -105,6 +106,7 @@ describe("the month's status (REQ-53, REQ-59)", () => {
     const unpaid = month([paid(rent, "u-alex", 1800), card]);
     expect(isSquared(unpaid, monthTotals(unpaid, SHARES))).toBe(false);
     expect(isSquared(evenShares, monthTotals(evenShares, []))).toBe(false);
+    expect(isSquared(month([]), monthTotals(month([]), SHARES))).toBe(false);
   });
 
   it("reads Ended · not squared once the month is over without squaring", () => {

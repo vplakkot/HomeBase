@@ -734,7 +734,7 @@ nothing in it changes.
 
 | Table / column | One row is | Key facts |
 |---|---|---|
-| `months.closed_at`, `closed_by`, `split_from` | when it closed, which admin (empty = on its own), the month its split started | set only by `close_month()` |
+| `months.closed_at`, `closed_by`, `closed_automatically`, `split_from` | when it closed, which admin, whether the nightly job did it, the month its split started | set only by `close_month()` |
 | `month_people` | one person on a closed month | `percent` at the time, `outstanding` when it closed; no one writes it directly |
 | `month_income` | money that landed in a month (REQ-60) | `kind` paycheck / espp / rsu / bonus / other, `owner_id`, `amount`, `received_on`; a confirmed paycheck keeps `income_source_id` |
 
@@ -763,7 +763,10 @@ flowchart LR
   `direct_payments` and `payments` that refuses any insert, change or
   delete in a closed month. Removing a bill from the household list is
   let through (it only empties the copy's `bill_id`). Removing a member
-  who has rows in a closed month is refused by the same lock.
+  who appears on a closed month is refused (`month_people` restricts
+  it), so the record never loses a person.
+- `month_balances()` and `month_is_squared()` are for the database's
+  own use only; signed-in users can't call them.
 - **Income** isn't locked by closing alone: a month can square and
   close mid-month while pay is still to land, so income locks once the
   month is closed *and* over.

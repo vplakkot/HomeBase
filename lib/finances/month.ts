@@ -40,13 +40,14 @@ export type Month = {
   direct_payments: DirectPayment[];
   income: MonthIncome[];
   closed_at: string | null;
-  // Empty on a closed month means it closed on its own, squared.
   closed_by: string | null;
+  // Closed by the nightly job, squared (REQ-59).
+  closed_automatically: boolean;
   split_from: string | null;
   people: ClosedPerson[];
 };
 
-const MONTH_FIELDS = `id, starts_on, closed_at, closed_by, split_from,
+const MONTH_FIELDS = `id, starts_on, closed_at, closed_by, closed_automatically, split_from,
   people:month_people(user_id, percent, outstanding),
   income:month_income(id, owner_id, kind, amount, received_on, income_source_id, note),
   bills:month_bills(id, name, kind, due_day, amount, personal_answer,
@@ -83,6 +84,7 @@ export async function readMonth(supabase: SupabaseClient, startsOn: string): Pro
       .map((p) => ({ ...p, amount: Number(p.amount) })),
     closed_at: month.closed_at ?? null,
     closed_by: month.closed_by ?? null,
+    closed_automatically: month.closed_automatically ?? false,
     split_from: month.split_from ?? null,
     income: [...(month.income ?? [])]
       .sort((a, b) => a.received_on.localeCompare(b.received_on))
@@ -148,12 +150,13 @@ export function monthShares(month: Month | null, splits: Split[], startsOn: stri
 
 export type MonthStatus = "Incomplete" | "Open" | "Squared" | "Closed" | "Ended · not squared";
 
-// Squared: a split to divide by, every bill entered and paid in full,
+// Squared: a split to divide by, at least one bill, every bill entered and paid in full,
 // and nobody owing or owed anything (REQ-59). The database's
 // month_is_squared() decides the same thing for the nightly close.
 export function isSquared(month: Month, totals: MonthTotals): boolean {
   return (
     totals.people.length > 0 &&
+    month.bills.length > 0 &&
     month.bills.every(billEntered) &&
     totals.bills.every((bill) => bill.left === 0) &&
     totals.people.every((person) => person.outstanding === 0)

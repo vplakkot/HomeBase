@@ -168,7 +168,7 @@ export default async function FinancesPage({
         <section className={styles.card} aria-label="Closed month">
           <p className={styles.cardNote}>
             Closed {dayLabel(month.closed_at.slice(0, 10))}
-            {month.closed_by ? "" : ", squared"} · split from{" "}
+            {month.closed_automatically ? ", squared" : ""} · split from{" "}
             {month.split_from ? monthLabel(month.split_from) : "no split"}: {percentages(month.people)}
           </p>
           {leftOwing.map((person) => {
@@ -211,7 +211,9 @@ export default async function FinancesPage({
                   <span className={styles.figure}>{formatMoney(verdict.joint)}</span>
                 ) : (
                   <span className={styles.cardNote}>
-                    Your shares came to {formatMoney(-verdict.joint)} more than the income logged.
+                    {verdict.joint === 0
+                      ? "Your shares came to exactly the income logged."
+                      : `Your shares came to ${formatMoney(-verdict.joint)} more than the income logged.`}
                   </span>
                 )}
                 <span className={styles.cardNote}>
