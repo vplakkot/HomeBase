@@ -42,14 +42,14 @@ describe("the bar inside a module, on a phone", () => {
 });
 
 describe("the Sections sheet", () => {
-  it("lists the overview, then the module's seven sections, Budget year open, the rest coming", () => {
+  it("lists the overview, then the module's seven sections, Monthly entry and Budget year open, the rest coming", () => {
     render(<ModuleBar module={finances} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const sheet = openSheet();
     const rows = within(sheet).getAllByRole("listitem");
     expect(rows.map((row) => row.textContent)).toEqual([
       "Overview",
-      "Monthly entryBills, personal charges, direct paymentsComing soon",
+      "Monthly entryBills, personal charges, direct payments",
       "Log paymentSeveral times a monthComing soon",
       "IncomeConfirm paychecks, add ESPP, RSU, bonusComing soon",
       "SavingsVerdict and what you actually savedComing soon",
@@ -74,16 +74,17 @@ describe("the Sections sheet", () => {
     const links = within(openSheet()).getAllByRole("link");
     expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["Overview", "/finances"],
+      ["Monthly entryBills, personal charges, direct payments", "/finances/monthly-entry"],
       ["Budget yearSplit %, income sources and billsAdmin only", "/finances/budget-year"],
     ]);
-    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual(["page", null]);
+    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual(["page", null, null]);
   });
 
   it("marks a section as where you are when you're on its page", () => {
     render(<ModuleBar module={finances} current="Budget year" />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const links = within(openSheet()).getAllByRole("link");
-    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual([null, "page"]);
+    expect(links.map((link) => link.getAttribute("aria-current"))).toEqual([null, null, "page"]);
   });
 });
 

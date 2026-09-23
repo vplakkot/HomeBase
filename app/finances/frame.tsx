@@ -29,19 +29,21 @@ export async function financesViewer() {
 
 // Every Finances page shares the designed header (docs/design/DESIGN.md §7)
 // and the section tabs (desktop) or module bar (phone). The month picker
-// and status chip belong to the month, so only the module's home shows
-// them; a section page names itself instead.
+// and status chip belong to the month, so only pages about a month show
+// them: the module's home and Monthly entry.
 export function FinancesFrame({
   canManageMembers,
   account,
   section,
   status,
+  month,
   children,
 }: {
   canManageMembers: boolean;
   account: Account;
   section?: string;
   status?: string;
+  month?: { current: string; options: string[] };
   children: ReactNode;
 }) {
   const finances = moduleBySlug("finances");
@@ -63,7 +65,7 @@ export function FinancesFrame({
         </div>
         {status ? (
           <div className={styles.month}>
-            <MonthPicker />
+            {month ? <MonthPicker current={month.current} options={month.options} /> : null}
             <span className={styles.status}>{status}</span>
           </div>
         ) : null}

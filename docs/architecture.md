@@ -664,10 +664,37 @@ The budget year itself is not stored, and nothing needs it any more: a
 split carries its own month, so the April-to-March frame comes back only
 when the March review (REQ-69) is built. Paydays are
 projected the same way (`payDates` in `lib/finances/income.ts`) from one
-real payday, so nothing is stored per payday. Months don't exist yet;
-monthly entry adds them and copies the bill list into each month when it
-opens, which is what keeps a changed bill from rewriting an open or
-closed month.
+real payday, so nothing is stored per payday.
+
+## Finances months: monthly entry
+
+A month exists once someone opens it in Monthly entry,
+`/finances/monthly-entry` (REQ-53, 54, 55). Four more tables:
+
+| Table | One row is | Key facts |
+|---|---|---|
+| `months` | an opened month | `starts_on` (the 1st, unique) |
+| `month_bills` | one bill in that month, copied from `bills` when it opened | `name`, `kind`, `due_day` (copies), `amount`, `personal_answer` (none, some) |
+| `personal_charges` | a charge inside a card statement that is one person's | `month_bill_id`, `owner_id`, `amount`, `note` |
+| `direct_payments` | shared spend one person paid off the tracked cards | `month_id`, `payer_id`, `amount`, `note` |
+
+`open_month()` opens only the month now running (the day passed in from
+`householdToday()`) and copies the bill list in, so a bill changed or
+removed later reaches only months opened after that (REQ-94). Entering
+is shared: any member with `use_modules` enters amounts and adds or
+removes charges and payments, and everyone reads them. A member may
+change only a month bill's amount and answer, not its copied name, kind
+or due day (column-level grants). A card statement can't hold an amount
+without an answer (a check constraint); `enter_bill()` clears the
+charges when the answer goes back to "none"; and a trigger refuses
+charges that come to more than the statement.
+
+The money is worked out in code, not stored: `monthTotals()` in
+`lib/finances/month.ts` adds the entered bills, takes the personal
+charges out and adds the direct payments to get the shared base, then
+gives each person their percentage of it, plus their own charges. Who
+owes what shows it on screen in the next batch. Closing a month, and
+locking it, comes later.
 
 ## Not yet built
 

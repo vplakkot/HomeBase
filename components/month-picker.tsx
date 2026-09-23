@@ -1,24 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDownIcon } from "./icons";
 import styles from "./month-picker.module.css";
 
 // The month a module is showing, in its header (docs/design/DESIGN.md §7).
-// Like the greeting, it needs the phone's own clock, so the page arrives
-// saying "This month" and the phone fills in which. Choosing another month
-// comes with the months themselves in v1.0, so for now it can't be pressed.
-export function MonthPicker() {
-  const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => setNow(new Date()), []);
-
-  const month = now
-    ? now.toLocaleDateString("en-GB", { month: "long", year: "numeric" })
-    : "This month";
+// The page names the month it shows and the months there are to choose
+// from, each as "YYYY-MM-01"; choosing one reloads the same page on it.
+export function MonthPicker({ current, options }: { current: string; options: string[] }) {
+  const router = useRouter();
+  const pathname = usePathname();
   return (
-    <button type="button" className={styles.picker} disabled>
-      {month}
+    <span className={styles.wrap}>
+      <select
+        className={styles.picker}
+        aria-label="Month"
+        value={current}
+        onChange={(event) => router.push(`${pathname}?month=${event.target.value.slice(0, 7)}`)}
+        disabled={options.length < 2}
+      >
+        {options.map((month) => (
+          <option key={month} value={month}>
+            {label(month)}
+          </option>
+        ))}
+      </select>
       <ChevronDownIcon />
-    </button>
+    </span>
   );
+}
+
+function label(month: string): string {
+  return new Date(`${month}T12:00:00Z`).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }

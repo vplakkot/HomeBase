@@ -36,7 +36,11 @@ export const MODULES: readonly Module[] = [
     tokens: "finances",
     href: "/finances",
     sections: [
-      { name: "Monthly entry", description: "Bills, personal charges, direct payments" },
+      {
+        name: "Monthly entry",
+        description: "Bills, personal charges, direct payments",
+        href: "/finances/monthly-entry",
+      },
       { name: "Log payment", description: "Several times a month", pinned: true },
       { name: "Income", description: "Confirm paychecks, add ESPP, RSU, bonus" },
       { name: "Savings", description: "Verdict and what you actually saved" },
