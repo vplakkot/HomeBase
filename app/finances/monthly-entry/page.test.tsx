@@ -183,3 +183,16 @@ describe("Monthly entry in an opened month", () => {
     expect(screen.getByText("Open")).toBeDefined();
   });
 });
+
+// REQ-59: a closed month is shown as it closed, with nothing to change.
+describe("Monthly entry in a closed month", () => {
+  it("shows its bills, charges and one-time payments with no forms or Remove buttons", async () => {
+    given({ months: [{ ...SEPTEMBER, closed_at: "2026-09-21T04:05:00Z", people: [] }] });
+    await page("2026-09");
+    expect(screen.getByText("Birthday gift", { exact: false })).toBeDefined();
+    expect(screen.getByText("Groceries, Venmo")).toBeDefined();
+    const main = screen.getByRole("main");
+    expect(within(main).queryByRole("button")).toBeNull();
+    expect(within(main).queryByRole("textbox")).toBeNull();
+  });
+});

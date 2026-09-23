@@ -113,4 +113,15 @@ describe("Log payment", () => {
       "/finances/monthly-entry?month=2026-09",
     );
   });
+
+  // REQ-59: a closed month's payments are shown but can't change.
+  it("offers nothing to change in a closed month", async () => {
+    given([{ ...SEPTEMBER, closed_at: "2026-09-21T04:05:00Z", people: [] }]);
+    await page();
+    expect(screen.getByRole("region", { name: "Log a payment" }).textContent).toContain(
+      "This month is closed, so its payments can't change.",
+    );
+    expect(within(screen.getByRole("main")).queryByRole("button")).toBeNull();
+    expect(screen.queryByText("Edit")).toBeNull();
+  });
 });

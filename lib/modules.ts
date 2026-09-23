@@ -47,7 +47,11 @@ export const MODULES: readonly Module[] = [
         pinned: true,
         href: "/finances/log-payment",
       },
-      { name: "Income", description: "Confirm paychecks, add ESPP, RSU, bonus" },
+      {
+        name: "Income",
+        description: "Confirm paychecks, add ESPP, RSU, bonus",
+        href: "/finances/income",
+      },
       { name: "Savings", description: "Verdict and what you actually saved" },
       { name: "Balances", description: "Enter and see trends" },
       { name: "History", description: "Closed months, read-only" },

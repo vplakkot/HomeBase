@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BillKind } from "./bills";
-import { monthStart, type Share } from "./budget-year";
+import { monthStart, splitInForce, type Share, type Split } from "./budget-year";
 
 // A month of household spending (REQ-53, 54, 55). Opening it copies the
 // bill list in; members then enter each bill's amount, declare personal
@@ -11,6 +11,18 @@ import { monthStart, type Share } from "./budget-year";
 export type PersonalCharge = { id: string; owner_id: string; amount: number; note: string };
 export type DirectPayment = { id: string; payer_id: string; amount: number; note: string; paid_on: string };
 export type Payment = { id: string; payer_id: string; amount: number; created_at: string };
+export type IncomeKind = "paycheck" | "espp" | "rsu" | "bonus" | "other";
+export type MonthIncome = {
+  id: string;
+  owner_id: string;
+  kind: IncomeKind;
+  amount: number;
+  received_on: string;
+  income_source_id: string | null;
+  note: string;
+};
+// Written onto a month when it closes (REQ-52, REQ-59).
+export type ClosedPerson = { user_id: string; percent: number; outstanding: number };
 export type MonthBill = {
   id: string;
   name: string;
@@ -26,9 +38,18 @@ export type Month = {
   starts_on: string;
   bills: MonthBill[];
   direct_payments: DirectPayment[];
+  income: MonthIncome[];
+  closed_at: string | null;
+  closed_by: string | null;
+  // Closed by the nightly job, squared (REQ-59).
+  closed_automatically: boolean;
+  split_from: string | null;
+  people: ClosedPerson[];
 };
 
-const MONTH_FIELDS = `id, starts_on,
+const MONTH_FIELDS = `id, starts_on, closed_at, closed_by, closed_automatically, split_from,
+  people:month_people(user_id, percent, outstanding),
+  income:month_income(id, owner_id, kind, amount, received_on, income_source_id, note),
   bills:month_bills(id, name, kind, due_day, amount, personal_answer,
     personal_charges(id, owner_id, amount, note),
     payments(id, payer_id, amount, created_at)),
@@ -61,6 +82,18 @@ export async function readMonth(supabase: SupabaseClient, startsOn: string): Pro
     direct_payments: [...month.direct_payments]
       .sort((a, b) => a.paid_on.localeCompare(b.paid_on))
       .map((p) => ({ ...p, amount: Number(p.amount) })),
+    closed_at: month.closed_at ?? null,
+    closed_by: month.closed_by ?? null,
+    closed_automatically: month.closed_automatically ?? false,
+    split_from: month.split_from ?? null,
+    income: [...(month.income ?? [])]
+      .sort((a, b) => a.received_on.localeCompare(b.received_on))
+      .map((i) => ({ ...i, amount: Number(i.amount) })),
+    people: (month.people ?? []).map((p) => ({
+      ...p,
+      percent: Number(p.percent),
+      outstanding: Number(p.outstanding),
+    })),
   };
 }
 
@@ -72,6 +105,17 @@ export async function listOpenedMonths(supabase: SupabaseClient): Promise<string
     .order("starts_on", { ascending: false });
   if (error) throw new Error(`Could not list the months: ${error.message}`);
   return ((data ?? []) as { starts_on: string }[]).map((row) => row.starts_on);
+}
+
+// Whether a month has closed; a month never opened hasn't.
+export async function monthClosed(supabase: SupabaseClient, startsOn: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("months")
+    .select("closed_at")
+    .eq("starts_on", startsOn)
+    .maybeSingle();
+  if (error) throw new Error(`Could not read the month: ${error.message}`);
+  return Boolean((data as { closed_at: string | null } | null)?.closed_at);
 }
 
 // Which month a page shows: the ?month=YYYY-MM asked for, if that month
@@ -97,10 +141,35 @@ export function billEntered(bill: MonthBill): boolean {
   return bill.personal_answer === "some" && bill.personal_charges.length > 0;
 }
 
+// The percentages a month is split by: the ones written on it when it
+// closed (REQ-52), otherwise the split that had started by its first day.
+export function monthShares(month: Month | null, splits: Split[], startsOn: string): Share[] {
+  if (month?.closed_at) return month.people.map(({ user_id, percent }) => ({ user_id, percent }));
+  return splitInForce(splits, startsOn)?.shares ?? [];
+}
+
+export type MonthStatus = "Incomplete" | "Open" | "Squared" | "Closed" | "Ended · not squared";
+
+// Squared: a split to divide by, at least one bill, every bill entered and paid in full,
+// and nobody owing or owed anything (REQ-59). The database's
+// month_is_squared() decides the same thing for the nightly close.
+export function isSquared(month: Month, totals: MonthTotals): boolean {
+  return (
+    totals.people.length > 0 &&
+    month.bills.length > 0 &&
+    month.bills.every(billEntered) &&
+    totals.bills.every((bill) => bill.left === 0) &&
+    totals.people.every((person) => person.outstanding === 0)
+  );
+}
+
 // The header chip (DESIGN.md §7). A month not opened, or with a bill
-// still to enter, is Incomplete (REQ-53). Squared and Closed come with
-// payments and closing.
-export function monthStatus(month: Month | null): "Incomplete" | "Open" {
+// still to enter, is Incomplete (REQ-53); once its last day has gone by
+// without squaring it reads "Ended · not squared".
+export function monthStatus(month: Month | null, shares: Share[], today: string): MonthStatus {
+  if (month?.closed_at) return "Closed";
+  if (month && isSquared(month, monthTotals(month, shares))) return "Squared";
+  if (month && month.starts_on < monthStart(today)) return "Ended · not squared";
   return month && month.bills.every(billEntered) ? "Open" : "Incomplete";
 }
 

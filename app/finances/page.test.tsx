@@ -349,3 +349,127 @@ describe("the Finances page", () => {
     expect(styleOf(css, "tabs", true).get("display")).toBe("block");
   });
 });
+
+// Batch 4 (#152): Squared and Closed, closing with a balance (REQ-59),
+// a closed month keeping its percentages (REQ-52) and the verdict
+// (REQ-61). Rent $2,000 split 60/40: Alex owes $1,200, Sam $800.
+describe("closing a month and the verdict", () => {
+  const rentPaidBy = (payments: [string, string][]) => ({
+    id: "mb-rent",
+    name: "Rent",
+    kind: "rent",
+    due_day: 1,
+    amount: "2000.00",
+    personal_answer: null,
+    personal_charges: [],
+    payments: payments.map(([payer_id, amount], i) => ({ id: `p-${i}`, payer_id, amount, created_at: "2026-09-02" })),
+  });
+
+  async function show(month: Record<string, unknown>, permissions = ADMIN, today = "2026-09-22T16:00:00Z") {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(today));
+    fake = fakeSupabase({
+      permissions,
+      people: PEOPLE,
+      tables: {
+        splits: [SPLIT],
+        bills: [],
+        months: [{ id: "m-sep", starts_on: "2026-09-01", direct_payments: [], income: [], people: [], closed_at: null, closed_by: null, split_from: null, ...month }],
+      },
+    });
+    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+    render(await FinancesPage({ searchParams: Promise.resolve({ month: "2026-09" }) }));
+    vi.useRealTimers();
+  }
+
+  const status = () => screen.getByRole("banner").textContent;
+  const paycheck = (owner_id: string, amount: string) => ({
+    id: `i-${owner_id}`, owner_id, kind: "paycheck", amount, received_on: "2026-09-04", income_source_id: null, note: "",
+  });
+
+  it("reads Squared once every bill is paid and nobody owes anything, and says it closes tonight", async () => {
+    await show({ bills: [rentPaidBy([["u-alex", "1200.00"], ["u-sam", "800.00"]])] });
+    expect(status()).toContain("Squared");
+    expect(screen.getByRole("region", { name: "Admin" }).textContent).toContain("Squared: it closes on its own tonight");
+    expect(screen.queryByRole("button", { name: /^Close / })).toBeNull();
+  });
+
+  it("reads Ended · not squared once the month is over with money owed", async () => {
+    await show({ bills: [rentPaidBy([["u-alex", "1200.00"]])] }, ADMIN, "2026-10-02T16:00:00Z");
+    expect(status()).toContain("Ended · not squared");
+  });
+
+  it("lets an admin close a month with a balance, saying who owes what first", async () => {
+    await show({ bills: [rentPaidBy([["u-alex", "1200.00"]])] });
+    const admin = screen.getByRole("region", { name: "Admin" });
+    expect(admin.textContent).toContain("Sam still owes $800.00. Closing records that and locks September 2026");
+    const close = within(admin).getByRole("button", { name: "Close September 2026" });
+    const form = close.closest("form")!;
+    expect(new FormData(form).get("monthId")).toBe("m-sep");
+  });
+
+  it("shows a member Close month with balance locked, not hidden", async () => {
+    await show({ bills: [rentPaidBy([["u-alex", "1200.00"]])] }, MEMBER);
+    const admin = screen.getByRole("region", { name: "Admin" });
+    expect(admin.textContent).toContain("Close month with balanceAdmin only");
+    expect(within(admin).queryByRole("button")).toBeNull();
+  });
+
+  it("shows a closed month as it closed: its split, and what was left and whose", async () => {
+    await show({
+      bills: [rentPaidBy([["u-alex", "1200.00"]])],
+      closed_at: "2026-09-30T14:00:00Z",
+      closed_by: "u-alex",
+      split_from: "2026-04-01",
+      people: [
+        { user_id: "u-alex", percent: "60.00", outstanding: "0.00" },
+        { user_id: "u-sam", percent: "40.00", outstanding: "800.00" },
+      ],
+    }, ADMIN, "2026-10-05T16:00:00Z");
+    expect(status()).toContain("Closed");
+    const closed = screen.getByRole("region", { name: "Closed month" });
+    expect(closed.textContent).toContain("Closed 30 Sep · split from April 2026: Alex 60% · Sam 40%");
+    expect(closed.textContent).toContain(
+      "Closed with $800.00 of Sam's unpaid. When it shows up on next month's statement, declare it as Sam's personal charge so it isn't split again.",
+    );
+    expect(screen.queryByRole("button", { name: /^Close / })).toBeNull();
+  });
+
+  it("says the month moved you forward, with the amount and each person's leftover", async () => {
+    await show({
+      bills: [rentPaidBy([])],
+      income: [paycheck("u-alex", "2500.00"), paycheck("u-sam", "1000.00")],
+    });
+    const verdict = screen.getByRole("region", { name: "This month" });
+    expect(verdict.textContent).toContain("On track to move you forward$1,500.00Alex $1,300.00 · Sam $200.00 left");
+    expect(within(verdict).getByRole("note").getAttribute("aria-label")).toContain("Leftover excludes personal card spend");
+  });
+
+  it("says plainly when the month didn't, never just a red number", async () => {
+    await show({
+      bills: [rentPaidBy([])],
+      income: [paycheck("u-alex", "1000.00"), paycheck("u-sam", "900.00")],
+    });
+    const verdict = screen.getByRole("region", { name: "This month" });
+    expect(verdict.textContent).toContain("Nothing to save this month");
+    expect(verdict.textContent).toContain("Your shares came to $100.00 more than the income logged.");
+    expect(verdict.textContent).toContain("Alex −$200.00 · Sam $100.00 left");
+  });
+
+  it("says so when income exactly covers the shares", async () => {
+    await show({
+      bills: [rentPaidBy([])],
+      income: [paycheck("u-alex", "1200.00"), paycheck("u-sam", "800.00")],
+    });
+    const verdict = screen.getByRole("region", { name: "This month" });
+    expect(verdict.textContent).toContain("Nothing to save this monthYour shares came to exactly the income logged.");
+  });
+
+  it("points to Income when nothing is logged yet", async () => {
+    await show({ bills: [rentPaidBy([])] });
+    const verdict = screen.getByRole("region", { name: "This month" });
+    expect(within(verdict).getByRole("link", { name: /No income logged yet/ }).getAttribute("href")).toBe(
+      "/finances/income?month=2026-09",
+    );
+  });
+});

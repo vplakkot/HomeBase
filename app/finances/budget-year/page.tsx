@@ -11,7 +11,7 @@ import {
   splitInForce,
   splitIsHistory,
 } from "../../../lib/finances/budget-year";
-import { listOpenedMonths } from "../../../lib/finances/month";
+import { listOpenedMonths, monthClosed } from "../../../lib/finances/month";
 import { CADENCES, listIncomeSources, payDates } from "../../../lib/finances/income";
 import { formatMoney } from "../../../lib/finances/money";
 import { Hint } from "../hint";
@@ -152,9 +152,11 @@ export default async function BudgetYearPage() {
     listBills(supabase),
     listOpenedMonths(supabase),
   ]);
-  // The month now running, named, if it's been opened: bill changes then
-  // ask whether it takes them too.
-  const openMonth = opened.includes(monthStart(todayIso)) ? monthLabel(monthStart(todayIso)) : undefined;
+  // The month now running, named, if it's been opened and hasn't closed:
+  // bill changes then ask whether it takes them too.
+  const running = monthStart(todayIso);
+  const openMonth =
+    opened.includes(running) && !(await monthClosed(supabase, running)) ? monthLabel(running) : undefined;
   const months = monthOptions(todayIso);
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
   const current = splitInForce(splits, todayIso);

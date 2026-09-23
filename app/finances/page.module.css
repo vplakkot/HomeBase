@@ -365,6 +365,59 @@
   font-weight: 700;
 }
 
+/* The verdict (DESIGN.md §7): loud brick when the month moved you
+   forward, the quiet tint when it didn't, said in words. */
+.verdict,
+.verdictQuiet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+}
+
+.verdict {
+  background: var(--module-loud);
+  color: var(--module-on-loud);
+}
+
+.verdict .cardNote {
+  color: var(--module-on-loud);
+}
+
+.verdictQuiet {
+  border: 1px solid var(--module-quiet-line);
+  background: var(--module-quiet);
+  color: var(--module-quiet-ink);
+}
+
+.verdictTitle {
+  font-size: var(--text-body);
+  font-weight: 700;
+}
+
+/* Close month with balance folds its confirmation away. */
+.closeRow summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.closeRow summary::-webkit-details-marker {
+  display: none;
+}
+
+.closeRow + * {
+  border-top: 1px solid var(--color-line);
+}
+
+.closeForm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
 @media (min-width: 1024px) {
   .header {
     flex-direction: row;
