@@ -150,12 +150,15 @@ export async function removeIncomeSource(formData: FormData): Promise<void> {
   refresh();
 }
 
-// Adds a bill, or changes one when the form carries its id.
+// Adds a bill, or changes one when the form carries its id. With the
+// tick box, the month now running takes the change too, if it's open
+// (REQ-94, revised 2026-09-23); earlier months keep their copy.
 export async function saveBill(_previous: FormState, formData: FormData): Promise<FormState> {
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const kind = String(formData.get("kind") ?? "");
   const dueDay = Number(formData.get("dueDay"));
+  const apply = formData.get("applyToMonth") === "on";
   if (!name) return { error: "Give the bill a name." };
   if (!isBillKind(kind)) return { error: "Choose rent, card or other." };
   if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
@@ -163,21 +166,39 @@ export async function saveBill(_previous: FormState, formData: FormData): Promis
   }
 
   const supabase = await requireManageBudget();
-  const bill = { name, kind, due_day: dueDay };
-  const { error } = id
-    ? await supabase.from("bills").update(bill).eq("id", id)
-    : await supabase.from("bills").insert(bill);
+  const { error } = await supabase.rpc("save_bill", {
+    p_id: id || null,
+    p_name: name,
+    p_kind: kind,
+    p_due_day: dueDay,
+    p_apply: apply,
+    p_today: householdToday(),
+  });
   if (error) return { error: error.message };
 
   refresh();
-  return { saved: true };
+  return {
+    saved: true,
+    message: apply
+      ? `Saved, for ${monthLabel(monthStart(householdToday()))} too.`
+      : id
+        ? "Saved. It applies from the next month opened."
+        : "Bill added.",
+  };
 }
 
+// Retires a bill: later months no longer get it, and months already
+// opened keep their copy. With the tick box, the month now running stops
+// waiting for it: $0 if nothing was entered yet.
 export async function removeBill(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   const supabase = await requireManageBudget();
-  const { error } = await supabase.from("bills").delete().eq("id", id);
+  const { error } = await supabase.rpc("remove_bill", {
+    p_id: id,
+    p_apply: formData.get("applyToMonth") === "on",
+    p_today: householdToday(),
+  });
   if (error) throw new Error(`Could not remove the bill: ${error.message}`);
   refresh();
 }

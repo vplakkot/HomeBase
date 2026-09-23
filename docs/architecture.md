@@ -680,7 +680,12 @@ A month exists once someone opens it in Monthly entry,
 
 `open_month()` opens only the month now running (the day passed in from
 `householdToday()`) and copies the bill list in, so a bill changed or
-removed later reaches only months opened after that (REQ-94). Entering
+removed later reaches only months opened after that (REQ-94). While the
+month now running is open, the Budget year form asks whether it takes a
+change too: `save_bill()` adds or updates its copy (a change of type
+clears that bill's entry), and `remove_bill()` sets a not-yet-entered
+copy to $0 rather than deleting it. Both check `manage_budget`
+themselves, since members can't write a month bill's name or type. Entering
 is shared: any member with `use_modules` enters amounts and adds or
 removes charges and payments, and everyone reads them. A member may
 change only a month bill's amount and answer, not its copied name, kind

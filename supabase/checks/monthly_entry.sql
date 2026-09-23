@@ -7,7 +7,8 @@
 -- budget_year.sql it sets who is asking, switches to the signed-in role,
 -- and ends by raising an error carrying the results, which undoes every
 -- write. It opens January 2999 (passing that as "today"), so it never
--- touches a real month, and it adds one throwaway bill to copy.
+-- touches a real month, and it adds throwaway bills to copy. Steps 11-16
+-- need the bill-changes migration of 2026-09-23.
 do $$
 declare
   admin_id uuid;
@@ -18,6 +19,9 @@ declare
   card_row uuid;
   v_bill uuid;
   n int;
+  v_new uuid;
+  v_amount numeric;
+  v_kind text;
 begin
   select hm.user_id into admin_id
     from public.household_members hm join public.roles r on r.id = hm.role_id
@@ -98,6 +102,43 @@ begin
   update public.bills set name = 'Check card renamed' where id = v_bill;
   select count(*) into n from public.month_bills where id = card_row and name = 'Check card';
   report := report || format('10. renaming the bill leaves the opened month''s copy: %s (wants 1)%s', n, E'\n');
+
+  -- REQ-94, revised 2026-09-23: bill changes reach the open month only
+  -- when the admin asks.
+  v_new := public.save_bill(null, 'Check extra', 'other', 5, true, '2999-01-15'::date);
+  select count(*) into n from public.month_bills where month_id = v_month and bill_id = v_new;
+  report := report || format('11. a bill added with the tick reaches the open month: %s (wants 1)%s', n, E'\n');
+
+  perform public.save_bill(null, 'Check unticked', 'other', 6, false, '2999-01-15'::date);
+  select count(*) into n from public.month_bills where month_id = v_month and name = 'Check unticked';
+  report := report || format('12. without the tick it does not: %s (wants 0)%s', n, E'\n');
+
+  perform public.remove_bill(v_new, true, '2999-01-15'::date);
+  select amount into v_amount from public.month_bills where month_id = v_month and name = 'Check extra';
+  select count(*) into n from public.bills where id = v_new;
+  report := report || format('13. removing a bill not yet entered: month copy $%s (wants 0), still in the list: %s (wants 0)%s',
+    v_amount, n, E'\n');
+
+  perform public.save_bill(v_bill, 'Check card', 'other', 22, true, '2999-01-15'::date);
+  select kind, amount into v_kind, v_amount from public.month_bills where id = card_row;
+  report := report || format('14. changing the card to other clears its entry: %s, amount %s (wants other, null)%s',
+    v_kind, coalesce(v_amount::text, 'null'), E'\n');
+
+  perform public.enter_bill(card_row, 300, null);
+  perform public.remove_bill(v_bill, true, '2999-01-15'::date);
+  select amount into v_amount from public.month_bills where id = card_row;
+  report := report || format('15. removing a bill already entered keeps its amount: $%s (wants 300)%s', v_amount, E'\n');
+
+  reset role;
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', member_id, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin
+    perform public.save_bill(null, 'Member bill', 'other', 1, true, '2999-01-15'::date);
+    report := report || E'16. a member ADDED a bill -- WRONG\n';
+  exception when others then
+    report := report || format('16. a member can''t change the bill list (wants this): %s%s', sqlerrm, E'\n');
+  end;
 
   reset role;
   raise exception 'Results (all undone):%', report;

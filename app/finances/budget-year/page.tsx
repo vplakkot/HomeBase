@@ -7,9 +7,11 @@ import {
   listPeople,
   listSplits,
   monthLabel,
+  monthStart,
   splitInForce,
   splitIsHistory,
 } from "../../../lib/finances/budget-year";
+import { listOpenedMonths } from "../../../lib/finances/month";
 import { CADENCES, listIncomeSources, payDates } from "../../../lib/finances/income";
 import { formatMoney } from "../../../lib/finances/money";
 import { FinancesFrame, financesViewer } from "../frame";
@@ -153,12 +155,16 @@ export default async function BudgetYearPage() {
 
   const todayIso = householdToday();
   const thisMonth = todayIso.slice(0, 7);
-  const [people, splits, incomes, bills] = await Promise.all([
+  const [people, splits, incomes, bills, opened] = await Promise.all([
     listPeople(supabase),
     listSplits(supabase),
     listIncomeSources(supabase),
     listBills(supabase),
+    listOpenedMonths(supabase),
   ]);
+  // The month now running, named, if it's been opened: bill changes then
+  // ask whether it takes them too.
+  const openMonth = opened.includes(monthStart(todayIso)) ? monthLabel(monthStart(todayIso)) : undefined;
   const months = monthOptions(todayIso);
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
   const current = splitInForce(splits, todayIso);
@@ -210,9 +216,9 @@ export default async function BudgetYearPage() {
 
         <Card
           name="Bills"
-          hint="The bills you split every month. A change applies from the next month opened."
+          hint="The bills you split every month. A change applies from the next month opened, and to this month too if you tick it."
           addTitle="Add a bill"
-          add={<BillForm />}
+          add={<BillForm openMonth={openMonth} />}
         >
           {bills.length === 0 ? (
             <p className={styles.empty}>Nothing saved yet. Add rent and each card you split.</p>
@@ -225,10 +231,21 @@ export default async function BudgetYearPage() {
                   aside={<span className={styles.chip}>{BILL_KINDS[bill.kind]}</span>}
                   detail={`${dueLabel(bill.due_day)} of each month`}
                   changeLabel="Edit"
-                  change={<BillForm bill={bill} />}
+                  change={<BillForm bill={bill} openMonth={openMonth} />}
                   remove={
-                    <form action={removeBill}>
+                    <form action={removeBill} className={styles.removeBill}>
                       <input type="hidden" name="id" value={bill.id} />
+                      {openMonth ? (
+                        <label className={styles.check}>
+                          <input
+                            type="checkbox"
+                            name="applyToMonth"
+                            defaultChecked
+                            aria-label={`Also leave ${bill.name} out of ${openMonth}`}
+                          />
+                          Also in {openMonth}: $0 if not entered yet
+                        </label>
+                      ) : null}
                       <button type="submit" className={styles.quiet} aria-label={`Remove ${bill.name}`}>
                         Remove
                       </button>

@@ -213,18 +213,39 @@ describe("saveIncomeSource (REQ-51, #132)", () => {
 });
 
 describe("the bill list (REQ-94)", () => {
+  const TODAY = expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/);
+
   it("adds a bill with its name, type and due day", async () => {
     given();
     const result = await saveBill({}, form({ name: " Rent ", kind: "rent", dueDay: "1" }));
-    expect(result).toEqual({ saved: true });
-    expect(table.insert).toHaveBeenCalledWith({ name: "Rent", kind: "rent", due_day: 1 });
+    expect(result).toEqual({ saved: true, message: "Bill added." });
+    expect(rpc).toHaveBeenCalledWith("save_bill", {
+      p_id: null,
+      p_name: "Rent",
+      p_kind: "rent",
+      p_due_day: 1,
+      p_apply: false,
+      p_today: TODAY,
+    });
   });
 
-  it("changes a bill when the form carries its id", async () => {
+  it("changes a bill when the form carries its id, from the next month opened", async () => {
     given();
-    await saveBill({}, form({ id: "b-1", name: "Joint card", kind: "card", dueDay: "22" }));
-    expect(table.update).toHaveBeenCalledWith({ name: "Joint card", kind: "card", due_day: 22 });
-    expect(table.eq).toHaveBeenCalledWith("id", "b-1");
+    const result = await saveBill({}, form({ id: "b-1", name: "Joint card", kind: "card", dueDay: "22" }));
+    expect(result.message).toBe("Saved. It applies from the next month opened.");
+    expect(rpc).toHaveBeenCalledWith("save_bill", expect.objectContaining({ p_id: "b-1", p_apply: false }));
+  });
+
+  // REQ-94, revised 2026-09-23: with the month open, the admin chooses
+  // whether it takes the change too.
+  it("brings the open month in line when the tick box is ticked", async () => {
+    given();
+    const result = await saveBill(
+      {},
+      form({ id: "b-1", name: "Joint card", kind: "card", dueDay: "22", applyToMonth: "on" }),
+    );
+    expect(result.message).toMatch(/^Saved, for \w+ \d{4} too\.$/);
+    expect(rpc).toHaveBeenCalledWith("save_bill", expect.objectContaining({ p_apply: true }));
   });
 
   it.each([
@@ -236,11 +257,12 @@ describe("the bill list (REQ-94)", () => {
     expect(await saveBill({}, form({ name: "Rent", kind: "rent", dueDay: "1", ...change }))).toEqual({ error });
   });
 
-  it("removes a bill", async () => {
+  it("retires a bill, leaving the open month alone unless asked", async () => {
     given();
     await removeBill(form({ id: "b-1" }));
-    expect(table.delete).toHaveBeenCalled();
-    expect(table.eq).toHaveBeenCalledWith("id", "b-1");
+    expect(rpc).toHaveBeenCalledWith("remove_bill", { p_id: "b-1", p_apply: false, p_today: TODAY });
+    await removeBill(form({ id: "b-1", applyToMonth: "on" }));
+    expect(rpc).toHaveBeenCalledWith("remove_bill", { p_id: "b-1", p_apply: true, p_today: TODAY });
   });
 
   it("won't let a member change the list", async () => {

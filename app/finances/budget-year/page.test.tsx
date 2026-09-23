@@ -232,4 +232,27 @@ describe("the Budget year section", () => {
     const types = within(bills).getByLabelText("Type of new bill") as HTMLSelectElement;
     expect([...types.options].map((option) => option.textContent)).toEqual(["Rent", "Card", "Other"]);
   });
+
+  // REQ-94, revised 2026-09-23: while this month is open, adding,
+  // changing or removing a bill asks whether the month takes it too.
+  it("asks whether an open month takes a bill change, ticked by default", async () => {
+    await renderAs(ADMIN, {
+      bills: [{ id: "b-1", name: "Chase Visa", kind: "card", due_day: 28 }],
+      months: [{ starts_on: "2026-09-01" }],
+    });
+    const bills = screen.getByRole("region", { name: "Bills" });
+    for (const name of [
+      "Also apply the new bill to September 2026",
+      "Also apply the change to Chase Visa to September 2026",
+      "Also leave Chase Visa out of September 2026",
+    ]) {
+      expect((within(bills).getByRole("checkbox", { name }) as HTMLInputElement).checked).toBe(true);
+    }
+    expect(bills.textContent).toContain("$0 if not entered yet");
+  });
+
+  it("doesn't ask while no month is open", async () => {
+    await renderAs(ADMIN, { bills: [{ id: "b-1", name: "Chase Visa", kind: "card", due_day: 28 }] });
+    expect(within(screen.getByRole("region", { name: "Bills" })).queryAllByRole("checkbox")).toHaveLength(0);
+  });
 });

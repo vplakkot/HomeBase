@@ -185,7 +185,9 @@ export function IncomeForm({ people, source }: { people: Person[]; source?: Inco
 
 // REQ-94: name, type and the day of the month it's due — a day, not a
 // date, because the same bill comes round every month.
-export function BillForm({ bill }: { bill?: Bill }) {
+// When the month now running is open, the form asks whether that month
+// takes the change too (REQ-94, revised 2026-09-23).
+export function BillForm({ bill, openMonth }: { bill?: Bill; openMonth?: string }) {
   const [state, formAction, pending] = useActionState(saveBill, initialState);
   const what = bill ? bill.name : "new bill";
   return (
@@ -229,6 +231,17 @@ export function BillForm({ bill }: { bill?: Bill }) {
           ))}
         </select>
       </label>
+      {openMonth ? (
+        <label className={styles.check}>
+          <input
+            type="checkbox"
+            name="applyToMonth"
+            defaultChecked
+            aria-label={`Also apply ${bill ? `the change to ${bill.name}` : "the new bill"} to ${openMonth}`}
+          />
+          Also apply to {openMonth}, which is already open
+        </label>
+      ) : null}
       <button type="submit" className={styles.primary} disabled={pending}>
         {pending ? "Saving…" : bill ? "Save changes" : "Add bill"}
       </button>
