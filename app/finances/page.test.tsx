@@ -273,6 +273,14 @@ describe("the Finances page", () => {
     expect(styleOf(css, "where", true).get("display")).toBe("none");
   });
 
+  // Vin, 2026-09-23: the white tiles read light on light, so each person
+  // is a brick tile, green once paid up.
+  it("draws each person as a brick tile, green once paid up", () => {
+    const css = readFileSync(join(REPO_ROOT, "app/finances/page.module.css"), "utf-8");
+    expect(styleOf(css, "person", false).get("background")).toBe("var(--module-loud)");
+    expect(css).toMatch(/\.person:has\(\.paidUp\) \{\s*background: var\(--color-success\);/);
+  });
+
   // Vin, 2026-09-23: the page couldn't scroll to the Admin block; the
   // column squashed the cards instead. Children now keep their height.
   it("lets a long page scroll rather than squash its cards", () => {

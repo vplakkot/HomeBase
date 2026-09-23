@@ -111,9 +111,39 @@ export default async function MonthlyEntryPage({
             ) : (
               <ul className={styles.list}>
                 {month.bills.map((bill) => {
+                  // Pale while still to do, brick once entered, as in the
+                  // Budget year (Vin, 2026-09-23). An entered bill folds its
+                  // form away under Change.
                   const gap = missing(bill);
+                  const charges =
+                    bill.personal_answer === "some" ? (
+                      <section aria-label={`Personal charges on ${bill.name}`} className={styles.charges}>
+                        <h3 className={styles.chargesTitle}>Personal charges</h3>
+                        {bill.personal_charges.length === 0 ? (
+                          <p className={styles.empty}>None declared yet.</p>
+                        ) : (
+                          <ul className={styles.list}>
+                            {bill.personal_charges.map((charge) => (
+                              <li key={charge.id} className={styles.charge}>
+                                <span>
+                                  {nameOf.get(charge.owner_id) ?? "Someone"} · {formatMoney(charge.amount)}
+                                  {charge.note ? ` · ${charge.note}` : ""}
+                                </span>
+                                <form action={removePersonalCharge}>
+                                  <input type="hidden" name="id" value={charge.id} />
+                                  <button type="submit" className={styles.quiet}>
+                                    Remove
+                                  </button>
+                                </form>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <PersonalChargeForm bill={bill} people={people} />
+                      </section>
+                    ) : null;
                   return (
-                    <li key={bill.id} className={styles.entry}>
+                    <li key={bill.id} className={gap ? styles.todo : styles.entry}>
                       <div className={styles.entryHead}>
                         <span className={styles.entryName}>{bill.name}</span>
                         {gap ? (
@@ -122,37 +152,27 @@ export default async function MonthlyEntryPage({
                           <span className={styles.amount}>{formatMoney(bill.amount ?? 0)}</span>
                         )}
                       </div>
-                      <p className={styles.detail}>{dueInMonth(bill.due_day, month.starts_on)}</p>
-                      <BillEntryForm bill={bill} />
-                      {bill.personal_answer === "some" ? (
-                        <section aria-label={`Personal charges on ${bill.name}`}>
-                          <h3 className={styles.addTitle}>Personal charges</h3>
-                          {bill.personal_charges.length === 0 ? (
-                            <p className={styles.empty}>None declared yet.</p>
-                          ) : (
-                            <ul className={styles.list}>
-                              {bill.personal_charges.map((charge) => (
-                                <li key={charge.id} className={styles.entry}>
-                                  <div className={styles.entryHead}>
-                                    <span className={styles.entryName}>
-                                      {nameOf.get(charge.owner_id) ?? "Someone"}
-                                    </span>
-                                    <span className={styles.amount}>{formatMoney(charge.amount)}</span>
-                                  </div>
-                                  {charge.note ? <p className={styles.detail}>{charge.note}</p> : null}
-                                  <form action={removePersonalCharge}>
-                                    <input type="hidden" name="id" value={charge.id} />
-                                    <button type="submit" className={styles.quiet}>
-                                      Remove
-                                    </button>
-                                  </form>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                          <PersonalChargeForm bill={bill} people={people} />
-                        </section>
-                      ) : null}
+                      <p className={styles.detail}>
+                        {dueInMonth(bill.due_day, month.starts_on)}
+                        {!gap && bill.kind === "card" && bill.personal_charges.length === 0
+                          ? " · no personal charges"
+                          : ""}
+                        {!gap && bill.personal_charges.length > 0
+                          ? ` · ${formatMoney(bill.personal_charges.reduce((sum, c) => sum + c.amount, 0))} personal`
+                          : ""}
+                      </p>
+                      {gap ? (
+                        <>
+                          <BillEntryForm bill={bill} />
+                          {charges}
+                        </>
+                      ) : (
+                        <details className={styles.change}>
+                          <summary>Change</summary>
+                          <BillEntryForm bill={bill} />
+                          {charges}
+                        </details>
+                      )}
                     </li>
                   );
                 })}
