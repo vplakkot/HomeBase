@@ -138,6 +138,9 @@ describe("Savings", () => {
 
   it("points to Income when nothing is logged yet", async () => {
     await page([{ ...SEPTEMBER, income: [] }]);
-    expect(screen.getByRole("link", { name: "Log income" }).getAttribute("href")).toBe("/finances/income?month=2026-09");
+    const link = screen.getByRole("link", { name: "Log income" });
+    expect(link.getAttribute("href")).toBe("/finances/income?month=2026-09");
+    // The same button as the other sections' empty cards, not a link in a sentence.
+    expect(link.closest("p")).toBeNull();
   });
 });

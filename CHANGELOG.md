@@ -76,6 +76,9 @@
   closed month's record beside what was available. A month's record can
   be removed again at any time, even once the month is closed. (#154)
 
+- On the Savings page, "Log income" is a proper button like the other
+  sections' empty cards, not a bare link. (#156)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each
