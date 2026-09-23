@@ -98,7 +98,7 @@ function Entry({
 }: {
   name: string;
   aside: ReactNode;
-  detail: string;
+  detail: ReactNode;
   changeLabel?: string;
   change?: ReactNode;
   remove?: ReactNode;
@@ -109,7 +109,7 @@ function Entry({
         <span className={styles.entryName}>{name}</span>
         {aside}
       </div>
-      <p className={styles.detail}>{detail}</p>
+      {typeof detail === "string" ? <p className={styles.detail}>{detail}</p> : detail}
       {change || remove ? (
         <div className={styles.actions}>
           {change ? (
@@ -162,8 +162,6 @@ export default async function BudgetYearPage() {
   const months = monthOptions(todayIso);
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
   const current = splitInForce(splits, todayIso);
-  const sharesLine = (shares: { user_id: string; percent: number }[]) =>
-    shares.map((share) => `${nameOf.get(share.user_id) ?? "Someone"} ${share.percent}%`).join(" · ");
 
   return (
     <FinancesFrame canManageMembers={canManageMembers} account={account} section={SECTION}>
@@ -183,7 +181,13 @@ export default async function BudgetYearPage() {
                   key={income.id}
                   name={income.name || nameOf.get(income.owner_id) || "Income"}
                   aside={<span className={styles.amount}>{formatMoney(income.net_amount)}</span>}
-                  detail={`${nameOf.get(income.owner_id) ?? "Someone"} · ${CADENCES[income.cadence]} · next ${shortDate(payDates(income, todayIso, 1)[0])}`}
+                  detail={[
+                    income.name ? nameOf.get(income.owner_id) ?? "Someone" : null,
+                    CADENCES[income.cadence],
+                    `next ${shortDate(payDates(income, todayIso, 1)[0])}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                   changeLabel="Edit"
                   change={<IncomeForm people={people} source={income} />}
                   remove={
@@ -256,7 +260,18 @@ export default async function BudgetYearPage() {
                     aside={
                       split.id === current?.id ? <span className={styles.chip}>In force</span> : null
                     }
-                    detail={sharesLine(split.shares)}
+                    detail={
+                      <ul className={styles.shares}>
+                        {split.shares.map((share) => (
+                          <li key={share.user_id} className={styles.entryHead}>
+                            <span className={styles.person}>
+                              {nameOf.get(share.user_id) ?? "Someone"}
+                            </span>
+                            <span className={styles.amount}>{share.percent}%</span>
+                          </li>
+                        ))}
+                      </ul>
+                    }
                     changeLabel="Edit"
                     change={
                       history ? undefined : (

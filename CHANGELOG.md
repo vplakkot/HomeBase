@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- A saved split lists each person on their own line with their
+  percentage in the same size as an income source's amount, and an
+  income source saved without a name no longer shows the owner's name
+  twice. (#135)
+
 - The Budget year cards read more evenly. Each card's explanation moved
   onto an info icon in its head, so all three heads are one line and line
   up; the cards run Income sources, Bills, then Split, which changes
