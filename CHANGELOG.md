@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.1 - 2026-09-22
+## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each
 person's income sources and the household's bills, in a section that
