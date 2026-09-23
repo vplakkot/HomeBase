@@ -58,6 +58,22 @@ gone by, and so does `save_split()` in the database. The month now
 running is still open, which is also how the very first split gets
 saved.
 
+## Copy the list when the month opens
+
+Monthly entry adds a third version of the same problem. A month's bills
+come from the household's bill list, and the admin can rename or remove
+a bill at any time. If a month *pointed* at the list, renaming the joint
+card would rename it in every past month too.
+
+So opening a month takes a photocopy: `open_month()` copies each bill's
+name, type and due day into `month_bills`. The month owns its copy from
+then on, and a change to the list reaches only months opened after it.
+The link back (`bill_id`) is kept for convenience but nothing reads the
+bill through it, and it goes blank if the bill is removed.
+
+Pointing costs less to store and copying costs a few rows a month. When
+the thing being pointed at can change and the past must not, copy.
+
 ## Two things to settle early
 
 **Which clock.** `current_date` in Postgres is the server's day, in UTC.

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Monthly entry. Anyone in the household opens the month, which copies
+  in the bill list, then enters each bill's amount. A card statement
+  can't be saved until someone answers whether personal charges are
+  still inside it; if yes, each charge is added with its amount, whose
+  it is and a note, and comes out of the shared total. Shared spend one
+  person paid by cash, Venmo or a personal card is logged as a direct
+  payment. The month reads Incomplete until every bill is in, Finances
+  home shows the month's own bills with their amounts, and the month
+  picker switches between opened months. Changing a bill in the Budget
+  year now leaves months already opened alone. (#138)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each

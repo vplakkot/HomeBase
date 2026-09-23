@@ -12,6 +12,8 @@ import FinancesPage from "./page";
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }));
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/finances",
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
   }),
@@ -151,6 +153,45 @@ describe("the Finances page", () => {
     expect(screen.getByText("Incomplete")).toBeDefined();
   });
 
+  // REQ-94, REQ-53: once the month is opened its rows are the month's own
+  // copy of the bills — a bill renamed since doesn't reach it — with the
+  // amount entered, and Not entered for the rest.
+  it("shows an opened month's own bills with their amounts", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-22T16:00:00Z"));
+    fake = fakeSupabase({
+      permissions: MEMBER,
+      people: PEOPLE,
+      tables: {
+        splits: [SPLIT],
+        bills: [{ id: "b-card", name: "Renamed card", kind: "card", due_day: 22 }],
+        months: [
+          {
+            id: "m-sep",
+            starts_on: "2026-09-01",
+            bills: [
+              { id: "mb-rent", name: "Rent", kind: "rent", due_day: 1, amount: "2000.00", personal_answer: null, personal_charges: [] },
+              { id: "mb-card", name: "Joint card", kind: "card", due_day: 22, amount: null, personal_answer: null, personal_charges: [] },
+            ],
+            direct_payments: [],
+          },
+        ],
+      },
+    });
+    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+    render(await FinancesPage());
+    vi.useRealTimers();
+    const bills = screen.getByRole("region", { name: "Bills" });
+    expect(within(bills).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
+      "RentDue 1 Sep · $2,000.00",
+      "Joint cardDue 22 SepNot entered",
+    ]);
+    expect(within(bills).getByRole("link", { name: "Enter bills" }).getAttribute("href")).toBe(
+      "/finances/monthly-entry?month=2026-09",
+    );
+    expect(screen.getByText("Incomplete")).toBeDefined();
+  });
+
   it("shows the year's split in the Admin block, locked for a member", async () => {
     given({ signedIn: true, permissions: MEMBER, split: SPLIT });
     render(await FinancesPage());
@@ -196,8 +237,10 @@ describe("the Finances page", () => {
     const header = screen.getByRole("main").querySelector("header")!;
     expect(header.querySelector("svg")).not.toBeNull();
     expect(within(header).getByRole("heading", { level: 1 }).textContent).toBe("Finances");
-    const month = within(header).getByRole("button", { name: "September 2026" });
-    expect((month as HTMLButtonElement).disabled).toBe(true);
+    // Only the month now running until another is opened, so nothing to choose.
+    const month = within(header).getByRole("combobox", { name: "Month" }) as HTMLSelectElement;
+    expect(month.selectedOptions[0].textContent).toBe("September 2026");
+    expect(month.disabled).toBe(true);
     expect(within(header).getByText("No budget year")).toBeDefined();
   });
 

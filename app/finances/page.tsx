@@ -8,28 +8,52 @@ import {
   splitInForce,
 } from "../../lib/finances/budget-year";
 import { dueLabel, listBills } from "../../lib/finances/bills";
+import {
+  billEntered,
+  chosenMonth,
+  dueInMonth,
+  listOpenedMonths,
+  monthStatus,
+  pickableMonths,
+  readMonth,
+} from "../../lib/finances/month";
+import { formatMoney } from "../../lib/finances/money";
 import { FinancesFrame, financesViewer } from "./frame";
 import styles from "./page.module.css";
 
 // The Finances module's home: the current month (docs/design/DESIGN.md §7).
 // Until a budget year covers this month, the whole page is one card asking
 // for setup: an admin gets Start setup, a member is told who to ask. Once
-// it exists, the bills show as rows. Nothing can be entered against them
-// until monthly entry arrives, so the month reads as incomplete.
-export default async function FinancesPage() {
+// it exists, the month's bills show as rows (REQ-53, REQ-94): the month's
+// own copy once it's opened, the household's list before that. A month
+// with a bill still to enter reads Incomplete.
+export default async function FinancesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ month?: string }>;
+} = {}) {
   const { supabase, canManageMembers, canManageBudget, account } = await financesViewer();
   const todayIso = householdToday();
-  const [splits, bills, people] = await Promise.all([
+  const [splits, bills, people, opened] = await Promise.all([
     listSplits(supabase),
     listBills(supabase),
     listPeople(supabase),
+    listOpenedMonths(supabase),
   ]);
+  const asked = (await searchParams)?.month;
   const split = splitInForce(splits, todayIso);
+  const startsOn = chosenMonth(asked, opened, todayIso);
+  const picker = { current: startsOn, options: pickableMonths(opened, todayIso) };
 
   if (!split) {
     const admins = people.filter((person) => person.manages_budget).map((person) => person.name);
     return (
-      <FinancesFrame canManageMembers={canManageMembers} account={account} status="No budget year">
+      <FinancesFrame
+        canManageMembers={canManageMembers}
+        account={account}
+        status="No budget year"
+        month={picker}
+      >
         <section className={styles.firstRun} aria-labelledby="first-run">
           <h2 id="first-run" className={styles.firstRunTitle}>
             Set up your budget year
@@ -60,28 +84,49 @@ export default async function FinancesPage() {
     );
   }
 
+  const month = opened.includes(startsOn) ? await readMonth(supabase, startsOn) : null;
+  const rows = month
+    ? month.bills.map((bill) => ({
+        id: bill.id,
+        name: bill.name,
+        note: bill.amount === null
+          ? dueInMonth(bill.due_day, startsOn)
+          : `${dueInMonth(bill.due_day, startsOn)} · ${formatMoney(bill.amount)}`,
+        entered: billEntered(bill),
+      }))
+    : bills.map((bill) => ({ id: bill.id, name: bill.name, note: dueLabel(bill.due_day), entered: false }));
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
   const sharesLine = split.shares
     .map((share) => `${nameOf.get(share.user_id) ?? "Someone"} ${share.percent}%`)
     .join(" · ");
 
   return (
-    <FinancesFrame canManageMembers={canManageMembers} account={account} status="Incomplete">
+    <FinancesFrame
+      canManageMembers={canManageMembers}
+      account={account}
+      status={monthStatus(month)}
+      month={picker}
+    >
       <section className={styles.card} aria-labelledby="bills">
-        <h2 id="bills" className={styles.cardTitle}>
-          Bills
-        </h2>
-        {bills.length === 0 ? (
+        <div className={styles.cardHead}>
+          <h2 id="bills" className={styles.cardTitle}>
+            Bills
+          </h2>
+          <Link href={`/finances/monthly-entry?month=${startsOn.slice(0, 7)}`} className={styles.button}>
+            {month ? "Enter bills" : `Open ${monthLabel(startsOn)}`}
+          </Link>
+        </div>
+        {rows.length === 0 ? (
           <p className={styles.cardNote}>No bills in the list yet.</p>
         ) : (
           <ul className={styles.rows}>
-            {bills.map((bill) => (
-              <li key={bill.id} className={styles.billRow}>
+            {rows.map((row) => (
+              <li key={row.id} className={styles.billRow}>
                 <span className={styles.billText}>
-                  <span className={styles.billName}>{bill.name}</span>
-                  <span className={styles.cardNote}>{dueLabel(bill.due_day)}</span>
+                  <span className={styles.billName}>{row.name}</span>
+                  <span className={styles.cardNote}>{row.note}</span>
                 </span>
-                <span className={styles.status}>Not entered</span>
+                {row.entered ? null : <span className={styles.status}>Not entered</span>}
               </li>
             ))}
           </ul>

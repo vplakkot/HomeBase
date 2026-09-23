@@ -19,7 +19,11 @@ import HomePage from "./page";
 
 vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/finances",
+}));
 vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
 vi.mock("./notifications/enable-notifications", () => ({
   EnableNotifications: () => null,
