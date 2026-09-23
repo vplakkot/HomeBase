@@ -9,18 +9,23 @@ import {
   splitInForce,
 } from "../../lib/finances/budget-year";
 import { dueLabel, listBills } from "../../lib/finances/bills";
+import { leftovers } from "../../lib/finances/leftover";
 import {
   billEntered,
   chosenMonth,
+  dayLabel,
   dueInMonth,
   listOpenedMonths,
+  monthShares,
   monthStatus,
   monthTotals,
   pickableMonths,
   readMonth,
 } from "../../lib/finances/month";
 import { formatMoney } from "../../lib/finances/money";
+import { closeMonthWithBalance } from "./actions";
 import { FinancesFrame, financesViewer } from "./frame";
+import { Hint } from "./hint";
 import styles from "./page.module.css";
 
 // The Finances module's home: the current month (docs/design/DESIGN.md §7).
@@ -31,7 +36,11 @@ import styles from "./page.module.css";
 // and the month's bills as rows (REQ-53, REQ-94): the month's own copy
 // once it's opened, with paid of total and what's left, or the
 // household's list before that. A month with a bill still to enter reads
-// Incomplete. The verdict card and action items come with later batches.
+// Incomplete; one squared closes on its own that night, and an admin can
+// close one with a balance left (REQ-59). A closed month is shown as it
+// closed, with the percentages written on it (REQ-52). The verdict card
+// says whether the month moved you forward (REQ-61). Action items come
+// with REQ-68.
 export default async function FinancesPage({
   searchParams,
 }: {
@@ -90,9 +99,12 @@ export default async function FinancesPage({
   }
 
   const month = opened.includes(startsOn) ? await readMonth(supabase, startsOn) : null;
-  // The month shown runs on the split that had started by then.
-  const monthSplit = splitInForce(splits, startsOn);
-  const totals = month ? monthTotals(month, monthSplit?.shares ?? []) : null;
+  // The month shown runs on the split that had started by then, or the
+  // percentages written on it when it closed.
+  const shares = monthShares(month, splits, startsOn);
+  const totals = month ? monthTotals(month, shares) : null;
+  const status = monthStatus(month, shares, todayIso);
+  const verdict = month && totals && totals.people.length > 0 ? leftovers(totals, month.income) : null;
   const rows = month
     ? month.bills.map((bill) => {
         const due = dueInMonth(bill.due_day, startsOn);
@@ -124,15 +136,18 @@ export default async function FinancesPage({
   const toEnter = month ? month.bills.filter((bill) => !billEntered(bill)).length : 0;
   const billsLeft = totals ? totals.bills.reduce((sum, row) => sum + Math.max(row.left, 0), 0) : 0;
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
-  const sharesLine = split.shares
-    .map((share) => `${nameOf.get(share.user_id) ?? "Someone"} ${share.percent}%`)
-    .join(" · ");
+  const percentages = (list: { user_id: string; percent: number }[]) =>
+    list.map((share) => `${nameOf.get(share.user_id) ?? "Someone"} ${share.percent}%`).join(" · ");
+  const sharesLine = percentages(split.shares);
+  // What was still owed when the month closed, and by whom (REQ-59).
+  const leftOwing = month?.closed_at ? month.people.filter((person) => person.outstanding > 0) : [];
+  const allEntered = month ? month.bills.every(billEntered) : false;
 
   return (
     <FinancesFrame
       canManageMembers={canManageMembers}
       account={account}
-      status={monthStatus(month)}
+      status={status}
       month={picker}
     >
       <Link href={`/finances/monthly-entry?month=${startsOn.slice(0, 7)}`} className={styles.entryRow}>
@@ -149,7 +164,70 @@ export default async function FinancesPage({
         <ChevronRightIcon />
       </Link>
 
+      {month?.closed_at ? (
+        <section className={styles.card} aria-label="Closed month">
+          <p className={styles.cardNote}>
+            Closed {dayLabel(month.closed_at.slice(0, 10))}
+            {month.closed_by ? "" : ", squared"} · split from{" "}
+            {month.split_from ? monthLabel(month.split_from) : "no split"}: {percentages(month.people)}
+          </p>
+          {leftOwing.map((person) => {
+            const name = nameOf.get(person.user_id) ?? "Someone";
+            return (
+              <p key={person.user_id} className={styles.cardNote}>
+                Closed with {formatMoney(person.outstanding)} of {name}&apos;s unpaid. When it shows up on next
+                month&apos;s statement, declare it as {name}&apos;s personal charge so it isn&apos;t split again.
+              </p>
+            );
+          })}
+        </section>
+      ) : null}
+
       <div className={styles.columns}>
+        {verdict ? (
+          <section className={styles.group} aria-labelledby="verdict">
+            <div className={styles.groupHead}>
+              <SectionLabel id="verdict">This month</SectionLabel>
+              <Hint text="Leftover excludes personal card spend: it's income logged minus your share of the household." />
+            </div>
+            {month && month.income.length === 0 ? (
+              <Link href={`/finances/income?month=${startsOn.slice(0, 7)}`} className={styles.entryRow}>
+                <span className={styles.rowText}>
+                  <span className={styles.billName}>No income logged yet</span>
+                  <span className={styles.cardNote}>Confirm paychecks to see what&apos;s left</span>
+                </span>
+                <ChevronRightIcon />
+              </Link>
+            ) : (
+              <div className={verdict.joint > 0 ? styles.verdict : styles.verdictQuiet}>
+                <span className={styles.verdictTitle}>
+                  {verdict.joint > 0
+                    ? month?.closed_at || status === "Ended · not squared"
+                      ? "Moved you forward"
+                      : "On track to move you forward"
+                    : "Nothing to save this month"}
+                </span>
+                {verdict.joint > 0 ? (
+                  <span className={styles.figure}>{formatMoney(verdict.joint)}</span>
+                ) : (
+                  <span className={styles.cardNote}>
+                    Your shares came to {formatMoney(-verdict.joint)} more than the income logged.
+                  </span>
+                )}
+                <span className={styles.cardNote}>
+                  {verdict.people
+                    .map(
+                      (person) =>
+                        `${nameOf.get(person.user_id) ?? "Someone"} ${person.leftover < 0 ? "−" : ""}${formatMoney(Math.abs(person.leftover))}`,
+                    )
+                    .join(" · ")}{" "}
+                  left
+                </span>
+              </div>
+            )}
+          </section>
+        ) : null}
+
         {totals && totals.people.length > 0 ? (
           <section className={styles.group} aria-labelledby="who-owes">
             <SectionLabel id="who-owes">Who owes what</SectionLabel>
@@ -269,6 +347,50 @@ export default async function FinancesPage({
       <section className={styles.group} aria-labelledby="admin">
         <SectionLabel id="admin">Admin</SectionLabel>
         <div className={styles.card}>
+          {month && !month.closed_at ? (
+            canManageBudget ? (
+              <details className={styles.closeRow}>
+                <summary className={styles.entryRowInner}>
+                  <span className={styles.rowText}>
+                    <span className={styles.billName}>Close month with balance</span>
+                    <span className={styles.cardNote}>
+                      {status === "Squared"
+                        ? "Squared: it closes on its own tonight"
+                        : allEntered
+                          ? "Only if what's owed won't be paid"
+                          : "Enter every bill first"}
+                    </span>
+                  </span>
+                  <ChevronRightIcon />
+                </summary>
+                {allEntered && status !== "Squared" ? (
+                  <form action={closeMonthWithBalance} className={styles.closeForm}>
+                    <input type="hidden" name="monthId" value={month.id} />
+                    <p className={styles.cardNote}>
+                      {(totals?.people ?? [])
+                        .filter((person) => person.outstanding > 0)
+                        .map((person) => `${nameOf.get(person.user_id) ?? "Someone"} still owes ${formatMoney(person.outstanding)}`)
+                        .join(" · ") || "Nobody owes anything, but a bill isn't paid in full"}
+                      . Closing records that and locks {monthLabel(startsOn)}; nothing carries into next month.
+                    </p>
+                    <button type="submit" className={styles.firstRunButton}>
+                      Close {monthLabel(startsOn)}
+                    </button>
+                  </form>
+                ) : null}
+              </details>
+            ) : (
+              <div className={styles.entryRowInner}>
+                <span className={styles.rowText}>
+                  <span className={styles.billName}>Close month with balance</span>
+                </span>
+                <span className={styles.locked}>
+                  <LockIcon />
+                  Admin only
+                </span>
+              </div>
+            )
+          ) : null}
           {canManageBudget ? (
             <Link href="/finances/budget-year" className={styles.entryRowInner}>
               <span className={styles.rowText}>

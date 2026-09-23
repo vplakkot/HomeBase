@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { householdToday, listPeople, listSplits, splitInForce } from "../../../lib/finances/budget-year";
+import { householdToday, listPeople, listSplits } from "../../../lib/finances/budget-year";
 import {
   chosenMonth,
   listOpenedMonths,
+  monthShares,
   monthStatus,
   monthTotals,
   pickableMonths,
@@ -20,7 +21,7 @@ const SECTION = "Log payment";
 // the month's bills, then see, change or delete the month's payments.
 // The design draws it as a sheet over Finances home; it's a page here so
 // the month's payments have somewhere to be changed. Every month is open
-// until closing a month arrives (batch 4), which will lock its payments.
+// until it closes; then its payments are locked (REQ-59).
 export default async function LogPaymentPage({
   searchParams,
 }: {
@@ -36,11 +37,12 @@ export default async function LogPaymentPage({
   ]);
   const startsOn = chosenMonth(asked, opened, todayIso);
   const month = opened.includes(startsOn) ? await readMonth(supabase, startsOn) : null;
+  const shares = monthShares(month, splits, startsOn);
   const frame = {
     canManageMembers,
     account,
     section: SECTION,
-    status: monthStatus(month),
+    status: monthStatus(month, shares, todayIso),
     month: { current: startsOn, options: pickableMonths(opened, todayIso) },
   };
 
@@ -68,8 +70,8 @@ export default async function LogPaymentPage({
     );
   }
 
-  const split = splitInForce(splits, startsOn);
-  const totals = monthTotals(month, split?.shares ?? []);
+  const totals = monthTotals(month, shares);
+  const closed = month.closed_at !== null;
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
   const choices = month.bills
     .filter((bill) => bill.amount !== null)
@@ -104,7 +106,9 @@ export default async function LogPaymentPage({
             ) : null}
           </header>
           <div className={styles.addBlock}>
-            {choices.length === 0 ? (
+            {closed ? (
+              <p className={styles.empty}>This month is closed, so its payments can&apos;t change.</p>
+            ) : choices.length === 0 ? (
               <p className={styles.empty}>No bill has an amount entered yet, so there&apos;s nothing to pay toward.</p>
             ) : (
               <PaymentForm people={people} bills={choices} />
@@ -133,6 +137,8 @@ export default async function LogPaymentPage({
                         </span>
                         <span className={styles.amount}>{formatMoney(payment.amount)}</span>
                       </div>
+                      {closed ? null : (
+                        <>
                       <details className={styles.change}>
                         <summary>Edit</summary>
                         <PaymentForm people={people} bills={choices} payment={payment} />
@@ -147,6 +153,8 @@ export default async function LogPaymentPage({
                           Delete
                         </button>
                       </form>
+                        </>
+                      )}
                     </li>
                   );
                 })}

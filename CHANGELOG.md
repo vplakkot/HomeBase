@@ -56,6 +56,17 @@
   icons, and an entered bill shows only its due date. "One-time
   Payments" is capitalised everywhere. (#150)
 
+- Closing a month. A month where every bill is paid and nobody owes
+  anything reads Squared and closes on its own just after midnight. An
+  admin can close a month that still has money owed with "Close month
+  with balance"; members see it locked. A closed month keeps the
+  percentages it was split by and records who still owed what, and
+  nothing in it can change. A month that ended without squaring reads
+  "Ended · not squared". New Income section: confirm the paychecks
+  the income setup expects, or add ESPP, RSU sale, bonus or other
+  income. Finances home says whether the month moved you forward, with
+  each person's leftover. (#152)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each

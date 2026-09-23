@@ -724,7 +724,54 @@ left over, so the obligations always add up to the bills plus one-time
 payments exactly. Finances home shows the result for the month picked
 (REQ-92): a card per person, the bills with paid of total, and the
 workings folded under the cards. The month runs on the split that had
-started by its 1st. Closing a month, and locking it, comes later.
+started by its 1st, until it closes.
+
+## Finances months: closing, income and the verdict
+
+A month closes like a paper ledger being signed off (REQ-59, 52): what
+it was split by and what was still owed are written onto it, and then
+nothing in it changes.
+
+| Table / column | One row is | Key facts |
+|---|---|---|
+| `months.closed_at`, `closed_by`, `split_from` | when it closed, which admin (empty = on its own), the month its split started | set only by `close_month()` |
+| `month_people` | one person on a closed month | `percent` at the time, `outstanding` when it closed; no one writes it directly |
+| `month_income` | money that landed in a month (REQ-60) | `kind` paycheck / espp / rsu / bonus / other, `owner_id`, `amount`, `received_on`; a confirmed paycheck keeps `income_source_id` |
+
+```mermaid
+flowchart LR
+  Open -->|every bill paid, nobody owes| Squared
+  Squared -->|pg_cron, just after midnight New York| Closed
+  Open -->|admin: Close month with balance| Closed
+  Open -->|month over, not squared| Ended["Ended · not squared"]
+  Ended -->|admin: Close month with balance| Closed
+```
+
+- **Squared** is worked out twice, on purpose: `monthStatus()` in the
+  app for the header chip, and `month_balances()` / `month_is_squared()`
+  in the database for the nightly close, which runs without the app.
+  Both use the same rule, including who takes the rounding cent.
+- **The nightly close** is a pg_cron job, `close-squared-months`, at
+  five past every hour (UTC). It does its work only in the hour after
+  midnight in New York, which lands on a different UTC hour in summer
+  and winter.
+- **Closing with a balance** is `close_month_with_balance()`: admins
+  only (`manage_budget`), every bill entered. Nothing carries into the
+  next month; the unpaid amount comes back on the real statement and is
+  declared as that person's personal charge.
+- **The lock** is a trigger on `month_bills`, `personal_charges`,
+  `direct_payments` and `payments` that refuses any insert, change or
+  delete in a closed month. Removing a bill from the household list is
+  let through (it only empties the copy's `bill_id`). Removing a member
+  who has rows in a closed month is refused by the same lock.
+- **Income** isn't locked by closing alone: a month can square and
+  close mid-month while pay is still to land, so income locks once the
+  month is closed *and* over.
+
+`/finances/income` lists the paychecks the income sources expect up to
+today, to confirm, and takes any other income by hand. Finances home's
+verdict card is each person's income minus their obligation, and the
+two together (REQ-61).
 
 ## Not yet built
 
@@ -736,7 +783,7 @@ These are deliberately absent at this stage, not overlooked:
 - **Screens still to design** — Sign-in, sign-up and set-password have
   no mockup, so they keep a plain layout in the design's fonts and
   colours.
-- **The rest of Finances** — closing a month, savings, balances and
+- **The rest of Finances** — savings, balances, action items and
   reminders arrive in batches after the months above.
 
 Each of these will get its own entry in this document (and likely its own

@@ -3,6 +3,8 @@ import {
   billEntered,
   chosenMonth,
   dueInMonth,
+  isSquared,
+  monthShares,
   monthStatus,
   monthTotals,
   pickableMonths,
@@ -32,7 +34,17 @@ const card: MonthBill = {
 };
 
 function month(bills: MonthBill[], direct: Month["direct_payments"] = []): Month {
-  return { id: "m-1", starts_on: "2026-09-01", bills, direct_payments: direct };
+  return {
+    id: "m-1",
+    starts_on: "2026-09-01",
+    bills,
+    direct_payments: direct,
+    income: [],
+    closed_at: null,
+    closed_by: null,
+    split_from: null,
+    people: [],
+  };
 }
 
 const SHARES = [
@@ -60,14 +72,76 @@ describe("when a bill counts as entered (REQ-53, REQ-54)", () => {
   });
 });
 
-describe("the month's status (REQ-53)", () => {
+describe("the month's status (REQ-53, REQ-59)", () => {
+  const TODAY = "2026-09-20";
+  const paid = (bill: MonthBill, payer: string, amount: number): MonthBill => ({
+    ...bill,
+    payments: [...bill.payments, { id: `p-${bill.id}-${payer}`, payer_id: payer, amount, created_at: "2026-09-10" }],
+  });
+  // Rent $2,000 + card $1,000 = $3,000; Alex owes $1,800, Sam $1,200.
+  const squared = month([paid(rent, "u-alex", 1800), paid(paid(card, "u-alex", 0.01), "u-sam", 999.99)]);
+  const evenShares = month([paid(paid(rent, "u-alex", 800), "u-sam", 1200), paid(card, "u-alex", 1000)]);
+
   it("is Incomplete before the month is opened", () => {
-    expect(monthStatus(null)).toBe("Incomplete");
+    expect(monthStatus(null, SHARES, TODAY)).toBe("Incomplete");
   });
 
   it("is Incomplete while any bill is missing, Open once all are in", () => {
-    expect(monthStatus(month([rent, { ...card, amount: null }]))).toBe("Incomplete");
-    expect(monthStatus(month([rent, card]))).toBe("Open");
+    expect(monthStatus(month([rent, { ...card, amount: null }]), SHARES, TODAY)).toBe("Incomplete");
+    expect(monthStatus(month([rent, card]), SHARES, TODAY)).toBe("Open");
+  });
+
+  it("is Squared when every bill is paid in full and nobody owes anything", () => {
+    expect(isSquared(evenShares, monthTotals(evenShares, SHARES))).toBe(true);
+    expect(monthStatus(evenShares, SHARES, TODAY)).toBe("Squared");
+  });
+
+  it("isn't Squared while one person paid more than their share and the other less", () => {
+    // Bills paid in full, but Alex paid $1,800.01 and Sam $999.99.
+    expect(monthStatus(squared, SHARES, TODAY)).toBe("Open");
+  });
+
+  it("isn't Squared with a bill left to pay, or without a split", () => {
+    const unpaid = month([paid(rent, "u-alex", 1800), card]);
+    expect(isSquared(unpaid, monthTotals(unpaid, SHARES))).toBe(false);
+    expect(isSquared(evenShares, monthTotals(evenShares, []))).toBe(false);
+  });
+
+  it("reads Ended · not squared once the month is over without squaring", () => {
+    expect(monthStatus(month([rent, card]), SHARES, "2026-10-01")).toBe("Ended · not squared");
+    expect(monthStatus(evenShares, SHARES, "2026-10-01")).toBe("Squared");
+  });
+
+  it("reads Closed once closed, whatever is left", () => {
+    const closed = { ...month([rent, card]), closed_at: "2026-09-30T12:00:00Z", closed_by: "u-alex" };
+    expect(monthStatus(closed, SHARES, "2026-10-05")).toBe("Closed");
+  });
+});
+
+describe("which percentages a month uses (REQ-52)", () => {
+  const splits = [
+    { id: "s-oct", effective_from: "2026-10-01", note: "", shares: [{ user_id: "u-alex", percent: 50 }, { user_id: "u-sam", percent: 50 }] },
+    { id: "s-sep", effective_from: "2026-09-01", note: "", shares: SHARES },
+  ];
+
+  it("an open month uses the split that had started by its first day", () => {
+    expect(monthShares(month([rent]), splits, "2026-09-01")).toEqual(SHARES);
+  });
+
+  it("a closed month keeps the percentages written on it, whatever split comes later", () => {
+    const closed = {
+      ...month([rent]),
+      closed_at: "2026-09-30T12:00:00Z",
+      people: [
+        { user_id: "u-alex", percent: 60, outstanding: 0 },
+        { user_id: "u-sam", percent: 40, outstanding: 0 },
+      ],
+    };
+    // Even if a new split were back-dated to September, the closed month
+    // keeps 60/40 and its figures don't move.
+    const later = [{ ...splits[0], effective_from: "2026-09-01" }];
+    expect(monthShares(closed, later, "2026-09-01")).toEqual(SHARES);
+    expect(monthTotals(closed, monthShares(closed, later, "2026-09-01")).people[0].share).toBe(1200);
   });
 });
 

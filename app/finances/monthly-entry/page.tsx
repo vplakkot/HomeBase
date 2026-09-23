@@ -1,11 +1,12 @@
 import { listBills } from "../../../lib/finances/bills";
-import { householdToday, listPeople, monthLabel, monthStart } from "../../../lib/finances/budget-year";
+import { householdToday, listPeople, listSplits, monthLabel, monthStart } from "../../../lib/finances/budget-year";
 import {
   billEntered,
   chosenMonth,
   dayLabel,
   dueInMonth,
   listOpenedMonths,
+  monthShares,
   monthStatus,
   pickableMonths,
   readMonth,
@@ -40,10 +41,11 @@ export default async function MonthlyEntryPage({
   const { supabase, canManageMembers, account } = await financesViewer();
   const { month: asked } = await searchParams;
   const todayIso = householdToday();
-  const [opened, people, bills] = await Promise.all([
+  const [opened, people, bills, splits] = await Promise.all([
     listOpenedMonths(supabase),
     listPeople(supabase),
     listBills(supabase),
+    listSplits(supabase),
   ]);
   const startsOn = chosenMonth(asked, opened, todayIso);
   const month = opened.includes(startsOn) ? await readMonth(supabase, startsOn) : null;
@@ -52,7 +54,7 @@ export default async function MonthlyEntryPage({
     canManageMembers,
     account,
     section: SECTION,
-    status: monthStatus(month),
+    status: monthStatus(month, monthShares(month, splits, startsOn), todayIso),
     month: { current: startsOn, options: pickableMonths(opened, todayIso) },
   };
 
@@ -93,6 +95,9 @@ export default async function MonthlyEntryPage({
   const [year, monthNumber] = month.starts_on.split("-").map(Number);
   const monthEnd = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
   const lastDay = todayIso < monthEnd ? todayIso : monthEnd;
+  // A closed month is shown as it was closed, with nothing to change
+  // (REQ-59); the database refuses changes to it anyway.
+  const closed = month.closed_at !== null;
 
   return (
     <FinancesFrame {...frame}>
@@ -128,17 +133,19 @@ export default async function MonthlyEntryPage({
                                   {nameOf.get(charge.owner_id) ?? "Someone"} · {formatMoney(charge.amount)}
                                   {charge.note ? ` · ${charge.note}` : ""}
                                 </span>
-                                <form action={removePersonalCharge}>
-                                  <input type="hidden" name="id" value={charge.id} />
-                                  <button type="submit" className={styles.quiet}>
-                                    Remove
-                                  </button>
-                                </form>
+                                {closed ? null : (
+                                  <form action={removePersonalCharge}>
+                                    <input type="hidden" name="id" value={charge.id} />
+                                    <button type="submit" className={styles.quiet}>
+                                      Remove
+                                    </button>
+                                  </form>
+                                )}
                               </li>
                             ))}
                           </ul>
                         )}
-                        <PersonalChargeForm bill={bill} people={people} />
+                        {closed ? null : <PersonalChargeForm bill={bill} people={people} />}
                       </section>
                     ) : null;
                   return (
@@ -152,7 +159,9 @@ export default async function MonthlyEntryPage({
                         )}
                       </div>
                       <p className={styles.detail}>{dueInMonth(bill.due_day, month.starts_on)}</p>
-                      {gap ? (
+                      {closed ? (
+                        charges
+                      ) : gap ? (
                         <>
                           <BillEntryForm bill={bill} />
                           {charges}
@@ -185,15 +194,17 @@ export default async function MonthlyEntryPage({
             {/* Same shapes as Bills: the form is a pale tile (still to do),
                 each logged payment a brick one (done). */}
             <ul className={styles.list}>
-              <li className={styles.todo}>
-                <span className={styles.entryName}>New One-time Payment</span>
-                <DirectPaymentForm
-                  monthId={month.id}
-                  people={people}
-                  firstDay={month.starts_on}
-                  lastDay={lastDay}
-                />
-              </li>
+              {closed ? null : (
+                <li className={styles.todo}>
+                  <span className={styles.entryName}>New One-time Payment</span>
+                  <DirectPaymentForm
+                    monthId={month.id}
+                    people={people}
+                    firstDay={month.starts_on}
+                    lastDay={lastDay}
+                  />
+                </li>
+              )}
               {month.direct_payments.map((payment) => (
                 <li key={payment.id} className={styles.entry}>
                   <div className={styles.entryHead}>
@@ -203,12 +214,14 @@ export default async function MonthlyEntryPage({
                   <p className={styles.detail}>
                     {nameOf.get(payment.payer_id) ?? "Someone"} · {dayLabel(payment.paid_on)}
                   </p>
-                  <form action={removeDirectPayment}>
-                    <input type="hidden" name="id" value={payment.id} />
-                    <button type="submit" className={styles.quiet}>
-                      Remove
-                    </button>
-                  </form>
+                  {closed ? null : (
+                    <form action={removeDirectPayment}>
+                      <input type="hidden" name="id" value={payment.id} />
+                      <button type="submit" className={styles.quiet}>
+                        Remove
+                      </button>
+                    </form>
+                  )}
                 </li>
               ))}
             </ul>

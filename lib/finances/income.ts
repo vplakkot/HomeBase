@@ -88,3 +88,19 @@ export async function listIncomeSources(supabase: SupabaseClient): Promise<Incom
   if (error) throw new Error(`Could not list income sources: ${error.message}`);
   return ((data ?? []) as IncomeSource[]).map((s) => ({ ...s, net_amount: Number(s.net_amount) }));
 }
+
+// Every income source, ended ones too, with the day it started: a past
+// month's paydays come from the sources in force then.
+export async function listIncomeHistory(
+  supabase: SupabaseClient,
+): Promise<(IncomeSource & { effective_from: string })[]> {
+  const { data, error } = await supabase
+    .from("income_sources")
+    .select("id, name, owner_id, net_amount, cadence, anchor_date, effective_from, ended_on")
+    .order("created_at");
+  if (error) throw new Error(`Could not list income sources: ${error.message}`);
+  return ((data ?? []) as (IncomeSource & { effective_from: string })[]).map((s) => ({
+    ...s,
+    net_amount: Number(s.net_amount),
+  }));
+}
