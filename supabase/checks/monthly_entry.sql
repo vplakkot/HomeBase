@@ -8,7 +8,8 @@
 -- and ends by raising an error carrying the results, which undoes every
 -- write. It opens January 2999 (passing that as "today"), so it never
 -- touches a real month, and it adds throwaway bills to copy. Steps 11-16
--- need the bill-changes migration of 2026-09-23.
+-- need the bill-changes migration of 2026-09-23; step 7 needs the payments
+-- migration (one-time payments carry the date paid).
 do $$
 declare
   admin_id uuid;
@@ -82,8 +83,8 @@ begin
     report := report || format('6. a month''s bill keeps its copied name (wants this): %s%s', sqlerrm, E'\n');
   end;
 
-  insert into public.direct_payments (month_id, payer_id, amount, note)
-  values (v_month, member_id, 45, 'Groceries, Venmo');
+  insert into public.direct_payments (month_id, payer_id, amount, note, paid_on)
+  values (v_month, member_id, 45, 'Groceries, Venmo', '2999-01-10');
   report := report || E'7. member logs a direct payment (wants this)\n';
 
   perform public.enter_bill(card_row, 900, 'none');

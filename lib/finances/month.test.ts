@@ -18,6 +18,7 @@ const rent: MonthBill = {
   amount: 2000,
   personal_answer: null,
   personal_charges: [],
+  payments: [],
 };
 const card: MonthBill = {
   id: "mb-card",
@@ -27,6 +28,7 @@ const card: MonthBill = {
   amount: 1000,
   personal_answer: "none",
   personal_charges: [],
+  payments: [],
 };
 
 function month(bills: MonthBill[], direct: Month["direct_payments"] = []): Month {
@@ -93,13 +95,64 @@ describe("the month's money", () => {
   // and the payer has already paid it.
   it("adds direct payments to the shared base and credits the payer", () => {
     const totals = monthTotals(
-      month([rent, card], [{ id: "d", payer_id: "u-alex", amount: 50, note: "Groceries" }]),
+      month([rent, card], [{ id: "d", payer_id: "u-alex", amount: 50, note: "Groceries", paid_on: "2026-09-05" }]),
       SHARES,
     );
     expect(totals.sharedBase).toBe(3050);
     const [alex, sam] = totals.people;
-    expect(alex).toMatchObject({ share: 1830, fronted: 50 });
-    expect(sam).toMatchObject({ share: 1220, fronted: 0 });
+    expect(alex).toMatchObject({ share: 1830, fronted: 50, paid: 50, outstanding: 1780 });
+    expect(sam).toMatchObject({ share: 1220, fronted: 0, paid: 0, outstanding: 1220 });
+  });
+
+  // REQ-56's worked example.
+  it("gives Vin 3,720 and Megan 1,280 from bills of 5,000 with 1,000 of Vin's own at 68/32", () => {
+    const statement = {
+      ...card,
+      amount: 5000,
+      personal_answer: "some" as const,
+      personal_charges: [{ id: "c", owner_id: "u-vin", amount: 1000, note: "" }],
+    };
+    const totals = monthTotals(month([statement]), [
+      { user_id: "u-vin", percent: 68 },
+      { user_id: "u-megan", percent: 32 },
+    ]);
+    expect(totals.people.map((person) => person.obligation)).toEqual([3720, 1280]);
+  });
+
+  // REQ-56: the obligations add up to the bills exactly, cent for cent,
+  // even when a percentage doesn't divide evenly.
+  it("makes the obligations add up to the bills exactly", () => {
+    // Rounded on its own, each half of $10.05 would be $5.03: $10.06 in all.
+    const halves = [
+      { user_id: "u-alex", percent: 50 },
+      { user_id: "u-sam", percent: 50 },
+    ];
+    expect(monthTotals(month([{ ...rent, amount: 10.05 }]), halves).people.map((p) => p.obligation)).toEqual([
+      5.03, 5.02,
+    ]);
+    const thirds = [
+      { user_id: "u-alex", percent: 33.33 },
+      { user_id: "u-sam", percent: 66.67 },
+    ];
+    for (const amount of [0.01, 0.05, 10.05, 1000.01, 1333.35]) {
+      const totals = monthTotals(month([{ ...rent, amount }]), thirds);
+      const owed = totals.people.reduce((total, person) => total + Math.round(person.obligation * 100), 0);
+      expect(owed).toBe(Math.round(amount * 100));
+    }
+  });
+
+  // REQ-57, REQ-58: a payment brings down the payer's and the bill's
+  // outstanding amounts, and nobody else's.
+  it("takes a payment off the payer's balance and the bill's", () => {
+    const paidRent = { ...rent, payments: [{ id: "p", payer_id: "u-alex", amount: 2000, created_at: "" }] };
+    const totals = monthTotals(month([paidRent, card]), SHARES);
+    const [alex, sam] = totals.people;
+    expect(alex).toMatchObject({ obligation: 1800, paidToBills: 2000, outstanding: -200 });
+    expect(sam).toMatchObject({ obligation: 1200, paid: 0, outstanding: 1200 });
+    expect(totals.bills).toEqual([
+      { id: "mb-rent", total: 2000, paid: 2000, left: 0 },
+      { id: "mb-card", total: 1000, paid: 0, left: 1000 },
+    ]);
   });
 
   it("works in cents, so amounts don't drift", () => {

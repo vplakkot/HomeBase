@@ -116,15 +116,27 @@ export function PersonalChargeForm({ bill, people }: { bill: MonthBill; people: 
   );
 }
 
-// REQ-55: shared spend one person paid outside the tracked cards.
-export function DirectPaymentForm({ monthId, people }: { monthId: string; people: Person[] }) {
+// REQ-55: shared spend one person paid outside the tracked cards — a
+// "one-time payment" on screen (Vin, 2026-09-23). It's always already
+// paid, so it asks for the day it was, within the month.
+export function DirectPaymentForm({
+  monthId,
+  people,
+  firstDay,
+  lastDay,
+}: {
+  monthId: string;
+  people: Person[];
+  firstDay: string;
+  lastDay: string;
+}) {
   const [state, formAction, pending] = useActionState(addDirectPayment, initialState);
   return (
     <form action={formAction} className={styles.form}>
       <input type="hidden" name="monthId" value={monthId} />
       <label className={styles.field}>
         <span>Who paid</span>
-        <select name="payerId" aria-label="Who paid the direct payment" required>
+        <select name="payerId" aria-label="Who paid the one-time payment" required>
           {people.map((person) => (
             <option key={person.user_id} value={person.user_id}>
               {person.name}
@@ -138,7 +150,7 @@ export function DirectPaymentForm({ monthId, people }: { monthId: string; people
           <span aria-hidden="true">$</span>
           <input
             name="amount"
-            aria-label="Total of the direct payment"
+            aria-label="Total of the one-time payment"
             inputMode="decimal"
             placeholder="64.20"
             required
@@ -146,18 +158,30 @@ export function DirectPaymentForm({ monthId, people }: { monthId: string; people
         </span>
       </label>
       <label className={styles.field}>
+        <span>Date paid</span>
+        <input
+          type="date"
+          name="paidOn"
+          aria-label="Date the one-time payment was paid"
+          defaultValue={lastDay}
+          min={firstDay}
+          max={lastDay}
+          required
+        />
+      </label>
+      <label className={styles.field}>
         <span>Note</span>
         <input
           name="note"
-          aria-label="What the direct payment was for"
+          aria-label="What the one-time payment was for"
           placeholder="Groceries, paid on Venmo"
           required
         />
       </label>
       <button type="submit" className={styles.primary} disabled={pending}>
-        {pending ? "Saving…" : "Log direct payment"}
+        {pending ? "Saving…" : "Log one-time payment"}
       </button>
-      <Outcome state={state} saved="Direct payment logged." />
+      <Outcome state={state} saved="One-time payment logged." />
     </form>
   );
 }

@@ -174,7 +174,13 @@ export async function saveBill(_previous: FormState, formData: FormData): Promis
     p_apply: apply,
     p_today: householdToday(),
   });
-  if (error) return { error: error.message };
+  if (error) {
+    return {
+      error: error.message.includes("more than the bill")
+        ? "Payments are already logged toward this bill this month, so it can't change to or from a card there. Delete them first, or leave this month out."
+        : error.message,
+    };
+  }
 
   refresh();
   return {

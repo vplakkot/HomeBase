@@ -30,6 +30,24 @@
   color: var(--color-surface);
 }
 
+/* The pinned action, pushed to the far end of the row. */
+.pinnedItem {
+  margin-left: auto;
+}
+
+.pinned {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap-target-min);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  background: var(--module-loud);
+  color: var(--module-on-loud);
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+  text-decoration: none;
+}
+
 /* Read out by a screen reader, not shown: the lock says it on screen. */
 .hidden {
   position: absolute;

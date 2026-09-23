@@ -40,10 +40,10 @@ const SEPTEMBER = {
   starts_on: "2026-09-01",
   bills: [
     { id: "mb-card", name: "Joint card", kind: "card", due_day: 22, amount: "900.00", personal_answer: "some",
-      personal_charges: [{ id: "c-1", owner_id: "u-sam", amount: "45.00", note: "Birthday gift" }] },
-    { id: "mb-rent", name: "Rent", kind: "rent", due_day: 1, amount: null, personal_answer: null, personal_charges: [] },
+      personal_charges: [{ id: "c-1", owner_id: "u-sam", amount: "45.00", note: "Birthday gift" }], payments: [] },
+    { id: "mb-rent", name: "Rent", kind: "rent", due_day: 1, amount: null, personal_answer: null, personal_charges: [], payments: [] },
   ],
-  direct_payments: [{ id: "d-1", payer_id: "u-alex", amount: "64.20", note: "Groceries, Venmo" }],
+  direct_payments: [{ id: "d-1", payer_id: "u-alex", amount: "64.20", note: "Groceries, Venmo", paid_on: "2026-09-05" }],
 };
 
 function given({ months = [] as unknown[], bills = BILLS } = {}) {
@@ -129,11 +129,11 @@ describe("Monthly entry in an opened month", () => {
   it("logs direct payments with payer, total and note, and points card spend at its statement", async () => {
     given({ months: [SEPTEMBER] });
     await page();
-    const direct = screen.getByRole("region", { name: "Direct payments" });
+    const direct = screen.getByRole("region", { name: "One-time payments" });
     expect(direct.textContent).toContain("Anything on Joint card is already in its statement, so don't log it here.");
-    expect(within(direct).getByRole("combobox", { name: "Who paid the direct payment" })).toBeDefined();
-    expect(within(direct).getByRole("textbox", { name: "Total of the direct payment" })).toBeDefined();
-    const note = within(direct).getByRole("textbox", { name: "What the direct payment was for" });
+    expect(within(direct).getByRole("combobox", { name: "Who paid the one-time payment" })).toBeDefined();
+    expect(within(direct).getByRole("textbox", { name: "Total of the one-time payment" })).toBeDefined();
+    const note = within(direct).getByRole("textbox", { name: "What the one-time payment was for" });
     expect((note as HTMLInputElement).required).toBe(true);
     expect(direct.textContent).toContain("Groceries, Venmo$64.20Paid by Alex");
   });
@@ -144,7 +144,7 @@ describe("Monthly entry in an opened month", () => {
     given({ months: [SEPTEMBER] });
     await page();
     expect(screen.getByText("Birthday gift")).toBeDefined();
-    expect(screen.getByText("Paid by Alex")).toBeDefined();
+    expect(screen.getByText("Paid by Alex on 5 Sep")).toBeDefined();
   });
 
   it("reads Open once every bill is entered", async () => {

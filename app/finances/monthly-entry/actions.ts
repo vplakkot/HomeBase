@@ -59,7 +59,9 @@ export async function enterBill(_previous: FormState, formData: FormData): Promi
     return {
       error: error.message.includes("more than the statement")
         ? "The personal charges already declared come to more than that. Remove some first."
-        : error.message,
+        : error.message.includes("more than the bill")
+          ? "More than that has already been paid toward this bill. Change the payments first."
+          : error.message,
     };
   }
   refresh();
@@ -99,20 +101,30 @@ export async function removePersonalCharge(formData: FormData): Promise<void> {
   refresh();
 }
 
-// REQ-55: the payer, the total and a note.
+// REQ-55: the payer, the total, the day it was paid and a note. The day
+// falls in the payment's month and isn't later than today.
 export async function addDirectPayment(_previous: FormState, formData: FormData): Promise<FormState> {
   const monthId = String(formData.get("monthId") ?? "");
   const payerId = String(formData.get("payerId") ?? "");
   const amount = parseAmount(String(formData.get("amount") ?? ""));
+  const paidOn = String(formData.get("paidOn") ?? "");
   const note = String(formData.get("note") ?? "").trim();
   if (!payerId) return { error: "Who paid?" };
   if (amount === null) return { error: "Enter the total, like 64.20." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(paidOn)) return { error: "Enter the date it was paid." };
   if (!note) return { error: "Add a note saying what it was for." };
 
   const supabase = await requireMember();
+  const { data: month } = await supabase.from("months").select("starts_on").eq("id", monthId).maybeSingle();
+  const startsOn = (month as { starts_on: string } | null)?.starts_on;
+  if (!startsOn || paidOn.slice(0, 7) !== startsOn.slice(0, 7)) {
+    return { error: "The date paid has to be in this month." };
+  }
+  if (paidOn > householdToday()) return { error: "A one-time payment is already paid, so its date can't be in the future." };
+
   const { error } = await supabase
     .from("direct_payments")
-    .insert({ month_id: monthId, payer_id: payerId, amount, note });
+    .insert({ month_id: monthId, payer_id: payerId, amount, note, paid_on: paidOn });
   if (error) return { error: error.message };
   refresh();
   return { saved: true };

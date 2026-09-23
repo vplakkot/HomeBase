@@ -157,6 +157,123 @@
   text-decoration: none;
 }
 
+/* "Bills" with how much of them is left beside it. */
+.billsHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+/* Who owes what, then Bills: one column on a phone, side by side on a
+   desktop (DESIGN.md §7; the verdict column comes with its batch). */
+.columns {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.people {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A person card: name and what's outstanding, paid of owed, a bar. */
+.person {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.personHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.owed {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.paidUp {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.progress {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--module-quiet);
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  background: var(--module-loud);
+}
+
+.person:has(.paidUp) .progressFill {
+  background: var(--color-success);
+}
+
+/* A bill paid in full: the green chip. */
+.paidChip {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: var(--text-caption);
+  font-weight: 700;
+}
+
+/* REQ-56: the workings behind the figures, folded away. */
+.workings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.workings summary {
+  min-height: var(--tap-target-min);
+  align-content: center;
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sums {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1) var(--space-3);
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-body-sm);
+}
+
+.sums dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.sums dt:last-of-type,
+.sums dd:last-of-type {
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--color-line-soft);
+  font-weight: 700;
+}
+
 .locked {
   display: flex;
   flex-shrink: 0;
@@ -180,5 +297,11 @@
 
   .title {
     font-size: var(--text-display-xl);
+  }
+
+  .columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    align-items: start;
   }
 }
