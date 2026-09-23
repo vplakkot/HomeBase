@@ -19,7 +19,7 @@ const JOINT = { name: "Joint card", amount: "600.00", payments: [{ id: "p-1", am
 function given({ member = true, bill = JOINT as unknown } = {}) {
   fake = fakeSupabase({
     permissions: member ? ["use_modules"] : [],
-    tables: { month_bills: bill ? [bill] : [], payments: [] },
+    tables: { month_bills: bill ? [bill] : [], payments: [{ id: "p-1" }] },
   });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
 }
@@ -102,6 +102,16 @@ describe("savePayment (REQ-57)", () => {
   it("sends someone without use_modules back to Finances", async () => {
     given({ member: false });
     await expect(savePayment({}, form(base))).rejects.toThrow("REDIRECT:/finances");
+  });
+});
+
+describe("savePayment on a payment that's gone", () => {
+  it("says so rather than saved", async () => {
+    fake = fakeSupabase({ permissions: ["use_modules"], tables: { month_bills: [JOINT], payments: [] } });
+    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+    expect((await savePayment({}, form({ ...base, id: "p-9" }))).error).toBe(
+      "That payment was deleted in the meantime. Nothing was saved.",
+    );
   });
 });
 

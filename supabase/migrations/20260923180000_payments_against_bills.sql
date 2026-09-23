@@ -53,8 +53,10 @@ declare
   the_bill public.month_bills;
   paid numeric;
 begin
+  -- Locking the bill makes two payments logged at the same moment take
+  -- turns, so the second one sees the first when it adds them up.
   if tg_table_name = 'payments' then
-    select * into the_bill from public.month_bills where id = new.month_bill_id;
+    select * into the_bill from public.month_bills where id = new.month_bill_id for update;
   else
     the_bill := new;
   end if;
@@ -83,10 +85,16 @@ create constraint trigger bill_holds_its_payments
 
 -- One-time payments are always already paid; this is the day they were.
 -- Rows logged before today get the day they were logged, on the
--- household's clock.
+-- household's clock, kept inside their own month (one logged on 1 October
+-- for September gets 30 September).
 alter table public.direct_payments add column paid_on date;
-update public.direct_payments
-set paid_on = (created_at at time zone 'America/New_York')::date;
+update public.direct_payments dp
+set paid_on = least(
+  greatest((dp.created_at at time zone 'America/New_York')::date, m.starts_on),
+  (m.starts_on + interval '1 month' - interval '1 day')::date
+)
+from public.months m
+where m.id = dp.month_id;
 alter table public.direct_payments alter column paid_on set not null;
 
 -- save_bill again, with one change: switching a bill between rent and

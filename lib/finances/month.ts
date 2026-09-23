@@ -142,9 +142,12 @@ export type MonthTotals = {
 // REQ-56, 57, 58: the month's money, in dollars, worked out in cents so
 // nothing drifts. Each share is rounded to the cent, and the last person
 // takes whatever cent the rounding left over, so the shares always add
-// up to the shared base exactly. A one-time payment counts as paid by
-// whoever fronted it: they already spent it on the household.
-export function monthTotals(month: Month, shares: Share[]): MonthTotals {
+// up to the shared base exactly. People are put in a fixed order first,
+// since the database hands them back in any order, so the same person
+// always gets that cent. A one-time payment counts as paid by whoever
+// fronted it: they already spent it on the household.
+export function monthTotals(month: Month, unordered: Share[]): MonthTotals {
+  const shares = [...unordered].sort((a, b) => a.user_id.localeCompare(b.user_id));
   const charges = month.bills.flatMap((bill) => bill.personal_charges);
   const payments = month.bills.flatMap((bill) => bill.payments);
   const expenses = sum(month.bills.map((bill) => bill.amount ?? 0));

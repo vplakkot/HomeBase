@@ -60,9 +60,12 @@ export async function savePayment(_previous: FormState, formData: FormData): Pro
   }
 
   const row = { payer_id: payerId, month_bill_id: billId, amount };
-  const { error } = id
-    ? await supabase.from("payments").update(row).eq("id", id)
+  const { data: written, error } = id
+    ? await supabase.from("payments").update(row).eq("id", id).select("id")
     : await supabase.from("payments").insert(row);
+  if (id && !error && (written ?? []).length === 0) {
+    return { error: "That payment was deleted in the meantime. Nothing was saved." };
+  }
   if (error) {
     return {
       error: error.message.includes("more than the bill")

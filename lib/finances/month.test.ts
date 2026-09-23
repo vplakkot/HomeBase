@@ -116,7 +116,8 @@ describe("the month's money", () => {
       { user_id: "u-vin", percent: 68 },
       { user_id: "u-megan", percent: 32 },
     ]);
-    expect(totals.people.map((person) => person.obligation)).toEqual([3720, 1280]);
+    const owed = Object.fromEntries(totals.people.map((person) => [person.user_id, person.obligation]));
+    expect(owed).toEqual({ "u-vin": 3720, "u-megan": 1280 });
   });
 
   // REQ-56: the obligations add up to the bills exactly, cent for cent,
@@ -134,6 +135,11 @@ describe("the month's money", () => {
       { user_id: "u-alex", percent: 33.33 },
       { user_id: "u-sam", percent: 66.67 },
     ];
+    // Whichever order the database lists them in, the same person gets the cent.
+    expect(monthTotals(month([{ ...rent, amount: 10.05 }]), [...halves].reverse()).people).toMatchObject([
+      { user_id: "u-alex", obligation: 5.03 },
+      { user_id: "u-sam", obligation: 5.02 },
+    ]);
     for (const amount of [0.01, 0.05, 10.05, 1000.01, 1333.35]) {
       const totals = monthTotals(month([{ ...rent, amount }]), thirds);
       const owed = totals.people.reduce((total, person) => total + Math.round(person.obligation * 100), 0);
