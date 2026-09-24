@@ -34,10 +34,12 @@ describe("balanceTrend (REQ-68)", () => {
     b("2026-09-01", "u-sam", "cash", 450),
   ];
 
-  it("gives each month's combined total and its change, newest first", () => {
+  it("gives each month's combined total and its change over the accounts in both months, newest first", () => {
     const trend = balanceTrend(rows);
+    // Alex's cash was skipped in September, so it's left out of the change
+    // (+400.10 on the 401k, −50 on Sam's cash) rather than read as lost.
     expect(trend.map((row) => [row.month, row.total, row.change])).toEqual([
-      ["2026-09-01", 10850.1, -649.9],
+      ["2026-09-01", 10850.1, 350.1],
       ["2026-08-01", 11500, null],
     ]);
   });

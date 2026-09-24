@@ -65,7 +65,7 @@ describe("saveBalances (REQ-67)", () => {
 
   it("refuses a month still to come", async () => {
     const result = await saveBalances({}, form(alex({ cash: "10" }, "2026-10-01")));
-    expect(result.error).toBeDefined();
+    expect(result.error).toBe("Pick this month or an earlier one.");
     expect(queries()).toEqual([]);
   });
 

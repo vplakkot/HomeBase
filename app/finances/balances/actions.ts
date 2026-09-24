@@ -32,9 +32,11 @@ function balanceMonth(formData: FormData): string | null {
 // blank one is left out (or taken out, if it was entered before), so the
 // rest still save and the gap shows. Any member enters either person's.
 export async function saveBalances(_previous: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
   const month = balanceMonth(formData);
   const userId = String(formData.get("userId") ?? "");
-  if (!month || !userId) return { error: "Pick this month or an earlier one." };
+  if (!month) return { error: "Pick this month or an earlier one." };
+  if (!userId) return { error: "Nobody to save balances for." };
 
   const rows = [];
   const cleared = [];
@@ -49,7 +51,6 @@ export async function saveBalances(_previous: FormState, formData: FormData): Pr
     rows.push({ month, user_id: userId, account, amount, updated_at: new Date().toISOString() });
   }
 
-  const supabase = await requireMember();
   if (rows.length > 0) {
     const { error } = await supabase.from("balances").upsert(rows, { onConflict: "month,user_id,account" });
     if (error) return { error: error.message };

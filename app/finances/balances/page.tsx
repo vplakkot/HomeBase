@@ -67,7 +67,8 @@ export default async function BalancesPage({
   const left = month && totals && totals.people.length > 0 && month.income.length > 0 ? leftovers(totals, month.income).people : [];
   const checks = people.map((person) => {
     const cash = balances.find((row) => row.month === startsOn && row.user_id === person.user_id && row.account === "cash");
-    const leftover = left.find((row) => row.user_id === person.user_id);
+    // Someone not paid yet this month has no leftover to compare with.
+    const leftover = left.find((row) => row.user_id === person.user_id && row.income > 0);
     return { person, hasCash: Boolean(cash), check: cashCheck(cash?.amount ?? null, leftover?.leftover ?? null) };
   });
   const entered = balances.some((row) => row.month === startsOn);

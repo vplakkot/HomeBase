@@ -59,7 +59,8 @@ export type TrendAccount = {
 export type TrendMonth = {
   month: string;
   total: number;
-  // Against the month before's total; null for the first month.
+  // Against the month before, over the accounts entered in both, so a
+  // skipped box doesn't read as money lost; null for the first month.
   change: number | null;
   // Accounts that had a balance some month but not this one.
   missing: number;
@@ -99,10 +100,11 @@ export function balanceTrend(balances: Balance[]): TrendMonth[] {
     });
     const total =
       balances.filter((row) => row.month === month).reduce((sum, row) => sum + cents(row.amount), 0) / 100;
-    return { month, total, change: null as number | null, missing: accounts.filter((a) => a.amount === null).length, accounts };
-  });
-  trend.forEach((row, index) => {
-    if (index > 0) row.change = (cents(row.total) - cents(trend[index - 1].total)) / 100;
+    const change =
+      before === undefined
+        ? null
+        : accounts.reduce((sum, entry) => sum + (entry.change === null ? 0 : cents(entry.change)), 0) / 100;
+    return { month, total, change, missing: accounts.filter((a) => a.amount === null).length, accounts };
   });
   return trend.reverse();
 }

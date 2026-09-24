@@ -97,7 +97,8 @@ describe("Balances", () => {
     const trend = screen.getByRole("region", { name: "Trend" });
     const months = within(trend).getAllByRole("listitem").filter((row) => row.parentElement?.parentElement === trend.lastElementChild);
     expect(months.map((row) => row.firstElementChild?.textContent)).toEqual(["September 2026$12,500.00", "August 2026$12,300.00"]);
-    expect(months[0].textContent).toContain("+$200.00 on the month before · 1 not entered");
+    // Only Alex's 401k is in both months: +$500, not the +$200 the totals differ by.
+    expect(months[0].textContent).toContain("+$500.00 on the month before · 1 not entered");
     expect(months[0].textContent).toContain("Alex · 401k: $12,500.00 (+$500.00)");
     expect(months[0].textContent).toContain("Sam · Cash: not entered");
     expect(months[1].textContent).toContain("First month");
@@ -119,6 +120,12 @@ describe("Balances", () => {
     await page([bal("2026-09-01", "u-sam", "cash", "450.00")]);
     const check = screen.getByRole("region", { name: "Cash check" });
     expect(within(check).getAllByRole("listitem")[1].textContent).toBe("Sam: $450.00 cash, $200.00 left ($250.00 over).");
+  });
+
+  it("skips the check for someone not paid yet this month, instead of flagging their cash", async () => {
+    await page([bal("2026-09-01", "u-sam", "cash", "450.00")], [{ ...SEPTEMBER, income: [paycheck("u-alex", "2500.00")] }]);
+    const check = screen.getByRole("region", { name: "Cash check" });
+    expect(within(check).getAllByRole("listitem")[1].textContent).toBe("Sam: no leftover yet, so no check.");
   });
 
   it("skips the check before there's a leftover, without blocking entry", async () => {
