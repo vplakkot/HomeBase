@@ -91,9 +91,9 @@ describe("the Budget year section", () => {
       // The fake answers every months query with every row; the page reads one.
       await renderAs(ADMIN, { splits: [SPLIT], income_sources: INCOME, months: [month("2026-04-01", "2000.00", true)] }, "2027-03-10T16:00:00Z");
       const review = screen.getByRole("region", { name: "Split for April 2027" });
-      expect(review.textContent).toContain("Alex$78,000.00 a year · 61.9% of both");
-      expect(review.textContent).toContain("Sam$48,000.00 a year · 38.1% of both");
-      expect(review.textContent).toContain("Household spend this year$2,000.00 over 1 month");
+      expect(review.textContent).toContain("Alex$78,000.00 a year61.9% of both incomes");
+      expect(review.textContent).toContain("Sam$48,000.00 a year38.1% of both incomes");
+      expect(review.textContent).toContain("Household spend$2,000.00This budget year, over 1 month");
       // Starts in April, pre-filled with the split now in force. A split
       // only ever applies from its own month, and closed months keep
       // their own copy (month_people), so they're untouched.

@@ -212,19 +212,24 @@ export default async function BudgetYearPage() {
             <div className={styles.entries}>
               <ul className={styles.list}>
                 {review.income.map((person) => (
-                  <li key={person.user_id} className={styles.entryHead}>
-                    <span className={styles.person}>{nameOf.get(person.user_id) ?? "Someone"}</span>
-                    <span className={styles.amount}>
-                      {formatMoney(person.annual)} a year
-                      {person.percentOfBoth === null ? "" : ` · ${person.percentOfBoth}% of both`}
-                    </span>
+                  <li key={person.user_id} className={styles.entry}>
+                    <div className={styles.entryHead}>
+                      <span className={styles.entryName}>{nameOf.get(person.user_id) ?? "Someone"}</span>
+                      <span className={styles.amount}>{formatMoney(person.annual)} a year</span>
+                    </div>
+                    {person.percentOfBoth === null ? null : (
+                      <p className={styles.detail}>{person.percentOfBoth}% of both incomes</p>
+                    )}
                   </li>
                 ))}
-                <li className={styles.entryHead}>
-                  <span className={styles.person}>Household spend this year</span>
-                  <span className={styles.amount}>
-                    {formatMoney(review.spend)} over {review.months} {review.months === 1 ? "month" : "months"}
-                  </span>
+                <li className={styles.entry}>
+                  <div className={styles.entryHead}>
+                    <span className={styles.entryName}>Household spend</span>
+                    <span className={styles.amount}>{formatMoney(review.spend)}</span>
+                  </div>
+                  <p className={styles.detail}>
+                    This budget year, over {review.months} {review.months === 1 ? "month" : "months"}
+                  </p>
                 </li>
               </ul>
             </div>
