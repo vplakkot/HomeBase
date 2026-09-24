@@ -792,6 +792,26 @@ actually put away is stored (REQ-66):
 `/finances/savings` shows this month's plan, the form, and each closed
 month with what was saved beside what was available.
 
+## Finances balances
+
+Each person's account balances, entered once a month (REQ-67). A
+balance month is a plain calendar month, not a row in `months`: balances
+can be entered whether or not that month's bills were opened, and
+closing a month doesn't lock them.
+
+| Table | One row is | Key facts |
+|---|---|---|
+| `balances` | one person's balance in one account for a month | `month` (the 1st), `user_id`, `account` (401k, espp, rsu, investments, cash), `amount` 0 or more; an account left blank has no row, so the gap shows; any member enters, corrects or removes either person's |
+
+Everything else is worked out in `lib/finances/balances.ts`:
+`startingPoint()` pre-fills a box from the latest earlier month,
+`balanceTrend()` gives each month's total, its change (over the accounts entered in both months, labelled "on the same accounts" when one is missing) and every
+account's change (REQ-68), and `cashCheck()` sets a person's cash beside
+their leftover from `leftovers()`, flagging more than `CASH_GAP_FLAG`
+($500) over (REQ-65). `/finances/balances` shows the form, the cash
+check and the trend. On desktop, an SVG line chart drawn in our own
+code (`chart.tsx`, no chart library) shows the total.
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:

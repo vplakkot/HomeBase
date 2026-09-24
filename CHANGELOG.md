@@ -85,6 +85,17 @@
   reasons there's nothing to save were white on white; they now show.
   (#158)
 
+- Balances. A new Balances section takes each person's 401k, ESPP, RSU,
+  investments and cash for a month. Last month's figures fill in as a
+  starting point. A box left blank isn't saved and shows as "not
+  entered", and a month's balances can be removed. The cash check sets
+  each person's cash beside the month's leftover and flags anything
+  more than $500 over, with a prompt to move it to savings or say where
+  it came from. It's skipped until there's cash and a leftover to
+  compare. The trend lists each month's total, its change from the
+  month before, and every account. On desktop a line chart shows the
+  total over time. (#160)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each
