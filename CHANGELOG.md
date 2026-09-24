@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Finances home, calmer. Every card is the light brick; solid brick only
+  marks someone who still owes or money to move to savings; green only
+  means paid. The savings card is a title and each person's figure, with
+  the explanation on the info icon. Each bill is one line: its name and
+  what's left, or Paid. Paperwork's cards are now called Search and Add
+  files.
+
 - Look fixes. A field in focus is ringed in its module's colour instead
   of the browser's blue (a $ field rings its whole box), and choice
   buttons take the module's colour. Paperwork's "Add a category first"

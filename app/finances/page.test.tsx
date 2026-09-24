@@ -140,15 +140,17 @@ describe("the Finances page", () => {
     expect(admin.textContent).toContain("From April 2026 · Alex 60% · Sam 40%");
   });
 
-  // REQ-94: every bill in the list is a row on Finances home, with its due
-  // date. Nothing can be entered yet, so the month reads as incomplete.
-  it("shows each bill as a row with its due date once the budget year exists", async () => {
+  // REQ-94: every bill in the list is a row on Finances home. Nothing can
+  // be entered yet, so the month reads as incomplete. Vin, 2026-09-24:
+  // Overview shows the bill and its amount only; the due date lives in
+  // Monthly entry.
+  it("shows each bill as a row once the budget year exists", async () => {
     given({ signedIn: true, permissions: MEMBER, split: SPLIT, bills: BILLS });
     render(await FinancesPage());
     const bills = screen.getByRole("region", { name: "Bills" });
     expect(within(bills).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "RentDue the 1stNot entered",
-      "Joint cardDue the 22ndNot entered",
+      "RentNot entered",
+      "Joint cardNot entered",
     ]);
     expect(screen.getByText("Incomplete")).toBeDefined();
   });
@@ -183,8 +185,8 @@ describe("the Finances page", () => {
     vi.useRealTimers();
     const bills = screen.getByRole("region", { name: "Bills" });
     expect(within(bills).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "RentDue 1 Sep · $0.00 of $2,000.00$2,000.00 left",
-      "Joint cardDue 22 SepNot entered",
+      "Rent$2,000.00 left",
+      "Joint cardNot entered",
     ]);
     // Vin, 2026-09-23: Monthly entry is reachable from home, clearly.
     const entry = screen.getByRole("link", { name: /still to enter/ });
@@ -240,9 +242,9 @@ describe("the Finances page", () => {
     const bills = screen.getByRole("region", { name: "Bills" });
     expect(bills.textContent).toContain("$450.00 of $3,000.00 left");
     expect(within(bills).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "RentDue 1 Sep · $2,000.00 of $2,000.00Paid",
-      "Amazon cardDue 10 Sep · $400.00 of $400.00Paid",
-      "Joint cardDue 22 Sep · $150.00 of $600.00$450.00 left",
+      "RentPaid",
+      "Amazon cardPaid",
+      "Joint card$450.00 left",
     ]);
   });
 
@@ -477,20 +479,24 @@ describe("closing a month and the verdict", () => {
     });
     const verdict = screen.getByRole("region", { name: "This month" });
     expect(verdict.textContent).toContain(
-      "On track to move you forward$200.00Joint savings, projectedAlex: $100.00 to joint · $1,200.00 yoursSam: $100.00 to joint · $100.00 yours",
+      "On track to move you forward$200.00Joint savings, projectedAlex$100.00 to jointSam$100.00 to joint",
     );
     expect(within(verdict).getByRole("note").getAttribute("aria-label")).toContain("Leftover excludes personal card spend");
+    // What's each person's own is on the Savings page, not repeated here.
+    expect(verdict.textContent).not.toContain("yours");
   });
 
-  it("says plainly when the month didn't, never just a red number", async () => {
+  // Vin, 2026-09-24: a title and each person's figure; the why is on the
+  // info icon, not in sentences.
+  it("says plainly when there's nothing to save, with each person's figure", async () => {
     await show({
       bills: [rentPaidBy([])],
       income: [paycheck("u-alex", "1000.00"), paycheck("u-sam", "900.00")],
     });
     const verdict = screen.getByRole("region", { name: "This month" });
-    expect(verdict.textContent).toContain("Nothing to save this month");
-    expect(verdict.textContent).toContain("Alex's income didn't cover their share: $200.00 came out of savings.");
-    expect(verdict.textContent).toContain("Alex −$200.00 · Sam $100.00 left");
+    expect(verdict.textContent).toContain("Nothing to save yetAlex−$200.00 leftSam$100.00 left");
+    expect(verdict.textContent).not.toContain("came out of savings");
+    expect(within(verdict).getByRole("note").getAttribute("aria-label")).toContain("Savings start once both are above zero");
   });
 
   it("has nothing to save when one person has nothing left, even if the other has plenty", async () => {
@@ -499,7 +505,8 @@ describe("closing a month and the verdict", () => {
       income: [paycheck("u-alex", "5000.00"), paycheck("u-sam", "800.00")],
     });
     const verdict = screen.getByRole("region", { name: "This month" });
-    expect(verdict.textContent).toContain("Nothing to save this monthSam has nothing left after their share.");
+    expect(verdict.textContent).toContain("Nothing to save yet");
+    expect(verdict.textContent).toContain("Sam$0.00 left");
   });
 
   it("says Moved you forward, not projected, once the month is closed", async () => {

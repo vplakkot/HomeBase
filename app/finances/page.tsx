@@ -8,13 +8,12 @@ import {
   monthLabel,
   splitInForce,
 } from "../../lib/finances/budget-year";
-import { dueLabel, listBills } from "../../lib/finances/bills";
+import { listBills } from "../../lib/finances/bills";
 import { leftovers } from "../../lib/finances/leftover";
 import {
   billEntered,
   chosenMonth,
   dayLabel,
-  dueInMonth,
   listOpenedMonths,
   monthShares,
   monthStatus,
@@ -23,7 +22,7 @@ import {
   readMonth,
 } from "../../lib/finances/month";
 import { formatMoney } from "../../lib/finances/money";
-import { nothingToSaveReasons, savingsPlan } from "../../lib/finances/savings";
+import { savingsPlan } from "../../lib/finances/savings";
 import { closeMonthWithBalance } from "./actions";
 import { marchReview } from "../../lib/finances/recalibrate";
 import { acknowledge } from "../../lib/finances/snapshot";
@@ -114,33 +113,27 @@ export default async function FinancesPage({
   // What goes into joint savings (REQ-63), or why nothing does (REQ-64).
   const plan = verdict ? savingsPlan(verdict.people) : null;
   const ended = Boolean(month?.closed_at) || status === "Ended · not squared";
+  // Overview shows each bill's name and what's left, or where it stands;
+  // due dates and the rest live in Monthly entry (Vin, 2026-09-24).
   const rows = month
     ? month.bills.map((bill) => {
-        const due = dueInMonth(bill.due_day, startsOn);
         const money = totals?.bills.find((row) => row.id === bill.id);
         return {
           id: bill.id,
           name: bill.name,
-          note:
-            bill.amount === null || !money
-              ? due
-              : `${due} · ${formatMoney(money.paid)} of ${formatMoney(money.total)}`,
           chip: !billEntered(bill)
             ? { text: "Not entered", done: false }
             : money && money.left <= 0
               ? { text: "Paid", done: true }
               : null,
           left: money && billEntered(bill) && money.left > 0 ? money.left : null,
-          share: money && billEntered(bill) && money.total > 0 ? Math.min(money.paid / money.total, 1) : null,
         };
       })
     : bills.map((bill) => ({
         id: bill.id,
         name: bill.name,
-        note: dueLabel(bill.due_day),
         chip: { text: "Not entered", done: false },
         left: null,
-        share: null,
       }));
   const toEnter = month ? month.bills.filter((bill) => !billEntered(bill)).length : 0;
   const billsLeft = totals ? totals.bills.reduce((sum, row) => sum + Math.max(row.left, 0), 0) : 0;
@@ -164,7 +157,7 @@ export default async function FinancesPage({
       status={status}
       month={picker}
     >
-      <Link href={`/finances/monthly-entry?month=${startsOn.slice(0, 7)}`} className={`${styles.entryRow} ${styles.tinted}`}>
+      <Link href={`/finances/monthly-entry?month=${startsOn.slice(0, 7)}`} className={styles.entryRow}>
         <span className={styles.rowText}>
           <span className={styles.billName}>{month ? "Monthly entry" : `Open ${monthLabel(startsOn)}`}</span>
           <span className={styles.cardNote}>
@@ -202,10 +195,10 @@ export default async function FinancesPage({
           <section className={styles.group} aria-labelledby="verdict">
             <div className={styles.groupHead}>
               <SectionLabel id="verdict">This month</SectionLabel>
-              <Hint text="Leftover excludes personal card spend: it's income logged minus your share of the household." />
+              <Hint text="What each of you has left after your share of the bills: income logged minus your share. Savings start once both are above zero. Leftover excludes personal card spend." />
             </div>
             {month && month.income.length === 0 ? (
-              <Link href={`/finances/income?month=${startsOn.slice(0, 7)}`} className={`${styles.entryRow} ${styles.tinted}`}>
+              <Link href={`/finances/income?month=${startsOn.slice(0, 7)}`} className={styles.entryRow}>
                 <span className={styles.rowText}>
                   <span className={styles.billName}>No income logged yet</span>
                   <span className={styles.cardNote}>Confirm paychecks to see what&apos;s left</span>
@@ -219,38 +212,31 @@ export default async function FinancesPage({
                     ? ended
                       ? "Moved you forward"
                       : "On track to move you forward"
-                    : "Nothing to save this month"}
+                    : ended
+                      ? "Nothing to save this month"
+                      : "Nothing to save yet"}
                 </span>
                 {plan && plan.joint > 0 ? (
                   <>
                     <span className={styles.figure}>{formatMoney(plan.joint)}</span>
                     <span className={styles.verdictLabel}>Joint savings{ended ? "" : ", projected"}</span>
                     {plan.people.map((person) => (
-                      <span key={person.user_id} className={styles.cardNote}>
-                        {nameOf.get(person.user_id) ?? "Someone"}: {formatMoney(person.toJoint)} to joint ·{" "}
-                        {formatMoney(person.yours)} yours
+                      <span key={person.user_id} className={styles.verdictLine}>
+                        <span>{nameOf.get(person.user_id) ?? "Someone"}</span>
+                        <span>{formatMoney(person.toJoint)} to joint</span>
                       </span>
                     ))}
                   </>
                 ) : (
-                  <>
-                    {plan
-                      ? nothingToSaveReasons(plan, (id) => nameOf.get(id) ?? "Someone").map((reason) => (
-                          <span key={reason} className={styles.cardNote}>
-                            {reason}
-                          </span>
-                        ))
-                      : null}
-                    <span className={styles.cardNote}>
-                      {verdict.people
-                        .map(
-                          (person) =>
-                            `${nameOf.get(person.user_id) ?? "Someone"} ${person.leftover < 0 ? "−" : ""}${formatMoney(Math.abs(person.leftover))}`,
-                        )
-                        .join(" · ")}{" "}
-                      left
+                  verdict.people.map((person) => (
+                    <span key={person.user_id} className={styles.verdictLine}>
+                      <span>{nameOf.get(person.user_id) ?? "Someone"}</span>
+                      <span>
+                        {person.leftover < 0 ? "−" : ""}
+                        {formatMoney(Math.abs(person.leftover))} left
+                      </span>
                     </span>
-                  </>
+                  ))
                 )}
               </div>
             )}
@@ -266,7 +252,6 @@ export default async function FinancesPage({
               {totals.people.map((person) => {
                 const name = nameOf.get(person.user_id) ?? "Someone";
                 const settled = person.outstanding <= 0;
-                const done = person.obligation > 0 ? Math.min(person.paid / person.obligation, 1) : 1;
                 return (
                   <li key={person.user_id} className={styles.person}>
                     <span className={styles.personName}>{name}</span>
@@ -279,19 +264,6 @@ export default async function FinancesPage({
                       {settled ? "" : "outstanding · "}paid {formatMoney(person.paid)} of{" "}
                       {formatMoney(person.obligation)}
                       {person.outstanding < 0 ? ` · ${formatMoney(-person.outstanding)} credit` : ""}
-                    </span>
-                    <span
-                      className={styles.progress}
-                      role="progressbar"
-                      aria-label={`${name}'s share paid`}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={Math.round(done * 100)}
-                    >
-                      <span
-                        className={settled ? `${styles.progressFill} ${styles.done}` : styles.progressFill}
-                        style={{ width: `${done * 100}%` }}
-                      />
                     </span>
                   </li>
                 );
@@ -348,24 +320,11 @@ export default async function FinancesPage({
               <ul className={styles.rows}>
                 {rows.map((row) => (
                   <li key={row.id} className={styles.billRow}>
-                    <span className={styles.billLine}>
-                      <span className={styles.billText}>
-                        <span className={styles.billName}>{row.name}</span>
-                        <span className={styles.cardNote}>{row.note}</span>
-                      </span>
-                      {row.chip ? (
-                        <span className={row.chip.done ? styles.paidChip : styles.status}>{row.chip.text}</span>
-                      ) : row.left !== null ? (
-                        <span className={styles.owed}>{formatMoney(row.left)} left</span>
-                      ) : null}
-                    </span>
-                    {row.share !== null ? (
-                      <span className={styles.thinTrack} aria-hidden="true">
-                        <span
-                          className={row.share >= 1 ? `${styles.progressFill} ${styles.done}` : styles.progressFill}
-                          style={{ width: `${row.share * 100}%` }}
-                        />
-                      </span>
+                    <span className={styles.billName}>{row.name}</span>
+                    {row.chip ? (
+                      <span className={row.chip.done ? styles.paidChip : styles.status}>{row.chip.text}</span>
+                    ) : row.left !== null ? (
+                      <span className={styles.owed}>{formatMoney(row.left)} left</span>
                     ) : null}
                   </li>
                 ))}
@@ -377,7 +336,7 @@ export default async function FinancesPage({
 
       <section className={styles.group} aria-labelledby="admin">
         <SectionLabel id="admin">Admin</SectionLabel>
-        <div className={`${styles.card} ${styles.tinted}`}>
+        <div className={styles.card}>
           {month && !month.closed_at ? (
             canManageBudget ? (
               <details className={styles.closeRow}>

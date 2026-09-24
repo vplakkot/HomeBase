@@ -100,9 +100,10 @@ Sidebar as on Home, with the current module highlighted. The module's sections b
 Mockups: `finances-*.html`. Home of the module is the **current month**:
 - Header: module icon + "Finances", month picker, status chip (No budget year / Incomplete / Open / Squared / Closed; ended-unsquared shows as "Ended · not squared").
 - Action items (same component as Home, Finances items only).
-- **Verdict card** (loud brick): "On track to move you forward" + projected joint savings + the caveat "Leftover excludes personal card spend." A bad month uses the quiet tint and says **"Nothing to save this month"** in words, with a one-line reason — never just a red number.
-- **Who owes what**: one card per person (outstanding, paid of owed, progress bar). Paid up shows "Paid up" in green.
-- **Bills**: one row per bill (name, due date, paid of total, amount left or a "Paid" chip).
+- **Colour rules** (Vin, 2026-09-24): every card is the quiet tint, never white on the cream page; solid brick means "needs you" (a button, someone who still owes, money to move to savings); green means done (paid, paid up); text is dark for names and figures, grey for the rest, white only on a solid tile.
+- **Verdict card**: a title and figures, the why on an info icon. With money to save (loud brick): "On track to move you forward", the projected joint savings, then each person's "$X to joint". Otherwise (quiet tint): **"Nothing to save yet"** (or "this month" once it's ended) and each person's leftover after their share — in words, never just a red number. The full breakdown, including what's each person's own, is on the Savings page.
+- **Who owes what**: one card per person (outstanding, paid of owed): brick while they owe, green "Paid up" once they don't.
+- **Bills**: one line per bill: its name, and the amount left or a "Paid" / "Not entered" chip. Due dates and the rest live in Monthly entry.
 - **Admin** block at the bottom: Close month with balance, Budget year. Members see these **locked with "Admin only"**, not hidden.
 - **Log payment** pinned above the bottom bar; opens a sheet: who paid (segmented), amount, toward (bill chips), Save.
 - **First run** (no budget year): the whole page is one card, "Set up your budget year", with Start setup (admin). Members see a message naming the admin, no button.
