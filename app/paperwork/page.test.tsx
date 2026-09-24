@@ -81,17 +81,17 @@ describe("the files list (REQ-88)", () => {
   it("shows every file's ID and category, label name, last stored location and paper count", async () => {
     given();
     render(await PaperworkPage({ searchParams: Promise.resolve({}) }));
-    expect(texts(card("Files"))).toEqual([
+    expect(texts(card("Search"))).toEqual([
       "F-0007 · Car0 papersLast stored location: Glovebox",
       "F-0042 · Taxes2 papersReturnsLast stored location: Hall cupboard",
     ]);
-    expect(within(card("Files")).getAllByRole("link")[1].getAttribute("href")).toBe("/paperwork/files/f-42");
+    expect(within(card("Search")).getAllByRole("link")[1].getAttribute("href")).toBe("/paperwork/files/f-42");
   });
 
   it("finds a file by ID and paperwork by name", async () => {
     given();
     render(await PaperworkPage({ searchParams: Promise.resolve({ q: "f42" }) }));
-    expect(texts(card("Files"))).toHaveLength(1);
+    expect(texts(card("Search"))).toHaveLength(1);
     cleanup();
     render(await PaperworkPage({ searchParams: Promise.resolve({ q: "water" }) }));
     expect(texts(card("Paperwork"))).toEqual(["Water bill noticeSam · Unfiled"]);
@@ -100,7 +100,7 @@ describe("the files list (REQ-88)", () => {
   it("filters by category", async () => {
     given();
     render(await PaperworkPage({ searchParams: Promise.resolve({ category: "c-car" }) }));
-    expect(texts(card("Files"))).toEqual(["F-0007 · Car0 papersLast stored location: Glovebox"]);
+    expect(texts(card("Search"))).toEqual(["F-0007 · Car0 papersLast stored location: Glovebox"]);
   });
 });
 

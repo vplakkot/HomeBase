@@ -1,3 +1,10 @@
+/* Finances home's colour rules (Vin, 2026-09-24):
+   - every card is the light brick tint, so none is white on cream;
+   - solid brick means "needs you": a button, or someone who still owes;
+   - green means done: paid, paid up;
+   - text is dark for names and figures, grey for the rest, and white
+     only on a solid tile. */
+
 /* The status chip (DESIGN.md §7). "No budget year" is the neutral one. */
 .status {
   padding: var(--space-1) var(--space-3);
@@ -49,9 +56,9 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--module-quiet-line);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--module-quiet);
 }
 
 .cardNote {
@@ -71,23 +78,19 @@
   padding: var(--space-4);
 }
 
-/* A bill row: name and due date, then where it stands, then a thin bar
-   of how much is paid. */
+/* A bill on Overview is one line: its name, and what's left to pay or
+   a green Paid. Due dates and the rest live in Monthly entry. */
 .billRow {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-target-min);
+  padding: var(--space-2) var(--space-4);
 }
 
 .billRow + .billRow {
-  border-top: 1px solid var(--color-line-soft);
-}
-
-.billText {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  border-top: 1px solid var(--module-quiet-line);
 }
 
 .billName {
@@ -132,31 +135,9 @@
 }
 
 .entryRow {
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--module-quiet-line);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
-}
-
-/* Rows that open a page (Monthly entry, the admin rows) sit on the
-   module's light tint, so they don't read as white on cream (Vin,
-   2026-09-24). */
-.tinted {
-  border-color: var(--module-quiet-line);
   background: var(--module-quiet);
-  color: var(--module-quiet-ink);
-}
-
-.tinted .rowText {
-  color: var(--module-quiet-title);
-}
-
-.tinted .cardNote,
-.tinted .locked {
-  color: var(--module-quiet-ink);
-}
-
-.tinted .closeRow + * {
-  border-top-color: var(--module-quiet-line);
 }
 
 .rowText {
@@ -185,9 +166,7 @@
   list-style: none;
 }
 
-/* Solid brick with white text, like Budget year's saved tiles (Vin,
-   2026-09-23: the mockup's white tiles read light on light until the
-   verdict card exists); green once someone is paid up. */
+/* Solid brick while someone still owes, green once they're paid up. */
 .person {
   display: flex;
   flex-direction: column;
@@ -205,15 +184,6 @@
 
 .person .cardNote {
   color: var(--module-on-loud);
-}
-
-.person .progress {
-  background: color-mix(in srgb, var(--module-on-loud) 30%, transparent);
-}
-
-.person .progressFill,
-.person .done {
-  background: var(--module-on-loud);
 }
 
 .personName {
@@ -242,41 +212,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Progress: a neutral track, filled in the module colour, green once
-   settled. */
-.progress,
-.thinTrack {
-  display: block;
-  overflow: hidden;
-  border-radius: var(--radius-pill);
-  background: var(--color-track);
-}
-
-.progress {
-  height: 6px;
-}
-
-.thinTrack {
-  height: 4px;
-}
-
-.progressFill {
-  display: block;
-  height: 100%;
-  background: var(--module-loud);
-}
-
-.done {
-  background: var(--color-success);
-}
-
-.billLine {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-3);
-}
-
 /* A bill paid in full: the green chip. */
 .paidChip {
   flex-shrink: 0;
@@ -294,9 +229,9 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: 0 var(--space-4);
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--module-quiet-line);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--module-quiet);
 }
 
 .workings[open] {
@@ -328,7 +263,7 @@
 .sums dt:last-of-type,
 .sums dd:last-of-type {
   padding-top: var(--space-1);
-  border-top: 1px solid var(--color-line-soft);
+  border-top: 1px solid var(--module-quiet-line);
   font-weight: 700;
 }
 
@@ -342,8 +277,8 @@
   font-weight: 700;
 }
 
-/* The verdict (DESIGN.md §7): loud brick when the month moved you
-   forward, the quiet tint when it didn't, said in words. */
+/* The savings verdict (DESIGN.md §7): solid brick when there's money to
+   move to savings, the tint when there isn't. A title, then figures. */
 .verdict,
 .verdictQuiet {
   display: flex;
@@ -365,7 +300,21 @@
 .verdictQuiet {
   border: 1px solid var(--module-quiet-line);
   background: var(--module-quiet);
-  color: var(--module-quiet-ink);
+  color: var(--color-ink);
+}
+
+/* One person's figure in the verdict: name, then the amount. */
+.verdictLine {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.verdictLine > :last-child {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 .verdictTitle {
@@ -392,7 +341,7 @@
 }
 
 .closeRow + * {
-  border-top: 1px solid var(--color-line);
+  border-top: 1px solid var(--module-quiet-line);
 }
 
 .closeForm {

@@ -27,7 +27,7 @@ export default async function PaperworkPage({
         <section className={styles.card} aria-labelledby="files">
           <header className={styles.head}>
             <h2 id="files" className={styles.name}>
-              Files
+              Search
             </h2>
             <Hint text="Find a file by its ID, label name or category, or paperwork by its name." />
           </header>
@@ -115,7 +115,7 @@ export default async function PaperworkPage({
         <section className={styles.card} aria-labelledby="new-file">
           <header className={styles.head}>
             <h2 id="new-file" className={styles.name}>
-              New file
+              Add files
             </h2>
             <Hint text="It gets the next ID, which never changes. Type the ID and category into your label printer." />
           </header>
