@@ -805,7 +805,7 @@ closing a month doesn't lock them.
 
 Everything else is worked out in `lib/finances/balances.ts`:
 `startingPoint()` pre-fills a box from the latest earlier month,
-`balanceTrend()` gives each month's total, its change (over the accounts entered in both months) and every
+`balanceTrend()` gives each month's total, its change (over the accounts entered in both months, labelled "on the same accounts" when one is missing) and every
 account's change (REQ-68), and `cashCheck()` sets a person's cash beside
 their leftover from `leftovers()`, flagging more than `CASH_GAP_FLAG`
 ($500) over (REQ-65). `/finances/balances` shows the form, the cash

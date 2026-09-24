@@ -98,7 +98,7 @@ describe("Balances", () => {
     const months = within(trend).getAllByRole("listitem").filter((row) => row.parentElement?.parentElement === trend.lastElementChild);
     expect(months.map((row) => row.firstElementChild?.textContent)).toEqual(["September 2026$12,500.00", "August 2026$12,300.00"]);
     // Only Alex's 401k is in both months: +$500, not the +$200 the totals differ by.
-    expect(months[0].textContent).toContain("+$500.00 on the month before · 1 not entered");
+    expect(months[0].textContent).toContain("+$500.00 on the same accounts · 1 not entered");
     expect(months[0].textContent).toContain("Alex · 401k: $12,500.00 (+$500.00)");
     expect(months[0].textContent).toContain("Sam · Cash: not entered");
     expect(months[1].textContent).toContain("First month");

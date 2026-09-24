@@ -62,6 +62,9 @@ export type TrendMonth = {
   // Against the month before, over the accounts entered in both, so a
   // skipped box doesn't read as money lost; null for the first month.
   change: number | null;
+  // True when an account is in only one of the two months, so the change
+  // leaves it out and says it's "on the same accounts" (Vin, 2026-09-24).
+  partial: boolean;
   // Accounts that had a balance some month but not this one.
   missing: number;
   accounts: TrendAccount[];
@@ -104,7 +107,8 @@ export function balanceTrend(balances: Balance[]): TrendMonth[] {
       before === undefined
         ? null
         : accounts.reduce((sum, entry) => sum + (entry.change === null ? 0 : cents(entry.change)), 0) / 100;
-    return { month, total, change, missing: accounts.filter((a) => a.amount === null).length, accounts };
+    const partial = before !== undefined && accounts.some((entry) => entry.change === null);
+    return { month, total, change, partial, missing: accounts.filter((a) => a.amount === null).length, accounts };
   });
   return trend.reverse();
 }

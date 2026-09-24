@@ -44,6 +44,14 @@ describe("balanceTrend (REQ-68)", () => {
     ]);
   });
 
+  it("says when the change leaves out an account entered in only one month", () => {
+    const [september, august] = balanceTrend(rows);
+    expect(september.partial).toBe(true);
+    expect(august.partial).toBe(false);
+    const whole = balanceTrend([b("2026-08-01", "u-sam", "cash", 500), b("2026-09-01", "u-sam", "cash", 450)]);
+    expect(whole[0]).toMatchObject({ change: -50, partial: false });
+  });
+
   it("gives each account's movement, and shows a skipped account as a gap, not $0", () => {
     const [september] = balanceTrend(rows);
     expect(september.missing).toBe(1);

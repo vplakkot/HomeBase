@@ -173,7 +173,9 @@ export default async function BalancesPage({
                       <span className={styles.amount}>{formatMoney(row.total)}</span>
                     </div>
                     <p className={styles.detail}>
-                      {row.change === null ? "First month" : `${signed(row.change)} on the month before`}
+                      {row.change === null
+                        ? "First month"
+                        : `${signed(row.change)} ${row.partial ? "on the same accounts" : "on the month before"}`}
                       {row.missing > 0 ? ` · ${row.missing} not entered` : ""}
                     </p>
                     <details className={local.accounts}>
