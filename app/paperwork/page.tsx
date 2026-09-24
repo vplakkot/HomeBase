@@ -121,13 +121,13 @@ export default async function PaperworkPage({
           </header>
           <div className={styles.addBlock}>
             {categories.length === 0 ? (
-              <p className={`${styles.form} ${styles.empty}`}>
-                {canManagePaperwork ? (
-                  <Link href="/paperwork/categories">Add a category first.</Link>
-                ) : (
-                  "An admin adds the categories first."
-                )}
-              </p>
+              canManagePaperwork ? (
+                <Link href="/paperwork/categories" className={styles.primary}>
+                  Add a category first
+                </Link>
+              ) : (
+                <p className={`${styles.form} ${styles.empty}`}>An admin adds the categories first.</p>
+              )
             ) : (
               <NewFileForm categories={categories} />
             )}
