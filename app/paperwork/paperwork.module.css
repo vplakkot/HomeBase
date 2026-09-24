@@ -170,8 +170,9 @@
   font-size: var(--text-body);
 }
 
-/* Unfiled paperwork needs someone, so it takes the module's loud colour
-   (DESIGN.md §1: colour means "needs you"). */
+/* Unfiled paperwork needs someone, so it's charcoal, like Home's action
+   items: every "needs you" is the dark panel, and stands out from the
+   slate tiles. */
 .banner {
   display: flex;
   align-items: center;
@@ -179,8 +180,8 @@
   min-height: var(--tap-target-min);
   padding: var(--space-4);
   border-radius: var(--radius-lg);
-  background: var(--module-loud);
-  color: var(--module-on-loud);
+  background: var(--color-panel);
+  color: var(--color-on-panel);
   font-size: var(--text-body-lg);
   font-weight: 700;
   text-decoration: none;
