@@ -370,6 +370,21 @@ describe("hourly test notification migration", () => {
   });
 });
 
+// Vin, 2026-09-24: the real Finances reminders replace it.
+describe("stopping the hourly test notification", () => {
+  const migration = readMigration("20260924160000");
+
+  it("unschedules that job by name, and nothing if it's already gone", () => {
+    expect(migration).toMatch(
+      /select cron\.unschedule\(jobid\) from cron\.job where jobname = 'hourly-test-notification'/,
+    );
+  });
+
+  it("leaves the vault secrets the Finances reminders read", () => {
+    expect(migration).not.toMatch(/vault\.|delete from/);
+  });
+});
+
 describe("notification log migration", () => {
   const migration = readMigration("20260920060000");
 

@@ -157,7 +157,7 @@ export default async function AdminPage() {
           <div className={styles.cardFoot}>
             <p>
               A test for one person is coming soon. For now, a test goes to every
-              device of every member whose switch is on, the same as the hourly one.
+              device of every member whose switch is on.
             </p>
             <SendTestForm />
             <p>Notifications never show dollar amounts on the lock screen.</p>

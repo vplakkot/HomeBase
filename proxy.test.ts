@@ -158,17 +158,16 @@ describe("proxy", () => {
     }
   });
 
-  // The hourly schedule has no session; it proves itself with a shared
-  // secret inside the route.
+  // The Finances reminders' hourly schedule (REQ-70) has no session; it
+  // proves itself with a shared secret inside the route.
   it("lets the hourly schedule reach its own address", () => {
     const [pattern] = config.matcher;
     const regex = new RegExp(`^${pattern}$`);
-    expect(regex.test("/api/notifications/test")).toBe(false);
-    // The Finances reminders' schedule too (REQ-70).
     expect(regex.test("/api/notifications/finances")).toBe(false);
+    // The test notification's old address is gone, and gets no pass.
+    expect(regex.test("/api/notifications/test")).toBe(true);
     expect(regex.test("/api/notifications/finances/extra")).toBe(true);
     // Nothing else under /api skips the sign-in check.
-    expect(regex.test("/api/notifications/test/extra")).toBe(true);
     expect(regex.test("/api/notifications")).toBe(true);
     expect(regex.test("/api/anything")).toBe(true);
   });

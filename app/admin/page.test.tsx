@@ -291,7 +291,16 @@ describe("AdminPage", () => {
     const row = within(logSection()).getAllByRole("row")[1];
     expect(within(row).getByText("Sam")).toBeDefined();
     expect(within(row).getByText("Delivered")).toBeDefined();
-    expect(within(row).getByText("Hourly")).toBeDefined();
+    expect(within(row).getByText("Hourly test")).toBeDefined();
+  });
+
+  // Finances reminders (REQ-70) are their own kind, not "By hand".
+  it("names a Finances reminder as one", async () => {
+    given({ signedIn: true, permissions: ["manage_members"], log: [entry({ trigger: "finances" })] });
+    render(await AdminPage());
+    const row = within(logSection()).getAllByRole("row")[1];
+    expect(within(row).getByText("Finances")).toBeDefined();
+    expect(within(row).queryByText("By hand")).toBeNull();
   });
 
   // The whole point of the requirement: a send with no word back is a

@@ -173,8 +173,8 @@ export async function resetPassword(
   return { reset: true };
 }
 
-// "Send test now": the same sending as the hourly schedule, started by an
-// admin instead. Only a manage_members holder gets this far, and the
+// "Send test now": a test notification, started by an admin. The hourly
+// one it once matched was stopped on 2026-09-24. Only a manage_members holder gets this far, and the
 // recipients are the same either way — everyone whose switch is on.
 export async function sendTestNow(
   _previous: SendTestState,

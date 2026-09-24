@@ -115,6 +115,11 @@
   of these moments, once each, between 9am and 9pm, with no dollar
   amounts. (#164)
 
+- The hourly test notification is switched off, now that Finances
+  reminders are real. "Send test now" in the admin console still works,
+  and the notification log names Finances reminders as their own kind
+  instead of calling them "By hand". (#166)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each

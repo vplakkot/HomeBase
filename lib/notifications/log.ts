@@ -1,11 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Trigger } from "./send";
 
 // REQ-22. Reading the notification log for the admin console.
 
 export type LogRow = {
   id: string;
   sent_at: string;
-  trigger: "hourly" | "manual";
+  // "hourly" rows are from the test schedule stopped on 2026-09-24.
+  trigger: Trigger;
   user_id: string;
   device: string;
   delivered_at: string | null;

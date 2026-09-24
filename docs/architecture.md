@@ -395,18 +395,20 @@ which they insist on). A device whose push service answers `404` or
 Two things start a send:
 
 - **The hourly schedule.** Vercel's free plan allows only a daily job, so
-  the clock lives in the database:
-  [`supabase/migrations/20260919190000_hourly_test_notification.sql`](../supabase/migrations/20260919190000_hourly_test_notification.sql)
-  adds `pg_cron` and `pg_net` and schedules `0 * * * *`, which calls
-  [`app/api/notifications/test/route.ts`](../app/api/notifications/test/route.ts).
-  The address and a shared secret live in Supabase's vault
-  (`notify_url`, `notify_secret`), never in git; until both exist the job
+  the clock lives in the database: `pg_cron` and `pg_net` (added by
+  [`20260919190000_hourly_test_notification.sql`](../supabase/migrations/20260919190000_hourly_test_notification.sql))
+  call the app. The address and a shared secret live in Supabase's vault
+  (`notify_url`, `notify_secret`), never in git; until both exist a job
   does nothing. The route has no session to check — the database isn't a
   person — so it compares the secret against `NOTIFY_SECRET` in constant
-  time, and the proxy's matcher skips just that one path. Vercel's own
-  Deployment Protection is off for this reason and one bigger one: it
-  would have required every visitor, household members included, to hold
-  a Vercel account. HomeBase's invite-only sign-in is the real gate.
+  time ([`lib/notifications/schedule-auth.ts`](../lib/notifications/schedule-auth.ts)),
+  and the proxy's matcher skips just that path (and the receipt address below). Vercel's own Deployment
+  Protection is off for this reason and one bigger one: it would have
+  required every visitor, household members included, to hold a Vercel
+  account. HomeBase's invite-only sign-in is the real gate. Until
+  2026-09-24 a job sent an hourly test notification; it was stopped, and a
+  separate job, `finance-reminders`, now uses the same clock and secret
+  (see below), reading only the origin of `notify_url`.
 - **"Send test now"** in the admin console
   ([`app/admin/send-test-form.tsx`](../app/admin/send-test-form.tsx)),
   behind `manage_members` like everything else there, which calls the
@@ -415,7 +417,7 @@ Two things start a send:
 ```mermaid
 sequenceDiagram
     participant Cron as Supabase pg_cron
-    participant Route as /api/notifications/test
+    participant Route as /api/notifications/finances
     participant Send as lib/notifications/send.ts
     participant DB as Postgres (secret key)
     participant Apple as Push service
@@ -423,7 +425,7 @@ sequenceDiagram
 
     Cron->>Route: POST, hourly, Bearer <vault secret>
     Route->>Route: constant-time secret check
-    Route->>Send: sendTestNotification()
+    Route->>Send: sendFinanceReminders() → sendPush()
     Send->>DB: who is switched on, and their devices
     DB-->>Send: devices
     Send->>Apple: one signed, encrypted request per device
@@ -462,8 +464,8 @@ proves itself with a **receipt token**: a random secret placed inside
 that one encrypted message, so only the device it was sent to can quote
 it. The address hashes what arrives and matches that against the log. It
 answers `204` to everything, so it cannot be used to test guesses, and
-the proxy's matcher skips it for the same reason it skips the hourly
-address. It is open to the internet and unthrottled; the blast radius is
+the proxy's matcher skips it for the same reason it skips the Finances
+reminders' address. It is open to the internet and unthrottled; the blast radius is
 one row, but the request volume is not bounded.
 
 The log rows are written **before** the notifications are sent. A push
