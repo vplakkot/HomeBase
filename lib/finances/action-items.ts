@@ -17,7 +17,7 @@ import { marchReview } from "./recalibrate";
 // Every item knows where the action happens (REQ-91's deep link) and
 // whether it also pushes (REQ-70). A push goes once per topic; the topic
 // says what makes a second one worth sending — a new month, a new quarter,
-// another fortnight without a payment.
+// or, for the nudge, paying and then going quiet again.
 
 export type FinanceItem = ActionItem & {
   href: string;
