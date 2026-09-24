@@ -486,17 +486,19 @@ describe("closing a month and the verdict", () => {
     expect(verdict.textContent).not.toContain("yours");
   });
 
-  // Vin, 2026-09-24: a title and each person's figure; the why is on the
-  // info icon, not in sentences.
-  it("says plainly when there's nothing to save, with each person's figure", async () => {
+  // Vin, 2026-09-24: a title and each person's figure, no minus sign;
+  // the why is on the info icon, not in sentences. Someone whose share
+  // is more than their income takes the difference from savings.
+  it("says who takes how much from savings when their share is more than their income", async () => {
     await show({
       bills: [rentPaidBy([])],
       income: [paycheck("u-alex", "1000.00"), paycheck("u-sam", "900.00")],
     });
     const verdict = screen.getByRole("region", { name: "This month" });
-    expect(verdict.textContent).toContain("Nothing to save yetAlex−$200.00 leftSam$100.00 left");
-    expect(verdict.textContent).not.toContain("came out of savings");
-    expect(within(verdict).getByRole("note").getAttribute("aria-label")).toContain("Savings start once both are above zero");
+    expect(verdict.textContent).toContain("Take from savingsAlex$200.00");
+    expect(verdict.textContent).not.toContain("Sam");
+    expect(verdict.textContent).not.toContain("−");
+    expect(within(verdict).getByRole("note").getAttribute("aria-label")).toContain("takes the difference from savings");
   });
 
   it("has nothing to save when one person has nothing left, even if the other has plenty", async () => {
@@ -523,6 +525,33 @@ describe("closing a month and the verdict", () => {
     const verdict = screen.getByRole("region", { name: "This month" });
     expect(verdict.textContent).toContain("Moved you forward$200.00Joint savings");
     expect(verdict.textContent).not.toContain("projected");
+  });
+
+  // Vin, 2026-09-24: pay the Budget year expects counts until someone
+  // confirms it, so the start of a month isn't a false "take from savings".
+  it("counts expected pay until it's confirmed, while the month runs", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-02T16:00:00Z"));
+    fake = fakeSupabase({
+      permissions: ADMIN,
+      people: PEOPLE,
+      tables: {
+        splits: [SPLIT],
+        bills: [],
+        income_sources: [
+          { id: "src-alex", name: "Acme pay", owner_id: "u-alex", net_amount: "2500", cadence: "monthly", anchor_date: "2026-09-15", effective_from: "2026-01-01", ended_on: null },
+          { id: "src-sam", name: "Beta pay", owner_id: "u-sam", net_amount: "1000", cadence: "monthly", anchor_date: "2026-09-15", effective_from: "2026-01-01", ended_on: null },
+        ],
+        months: [{ id: "m-sep", starts_on: "2026-09-01", bills: [rentPaidBy([])], direct_payments: [], income: [], people: [], closed_at: null, closed_by: null, split_from: null }],
+      },
+    });
+    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+    render(await FinancesPage({ searchParams: Promise.resolve({ month: "2026-09" }) }));
+    vi.useRealTimers();
+    const verdict = screen.getByRole("region", { name: "This month" });
+    // Rent 2,000 at 60/40 against 2,500 and 1,000 expected: 1,300 and 200
+    // left, so 100 each to joint.
+    expect(verdict.textContent).toContain("On track to move you forward$200.00Joint savings, projected");
   });
 
   it("points to Income when nothing is logged yet", async () => {
