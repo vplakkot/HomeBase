@@ -281,7 +281,7 @@ describe("the Finances page", () => {
     given({ signedIn: true, permissions: ADMIN, split: SPLIT });
     render(await FinancesPage());
     expect(screen.getByRole("banner").textContent).toContain("FinancesOverview");
-    const css = readFileSync(join(REPO_ROOT, "app/finances/page.module.css"), "utf-8");
+    const css = readFileSync(join(REPO_ROOT, "components/module-frame.module.css"), "utf-8");
     expect(styleOf(css, "where", true).get("display")).toBe("none");
   });
 

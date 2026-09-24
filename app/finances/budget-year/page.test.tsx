@@ -54,7 +54,7 @@ describe("the Budget year section", () => {
   // DESIGN.md §10: text on a loud tile has to clear 4.5 to 1, so a chip
   // sitting on one is solid rather than see-through white.
   it("keeps chips on a loud tile solid, for contrast", () => {
-    const css = readFileSync(join(REPO_ROOT, "app/finances/budget-year/page.module.css"), "utf-8");
+    const css = readFileSync(join(REPO_ROOT, "components/cards.module.css"), "utf-8");
     const chip = styleOf(css, "chip", false);
     expect(chip.get("background")).toBe("var(--color-surface)");
     expect(chip.get("color")).toBe("var(--module-loud)");
@@ -65,7 +65,7 @@ describe("the Budget year section", () => {
 
   // A hint only a mouse can reach isn't a hint (#133).
   it("shows a card's hint on keyboard focus, not only on hover", () => {
-    const css = readFileSync(join(REPO_ROOT, "app/finances/budget-year/page.module.css"), "utf-8");
+    const css = readFileSync(join(REPO_ROOT, "components/cards.module.css"), "utf-8");
     expect(css).toMatch(/\.info:hover::after,\s*\.info:focus-visible::after \{\s*display: block;/);
     expect(css).toMatch(/content: attr\(data-hint\)/);
   });
@@ -277,7 +277,7 @@ describe("the Budget year section", () => {
   // Vin, 2026-09-23: with a month open, Remove carries a tick box, and it
   // squeezed an opened Edit form to a sliver. An open form takes the row.
   it("gives an opened edit form the whole row", () => {
-    const css = readFileSync(join(REPO_ROOT, "app/finances/budget-year/page.module.css"), "utf-8");
+    const css = readFileSync(join(REPO_ROOT, "components/cards.module.css"), "utf-8");
     expect(styleOf(css, "actions", false).get("flex-wrap")).toBe("wrap");
     expect(css).toMatch(/\.change\[open\] \{\s*flex-basis: 100%;/);
   });

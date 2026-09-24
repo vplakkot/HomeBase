@@ -3,8 +3,9 @@
 // module means adding an entry here (docs/design/DESIGN.md §3, and the
 // Notion decision that the list lives in the code, not the database).
 //
-// v0.2 shows all six, but only Finances opens (a Notion decision of
+// v0.2 showed six, and only Finances opened (a Notion decision of
 // 2026-09-21): a module without an `href` is listed and can't be tapped.
+// v1.0 adds Paperwork, the second to open.
 
 export type ModuleSection = {
   name: string;
@@ -72,6 +73,29 @@ export const MODULES: readonly Module[] = [
   { slug: "wine", name: "Wine", tokens: "wine", href: null, sections: [] },
   { slug: "meal-plans", name: "Meal Plans", tokens: "meals", href: null, sections: [] },
   { slug: "health", name: "Health", tokens: "health", href: null, sections: [] },
+  // Added in v1.0 (REQ-88, REQ-97); Vin chose slate and the last place
+  // on 2026-09-24.
+  {
+    slug: "paperwork",
+    name: "Paperwork",
+    tokens: "paperwork",
+    href: "/paperwork",
+    sections: [
+      { name: "Unfiled", description: "Paperwork waiting for a file", href: "/paperwork/unfiled" },
+      {
+        name: "Log paperwork",
+        description: "As it arrives",
+        pinned: true,
+        href: "/paperwork/log",
+      },
+      {
+        name: "Categories",
+        description: "Categories and how long to keep",
+        adminOnly: true,
+        href: "/paperwork/categories",
+      },
+    ],
+  },
 ];
 
 // A module switched off in the admin console disappears from Home, and

@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { ACCOUNT_ORDER, ACCOUNTS, type Account } from "../../../lib/finances/balances";
-import styles from "../budget-year/page.module.css";
+import styles from "../../../components/cards.module.css";
 import local from "./page.module.css";
 import { saveBalances, type FormState } from "./actions";
 

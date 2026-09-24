@@ -10,7 +10,7 @@ import {
   readMonth,
 } from "../../../lib/finances/month";
 import { formatMoney } from "../../../lib/finances/money";
-import styles from "../budget-year/page.module.css";
+import styles from "../../../components/cards.module.css";
 import { FinancesFrame, financesViewer } from "../frame";
 import { deletePayment } from "./actions";
 import { PaymentForm } from "./forms";

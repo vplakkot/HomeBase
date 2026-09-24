@@ -23,7 +23,7 @@ describe("the desktop sidebar", () => {
     expect(within(nav).getByRole("link", { name: "Home" }).getAttribute("href")).toBe("/");
   });
 
-  it("lists all six modules, from the module list, in order", () => {
+  it("lists all seven modules, from the module list, in order", () => {
     render(<Sidebar current="home" canAdminister={false} account={TEST_ACCOUNT} />);
     const items = within(sidebar()).getAllByRole("listitem").map((item) => item.textContent);
     expect(items).toEqual([
@@ -33,14 +33,15 @@ describe("the desktop sidebar", () => {
       "Wine, coming soon",
       "Meal Plans, coming soon",
       "Health, coming soon",
+      "Paperwork",
     ]);
   });
 
   // A decision of 2026-09-21: the other five are shown but can't be opened.
-  it("links only Finances", () => {
+  it("links only the modules that open: Finances and Paperwork", () => {
     render(<Sidebar current="home" canAdminister={false} account={TEST_ACCOUNT} />);
     const links = within(sidebar()).getAllByRole("link").map((link) => link.getAttribute("href"));
-    expect(links).toEqual(["/", "/finances"]);
+    expect(links).toEqual(["/", "/finances", "/paperwork"]);
   });
 
   it("offers the admin console to admins, at the bottom", () => {

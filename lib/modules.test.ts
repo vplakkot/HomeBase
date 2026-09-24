@@ -11,7 +11,7 @@ import {
 const tokens = readTokens();
 
 describe("the module list", () => {
-  it("has the six modules of DESIGN.md, in its order", () => {
+  it("has the seven modules of DESIGN.md, in its order", () => {
     expect(MODULES.map((module) => module.name)).toEqual([
       "Finances",
       "Calendar",
@@ -19,13 +19,16 @@ describe("the module list", () => {
       "Wine",
       "Meal Plans",
       "Health",
+      "Paperwork",
     ]);
   });
 
-  // A decision of 2026-09-21: v0.2 lists all six, and only Finances opens.
-  it("opens only Finances, at /finances", () => {
+  // A decision of 2026-09-21: v0.2 listed all six, and only Finances
+  // opened. v1.0 adds Paperwork, which opens too.
+  it("opens Finances and Paperwork, at their own addresses", () => {
     expect(MODULES.filter((module) => module.href).map((module) => module.href)).toEqual([
       "/finances",
+      "/paperwork",
     ]);
   });
 
@@ -56,7 +59,7 @@ describe("the module list", () => {
   // DESIGN.md §3: a module switched off disappears from Home.
   it("leaves out a module that is switched off", () => {
     const names = modulesSwitchedOn(new Set(["pets", "wine"])).map((module) => module.name);
-    expect(names).toEqual(["Finances", "Calendar", "Meal Plans", "Health"]);
+    expect(names).toEqual(["Finances", "Calendar", "Meal Plans", "Health", "Paperwork"]);
   });
 
   // The admin console's module switches come in a later milestone.

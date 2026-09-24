@@ -104,7 +104,7 @@ describe("the pinned action", () => {
 });
 
 describe("the module switcher", () => {
-  it("lists all six modules, opening only Finances, the one you're in", () => {
+  it("lists all seven modules, opening Finances, the one you're in, and Paperwork", () => {
     render(<ModuleBar module={finances} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Other modules" }));
     const sheet = openSheet();
@@ -115,9 +115,10 @@ describe("the module switcher", () => {
       "WineComing soon",
       "Meal PlansComing soon",
       "HealthComing soon",
+      "Paperwork",
     ]);
     const links = within(sheet).getAllByRole("link");
-    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/finances"]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/finances", "/paperwork"]);
     expect(links[0].getAttribute("aria-current")).toBe("page");
   });
 });

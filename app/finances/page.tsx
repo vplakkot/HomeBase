@@ -28,7 +28,7 @@ import { closeMonthWithBalance } from "./actions";
 import { marchReview } from "../../lib/finances/recalibrate";
 import { acknowledge } from "../../lib/finances/snapshot";
 import { FinancesFrame, financesViewer } from "./frame";
-import { Hint } from "./hint";
+import { Hint } from "../../components/hint";
 import styles from "./page.module.css";
 
 // The Finances module's home: the current month (docs/design/DESIGN.md §7).

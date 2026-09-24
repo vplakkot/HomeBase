@@ -856,6 +856,38 @@ origin of `notify_url` and calls `/api/notifications/finances` there.
 skips anyone whose notifications switch is off, and logs each device
 under the trigger `finances`. See [lesson 23](lessons/23-to-dos-that-clear-themselves.md).
 
+## Paperwork
+
+The second module to open (REQ-88, REQ-97), slate and last on Home. It
+records the household's physical files and the paperwork in them, so
+anything can be found without searching the cupboards.
+
+| Table | One row is | Key facts |
+|---|---|---|
+| `paperwork_categories` | a category the admin made | `name` unique ignoring case, `keep_years` optional (1–100); only `manage_paperwork` (Admin) adds, changes or removes; one in use can't be removed (`on delete restrict`) |
+| `paperwork_files` | a physical file with a printed label | `number` handed out by the database (`generated always as identity`): it counts up, can't be chosen or changed, and a removed file's number never returns; shown as `F-0042`; `category_id`, `location`, `label` optional, `status` active/archived (archiving is REQ-98) |
+| `paperwork` | one paper | `name`, `owner_id` (null = Joint), `document_date`, `notes`, `keep_until`, `logged_on` (household's today); `file_id` null = Unfiled; removing a file sets its papers back to Unfiled |
+
+Every member reads everything and logs, files, moves and removes files
+and paperwork. [`lib/paperwork/paperwork.ts`](../lib/paperwork/paperwork.ts)
+reads it all in one go (the household is small) and works out the
+files list, search and keep-until (document date, or the logged date,
+plus the category's years). Pages live under `/paperwork`: Files (the
+module's home, with search and New file), a file's page (label to
+print, its papers, change or remove), Unfiled, Log paperwork (pinned),
+a paper's page and Categories (admin only).
+
+Home's "N unfiled paperwork" is an action item from
+[`lib/paperwork/action-items.ts`](../lib/paperwork/action-items.ts),
+ranked after every Finances item. Like Finances' items it clears itself:
+filing the last paper is the "done". It sends no push.
+
+Module pages now share [`components/module-frame.tsx`](../components/module-frame.tsx)
+(header, section tabs, phone bar) and
+[`components/cards.module.css`](../components/cards.module.css) (the
+cards first drawn for Budget year), so a module looks like itself by
+setting its colour tokens, not by copying Finances.
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
@@ -868,6 +900,8 @@ These are deliberately absent at this stage, not overlooked:
   colours.
 - **Three-paycheck months** — REQ-93's item waits on REQ-62, now in
   Draft.
+- **Archiving a file to a storage box** — REQ-98 waits on the Storage
+  box requirements, not written yet. Files already carry a status.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.

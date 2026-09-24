@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Paperwork, a new module (slate, last on Home). Log paperwork as it
+  arrives: name, whose it is (or Joint), document date, notes and
+  keep-until. Left without a file it's Unfiled, and Home shows "N
+  unfiled paperwork" until someone files it. Filing picks an existing
+  file or makes a new one; a new file gets the next ID (F-0001,
+  F-0002…), which never changes or comes back, and its page shows
+  "F-0042 · Taxes" to type into the label printer. Keep-until fills in
+  from the file's category. The files list shows each file's ID,
+  category, label name, last stored location and how many papers it
+  holds; search finds files by ID, label or category and paperwork by
+  name. The admin manages categories; one in use asks where its files
+  go before it's removed. (#168)
+
 - Monthly entry. Anyone in the household opens the month, which copies
   in the bill list, then enters each bill's amount. A card statement
   can't be saved until someone answers whether personal charges are

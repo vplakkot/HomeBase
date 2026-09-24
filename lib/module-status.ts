@@ -94,6 +94,16 @@ const DEMO: Record<string, ModuleStatus> = {
     ],
     actionItems: [{ text: "Prescription ready", detail: "Pick up by Tuesday", rank: 3 }],
   },
+  // Not in the v0.2 mockups; added with the module in v1.0, calm.
+  paperwork: {
+    status: "All filed",
+    headline: "Everything is filed",
+    facts: [
+      { label: "Files", value: "42" },
+      { label: "Newest", value: "F-0042 · Taxes" },
+    ],
+    actionItems: [],
+  },
 };
 
 // How much of the example Home shows: null normally, or with ?demo how

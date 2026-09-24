@@ -22,11 +22,11 @@ import {
 import { annualIncome, budgetYearBefore, marchReview } from "../../../lib/finances/recalibrate";
 import { CADENCES, listIncomeSources, payDates } from "../../../lib/finances/income";
 import { formatMoney } from "../../../lib/finances/money";
-import { Hint } from "../hint";
+import { Hint } from "../../../components/hint";
 import { FinancesFrame, financesViewer } from "../frame";
 import { removeBill, removeIncomeSource, removeSplit } from "./actions";
 import { BillForm, IncomeForm, SplitForm } from "./forms";
-import styles from "./page.module.css";
+import styles from "../../../components/cards.module.css";
 
 const SECTION = "Budget year";
 
