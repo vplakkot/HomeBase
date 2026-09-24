@@ -13,9 +13,9 @@ import {
 } from "../../../lib/finances/month";
 import { formatMoney } from "../../../lib/finances/money";
 import { nothingToSaveReasons, savingsPlan } from "../../../lib/finances/savings";
-import styles from "../budget-year/page.module.css";
+import styles from "../../../components/cards.module.css";
 import { FinancesFrame, financesViewer } from "../frame";
-import { Hint } from "../hint";
+import { Hint } from "../../../components/hint";
 import { removeSavings } from "./actions";
 import { SavingsForm } from "./forms";
 import local from "./page.module.css";

@@ -20,11 +20,13 @@ export function fakeSupabase({ signedIn = true, permissions = [], people = [], t
   });
   const from = vi.fn((table: string) => {
     const rows = tables[table] ?? [];
-    const result = { data: rows, error: null };
+    // count answers a select asked for { count: "exact" }.
+    const result = { data: rows, count: rows.length, error: null };
     const query: Record<string, unknown> = {
       then: (resolve: (value: typeof result) => unknown, reject: (reason: unknown) => unknown) =>
         Promise.resolve(result).then(resolve, reject),
       maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
+      single: async () => ({ data: rows[0] ?? null, error: null }),
     };
     for (const method of ["select", "eq", "in", "is", "gte", "order", "insert", "update", "upsert", "delete"]) {
       query[method] = vi.fn(() => query);

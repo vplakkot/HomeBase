@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import type { Person } from "../../../lib/finances/budget-year";
 import { INCOME_KINDS, type ExpectedPaycheck } from "../../../lib/finances/leftover";
-import styles from "../budget-year/page.module.css";
+import styles from "../../../components/cards.module.css";
 import { logIncome, type FormState } from "./actions";
 
 const initialState: FormState = {};

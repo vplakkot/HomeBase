@@ -1,7 +1,8 @@
-/* The Budget year section. Every card is the same three parts — a tinted
-   head, the form for adding, then what's saved as rounded boxes — and
-   they take the module's own colours, the ones Home's tiles use
-   (docs/design/DESIGN.md §3), so Finances looks like Finances. */
+/* The cards every module page is made of, first drawn for Finances'
+   Budget year. Every card is the same three parts — a tinted head, the
+   form for adding, then what's saved as rounded boxes — and they take the
+   module's own colours, the ones Home's tiles use (docs/design/DESIGN.md
+   §3), so Finances looks like Finances and Paperwork like Paperwork. */
 .cards {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -270,6 +271,13 @@ legend .info::after {
 
 .quiet:hover {
   opacity: 1;
+}
+
+/* On the quiet tint of an add block, a quiet button or a hint takes the
+   tint's ink; white would vanish. */
+.addBlock .quiet,
+.addBlock .info {
+  color: var(--module-quiet-ink);
 }
 
 /* A form opened inside a loud tile: its own labels and messages are on

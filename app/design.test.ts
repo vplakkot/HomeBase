@@ -62,8 +62,8 @@ describe("the contrast measure these tests rely on", () => {
 });
 
 describe("module colours", () => {
-  it("covers the six modules in DESIGN.md", () => {
-    expect(modules).toEqual(["finances", "calendar", "pets", "wine", "meals", "health"]);
+  it("covers the seven modules in DESIGN.md", () => {
+    expect(modules).toEqual(["finances", "calendar", "pets", "wine", "meals", "health", "paperwork"]);
   });
 
   it("gives every module a loud set and a quiet set", () => {

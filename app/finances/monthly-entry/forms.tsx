@@ -3,8 +3,8 @@
 import { useActionState } from "react";
 import type { Person } from "../../../lib/finances/budget-year";
 import type { MonthBill } from "../../../lib/finances/month";
-import styles from "../budget-year/page.module.css";
-import { Hint } from "../hint";
+import styles from "../../../components/cards.module.css";
+import { Hint } from "../../../components/hint";
 import { addDirectPayment, addPersonalCharge, enterBill, type FormState } from "./actions";
 
 const initialState: FormState = {};

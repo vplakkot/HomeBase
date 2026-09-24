@@ -55,6 +55,10 @@
   --health-quiet: #E3F2EA;    --health-quiet-line: #B8DDC8;
   --health-quiet-ink: #196640; --health-quiet-title: #0B3320;
 
+  --paperwork-loud: #4A5568;  --paperwork-on-loud: #FFFFFF;
+  --paperwork-quiet: #EDF0F4; --paperwork-quiet-line: #CBD2DC;
+  --paperwork-quiet-ink: #3F4A5C; --paperwork-quiet-title: #1A202C;
+
   /* Status (reuse module-neutral meanings) */
   --color-success: #196640;   --color-success-bg: #E3F2EA;
   /* Border and title of the "All clear" row, as its mockup draws them */

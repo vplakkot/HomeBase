@@ -1,0 +1,33 @@
+/* A saved file or paper is a loud tile that opens its own page; the
+   link is the whole tile, so it's easy to hit on a phone. */
+.tileLink {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: var(--tap-target-min);
+  color: inherit;
+  text-decoration: none;
+}
+
+.tileLink:hover .title,
+.tileLink:focus-visible .title {
+  text-decoration: underline;
+}
+
+.title {
+  font-size: var(--text-body-lg);
+  font-weight: 700;
+}
+
+/* What goes on the printer's label, big enough to copy from. */
+.label {
+  margin: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--module-loud);
+  color: var(--module-on-loud);
+  font-family: var(--font-display);
+  font-size: var(--text-display-md);
+  font-weight: 800;
+  text-align: center;
+}

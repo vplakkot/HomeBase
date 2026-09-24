@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import type { Person } from "../../../lib/finances/budget-year";
 import { formatMoney } from "../../../lib/finances/money";
-import styles from "../budget-year/page.module.css";
+import styles from "../../../components/cards.module.css";
 import { savePayment, type FormState } from "./actions";
 import own from "./page.module.css";
 

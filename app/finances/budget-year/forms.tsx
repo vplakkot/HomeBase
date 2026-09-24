@@ -5,7 +5,7 @@ import { BILL_KINDS, ordinal, type Bill } from "../../../lib/finances/bills";
 import { formatPercent, monthLabel, parsePercent, type Person } from "../../../lib/finances/budget-year";
 import { CADENCES, type IncomeSource } from "../../../lib/finances/income";
 import { saveBill, saveIncomeSource, saveSplit, type FormState } from "./actions";
-import styles from "./page.module.css";
+import styles from "../../../components/cards.module.css";
 
 const initialState: FormState = {};
 const DAYS = Array.from({ length: 31 }, (_, index) => index + 1);

@@ -190,4 +190,9 @@ export const MODULE_ICONS: Record<string, (props: IconProps) => ReactNode> = {
       <path d="M3 12h4l2-5 4 10 2-5h6" />
     </Icon>
   ),
+  paperwork: ({ size = 18 }) => (
+    <Icon size={size}>
+      <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+    </Icon>
+  ),
 };

@@ -5,6 +5,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { FinanceSnapshot } from "../lib/finances/action-items";
 import { readFinanceSnapshot } from "../lib/finances/snapshot";
 import { DEVICE_COOKIE } from "../lib/notifications/device";
+import { countUnfiled } from "../lib/paperwork/paperwork";
 import { createClient } from "../lib/supabase/server";
 import { installDialogStandIn } from "../test/dialog";
 import tileStyles from "../components/module-tile.module.css";
@@ -15,6 +16,7 @@ beforeAll(installDialogStandIn);
 vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
 vi.mock("../lib/finances/snapshot", () => ({ readFinanceSnapshot: vi.fn() }));
+vi.mock("../lib/paperwork/paperwork", () => ({ countUnfiled: vi.fn(async () => 0) }));
 
 // Finances before setup: no split, no bills, nothing to do.
 const NOT_SET_UP: FinanceSnapshot = {
@@ -160,8 +162,9 @@ describe("HomePage", () => {
     expect(section.textContent).toContain("No action items today");
   });
 
-  // A decision of 2026-09-21: all six show, only Finances opens.
-  it("shows a tile for all six modules, only Finances a link", async () => {
+  // A decision of 2026-09-21: all six show, only Finances opens. v1.0
+  // adds Paperwork, last (Vin, 2026-09-24), and it opens too.
+  it("shows a tile for all seven modules, Finances and Paperwork links", async () => {
     given({ email: "member@example.com" });
     render(await home());
     expect(tiles().map((tile) => tile.name)).toEqual([
@@ -171,20 +174,24 @@ describe("HomePage", () => {
       "Wine",
       "Meal Plans",
       "Health",
+      "Paperwork",
     ]);
     const modules = screen.getByRole("region", { name: "Modules" });
     expect(within(modules).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/finances",
+      "/paperwork",
     ]);
   });
 
   // REQ-82, and a decision of 2026-09-21: until modules have data, Home
   // shows no invented state unless ?demo asks for it.
-  it("keeps every tile quiet: Finances says it isn't set up, the rest Coming soon", async () => {
+  it("keeps every tile quiet: Finances says it isn't set up, Paperwork all filed, the rest Coming soon", async () => {
     given({ email: "member@example.com" });
     render(await home());
     const [money, ...others] = tiles();
+    const paperwork = others.pop();
     expect(money).toMatchObject({ status: "Not set up", loud: false });
+    expect(paperwork).toMatchObject({ name: "Paperwork", status: "All filed", loud: false });
     for (const tile of others) {
       expect(tile, tile.name!).toMatchObject({ status: "Coming soon", loud: false });
     }
@@ -206,6 +213,19 @@ describe("HomePage", () => {
     expect(tiles()[0]).toMatchObject({ status: "Enter September's numbers", loud: true });
   });
 
+  // REQ-97: unfiled paperwork is an action item on the same card, and
+  // tapping it opens the unfiled list.
+  it("shows unfiled paperwork as an item that opens the unfiled list, with the tile loud", async () => {
+    given({ email: "member@example.com" });
+    vi.mocked(countUnfiled).mockResolvedValueOnce(3);
+    render(await home());
+    const section = screen.getByRole("region", { name: "Action items" });
+    const link = within(section).getByRole("link");
+    expect(link.textContent).toContain("3 unfiled paperwork");
+    expect(link.getAttribute("href")).toBe("/paperwork/unfiled");
+    expect(tiles().at(-1)).toMatchObject({ name: "Paperwork", status: "3 unfiled paperwork", loud: true });
+  });
+
   it("with ?demo, shows the design's example, loud and quiet tiles side by side", async () => {
     given({ email: "member@example.com" });
     render(await home({ demo: "" }));
@@ -216,6 +236,7 @@ describe("HomePage", () => {
       { name: "Wine", status: "9 bottles", loud: false },
       { name: "Meal Plans", status: "Tacos tonight", loud: false },
       { name: "Health", status: "Refill ready", loud: true },
+      { name: "Paperwork", status: "All filed", loud: false },
     ]);
   });
 

@@ -124,7 +124,7 @@ describe("Monthly entry in an opened month", () => {
 
   // The hint icon is white on brick; on a pale tile it takes the tile's ink.
   it("keeps the hint icon visible on a pale tile", () => {
-    const css = readFileSync(join(REPO_ROOT, "app/finances/budget-year/page.module.css"), "utf-8");
+    const css = readFileSync(join(REPO_ROOT, "components/cards.module.css"), "utf-8");
     expect(css).toMatch(/\.todo \.info \{\s*color: var\(--module-quiet-ink\);/);
   });
 
