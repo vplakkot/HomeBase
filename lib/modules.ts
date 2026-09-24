@@ -57,7 +57,7 @@ export const MODULES: readonly Module[] = [
         description: "Verdict and what you actually saved",
         href: "/finances/savings",
       },
-      { name: "Balances", description: "Enter and see trends" },
+      { name: "Balances", description: "Enter and see trends", href: "/finances/balances" },
       { name: "History", description: "Closed months, read-only" },
       {
         name: "Budget year",

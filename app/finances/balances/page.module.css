@@ -1,0 +1,86 @@
+/* One person's boxes, without the browser's fieldset frame. */
+.person {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Each account under a month of the trend. */
+.accounts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.accounts summary {
+  min-height: var(--tap-target-min);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+/* The balance chart is for desktop only (DESIGN.md §1, §10). */
+.chart {
+  display: none;
+  margin: 0;
+  padding: var(--space-3) var(--space-4) 0;
+}
+
+@media (min-width: 1024px) {
+  .chart {
+    display: block;
+  }
+}
+
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.axis {
+  stroke: var(--color-line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.line {
+  fill: none;
+  stroke: var(--module-loud);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.dot {
+  fill: var(--module-loud);
+  stroke: var(--color-surface);
+  stroke-width: 2;
+}
+
+.hit {
+  fill: transparent;
+}
+
+.point:hover .dot {
+  r: 6;
+}
+
+.ends {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+.caption {
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
