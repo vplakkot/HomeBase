@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { entryId, type StorageEntry } from "../storage/storage";
 
 // Paperwork (REQ-88, REQ-97): categories, the household's physical files,
 // and the paperwork logged into them. A paper with no file is Unfiled.
@@ -12,6 +13,8 @@ export type PaperFile = {
   location: string;
   label: string | null;
   status: "active" | "archived";
+  // The storage box an archived file is in (REQ-98); null while active.
+  storage_entry_id: string | null;
 };
 
 export type Paper = {
@@ -45,6 +48,19 @@ export function keepUntil(documentDate: string | null, loggedOn: string, years: 
   // 29 February lands on 28 February in a year that has none.
   const lastDay = new Date(Date.UTC(year + years, month, 0)).getUTCDate();
   return `${year + years}-${String(month).padStart(2, "0")}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
+}
+
+// Where a file is (REQ-98): its office location while active, or the box
+// it's archived in.
+export function whereItIs(
+  file: Pick<PaperFile, "status" | "location" | "storage_entry_id">,
+  storage: readonly StorageEntry[],
+): string {
+  if (file.status === "archived") {
+    const box = storage.find((entry) => entry.id === file.storage_entry_id);
+    return `Archived in ${box ? `${entryId(box)} · ${box.name}` : "a storage box"}`;
+  }
+  return `Last stored location: ${file.location}`;
 }
 
 export function ownerName(paper: Pick<Paper, "owner_id">, people: { user_id: string; name: string }[]): string {
@@ -103,7 +119,7 @@ export async function readPaperwork(
 ): Promise<{ categories: Category[]; files: PaperFile[]; papers: Paper[] }> {
   const [categories, files, papers] = await Promise.all([
     supabase.from("paperwork_categories").select("id, name, keep_years").order("name"),
-    supabase.from("paperwork_files").select("id, number, category_id, location, label, status").order("number"),
+    supabase.from("paperwork_files").select("id, number, category_id, location, label, status, storage_entry_id").order("number"),
     supabase
       .from("paperwork")
       .select("id, name, owner_id, document_date, notes, keep_until, file_id, logged_on")

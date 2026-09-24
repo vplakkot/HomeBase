@@ -593,3 +593,33 @@ describe("Finances setup migration (REQ-50, 51, 94)", () => {
     expect(setup).toMatch(/grant execute on function public\.household_people\(\) to authenticated;/);
   });
 });
+
+describe("storage migration (REQ-87, REQ-98)", () => {
+  const storage = readMigration("20260924200000");
+
+  it("hands out entry numbers in the database, never chosen or changed", () => {
+    expect(storage).toMatch(/number bigint generated always as identity unique/);
+  });
+
+  it("keeps contents for boxes only", () => {
+    expect(storage).toMatch(/contents text check \(is_box or contents is null\)/);
+  });
+
+  it("lets members, and only members, see and change entries", () => {
+    expect(storage).toMatch(/enable row level security/);
+    expect(storage).toMatch(/revoke all on public\.storage_entries from anon/);
+    for (const action of ["select", "insert", "update", "delete"]) {
+      expect(storage).toMatch(new RegExp(`on public\\.storage_entries for ${action} to authenticated`));
+    }
+  });
+
+  it("ties archived to being in a box, and keeps a box holding files from being removed", () => {
+    expect(storage).toMatch(/references public\.storage_entries \(id\) on delete restrict/);
+    expect(storage).toMatch(/check \(\(status = 'archived'\) = \(storage_entry_id is not null\)\)/);
+  });
+
+  it("refuses a file outside a box, and un-boxing a box that holds files", () => {
+    expect(storage).toMatch(/before insert or update of storage_entry_id on public\.paperwork_files/);
+    expect(storage).toMatch(/before update of is_box on public\.storage_entries/);
+  });
+});

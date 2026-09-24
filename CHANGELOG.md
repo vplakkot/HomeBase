@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Storage, a new module (teal, last on Home). Log everything in the
+  basement, boxes and loose items alike. Each entry gets an ID (S-001,
+  S-002…) that never changes, shown big for the label printer. A box
+  lists its contents one per line; search finds an entry by ID, name,
+  contents or note, so "ski boots" finds their box. Removing an entry
+  asks first.
+- Paperwork files can be archived into a Storage box, and brought back
+  to a new place in the office. An archived file shows its box; the box
+  lists the files in it; the files list hides archived files until you
+  ask. A box holding files can't be removed or stop being a box until
+  they move.
+
 - The whole app's page background is bright white, and Finances home's
   cards are charcoal, like Home's action items, instead of the pale
   brick. The savings

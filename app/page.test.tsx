@@ -17,6 +17,10 @@ vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
 vi.mock("../lib/finances/snapshot", () => ({ readFinanceSnapshot: vi.fn() }));
 vi.mock("../lib/paperwork/paperwork", () => ({ countUnfiled: vi.fn(async () => 0) }));
+vi.mock("../lib/storage/storage", async (original) => ({
+  ...(await original<typeof import("../lib/storage/storage")>()),
+  countEntries: vi.fn(async () => 0),
+}));
 
 // Finances before setup: no split, no bills, nothing to do.
 const NOT_SET_UP: FinanceSnapshot = {
@@ -163,8 +167,9 @@ describe("HomePage", () => {
   });
 
   // A decision of 2026-09-21: all six show, only Finances opens. v1.0
-  // adds Paperwork, last (Vin, 2026-09-24), and it opens too.
-  it("shows a tile for all seven modules, Finances and Paperwork links", async () => {
+  // adds Paperwork and then Storage, last (Vin, 2026-09-24), and they
+  // open too.
+  it("shows a tile for all eight modules, Finances, Paperwork and Storage links", async () => {
     given({ email: "member@example.com" });
     render(await home());
     expect(tiles().map((tile) => tile.name)).toEqual([
@@ -175,23 +180,27 @@ describe("HomePage", () => {
       "Meal Plans",
       "Health",
       "Paperwork",
+      "Storage",
     ]);
     const modules = screen.getByRole("region", { name: "Modules" });
     expect(within(modules).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/finances",
       "/paperwork",
+      "/storage",
     ]);
   });
 
   // REQ-82, and a decision of 2026-09-21: until modules have data, Home
   // shows no invented state unless ?demo asks for it.
-  it("keeps every tile quiet: Finances says it isn't set up, Paperwork all filed, the rest Coming soon", async () => {
+  it("keeps every tile quiet: Finances not set up, Paperwork all filed, Storage empty, the rest Coming soon", async () => {
     given({ email: "member@example.com" });
     render(await home());
     const [money, ...others] = tiles();
+    const storage = others.pop();
     const paperwork = others.pop();
     expect(money).toMatchObject({ status: "Not set up", loud: false });
     expect(paperwork).toMatchObject({ name: "Paperwork", status: "All filed", loud: false });
+    expect(storage).toMatchObject({ name: "Storage", status: "Nothing logged yet", loud: false });
     for (const tile of others) {
       expect(tile, tile.name!).toMatchObject({ status: "Coming soon", loud: false });
     }
@@ -223,7 +232,7 @@ describe("HomePage", () => {
     const link = within(section).getByRole("link");
     expect(link.textContent).toContain("3 unfiled paperwork");
     expect(link.getAttribute("href")).toBe("/paperwork/unfiled");
-    expect(tiles().at(-1)).toMatchObject({ name: "Paperwork", status: "3 unfiled paperwork", loud: true });
+    expect(tiles().at(-2)).toMatchObject({ name: "Paperwork", status: "3 unfiled paperwork", loud: true });
   });
 
   it("with ?demo, shows the design's example, loud and quiet tiles side by side", async () => {
@@ -237,6 +246,7 @@ describe("HomePage", () => {
       { name: "Meal Plans", status: "Tacos tonight", loud: false },
       { name: "Health", status: "Refill ready", loud: true },
       { name: "Paperwork", status: "All filed", loud: false },
+      { name: "Storage", status: "24 entries", loud: false },
     ]);
   });
 

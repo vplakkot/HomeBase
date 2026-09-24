@@ -1,23 +1,34 @@
 import Link from "next/link";
 import styles from "../../components/cards.module.css";
 import { Hint } from "../../components/hint";
-import { fileRows, labelText, ownerName, search } from "../../lib/paperwork/paperwork";
+import { fileRows, labelText, ownerName, search, whereItIs } from "../../lib/paperwork/paperwork";
 import { NewFileForm } from "./forms";
 import { PaperworkFrame, paperworkViewer } from "./frame";
-import local from "./page.module.css";
+import local from "../../components/tiles.module.css";
 
 // Paperwork's home: every file (REQ-88), found by ID, label name or
-// category, and paperwork found by name. Any member sees them all.
+// category, and paperwork found by name. Archived files show only when
+// asked for (REQ-98). Any member sees them all.
 export default async function PaperworkPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; archived?: string }>;
 }) {
-  const { canManageMembers, canManagePaperwork, account, people, categories, files, papers } =
+  const { canManageMembers, canManagePaperwork, account, people, categories, files, papers, storage } =
     await paperworkViewer();
-  const { q = "", category = "" } = await searchParams;
+  const { q = "", category = "", archived = "" } = await searchParams;
   const categoryId = categories.some((row) => row.id === category) ? category : null;
-  const found = search(fileRows(files, categories, papers), papers, q, categoryId);
+  // REQ-98: archived files are hidden unless asked for.
+  const showArchived = archived === "1";
+  const archivedCount = files.filter((file) => file.status === "archived").length;
+  const shown = showArchived ? files : files.filter((file) => file.status !== "archived");
+  const found = search(fileRows(shown, categories, papers), papers, q, categoryId);
+  const toggle = new URLSearchParams({
+    ...(q ? { q } : {}),
+    ...(categoryId ? { category: categoryId } : {}),
+    ...(showArchived ? {} : { archived: "1" }),
+  }).toString();
+  const toggleArchived = toggle ? `/paperwork?${toggle}` : "/paperwork";
   const searching = q.trim() !== "" || categoryId !== null;
   const fileOf = (id: string | null) => files.find((file) => file.id === id);
 
@@ -51,9 +62,15 @@ export default async function PaperworkPage({
               <button type="submit" className={styles.primary}>
                 Search
               </button>
+              {showArchived ? <input type="hidden" name="archived" value="1" /> : null}
               {searching ? (
-                <Link href="/paperwork" className={styles.quiet}>
+                <Link href={showArchived ? "/paperwork?archived=1" : "/paperwork"} className={styles.quiet}>
                   Show everything
+                </Link>
+              ) : null}
+              {archivedCount > 0 ? (
+                <Link href={toggleArchived} className={styles.quiet}>
+                  {showArchived ? "Hide archived files" : `Show archived files (${archivedCount})`}
                 </Link>
               ) : null}
             </form>
@@ -71,7 +88,7 @@ export default async function PaperworkPage({
                         <span className={styles.chip}>{count === 1 ? "1 paper" : `${count} papers`}</span>
                       </span>
                       {file.label ? <span className={styles.detail}>{file.label}</span> : null}
-                      <span className={styles.detail}>Last stored location: {file.location}</span>
+                      <span className={styles.detail}>{whereItIs(file, storage)}</span>
                     </Link>
                   </li>
                 ))}

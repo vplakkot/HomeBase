@@ -64,8 +64,8 @@ async function placesOn(page: () => Promise<React.ReactElement>) {
 const Home = () => HomePage({ searchParams: Promise.resolve({}) });
 
 describe.each([
-  ["an admin", ["use_modules", "manage_members"], ["/", "/admin", "/finances", "/paperwork"]],
-  ["a member", ["use_modules"], ["/", "/finances", "/paperwork"]],
+  ["an admin", ["use_modules", "manage_members"], ["/", "/admin", "/finances", "/paperwork", "/storage"]],
+  ["a member", ["use_modules"], ["/", "/finances", "/paperwork", "/storage"]],
 ])("for %s", (_who, permissions, expected) => {
   it("a phone reaches everywhere the desktop sidebar does", async () => {
     signedInWith(permissions);

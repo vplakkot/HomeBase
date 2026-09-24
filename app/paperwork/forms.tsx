@@ -4,8 +4,11 @@ import { useActionState, useEffect, useState } from "react";
 import styles from "../../components/cards.module.css";
 import type { Person } from "../../lib/finances/budget-year";
 import { keepUntil, labelText, type Category, type Paper, type PaperFile } from "../../lib/paperwork/paperwork";
+import { entryId, type StorageEntry } from "../../lib/storage/storage";
 import {
   addCategory,
+  archiveFile,
+  bringBackFile,
   filePaper,
   logPaper,
   makeFile,
@@ -358,6 +361,52 @@ export function RemoveCategoryForm({
         {inUse > 0 ? `Move the files and remove ${category.name}` : `Remove ${category.name}`}
       </button>
       <Outcome state={state} saved="Removed." />
+    </form>
+  );
+}
+
+// REQ-98: archive the whole file into a storage box. Only boxes are
+// offered.
+export function ArchiveFileForm({ file, boxes }: { file: PaperFile; boxes: StorageEntry[] }) {
+  const [state, formAction, pending] = useActionState(archiveFile, initialState);
+  return (
+    <form action={formAction} className={styles.form}>
+      <input type="hidden" name="id" value={file.id} />
+      <label className={styles.field}>
+        <span>Box</span>
+        <select name="boxId" required defaultValue="">
+          <option value="" disabled>
+            Choose a box
+          </option>
+          {boxes.map((box) => (
+            <option key={box.id} value={box.id}>
+              {entryId(box)} · {box.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="submit" className={styles.primary} disabled={pending || boxes.length === 0}>
+        {pending ? "Archiving…" : "Archive the file"}
+      </button>
+      <Outcome state={state} saved="Archived." />
+    </form>
+  );
+}
+
+// REQ-98: bring an archived file back to the office, somewhere new.
+export function BringBackForm({ file }: { file: PaperFile }) {
+  const [state, formAction, pending] = useActionState(bringBackFile, initialState);
+  return (
+    <form action={formAction} className={styles.form}>
+      <input type="hidden" name="id" value={file.id} />
+      <label className={styles.field}>
+        <span>New location</span>
+        <input name="location" required placeholder="Where the file is kept now" />
+      </label>
+      <button type="submit" className={styles.primary} disabled={pending}>
+        {pending ? "Saving…" : "Bring it back"}
+      </button>
+      <Outcome state={state} saved="Back in the office." />
     </form>
   );
 }

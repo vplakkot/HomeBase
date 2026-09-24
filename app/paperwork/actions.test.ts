@@ -3,6 +3,8 @@ import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
 import {
   addCategory,
+  archiveFile,
+  bringBackFile,
   filePaper,
   logPaper,
   makeFile,
@@ -243,5 +245,40 @@ describe("categories (REQ-88)", () => {
     given(["use_modules", "manage_paperwork"], { paperwork_files: [] });
     expect(await removeCategory({}, form({ id: CAR }))).toEqual({ saved: true });
     expect(on("paperwork_categories")[0].delete).toHaveBeenCalled();
+  });
+});
+
+describe("archiving a file to storage (REQ-98)", () => {
+  const BOX = "77777777-7777-4777-8777-777777777777";
+
+  it("archives the whole file into the chosen box", async () => {
+    given();
+    expect(await archiveFile({}, form({ id: FILE, boxId: BOX }))).toEqual({ saved: true });
+    const [update] = on("paperwork_files");
+    expect(update.update).toHaveBeenCalledWith({ status: "archived", storage_entry_id: BOX });
+    expect(update.eq).toHaveBeenCalledWith("id", FILE);
+  });
+
+  it("needs a box", async () => {
+    given();
+    expect(await archiveFile({}, form({ id: FILE, boxId: "" }))).toEqual({ error: "Choose the box it goes in." });
+    expect(fake.from).not.toHaveBeenCalledWith("paperwork_files");
+  });
+
+  it("brings it back to a new office location, Active again", async () => {
+    given();
+    expect(await bringBackFile({}, form({ id: FILE, location: " Study drawer " }))).toEqual({ saved: true });
+    expect(on("paperwork_files")[0].update).toHaveBeenCalledWith({
+      status: "active",
+      storage_entry_id: null,
+      location: "Study drawer",
+    });
+  });
+
+  it("needs the new location to bring it back", async () => {
+    given();
+    expect(await bringBackFile({}, form({ id: FILE, location: "" }))).toEqual({
+      error: "Say where the file is kept now.",
+    });
   });
 });

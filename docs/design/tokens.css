@@ -59,6 +59,10 @@
   --paperwork-quiet: #EDF0F4; --paperwork-quiet-line: #CBD2DC;
   --paperwork-quiet-ink: #3F4A5C; --paperwork-quiet-title: #1A202C;
 
+  --storage-loud: #0F7C80;    --storage-on-loud: #FFFFFF;
+  --storage-quiet: #E2F3F3;   --storage-quiet-line: #B5DEDF;
+  --storage-quiet-ink: #0B6366; --storage-quiet-title: #062E30;
+
   /* Status (reuse module-neutral meanings) */
   --color-success: #196640;   --color-success-bg: #E3F2EA;
   /* Border and title of the "All clear" row, as its mockup draws them */

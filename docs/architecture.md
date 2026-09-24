@@ -865,7 +865,7 @@ anything can be found without searching the cupboards.
 | Table | One row is | Key facts |
 |---|---|---|
 | `paperwork_categories` | a category the admin made | `name` unique ignoring case, `keep_years` optional (1–100); only `manage_paperwork` (Admin) adds, changes or removes; one in use can't be removed (`on delete restrict`) |
-| `paperwork_files` | a physical file with a printed label | `number` handed out by the database (`generated always as identity`): it counts up, can't be chosen or changed, and a removed file's number never returns; shown as `F-0042`; `category_id`, `location`, `label` optional, `status` active/archived (archiving is REQ-98) |
+| `paperwork_files` | a physical file with a printed label | `number` handed out by the database (`generated always as identity`): it counts up, can't be chosen or changed, and a removed file's number never returns; shown as `F-0042`; `category_id`, `location` (the last office location), `label` optional, `status` active/archived; archived means `storage_entry_id` names the box it's in, and the database holds the two together (REQ-98) |
 | `paperwork` | one paper | `name`, `owner_id` (null = Joint), `document_date`, `notes`, `keep_until`, `logged_on` (household's today); `file_id` null = Unfiled; removing a file sets its papers back to Unfiled |
 
 Every member reads everything and logs, files, moves and removes files
@@ -888,6 +888,33 @@ Module pages now share [`components/module-frame.tsx`](../components/module-fram
 cards first drawn for Budget year), so a module looks like itself by
 setting its colour tokens, not by copying Finances.
 
+## Storage
+
+The third module to open (REQ-87), teal and last on Home. It logs
+everything in the basement, boxed or not, so anyone knows which box to
+open. Paperwork files can be archived into its boxes (REQ-98).
+
+| Table | One row is | Key facts |
+|---|---|---|
+| `storage_entries` | a box or a loose item | `number` handed out by the database like a file's, shown as `S-003`; `name`, `is_box`, `contents` (one item per line, boxes only: a check refuses contents on a loose item), `note`; every member reads, adds, changes and removes |
+
+Two rules span both modules, each a trigger on the table whose write
+would break it: a file can only be archived into a box
+(`refuse_file_outside_a_box` on `paperwork_files`), and a box holding
+archived files stays a box (`refuse_unboxing_with_files` on
+`storage_entries`). A box holding files can't be removed either
+(`on delete restrict`). The app checks the same things first, so people
+see "move them first" rather than a database error.
+
+[`lib/storage/storage.ts`](../lib/storage/storage.ts) reads the entries
+and does search (ID, name, contents, note) and the contents preview.
+Pages live under `/storage`: the list with search, Add an entry
+(pinned), and an entry's page (ID for the label, contents, archived
+files, change or remove after a confirm). Paperwork's file page archives
+a file or brings it back; its files list hides archived files until
+asked. Home's Storage tile only counts entries; it raises no action
+items.
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
@@ -900,8 +927,6 @@ These are deliberately absent at this stage, not overlooked:
   colours.
 - **Three-paycheck months** — REQ-93's item waits on REQ-62, now in
   Draft.
-- **Archiving a file to a storage box** — REQ-98 waits on the Storage
-  box requirements, not written yet. Files already carry a status.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.
