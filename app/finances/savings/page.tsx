@@ -119,9 +119,9 @@ export default async function SavingsPage({
                 </ul>
               ) : (
                 <>
-                  <p className={styles.entryName}>Nothing to save this month</p>
+                  <p className={styles.total}>Nothing to save this month</p>
                   {nothingToSaveReasons(plan, nameOf).map((reason) => (
-                    <p key={reason} className={styles.detail}>
+                    <p key={reason} className={styles.empty}>
                       {reason}
                     </p>
                   ))}
@@ -167,7 +167,7 @@ export default async function SavingsPage({
           </header>
           <div className={styles.entries}>
             {closed.length === 0 ? (
-              <p className={styles.detail}>No closed months yet.</p>
+              <p className={styles.empty}>No closed months yet.</p>
             ) : (
               <ul className={styles.list}>
                 {closed.map((row) => {

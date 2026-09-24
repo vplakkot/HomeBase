@@ -79,6 +79,12 @@
 - On the Savings page, "Log income" is a proper button like the other
   sections' empty cards, not a bare link. (#156)
 
+- Buttons that are links ("Log income", "Go to Monthly entry" on
+  Income, Log payment and Savings) now look like buttons: full width,
+  centred, no underline. On Savings, "No closed months yet" and the
+  reasons there's nothing to save were white on white; they now show.
+  (#158)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each
