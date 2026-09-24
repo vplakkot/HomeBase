@@ -264,6 +264,18 @@ describe("the Finances page", () => {
     );
   });
 
+  it("prompts the admin in March to review the split for April (REQ-69)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2027-03-10T16:00:00Z"));
+    given({ signedIn: true, permissions: ADMIN, split: SPLIT });
+    render(await FinancesPage());
+    vi.useRealTimers();
+    const admin = screen.getByRole("region", { name: "Admin" });
+    expect(within(admin).getByRole("link", { name: /^Budget year/ }).textContent).toBe(
+      "Budget yearReview the split for April 2027",
+    );
+  });
+
   // Vin, 2026-09-23: a phone has no tabs, so the header says where you are.
   it("names the section under the title, on a phone only", async () => {
     given({ signedIn: true, permissions: ADMIN, split: SPLIT });

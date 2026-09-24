@@ -38,14 +38,14 @@ const SPLIT = {
 // One that hasn't started yet, so it can still be changed.
 const LATER = { ...SPLIT, id: "s-2", effective_from: "2026-11-01" };
 
-async function renderAs(permissions: string[], tables: FakeData["tables"] = {}) {
+async function renderAs(permissions: string[], tables: FakeData["tables"] = {}, today = "2026-09-22T16:00:00Z") {
   vi.mocked(createClient).mockResolvedValue(
     fakeSupabase({ permissions, people: PEOPLE, tables }) as unknown as Awaited<
       ReturnType<typeof createClient>
     >,
   );
   vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date("2026-09-22T16:00:00Z"));
+  vi.setSystemTime(new Date(today));
   await act(async () => render(await BudgetYearPage()));
   vi.useRealTimers();
 }
@@ -68,6 +68,47 @@ describe("the Budget year section", () => {
     const css = readFileSync(join(REPO_ROOT, "app/finances/budget-year/page.module.css"), "utf-8");
     expect(css).toMatch(/\.info:hover::after,\s*\.info:focus-visible::after \{\s*display: block;/);
     expect(css).toMatch(/content: attr\(data-hint\)/);
+  });
+
+  describe("the March review (REQ-69)", () => {
+    const rent = (amount: string) => ({ id: `mb-${amount}`, name: "Rent", kind: "rent", due_day: 1, amount, personal_answer: null, personal_charges: [], payments: [] });
+    const month = (starts_on: string, amount: string, closed = false) => ({
+      id: `m-${starts_on}`,
+      starts_on,
+      bills: [rent(amount)],
+      direct_payments: [],
+      income: [],
+      savings: [],
+      closed_at: closed ? "2026-05-01T04:00:00Z" : null,
+      people: closed ? [{ user_id: "u-alex", percent: "60", outstanding: "0" }, { user_id: "u-sam", percent: "40", outstanding: "0" }] : [],
+    });
+    const INCOME = [
+      { id: "i-alex", name: "Paycheck", owner_id: "u-alex", net_amount: "3000.00", cadence: "biweekly", anchor_date: "2026-09-11", ended_on: null },
+      { id: "i-sam", name: "Salary", owner_id: "u-sam", net_amount: "4000.00", cadence: "monthly", anchor_date: "2026-09-18", ended_on: null },
+    ];
+
+    it("in March, shows annualised income, the year's spend, and a split form starting in April", async () => {
+      // The fake answers every months query with every row; the page reads one.
+      await renderAs(ADMIN, { splits: [SPLIT], income_sources: INCOME, months: [month("2026-04-01", "2000.00", true)] }, "2027-03-10T16:00:00Z");
+      const review = screen.getByRole("region", { name: "Split for April 2027" });
+      expect(review.textContent).toContain("Alex$78,000.00 a year · 61.9% of both");
+      expect(review.textContent).toContain("Sam$48,000.00 a year · 38.1% of both");
+      expect(review.textContent).toContain("Household spend this year$2,000.00 over 1 month");
+      // Starts in April, pre-filled with the split now in force. A split
+      // only ever applies from its own month, and closed months keep
+      // their own copy (month_people), so they're untouched.
+      const form = within(review).getByRole("combobox", { name: "Month the new split starts" }).closest("form")!;
+      expect(new FormData(form).get("effectiveFrom")).toBe("2027-04");
+      expect(within(review).getByRole("textbox", { name: /Alex/ })).toHaveProperty("value", "60");
+    });
+
+    it("isn't there outside March, or once April's split is saved", async () => {
+      await renderAs(ADMIN, { splits: [SPLIT] }, "2027-02-10T16:00:00Z");
+      expect(screen.queryByRole("region", { name: /^Split for/ })).toBeNull();
+      cleanup();
+      await renderAs(ADMIN, { splits: [SPLIT, { ...SPLIT, id: "s-apr", effective_from: "2027-04-01" }] }, "2027-03-10T16:00:00Z");
+      expect(screen.queryByRole("region", { name: /^Split for/ })).toBeNull();
+    });
   });
 
   it("is locked for a member: Admin only, no forms", async () => {

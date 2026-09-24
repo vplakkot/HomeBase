@@ -25,6 +25,7 @@ import {
 import { formatMoney } from "../../lib/finances/money";
 import { nothingToSaveReasons, savingsPlan } from "../../lib/finances/savings";
 import { closeMonthWithBalance } from "./actions";
+import { marchReview } from "../../lib/finances/recalibrate";
 import { FinancesFrame, financesViewer } from "./frame";
 import { Hint } from "./hint";
 import styles from "./page.module.css";
@@ -58,6 +59,8 @@ export default async function FinancesPage({
   ]);
   const asked = (await searchParams)?.month;
   const split = splitInForce(splits, todayIso);
+  // REQ-69: in March the admin is prompted to review April's split.
+  const reviewFor = marchReview(todayIso, splits);
   const startsOn = chosenMonth(asked, opened, todayIso);
   const picker = { current: startsOn, options: pickableMonths(opened, todayIso) };
 
@@ -416,7 +419,9 @@ export default async function FinancesPage({
               <span className={styles.rowText}>
                 <span className={styles.billName}>Budget year</span>
                 <span className={styles.cardNote}>
-                  From {monthLabel(split.effective_from)} · {sharesLine}
+                  {reviewFor
+                    ? `Review the split for ${monthLabel(reviewFor)}`
+                    : `From ${monthLabel(split.effective_from)} · ${sharesLine}`}
                 </span>
               </span>
               <ChevronRightIcon />
