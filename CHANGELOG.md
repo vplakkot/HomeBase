@@ -3,7 +3,8 @@
 ## Unreleased
 
 - The whole app's page background is bright white, and Finances home's
-  cards are white with a border instead of the pale brick. The savings
+  cards are charcoal, like Home's action items, instead of the pale
+  brick. The savings
   card has a third state, "Take from savings", naming how much each
   person whose share is more than their income takes; no more minus
   signs. While a month runs, pay the Budget year expects counts until

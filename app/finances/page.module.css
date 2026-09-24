@@ -1,11 +1,12 @@
 /* Finances home's colour rules (Vin, 2026-09-24):
-   - the page is bright white and every card white with a border; no
-     pale tint;
+   - the page is bright white and every card is the dark panel
+     (charcoal, like Home's action items), with white and light grey
+     text;
    - solid brick means "needs you": a button, someone who still owes,
      money to move into or out of savings;
    - green means done: paid, paid up;
-   - text is dark for names and figures, grey for the rest, and white
-     only on a solid tile. */
+   - text on a card is white for names and figures, light grey for the
+     rest. */
 
 /* The status chip (DESIGN.md §7). "No budget year" is the neutral one. */
 .status {
@@ -58,14 +59,15 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--color-panel);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--color-panel);
+  color: var(--color-on-panel);
 }
 
 .cardNote {
   margin: 0;
-  color: var(--color-muted);
+  color: var(--color-on-panel-muted);
   font-size: var(--text-body-sm);
   font-weight: 500;
 }
@@ -92,7 +94,7 @@
 }
 
 .billRow + .billRow {
-  border-top: 1px solid var(--color-line-soft);
+  border-top: 1px solid var(--color-panel-layer-1);
 }
 
 .billName {
@@ -132,14 +134,15 @@
   gap: var(--space-3);
   min-height: var(--tap-target-min);
   padding: var(--space-3) var(--space-4);
-  color: var(--color-muted);
+  color: var(--color-on-panel-muted);
   text-decoration: none;
 }
 
 .entryRow {
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--color-panel);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--color-panel);
+  color: var(--color-on-panel);
 }
 
 .rowText {
@@ -147,7 +150,7 @@
   flex-grow: 1;
   flex-direction: column;
   gap: 2px;
-  color: var(--color-ink);
+  color: var(--color-on-panel);
 }
 
 /* Who owes what, then Bills: one column on a phone, side by side on a
@@ -231,9 +234,10 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: 0 var(--space-4);
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--color-panel);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--color-panel);
+  color: var(--color-on-panel);
 }
 
 .workings[open] {
@@ -265,7 +269,7 @@
 .sums dt:last-of-type,
 .sums dd:last-of-type {
   padding-top: var(--space-1);
-  border-top: 1px solid var(--color-line-soft);
+  border-top: 1px solid var(--color-panel-layer-1);
   font-weight: 700;
 }
 
@@ -274,7 +278,7 @@
   flex-shrink: 0;
   align-items: center;
   gap: var(--space-1);
-  color: var(--color-muted);
+  color: var(--color-on-panel-muted);
   font-size: var(--text-caption);
   font-weight: 700;
 }
@@ -301,9 +305,9 @@
 }
 
 .verdictQuiet {
-  border: 1px solid var(--color-line);
-  background: var(--color-surface);
-  color: var(--color-ink);
+  border: 1px solid var(--color-panel);
+  background: var(--color-panel);
+  color: var(--color-on-panel);
 }
 
 /* One person's figure in the verdict: name, then the amount. */
@@ -344,7 +348,7 @@
 }
 
 .closeRow + * {
-  border-top: 1px solid var(--color-line);
+  border-top: 1px solid var(--color-panel-layer-1);
 }
 
 .closeForm {
