@@ -358,6 +358,16 @@ legend .info::after {
   cursor: pointer;
 }
 
+/* A link that does a button's job, alone in the add block ("Log income",
+   "Go to Monthly entry"): laid out like the buttons in a form there. */
+.addBlock > a.primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: var(--space-3) var(--space-4) var(--space-4);
+  text-decoration: none;
+}
+
 .primary:disabled {
   cursor: default;
   opacity: 0.5;
