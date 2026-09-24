@@ -96,6 +96,14 @@
   month before, and every account. On desktop a line chart shows the
   total over time. (#160)
 
+- March review of the split. In March, the Budget year line on Finances
+  home asks the admin to review the split for April. The Budget year
+  page opens with the review: each person's income over a year, worked
+  out from their pay, and their share of both, the household's actual
+  shared spend this budget year, and a split form set to start in
+  April. Closed months keep the split they had. The prompt goes once
+  April's split is saved. (#162)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each

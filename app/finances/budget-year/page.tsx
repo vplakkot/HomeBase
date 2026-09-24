@@ -11,7 +11,15 @@ import {
   splitInForce,
   splitIsHistory,
 } from "../../../lib/finances/budget-year";
-import { listOpenedMonths, monthClosed } from "../../../lib/finances/month";
+import {
+  listOpenedMonths,
+  monthClosed,
+  monthShares,
+  monthTotals,
+  readMonth,
+  type Month,
+} from "../../../lib/finances/month";
+import { annualIncome, budgetYearBefore, marchReview } from "../../../lib/finances/recalibrate";
 import { CADENCES, listIncomeSources, payDates } from "../../../lib/finances/income";
 import { formatMoney } from "../../../lib/finances/money";
 import { Hint } from "../hint";
@@ -161,9 +169,83 @@ export default async function BudgetYearPage() {
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
   const current = splitInForce(splits, todayIso);
 
+  // REQ-69: in March, the review of April's split, with each person's
+  // income over a year and what the household actually spent this
+  // budget year, month by month as entered.
+  const april = marchReview(todayIso, splits);
+  const review = april
+    ? await (async () => {
+        const year = budgetYearBefore(april);
+        const inYear = opened.filter((day) => day >= year.from && day < year.to);
+        const months = (await Promise.all(inYear.map((day) => readMonth(supabase, day)))).filter(
+          (month): month is Month => month !== null,
+        );
+        const spend =
+          months.reduce(
+            (sum, month) =>
+              sum + Math.round(monthTotals(month, monthShares(month, splits, month.starts_on)).sharedBase * 100),
+            0,
+          ) / 100;
+        return {
+          april,
+          income: annualIncome(
+            incomes,
+            people.map((person) => person.user_id),
+          ),
+          spend,
+          months: months.length,
+        };
+      })()
+    : null;
+
   return (
     <FinancesFrame canManageMembers={canManageMembers} account={account} section={SECTION}>
       <div className={styles.cards}>
+        {review ? (
+          <section className={styles.card} aria-labelledby="march-review">
+            <header className={styles.head}>
+              <h2 id="march-review" className={styles.name}>
+                Split for {monthLabel(review.april)}
+              </h2>
+              <Hint text="It's March: set the split for the budget year starting in April. Months already closed keep the split they had." />
+            </header>
+            <div className={styles.entries}>
+              <ul className={styles.list}>
+                {review.income.map((person) => (
+                  <li key={person.user_id} className={styles.entry}>
+                    <div className={styles.entryHead}>
+                      <span className={styles.entryName}>{nameOf.get(person.user_id) ?? "Someone"}</span>
+                      <span className={styles.amount}>{formatMoney(person.annual)} a year</span>
+                    </div>
+                    {person.percentOfBoth === null ? null : (
+                      <p className={styles.detail}>{person.percentOfBoth}% of both incomes</p>
+                    )}
+                  </li>
+                ))}
+                <li className={styles.entry}>
+                  <div className={styles.entryHead}>
+                    <span className={styles.entryName}>Household spend</span>
+                    <span className={styles.amount}>{formatMoney(review.spend)}</span>
+                  </div>
+                  <p className={styles.detail}>
+                    This budget year, over {review.months} {review.months === 1 ? "month" : "months"}
+                  </p>
+                </li>
+              </ul>
+            </div>
+            <div className={styles.addBlock}>
+              <h3 className={styles.addTitle}>New split from {monthLabel(review.april)}</h3>
+              <SplitForm
+                people={people}
+                months={months}
+                month={review.april.slice(0, 7)}
+                percents={
+                  current ? Object.fromEntries(current.shares.map((share) => [share.user_id, share.percent])) : undefined
+                }
+              />
+            </div>
+          </section>
+        ) : null}
         <Card
           name="Income sources"
           hint="What lands, and when. Editing one changes it from today; past paydays keep their amount."
