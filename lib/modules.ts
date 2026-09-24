@@ -80,21 +80,9 @@ export const MODULES: readonly Module[] = [
     name: "Paperwork",
     tokens: "paperwork",
     href: "/paperwork",
-    sections: [
-      { name: "Unfiled", description: "Paperwork waiting for a file", href: "/paperwork/unfiled" },
-      {
-        name: "Log paperwork",
-        description: "As it arrives",
-        pinned: true,
-        href: "/paperwork/log",
-      },
-      {
-        name: "Categories",
-        description: "Categories and how long to keep",
-        adminOnly: true,
-        href: "/paperwork/categories",
-      },
-    ],
+    // REQ-100: Browse and search are the whole module, so it has no
+    // section tabs; Log paperwork and Categories sit in its own toolbar.
+    sections: [],
   },
   // Added in v1.0 (REQ-87); Vin chose teal and the last place on
   // 2026-09-24.

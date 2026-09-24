@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Paperwork, redesigned like opening a filing cabinet. It opens on your
+  places: a card per office location with its file and item counts, then
+  the storage boxes holding archived files. Open a place to see its
+  files, a file to see its paperwork. A breadcrumb always says where you
+  are. One search in the header finds files and paperwork from any
+  screen, and Clear takes you back. Log paperwork, Add paperwork, File
+  it and everything under a file's Manage file menu open over the screen
+  you're on; a new file shows its label to print once, and you stay
+  put. The Overview, Unfiled and Categories tabs are gone: unfiled
+  paperwork is a banner, and Categories is the admin's settings button.
+
 - Storage, a new module (teal, last on Home). Log everything in the
   basement, boxes and loose items alike. Each entry gets an ID (S-001,
   S-002…) that never changes, shown big for the label printer. A box

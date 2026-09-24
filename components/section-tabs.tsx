@@ -10,6 +10,9 @@ import styles from "./section-tabs.module.css";
 // of the row, not a tab. A section without a page yet is listed but
 // can't be opened.
 export function SectionTabs({ module, current }: { module: Module; current?: string }) {
+  // A module with no sections (Paperwork, REQ-100) has nothing to tab
+  // between.
+  if (module.sections.length === 0) return null;
   const tabClass = (here: boolean) => (here ? `${styles.tab} ${styles.current}` : styles.tab);
   const pinned = module.sections.find((section) => section.pinned && section.href);
   return (

@@ -50,17 +50,78 @@ export function keepUntil(documentDate: string | null, loggedOn: string, years: 
   return `${year + years}-${String(month).padStart(2, "0")}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
 }
 
-// Where a file is (REQ-98): its office location while active, or the box
-// it's archived in.
-export function whereItIs(
+// Where a file is (REQ-100): the office location it's kept in while
+// active, or the storage box it's archived in (REQ-98). `href` opens that
+// place's list of files.
+export type Place = { name: string; href: string };
+
+export function placeOf(
   file: Pick<PaperFile, "status" | "location" | "storage_entry_id">,
   storage: readonly StorageEntry[],
-): string {
-  if (file.status === "archived") {
+): Place {
+  if (file.status === "archived" && file.storage_entry_id) {
     const box = storage.find((entry) => entry.id === file.storage_entry_id);
-    return `Archived in ${box ? `${entryId(box)} · ${box.name}` : "a storage box"}`;
+    return {
+      name: box ? boxName(box) : "A storage box",
+      href: `/paperwork/boxes/${file.storage_entry_id}`,
+    };
   }
-  return `Last stored location: ${file.location}`;
+  return { name: file.location, href: locationHref(file.location) };
+}
+
+export function boxName(box: Pick<StorageEntry, "number" | "name">): string {
+  return `Box ${entryId(box)} · ${box.name}`;
+}
+
+// A location is free text, so "Office · Cabinet" and "office  cabinet"
+// are the same place: compared without case, spacing or dots.
+export function sameLocation(a: string, b: string): boolean {
+  const key = (text: string) => text.toLowerCase().replace(/[\s·.]+/g, " ").trim();
+  return key(a) === key(b);
+}
+
+export function locationHref(location: string): string {
+  return `/paperwork/locations/${encodeURIComponent(location)}`;
+}
+
+// REQ-100's first screen: one card per office location, then one per
+// storage box holding archived files, each with its files and how many
+// papers those hold. A location is spelt the way its first file spells it.
+export type PlaceCard = Place & { files: FileRow[]; items: number };
+
+export function places(
+  files: readonly PaperFile[],
+  categories: readonly Category[],
+  papers: readonly Paper[],
+  storage: readonly StorageEntry[],
+): { office: PlaceCard[]; archived: PlaceCard[] } {
+  const office: PlaceCard[] = [];
+  const archived: PlaceCard[] = [];
+  for (const row of fileRows(files, categories, papers)) {
+    const place = placeOf(row.file, storage);
+    const list = row.file.status === "archived" ? archived : office;
+    const card = list.find((one) =>
+      row.file.status === "archived" ? one.href === place.href : sameLocation(one.name, place.name),
+    );
+    if (card) {
+      card.files.push(row);
+      card.items += row.count;
+    } else {
+      list.push({ ...place, files: [row], items: row.count });
+    }
+  }
+  const byName = (a: PlaceCard, b: PlaceCard) => a.name.localeCompare(b.name);
+  return { office: office.sort(byName), archived: archived.sort(byName) };
+}
+
+// Every office location in use, for the location field's suggestions,
+// so the same place keeps one spelling.
+export function officeLocations(files: readonly PaperFile[]): string[] {
+  const names: string[] = [];
+  for (const file of files) {
+    if (!names.some((name) => sameLocation(name, file.location))) names.push(file.location);
+  }
+  return names.sort((a, b) => a.localeCompare(b));
 }
 
 export function ownerName(paper: Pick<Paper, "owner_id">, people: { user_id: string; name: string }[]): string {
