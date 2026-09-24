@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, type vi } from "vitest";
+import { fakeSupabase } from "../../test/fake-supabase";
 import { paperworkTile, UNFILED_HREF } from "./action-items";
 import {
+  countUnfiled,
   fileId,
   fileRows,
   keepUntil,
@@ -144,5 +146,15 @@ describe("Paperwork on Home (REQ-97)", () => {
   it("ranks below every Finances item", async () => {
     const { RANKS } = await import("../finances/action-items");
     expect(paperworkTile(1).actionItems[0].rank).toBeGreaterThan(Math.max(...Object.values(RANKS)));
+  });
+});
+
+describe("countUnfiled (REQ-97)", () => {
+  it("counts only paperwork with no file", async () => {
+    const fake = fakeSupabase({ tables: { paperwork: [{ id: "a" }, { id: "b" }] } });
+    expect(await countUnfiled(fake as never)).toBe(2);
+    const query = fake.from.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
+    expect(query.select).toHaveBeenCalledWith("id", { count: "exact", head: true });
+    expect(query.is).toHaveBeenCalledWith("file_id", null);
   });
 });

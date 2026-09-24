@@ -26,6 +26,13 @@ async function requireAdmin() {
 
 const text = (formData: FormData, name: string) => String(formData.get(name) ?? "").trim();
 
+// The row a form is about. A missing or garbled id would change nothing
+// and still say "saved", so it's refused instead.
+function rowId(formData: FormData): string | null {
+  const id = text(formData, "id");
+  return UUID.test(id) ? id : null;
+}
+
 function refresh() {
   revalidatePath("/paperwork", "layout");
   // Home's unfiled count.
@@ -105,7 +112,8 @@ export async function logPaper(_previous: FormState, formData: FormData): Promis
 // REQ-97: change any of the paperwork's fields, its file included.
 export async function updatePaper(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
-  const id = text(formData, "id");
+  const id = rowId(formData);
+  if (!id) return { error: "Nothing to change." };
   const fields = paperFields(formData);
   if ("error" in fields) return { error: fields.error };
   const file = await chosenFile(supabase, formData);
@@ -121,7 +129,8 @@ export async function updatePaper(_previous: FormState, formData: FormData): Pro
 // list and Home's count.
 export async function filePaper(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
-  const id = text(formData, "id");
+  const id = rowId(formData);
+  if (!id) return { error: "Nothing to change." };
   const keepUntil = text(formData, "keepUntil");
   if (text(formData, "fileId") === "") return { error: "Choose a file, or make a new one." };
   if (keepUntil !== "" && !DATE.test(keepUntil)) return { error: "Enter keep-until as a date." };
@@ -139,7 +148,9 @@ export async function filePaper(_previous: FormState, formData: FormData): Promi
 
 export async function removePaper(formData: FormData): Promise<void> {
   const supabase = await requireMember();
-  const { error } = await supabase.from("paperwork").delete().eq("id", text(formData, "id"));
+  const id = rowId(formData);
+  if (!id) redirect("/paperwork");
+  const { error } = await supabase.from("paperwork").delete().eq("id", id);
   if (error) throw new Error(`Could not remove the paperwork: ${error.message}`);
   refresh();
   redirect("/paperwork");
@@ -159,9 +170,11 @@ export async function makeFile(_previous: FormState, formData: FormData): Promis
 // REQ-88: a file that moved gets its new location; the old one is gone.
 export async function updateFile(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
+  const id = rowId(formData);
+  if (!id) return { error: "Nothing to change." };
   const fields = newFileFields(formData);
   if ("error" in fields) return { error: fields.error };
-  const { error } = await supabase.from("paperwork_files").update(fields).eq("id", text(formData, "id"));
+  const { error } = await supabase.from("paperwork_files").update(fields).eq("id", id);
   if (error) return { error: error.message };
   refresh();
   return { saved: true };
@@ -171,7 +184,9 @@ export async function updateFile(_previous: FormState, formData: FormData): Prom
 // is never handed out again.
 export async function removeFile(formData: FormData): Promise<void> {
   const supabase = await requireMember();
-  const { error } = await supabase.from("paperwork_files").delete().eq("id", text(formData, "id"));
+  const id = rowId(formData);
+  if (!id) redirect("/paperwork");
+  const { error } = await supabase.from("paperwork_files").delete().eq("id", id);
   if (error) throw new Error(`Could not remove the file: ${error.message}`);
   refresh();
   redirect("/paperwork");
@@ -203,9 +218,11 @@ export async function addCategory(_previous: FormState, formData: FormData): Pro
 
 export async function updateCategory(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireAdmin();
+  const id = rowId(formData);
+  if (!id) return { error: "Nothing to change." };
   const fields = categoryFields(formData);
   if ("error" in fields) return { error: fields.error };
-  const { error } = await supabase.from("paperwork_categories").update(fields).eq("id", text(formData, "id"));
+  const { error } = await supabase.from("paperwork_categories").update(fields).eq("id", id);
   if (error) return { error: categoryError(error.message, error.code, fields.name) };
   refresh();
   return { saved: true };
@@ -215,7 +232,8 @@ export async function updateCategory(_previous: FormState, formData: FormData): 
 // to move them; with somewhere chosen, they move and the category goes.
 export async function removeCategory(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireAdmin();
-  const id = text(formData, "id");
+  const id = rowId(formData);
+  if (!id) return { error: "Nothing to change." };
   const moveTo = text(formData, "moveTo");
   const { count, error: countError } = await supabase
     .from("paperwork_files")

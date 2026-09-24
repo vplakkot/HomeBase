@@ -41,6 +41,14 @@ begin
     report := report || format('1. a member adding a category is refused (wants this): %s%s', sqlerrm, E'\n');
   end;
 
+  -- 1b. Nor change or remove one: those writes find no row they may touch.
+  update public.paperwork_categories set name = name || ' (member)';
+  get diagnostics v_count = row_count;
+  report := report || format('1b. a member changing categories changed %s (wants 0)%s', v_count, E'\n');
+  delete from public.paperwork_categories;
+  get diagnostics v_count = row_count;
+  report := report || format('1c. a member removing categories removed %s (wants 0)%s', v_count, E'\n');
+
   -- 2. The admin can, with an optional keep-for; the same name twice is refused.
   reset role;
   perform set_config('request.jwt.claims',

@@ -8,6 +8,7 @@ import {
   makeFile,
   removeCategory,
   removeFile,
+  removePaper,
   updateFile,
   updatePaper,
 } from "./actions";
@@ -26,6 +27,7 @@ const NEW_FILE = "22222222-2222-4222-8222-222222222222";
 const TAXES = "33333333-3333-4333-8333-333333333333";
 const CAR = "44444444-4444-4444-8444-444444444444";
 const ALEX = "55555555-5555-4555-8555-555555555555";
+const P1 = "66666666-6666-4666-8666-666666666666";
 
 let fake: ReturnType<typeof fakeSupabase>;
 
@@ -112,36 +114,58 @@ describe("logPaper (REQ-97)", () => {
 describe("updatePaper (REQ-97)", () => {
   it("changes any field, including moving it to another file", async () => {
     given();
-    await updatePaper({}, form({ id: "p-1", ...PAPER, name: "2016 return", fileId: FILE }));
+    await updatePaper({}, form({ id: P1, ...PAPER, name: "2016 return", fileId: FILE }));
     const query = on("paperwork")[0];
     expect(query.update).toHaveBeenCalledWith(expect.objectContaining({ name: "2016 return", file_id: FILE }));
-    expect(query.eq).toHaveBeenCalledWith("id", "p-1");
+    expect(query.eq).toHaveBeenCalledWith("id", P1);
   });
 
   it("can put it back to Unfiled", async () => {
     given();
-    await updatePaper({}, form({ id: "p-1", ...PAPER, fileId: "" }));
+    await updatePaper({}, form({ id: P1, ...PAPER, fileId: "" }));
     expect(on("paperwork")[0].update.mock.calls[0][0].file_id).toBeNull();
   });
 });
 
+describe("removePaper (REQ-97)", () => {
+  it("removes it, so nothing logged by mistake is stuck", async () => {
+    given();
+    await expect(removePaper(form({ id: P1 }))).rejects.toThrow("REDIRECT:/paperwork");
+    const query = on("paperwork")[0];
+    expect(query.delete).toHaveBeenCalled();
+    expect(query.eq).toHaveBeenCalledWith("id", P1);
+  });
+
+  it("touches nothing without a proper id", async () => {
+    given();
+    await expect(removePaper(form({ id: "" }))).rejects.toThrow("REDIRECT:/paperwork");
+    expect(on("paperwork")).toEqual([]);
+  });
+});
+
 describe("filePaper (REQ-97)", () => {
+  it("refuses a missing id rather than saying it saved", async () => {
+    given();
+    expect(await filePaper({}, form({ id: "", fileId: FILE, keepUntil: "" }))).toEqual({ error: "Nothing to change." });
+    expect(on("paperwork")).toEqual([]);
+  });
+
   it("files it with its keep-until, which takes it off the unfiled list", async () => {
     given();
-    expect(await filePaper({}, form({ id: "p-1", fileId: FILE, keepUntil: "2033-09-24" }))).toEqual({ saved: true });
+    expect(await filePaper({}, form({ id: P1, fileId: FILE, keepUntil: "2033-09-24" }))).toEqual({ saved: true });
     expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_id: FILE, keep_until: "2033-09-24" });
   });
 
   it("needs a file: filing is the point", async () => {
     given();
-    expect(await filePaper({}, form({ id: "p-1", fileId: "", keepUntil: "" }))).toEqual({
+    expect(await filePaper({}, form({ id: P1, fileId: "", keepUntil: "" }))).toEqual({
       error: "Choose a file, or make a new one.",
     });
   });
 
   it("can make a new file for it", async () => {
     given();
-    const fields = { id: "p-1", fileId: "new", categoryId: CAR, location: "Glovebox", label: "Hatchback", keepUntil: "" };
+    const fields = { id: P1, fileId: "new", categoryId: CAR, location: "Glovebox", label: "Hatchback", keepUntil: "" };
     await expect(filePaper({}, form(fields))).rejects.toThrow(`REDIRECT:/paperwork/files/${NEW_FILE}?new=1`);
     expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_id: NEW_FILE, keep_until: null });
   });
