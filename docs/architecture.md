@@ -394,7 +394,10 @@ which they insist on). A device whose push service answers `404` or
 
 Two things start a send:
 
-- **The hourly schedule.** Vercel's free plan allows only a daily job, so
+- **The hourly schedule** (stopped on 2026-09-24 by
+  `20260924160000_stop_hourly_test_notification.sql`; its route is
+  deleted, and the Finances reminders below now use the same clock and
+  vault secrets). Vercel's free plan allows only a daily job, so
   the clock lives in the database:
   [`supabase/migrations/20260919190000_hourly_test_notification.sql`](../supabase/migrations/20260919190000_hourly_test_notification.sql)
   adds `pg_cron` and `pg_net` and schedules `0 * * * *`, which calls
@@ -462,8 +465,8 @@ proves itself with a **receipt token**: a random secret placed inside
 that one encrypted message, so only the device it was sent to can quote
 it. The address hashes what arrives and matches that against the log. It
 answers `204` to everything, so it cannot be used to test guesses, and
-the proxy's matcher skips it for the same reason it skips the hourly
-address. It is open to the internet and unthrottled; the blast radius is
+the proxy's matcher skips it for the same reason it skips the Finances
+reminders' address. It is open to the internet and unthrottled; the blast radius is
 one row, but the request volume is not bounded.
 
 The log rows are written **before** the notifications are sent. A push

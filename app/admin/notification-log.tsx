@@ -11,6 +11,13 @@ const LABELS: Record<ReturnType<typeof statusOf>, string> = {
   refused: "Refused",
 };
 
+// What sent it. The hourly test stopped on 2026-09-24; its rows keep their name.
+const TRIGGERS: Record<LogRow["trigger"], string> = {
+  hourly: "Hourly test",
+  manual: "By hand",
+  finances: "Finances",
+};
+
 function when(value: string) {
   // Fixed format rather than the visitor's locale: this table is read by
   // one household, and a server and a browser disagreeing on the format
@@ -46,8 +53,8 @@ export function NotificationLog({
   if (rows.length === 0) {
     return (
       <p>
-        Nothing sent in the last 7 days. The hourly test should fill this in
-        on its own; &ldquo;Send test now&rdquo; above fills it in immediately.
+        Nothing sent in the last 7 days. Finances reminders fill this in as
+        they go; &ldquo;Send test now&rdquo; above fills it in immediately.
       </p>
     );
   }
@@ -88,7 +95,7 @@ export function NotificationLog({
                 <td>
                   <code>{row.device}</code>
                 </td>
-                <td>{row.trigger === "hourly" ? "Hourly" : "By hand"}</td>
+                <td>{TRIGGERS[row.trigger]}</td>
                 <td>
                   {LABELS[status]}
                   {status === "refused" && row.failure_code

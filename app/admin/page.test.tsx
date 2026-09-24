@@ -291,7 +291,7 @@ describe("AdminPage", () => {
     const row = within(logSection()).getAllByRole("row")[1];
     expect(within(row).getByText("Sam")).toBeDefined();
     expect(within(row).getByText("Delivered")).toBeDefined();
-    expect(within(row).getByText("Hourly")).toBeDefined();
+    expect(within(row).getByText("Hourly test")).toBeDefined();
   });
 
   // The whole point of the requirement: a send with no word back is a

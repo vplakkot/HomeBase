@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
-// The database's schedules call the app with no signed-in person, so they
+// The database's schedule (the Finances reminders) calls the app with no signed-in person, so they
 // prove themselves with a shared secret instead: the same value sits in
 // Vercel as NOTIFY_SECRET and in Supabase's vault, where the schedules
 // read it. Null when the caller knows it; otherwise the refusal to send.
