@@ -209,7 +209,7 @@ export default async function BudgetYearPage() {
               </h2>
               <Hint text="It's March: set the split for the budget year starting in April. Months already closed keep the split they had." />
             </header>
-            <div className={styles.addBlock}>
+            <div className={styles.entries}>
               <ul className={styles.list}>
                 {review.income.map((person) => (
                   <li key={person.user_id} className={styles.entryHead}>
@@ -227,6 +227,8 @@ export default async function BudgetYearPage() {
                   </span>
                 </li>
               </ul>
+            </div>
+            <div className={styles.addBlock}>
               <h3 className={styles.addTitle}>New split from {monthLabel(review.april)}</h3>
               <SplitForm
                 people={people}
