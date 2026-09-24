@@ -164,6 +164,9 @@ describe("proxy", () => {
     const [pattern] = config.matcher;
     const regex = new RegExp(`^${pattern}$`);
     expect(regex.test("/api/notifications/test")).toBe(false);
+    // The Finances reminders' schedule too (REQ-70).
+    expect(regex.test("/api/notifications/finances")).toBe(false);
+    expect(regex.test("/api/notifications/finances/extra")).toBe(true);
     // Nothing else under /api skips the sign-in check.
     expect(regex.test("/api/notifications/test/extra")).toBe(true);
     expect(regex.test("/api/notifications")).toBe(true);

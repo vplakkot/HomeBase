@@ -9,6 +9,9 @@ import { QuickAdd } from "../components/quick-add";
 import { SectionLabel } from "../components/section-label";
 import { readAccount } from "../lib/account";
 import { hasPermission } from "../lib/auth/permissions";
+import { financeItems, financeTile } from "../lib/finances/action-items";
+import { householdToday } from "../lib/finances/budget-year";
+import { readFinanceSnapshot } from "../lib/finances/snapshot";
 import { demoFrom, moduleStatus, mostUrgent } from "../lib/module-status";
 import { NOTHING_SWITCHED_OFF, modulesSwitchedOn } from "../lib/modules";
 import { createClient } from "../lib/supabase/server";
@@ -39,9 +42,18 @@ export default async function HomePage({
   const canManageMembers = await hasPermission(supabase, "manage_members");
   const account = await readAccount(data.claims);
   const demo = demoFrom((await searchParams).demo);
+  // Finances is the first module with real items (REQ-91, REQ-93); the
+  // example needs none of it read.
+  const live =
+    demo === null
+      ? await (async () => {
+          const snapshot = await readFinanceSnapshot(supabase, householdToday());
+          return { finances: financeTile(snapshot, financeItems(snapshot, data.claims.sub)) };
+        })()
+      : {};
   const modules = modulesSwitchedOn(NOTHING_SWITCHED_OFF).map((module) => ({
     module,
-    status: moduleStatus(module, demo),
+    status: moduleStatus(module, demo, live),
   }));
 
   return (

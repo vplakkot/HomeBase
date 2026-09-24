@@ -23,7 +23,7 @@ import { formatMoney } from "../../../lib/finances/money";
 import styles from "../budget-year/page.module.css";
 import { FinancesFrame, financesViewer } from "../frame";
 import { Hint } from "../hint";
-import { removeBalances } from "./actions";
+import { acknowledgeCashGap, removeBalances } from "./actions";
 import { BalanceChart } from "./chart";
 import { BalancesForm } from "./forms";
 import local from "./page.module.css";
@@ -43,11 +43,13 @@ export default async function BalancesPage({
   const { supabase, canManageMembers, account } = await financesViewer();
   const { month: asked } = await searchParams;
   const todayIso = householdToday();
-  const [opened, people, splits, balances] = await Promise.all([
+  const [opened, people, splits, balances, acks] = await Promise.all([
     listOpenedMonths(supabase),
     listPeople(supabase),
     listSplits(supabase),
     listBalances(supabase),
+    // Only the viewer's own come back.
+    supabase.from("action_item_acks").select("key"),
   ]);
   const known = [...new Set([...opened, ...balances.map((row) => row.month)])];
   const startsOn = chosenMonth(asked, known, todayIso);
@@ -72,6 +74,9 @@ export default async function BalancesPage({
     return { person, hasCash: Boolean(cash), check: cashCheck(cash?.amount ?? null, leftover?.leftover ?? null) };
   });
   const entered = balances.some((row) => row.month === startsOn);
+  // REQ-93: a flagged gap is an action item until the viewer says they've seen it.
+  const gapSeen = ((acks.data ?? []) as { key: string }[]).some((ack) => ack.key === `cash-gap:${startsOn}`);
+  const gapToAcknowledge = !gapSeen && checks.some(({ check }) => check.checked && check.flagged);
   const trend = balanceTrend(balances);
 
   return (
@@ -150,6 +155,14 @@ export default async function BalancesPage({
                 ),
               )}
             </ul>
+            {gapToAcknowledge ? (
+              <form action={acknowledgeCashGap}>
+                <input type="hidden" name="month" value={startsOn} />
+                <button type="submit" className={styles.quiet}>
+                  Got it
+                </button>
+              </form>
+            ) : null}
           </div>
         </section>
 

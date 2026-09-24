@@ -2,6 +2,8 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { cookies } from "next/headers";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import type { FinanceSnapshot } from "../lib/finances/action-items";
+import { readFinanceSnapshot } from "../lib/finances/snapshot";
 import { DEVICE_COOKIE } from "../lib/notifications/device";
 import { createClient } from "../lib/supabase/server";
 import { installDialogStandIn } from "../test/dialog";
@@ -12,6 +14,22 @@ beforeAll(installDialogStandIn);
 
 vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
+vi.mock("../lib/finances/snapshot", () => ({ readFinanceSnapshot: vi.fn() }));
+
+// Finances before setup: no split, no bills, nothing to do.
+const NOT_SET_UP: FinanceSnapshot = {
+  today: "2026-09-24",
+  people: [{ user_id: "user-1", name: "Sam", manages_budget: true }],
+  splits: [],
+  billCount: 0,
+  months: [],
+  balances: [],
+  acks: [],
+};
+
+function finances(snapshot: Partial<FinanceSnapshot> = {}) {
+  vi.mocked(readFinanceSnapshot).mockResolvedValue({ ...NOT_SET_UP, ...snapshot });
+}
 vi.mock("next/headers", () => ({ cookies: vi.fn() }));
 // The notifications control runs in the browser and has its own tests; here
 // it only has to be on the page, holding the server's push key.
@@ -63,6 +81,7 @@ function given({
       error: null,
     })),
   } as unknown as Awaited<ReturnType<typeof createClient>>);
+  finances();
   vi.mocked(cookies).mockResolvedValue({
     get: (name: string) => {
       if (name === DEVICE_COOKIE && device) return { value: device };
@@ -161,12 +180,30 @@ describe("HomePage", () => {
 
   // REQ-82, and a decision of 2026-09-21: until modules have data, Home
   // shows no invented state unless ?demo asks for it.
-  it("keeps every tile quiet, saying Coming soon", async () => {
+  it("keeps every tile quiet: Finances says it isn't set up, the rest Coming soon", async () => {
     given({ email: "member@example.com" });
     render(await home());
-    for (const tile of tiles()) {
+    const [money, ...others] = tiles();
+    expect(money).toMatchObject({ status: "Not set up", loud: false });
+    for (const tile of others) {
       expect(tile, tile.name!).toMatchObject({ status: "Coming soon", loud: false });
     }
+  });
+
+  // REQ-91: a module's real item reaches Home, opens the exact screen,
+  // and makes its tile loud.
+  it("shows Finances' own item as a link to where it's done, with the tile loud", async () => {
+    given({ email: "member@example.com" });
+    finances({
+      splits: [{ id: "s", effective_from: "2026-09-01", note: "", shares: [{ user_id: "user-1", percent: 100 }] }],
+      billCount: 2,
+    });
+    render(await home());
+    const section = screen.getByRole("region", { name: "Action items" });
+    const link = within(section).getByRole("link");
+    expect(link.textContent).toContain("Enter September's numbers");
+    expect(link.getAttribute("href")).toBe("/finances/monthly-entry?month=2026-09");
+    expect(tiles()[0]).toMatchObject({ status: "Enter September's numbers", loud: true });
   });
 
   it("with ?demo, shows the design's example, loud and quiet tiles side by side", async () => {

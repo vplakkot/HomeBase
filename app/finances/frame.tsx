@@ -24,7 +24,7 @@ export async function financesViewer() {
     hasPermission(supabase, "manage_budget"),
     readAccount(data.claims),
   ]);
-  return { supabase, canManageMembers, canManageBudget, account };
+  return { supabase, canManageMembers, canManageBudget, account, userId: data.claims.sub };
 }
 
 // Every Finances page shares the designed header (docs/design/DESIGN.md §7)

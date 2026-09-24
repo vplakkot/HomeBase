@@ -3,12 +3,16 @@ import webpush, { WebPushError } from "web-push";
 import { createAdminClient } from "../supabase/admin";
 import { hashReceiptToken, newReceiptToken } from "./receipt-token";
 
-// Who gets a test notification, and what happened to each device. The
-// switch and the devices are both readable only by their owner, and a
-// scheduled job has no signed-in person, so this runs with the secret key
-// — the only route to them, as REQ-16 and REQ-20 noted.
+// Who gets a notification, and what happened to each device. The switch
+// and the devices are both readable only by their owner, and a scheduled
+// job has no signed-in person, so this runs with the secret key — the
+// only route to them, as REQ-16 and REQ-20 noted.
 
-export type Trigger = "hourly" | "manual";
+export type TestTrigger = "hourly" | "manual";
+// Finances reminders (REQ-70) are logged beside the test notifications.
+export type Trigger = TestTrigger | "finances";
+
+export type Message = { title: string; body: string; url: string };
 
 export type DeviceOutcome = {
   userId: string;
@@ -36,7 +40,7 @@ type Device = {
   auth: string;
 };
 
-export const MESSAGES: Record<Trigger, { title: string; body: string }> = {
+export const MESSAGES: Record<TestTrigger, { title: string; body: string }> = {
   hourly: { title: "HomeBase", body: "Hourly test notification." },
   manual: { title: "HomeBase", body: "Test notification, sent by hand." },
 };
@@ -56,7 +60,24 @@ export async function sendTestNotification({
   // Who to contact about this app, as the push services require: our own
   // address, never a person's.
   subject: string;
+  trigger: TestTrigger;
+}): Promise<SendSummary> {
+  return sendPush({ subject, trigger, to: null, message: { ...MESSAGES[trigger], url: "/" } });
+}
+
+// One message to some people's devices: everyone switched on when `to` is
+// null, otherwise only those listed who are switched on (REQ-16's switch
+// silences every notification, reminders included).
+export async function sendPush({
+  subject,
+  trigger,
+  to,
+  message,
+}: {
+  subject: string;
   trigger: Trigger;
+  to: string[] | null;
+  message: Message;
 }): Promise<SendSummary> {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
@@ -76,7 +97,9 @@ export async function sendTestNotification({
     throw new Error(`Could not read who is switched on: ${membersError.message}`);
   }
 
-  const people = (switchedOn ?? []).map((member) => member.user_id as string);
+  const people = (switchedOn ?? [])
+    .map((member) => member.user_id as string)
+    .filter((person) => to === null || to.includes(person));
   if (people.length === 0) {
     return empty(trigger);
   }
@@ -119,7 +142,7 @@ export async function sendTestNotification({
 
   const outcomes = await Promise.all(
     addressed.map(({ device, receiptToken }) =>
-      sendToOne(device, receiptToken, trigger, admin),
+      sendToOne(device, receiptToken, message, admin),
     ),
   );
 
@@ -156,20 +179,16 @@ function fingerprintOf(endpoint: string): string {
 async function sendToOne(
   device: Device,
   receiptToken: string,
-  trigger: Trigger,
+  message: Message,
   admin: ReturnType<typeof createAdminClient>,
 ): Promise<DeviceOutcome> {
   const subscription = {
     endpoint: device.endpoint,
     keys: { p256dh: device.p256dh, auth: device.auth },
   };
-  const message = JSON.stringify({
-    ...MESSAGES[trigger],
-    url: "/",
-    receipt: receiptToken,
-  });
+  const payload = JSON.stringify({ ...message, receipt: receiptToken });
   try {
-    await webpush.sendNotification(subscription, message, {
+    await webpush.sendNotification(subscription, payload, {
       TTL: KEEP_TRYING_FOR,
     });
     return { userId: device.user_id, endpoint: device.endpoint, delivered: true };

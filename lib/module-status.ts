@@ -4,15 +4,17 @@ import type { Module } from "./modules";
 // phone, a headline and two facts for its tile on a desktop, and the
 // action items that need someone (docs/design/DESIGN.md §4–§5).
 //
-// No module has data yet, so in v0.2 this is a stand-in (REQ-82). Normally
-// every module is quiet and says "Coming soon": the app shows nothing it
+// A module with data says what it knows (Finances, from REQ-93); every
+// other module is quiet and says "Coming soon": the app shows nothing it
 // doesn't know. With ?demo in the address, Home shows the invented example
 // the design's mockups draw instead, so the loud and quiet states can be
 // seen side by side (a Notion decision of 2026-09-21).
 
 // Where the item comes in urgency order across all modules: 1 is the most
 // urgent. Home shows the three with the lowest ranks (DESIGN.md §5).
-export type ActionItem = { text: string; detail: string; rank: number };
+// href: where tapping it goes, the exact screen where the action happens
+// (REQ-91); the design's example items have none.
+export type ActionItem = { text: string; detail: string; rank: number; href?: string };
 
 export type Fact = { label: string; value: string };
 
@@ -110,9 +112,14 @@ export function demoFrom(param: string | string[] | undefined): Demo {
   return Math.min(Number(value), MOST_DEMO_ITEMS);
 }
 
-export function moduleStatus(module: Module, demo: Demo): ModuleStatus {
+export function moduleStatus(
+  module: Module,
+  demo: Demo,
+  live: Partial<Record<string, ModuleStatus>> = {},
+): ModuleStatus {
   const example = DEMO[module.slug];
-  if (demo === null || !example) return COMING_SOON;
+  if (demo === null) return live[module.slug] ?? COMING_SOON;
+  if (!example) return COMING_SOON;
   return { ...example, actionItems: example.actionItems.filter((item) => item.rank <= demo) };
 }
 

@@ -60,13 +60,13 @@ const SEPTEMBER = {
 };
 const bal = (month: string, user_id: string, account: string, amount: string) => ({ month, user_id, account, amount });
 
-async function page(balances: unknown[], months: unknown[] = [SEPTEMBER]) {
+async function page(balances: unknown[], months: unknown[] = [SEPTEMBER], acks: unknown[] = []) {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-09-24T16:00:00Z"));
   const fake = fakeSupabase({
     permissions: ["use_modules"],
     people: PEOPLE,
-    tables: { months, splits: [SPLIT], balances },
+    tables: { months, splits: [SPLIT], balances, action_item_acks: acks },
   });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
   render(await BalancesPage({ searchParams: Promise.resolve({ month: "2026-09" }) }));
@@ -114,6 +114,17 @@ describe("Balances", () => {
     const [alex, sam] = within(check).getAllByRole("listitem");
     expect(alex.textContent).toBe("Alex$600.00 extra$1,900.00 cash, $1,300.00 left. Move it to savings, or note where it came from.");
     expect(sam.textContent).toBe("Sam: no cash entered, so no check.");
+  });
+
+  // REQ-93: the gap is an action item until each person says they've seen it.
+  it("offers Got it for a flagged gap, until the viewer has acknowledged it", async () => {
+    await page([bal("2026-09-01", "u-alex", "cash", "1900.00")]);
+    const check = screen.getByRole("region", { name: "Cash check" });
+    const gotIt = within(check).getByRole("button", { name: "Got it" });
+    expect(new FormData(gotIt.closest("form")!).get("month")).toBe("2026-09-01");
+    cleanup();
+    await page([bal("2026-09-01", "u-alex", "cash", "1900.00")], [SEPTEMBER], [{ key: "cash-gap:2026-09-01" }]);
+    expect(screen.queryByRole("button", { name: "Got it" })).toBeNull();
   });
 
   it("shows a small gap without flagging it", async () => {
