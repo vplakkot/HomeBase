@@ -25,6 +25,7 @@ const file = (number: number, category: Category, label: string | null = null): 
   location: "Hall cupboard, top shelf",
   label,
   status: "active",
+  storage_entry_id: null,
 });
 const paper = (id: string, name: string, file_id: string | null, owner_id: string | null = null): Paper => ({
   id,

@@ -1,5 +1,6 @@
-/* A saved file or paper is a loud tile that opens its own page; the
-   link is the whole tile, so it's easy to hit on a phone. */
+/* A saved record (a file, a paper, a storage entry) is a loud tile that
+   opens its own page; the link is the whole tile, so it's easy to hit on
+   a phone. */
 .tileLink {
   display: flex;
   flex-direction: column;
@@ -30,4 +31,15 @@
   font-size: var(--text-display-md);
   font-weight: 800;
   text-align: center;
+}
+
+/* A box's contents, one item per line, inside one tile. */
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-body);
+  font-weight: 600;
 }

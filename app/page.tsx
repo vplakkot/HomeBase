@@ -15,6 +15,7 @@ import { readFinanceSnapshot } from "../lib/finances/snapshot";
 import { demoFrom, moduleStatus, mostUrgent } from "../lib/module-status";
 import { paperworkTile } from "../lib/paperwork/action-items";
 import { countUnfiled } from "../lib/paperwork/paperwork";
+import { countEntries, storageTile } from "../lib/storage/storage";
 import { NOTHING_SWITCHED_OFF, modulesSwitchedOn } from "../lib/modules";
 import { createClient } from "../lib/supabase/server";
 import { KeepThisDevice } from "./notifications/enable-notifications";
@@ -45,17 +46,20 @@ export default async function HomePage({
   const account = await readAccount(data.claims);
   const demo = demoFrom((await searchParams).demo);
   // The modules with real items: Finances (REQ-91, REQ-93) and Paperwork
-  // (REQ-97). The example needs none of it read.
+  // (REQ-97); Storage (REQ-87) only says how much is logged. The example
+  // needs none of it read.
   const live =
     demo === null
       ? await (async () => {
-          const [snapshot, unfiled] = await Promise.all([
+          const [snapshot, unfiled, stored] = await Promise.all([
             readFinanceSnapshot(supabase, householdToday()),
             countUnfiled(supabase),
+            countEntries(supabase),
           ]);
           return {
             finances: financeTile(snapshot, financeItems(snapshot, data.claims.sub)),
             paperwork: paperworkTile(unfiled),
+            storage: storageTile(stored),
           };
         })()
       : {};

@@ -104,6 +104,15 @@ const DEMO: Record<string, ModuleStatus> = {
     ],
     actionItems: [],
   },
+  storage: {
+    status: "24 entries",
+    headline: "24 entries",
+    facts: [
+      { label: "Boxes", value: "15" },
+      { label: "Newest", value: "S-024 · Camping gear" },
+    ],
+    actionItems: [],
+  },
 };
 
 // How much of the example Home shows: null normally, or with ?demo how

@@ -4,7 +4,7 @@ import { Hint } from "../../../components/hint";
 import { ownerName, unfiled } from "../../../lib/paperwork/paperwork";
 import { FileItForm } from "../forms";
 import { PaperworkFrame, paperworkViewer } from "../frame";
-import local from "../page.module.css";
+import local from "../../../components/tiles.module.css";
 
 const SECTION = "Unfiled";
 

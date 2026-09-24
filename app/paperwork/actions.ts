@@ -252,3 +252,38 @@ export async function removeCategory(_previous: FormState, formData: FormData): 
   refresh();
   return { saved: true };
 }
+
+// REQ-98: archive a whole file into a storage box. Only a box is
+// offered, and the database refuses anything else.
+export async function archiveFile(_previous: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const id = rowId(formData);
+  if (!id) return { error: "Nothing to change." };
+  const box = text(formData, "boxId");
+  if (!UUID.test(box)) return { error: "Choose the box it goes in." };
+  const { error } = await supabase
+    .from("paperwork_files")
+    .update({ status: "archived", storage_entry_id: box })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  refresh();
+  revalidatePath("/storage", "layout");
+  return { saved: true };
+}
+
+// REQ-98: bring an archived file back to the office, somewhere new.
+export async function bringBackFile(_previous: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const id = rowId(formData);
+  if (!id) return { error: "Nothing to change." };
+  const location = text(formData, "location");
+  if (location === "") return { error: "Say where the file is kept now." };
+  const { error } = await supabase
+    .from("paperwork_files")
+    .update({ status: "active", storage_entry_id: null, location })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  refresh();
+  revalidatePath("/storage", "layout");
+  return { saved: true };
+}

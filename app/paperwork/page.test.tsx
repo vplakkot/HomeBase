@@ -43,6 +43,7 @@ const file = (id: string, number: number, category_id: string, label: string | n
   location,
   label,
   status: "active",
+  storage_entry_id: null,
 });
 const FILES = [
   file("f-42", 42, "c-tax", "Returns", "Hall cupboard"),
@@ -64,11 +65,21 @@ const PAPERS = [
   paper("p3", "Water bill notice", null, "u-sam"),
 ];
 
-function given(permissions = ["use_modules"]) {
+// Storage's entries, for archiving (REQ-98): one box and one loose item.
+const SHOES_BOX = { id: "s3", number: 3, name: "Shoes", is_box: true, contents: null, note: null };
+const SUITCASES = { id: "s1", number: 1, name: "Suitcases", is_box: false, contents: null, note: null };
+const ARCHIVED = { ...file("f-9", 9, "c-tax", "Old returns", "Hall cupboard"), status: "archived", storage_entry_id: "s3" };
+
+function given(permissions = ["use_modules"], files: unknown[] = FILES) {
   const fake = fakeSupabase({
     permissions,
     people: PEOPLE,
-    tables: { paperwork_categories: [CAR, TAXES], paperwork_files: FILES, paperwork: PAPERS },
+    tables: {
+      paperwork_categories: [CAR, TAXES],
+      paperwork_files: files,
+      paperwork: PAPERS,
+      storage_entries: [SUITCASES, SHOES_BOX],
+    },
   });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
 }
@@ -209,5 +220,43 @@ describe("categories (REQ-88)", () => {
     // Removing Taxes asks where its file goes first.
     expect(within(taxes).getByLabelText("Move its 1 file to")).toBeDefined();
     expect(within(taxes).getByRole("button", { name: "Move the files and remove Taxes" })).toBeDefined();
+  });
+});
+
+describe("archiving a file to storage (REQ-98)", () => {
+  const openFile = (id: string) =>
+    FilePage({ params: Promise.resolve({ id }), searchParams: Promise.resolve({}) });
+  const listPage = (archived?: string) =>
+    PaperworkPage({ searchParams: Promise.resolve(archived ? { archived } : {}) });
+
+  it("offers only boxes to archive an active file into", async () => {
+    given();
+    render(await openFile("f-42"));
+    const archive = card("Archive to storage");
+    const options = within(archive).getAllByRole("option").map((option) => option.textContent);
+    expect(options).toEqual(["Choose a box", "S-003 · Shoes"]);
+    expect(card("F-0042 · Taxes").textContent).toContain("Active");
+  });
+
+  it("shows an archived file as Archived, in its box by ID, with a way to bring it back", async () => {
+    given(["use_modules"], [...FILES, ARCHIVED]);
+    render(await openFile("f-9"));
+    expect(card("F-0009 · Taxes").textContent).toContain("Archived · Old returns · Archived in S-003 · Shoes");
+    expect(within(card("Bring it back")).getByLabelText("New location")).toBeDefined();
+    expect(screen.queryByRole("region", { name: "Archive to storage" })).toBeNull();
+  });
+
+  it("hides archived files from the list until asked, then shows them", async () => {
+    given(["use_modules"], [...FILES, ARCHIVED]);
+    render(await listPage());
+    expect(texts(card("Search")).some((row) => row?.includes("F-0009"))).toBe(false);
+    const show = within(card("Search")).getByRole("link", { name: "Show archived files (1)" });
+    expect(show.getAttribute("href")).toBe("/paperwork?archived=1");
+    cleanup();
+    render(await listPage("1"));
+    expect(texts(card("Search")).find((row) => row?.includes("F-0009"))).toContain("Archived in S-003 · Shoes");
+    expect(within(card("Search")).getByRole("link", { name: "Hide archived files" }).getAttribute("href")).toBe(
+      "/paperwork",
+    );
   });
 });

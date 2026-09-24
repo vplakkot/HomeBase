@@ -5,7 +5,7 @@
 //
 // v0.2 showed six, and only Finances opened (a Notion decision of
 // 2026-09-21): a module without an `href` is listed and can't be tapped.
-// v1.0 adds Paperwork, the second to open.
+// v1.0 adds Paperwork and Storage, the second and third to open.
 
 export type ModuleSection = {
   name: string;
@@ -95,6 +95,15 @@ export const MODULES: readonly Module[] = [
         href: "/paperwork/categories",
       },
     ],
+  },
+  // Added in v1.0 (REQ-87); Vin chose teal and the last place on
+  // 2026-09-24.
+  {
+    slug: "storage",
+    name: "Storage",
+    tokens: "storage",
+    href: "/storage",
+    sections: [{ name: "Add an entry", description: "Boxes and loose items", pinned: true, href: "/storage/add" }],
   },
 ];
 

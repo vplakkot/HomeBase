@@ -38,6 +38,7 @@ Canvas (owner access only): https://claude.ai/artifact/1RVqqy4UV3iXLJ4ZEsfCsu
 | Meal Plans | mustard `--meals-loud` | `--meals-quiet` |
 | Health | forest `--health-loud` | `--health-quiet` |
 | Paperwork | slate `--paperwork-loud` | `--paperwork-quiet` |
+| Storage | teal `--storage-loud` | `--storage-quiet` |
 
 - Modules are defined in **one list** (name, slug, icon, token prefix, sections). Home, the sidebar, the module switcher and the admin console all read from it. Adding a module = adding an entry.
 - A module switched off in the admin console disappears from Home, the sidebar and the switcher. Its data is kept.
