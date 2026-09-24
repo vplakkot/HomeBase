@@ -9,7 +9,8 @@ import {
   splitInForce,
 } from "../../lib/finances/budget-year";
 import { listBills } from "../../lib/finances/bills";
-import { leftovers } from "../../lib/finances/leftover";
+import { listIncomeHistory } from "../../lib/finances/income";
+import { leftovers, projectedIncome } from "../../lib/finances/leftover";
 import {
   billEntered,
   chosenMonth,
@@ -51,11 +52,12 @@ export default async function FinancesPage({
 } = {}) {
   const { supabase, canManageMembers, canManageBudget, account, userId } = await financesViewer();
   const todayIso = householdToday();
-  const [splits, bills, people, opened] = await Promise.all([
+  const [splits, bills, people, opened, sources] = await Promise.all([
     listSplits(supabase),
     listBills(supabase),
     listPeople(supabase),
     listOpenedMonths(supabase),
+    listIncomeHistory(supabase),
   ]);
   const asked = (await searchParams)?.month;
   const split = splitInForce(splits, todayIso);
@@ -109,10 +111,18 @@ export default async function FinancesPage({
   const shares = monthShares(month, splits, startsOn);
   const totals = month ? monthTotals(month, shares) : null;
   const status = monthStatus(month, shares, todayIso);
-  const verdict = month && totals && totals.people.length > 0 ? leftovers(totals, month.income) : null;
+  const ended = Boolean(month?.closed_at) || status === "Ended · not squared";
+  // While the month runs, expected pay counts until it's confirmed; once
+  // it has ended, only what was confirmed.
+  const income = month
+    ? ended
+      ? { income: month.income, projected: false }
+      : projectedIncome(sources, startsOn, month.income)
+    : null;
+  const verdict = month && income && totals && totals.people.length > 0 ? leftovers(totals, income.income) : null;
   // What goes into joint savings (REQ-63), or why nothing does (REQ-64).
   const plan = verdict ? savingsPlan(verdict.people) : null;
-  const ended = Boolean(month?.closed_at) || status === "Ended · not squared";
+  const short = verdict ? verdict.people.filter((person) => person.leftover < 0) : [];
   // Overview shows each bill's name and what's left, or where it stands;
   // due dates and the rest live in Monthly entry (Vin, 2026-09-24).
   const rows = month
@@ -195,9 +205,9 @@ export default async function FinancesPage({
           <section className={styles.group} aria-labelledby="verdict">
             <div className={styles.groupHead}>
               <SectionLabel id="verdict">This month</SectionLabel>
-              <Hint text="What each of you has left after your share of the bills: income logged minus your share. Savings start once both are above zero. Leftover excludes personal card spend." />
+              <Hint text="Each person's income minus their share of the bills. Pay the Budget year expects counts until it's confirmed. Savings start once both have some left; anyone short takes the difference from savings. Leftover excludes personal card spend." />
             </div>
-            {month && month.income.length === 0 ? (
+            {income && income.income.length === 0 ? (
               <Link href={`/finances/income?month=${startsOn.slice(0, 7)}`} className={styles.entryRow}>
                 <span className={styles.rowText}>
                   <span className={styles.billName}>No income logged yet</span>
@@ -206,15 +216,19 @@ export default async function FinancesPage({
                 <ChevronRightIcon />
               </Link>
             ) : (
-              <div className={plan && plan.joint > 0 ? styles.verdict : styles.verdictQuiet}>
+              <div className={(plan && plan.joint > 0) || short.length > 0 ? styles.verdict : styles.verdictQuiet}>
                 <span className={styles.verdictTitle}>
                   {plan && plan.joint > 0
                     ? ended
                       ? "Moved you forward"
                       : "On track to move you forward"
-                    : ended
-                      ? "Nothing to save this month"
-                      : "Nothing to save yet"}
+                    : short.length > 0
+                      ? ended
+                        ? "Took from savings"
+                        : "Take from savings"
+                      : ended
+                        ? "Nothing to save this month"
+                        : "Nothing to save yet"}
                 </span>
                 {plan && plan.joint > 0 ? (
                   <>
@@ -227,14 +241,21 @@ export default async function FinancesPage({
                       </span>
                     ))}
                   </>
+                ) : short.length > 0 ? (
+                  <>
+                    {income?.projected ? <span className={styles.verdictLabel}>Projected</span> : null}
+                    {short.map((person) => (
+                      <span key={person.user_id} className={styles.verdictLine}>
+                        <span>{nameOf.get(person.user_id) ?? "Someone"}</span>
+                        <span>{formatMoney(-person.leftover)}</span>
+                      </span>
+                    ))}
+                  </>
                 ) : (
                   verdict.people.map((person) => (
                     <span key={person.user_id} className={styles.verdictLine}>
                       <span>{nameOf.get(person.user_id) ?? "Someone"}</span>
-                      <span>
-                        {person.leftover < 0 ? "−" : ""}
-                        {formatMoney(Math.abs(person.leftover))} left
-                      </span>
+                      <span>{formatMoney(person.leftover)} left</span>
                     </span>
                   ))
                 )}

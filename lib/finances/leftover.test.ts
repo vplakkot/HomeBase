@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expectedPaychecks, INCOME_KINDS, leftovers } from "./leftover";
+import { expectedPaychecks, INCOME_KINDS, leftovers, projectedIncome } from "./leftover";
 import type { MonthIncome, MonthTotals } from "./month";
 
 const biweekly = {
@@ -46,6 +46,27 @@ describe("expected paychecks (REQ-60)", () => {
 
   it("offers ESPP and RSU sales, not shares kept", () => {
     expect(Object.values(INCOME_KINDS)).toEqual(["Paycheck", "ESPP sale", "RSU sale", "Bonus", "Other"]);
+  });
+});
+
+describe("projected income (Vin, 2026-09-24)", () => {
+  it("adds every payday still expected this month, past or coming, to what's confirmed", () => {
+    const confirmed: MonthIncome = {
+      id: "i-1", owner_id: "u-alex", kind: "paycheck", amount: 2480, received_on: "2026-09-04", income_source_id: "src-alex", note: "",
+    };
+    const { income, projected } = projectedIncome([biweekly], "2026-09-01", [confirmed]);
+    expect(projected).toBe(true);
+    expect(income.map((row) => [row.received_on, row.amount])).toEqual([
+      ["2026-09-04", 2480],
+      ["2026-09-18", 2500],
+    ]);
+  });
+
+  it("isn't projected once every payday is confirmed", () => {
+    const both: MonthIncome[] = ["2026-09-04", "2026-09-18"].map((day) => ({
+      id: day, owner_id: "u-alex", kind: "paycheck", amount: 2500, received_on: day, income_source_id: "src-alex", note: "",
+    }));
+    expect(projectedIncome([biweekly], "2026-09-01", both)).toEqual({ income: both, projected: false });
   });
 });
 

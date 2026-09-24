@@ -1,6 +1,8 @@
 /* Finances home's colour rules (Vin, 2026-09-24):
-   - every card is the light brick tint, so none is white on cream;
-   - solid brick means "needs you": a button, or someone who still owes;
+   - the page is bright white and every card white with a border; no
+     pale tint;
+   - solid brick means "needs you": a button, someone who still owes,
+     money to move into or out of savings;
    - green means done: paid, paid up;
    - text is dark for names and figures, grey for the rest, and white
      only on a solid tile. */
@@ -56,9 +58,9 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--module-quiet-line);
+  border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
-  background: var(--module-quiet);
+  background: var(--color-surface);
 }
 
 .cardNote {
@@ -90,7 +92,7 @@
 }
 
 .billRow + .billRow {
-  border-top: 1px solid var(--module-quiet-line);
+  border-top: 1px solid var(--color-line-soft);
 }
 
 .billName {
@@ -135,9 +137,9 @@
 }
 
 .entryRow {
-  border: 1px solid var(--module-quiet-line);
+  border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
-  background: var(--module-quiet);
+  background: var(--color-surface);
 }
 
 .rowText {
@@ -229,9 +231,9 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: 0 var(--space-4);
-  border: 1px solid var(--module-quiet-line);
+  border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
-  background: var(--module-quiet);
+  background: var(--color-surface);
 }
 
 .workings[open] {
@@ -263,7 +265,7 @@
 .sums dt:last-of-type,
 .sums dd:last-of-type {
   padding-top: var(--space-1);
-  border-top: 1px solid var(--module-quiet-line);
+  border-top: 1px solid var(--color-line-soft);
   font-weight: 700;
 }
 
@@ -277,8 +279,9 @@
   font-weight: 700;
 }
 
-/* The savings verdict (DESIGN.md §7): solid brick when there's money to
-   move to savings, the tint when there isn't. A title, then figures. */
+/* The savings verdict (DESIGN.md §7): solid brick when money moves into
+   or out of savings, a white card when nothing does. A title, then
+   figures. */
 .verdict,
 .verdictQuiet {
   display: flex;
@@ -298,8 +301,8 @@
 }
 
 .verdictQuiet {
-  border: 1px solid var(--module-quiet-line);
-  background: var(--module-quiet);
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
   color: var(--color-ink);
 }
 
@@ -341,7 +344,7 @@
 }
 
 .closeRow + * {
-  border-top: 1px solid var(--module-quiet-line);
+  border-top: 1px solid var(--color-line);
 }
 
 .closeForm {

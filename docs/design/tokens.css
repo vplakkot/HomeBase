@@ -4,7 +4,7 @@
 
 :root {
   /* ---------- Surfaces & text ---------- */
-  --color-ground: #FCFBF9;        /* page background (warm white) */
+  --color-ground: #FFFFFF;        /* page background: bright white (Vin, 2026-09-24) */
   --color-surface: #FFFFFF;       /* cards, bars, sheets */
   --color-line: #E4DFD6;          /* card borders, bar dividers */
   --color-line-soft: #EFEBE4;     /* row dividers inside cards */

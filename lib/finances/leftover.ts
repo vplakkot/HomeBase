@@ -57,6 +57,29 @@ export function expectedPaychecks(
     .sort((a, b) => a.payday.localeCompare(b.payday) || a.name.localeCompare(b.name));
 }
 
+// Vin, 2026-09-24: while a month is running, a paycheck the income setup
+// expects counts as income until someone confirms it, so the savings card
+// shows what's likely rather than "take from savings" on the 2nd of the
+// month. Every payday in the month counts, not only those gone by.
+export function projectedIncome(
+  sources: (IncomeSource & { effective_from: string })[],
+  startsOn: string,
+  logged: MonthIncome[],
+): { income: MonthIncome[]; projected: boolean } {
+  const [year, month] = startsOn.split("-").map(Number);
+  const monthEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+  const expected = expectedPaychecks(sources, startsOn, monthEnd, logged).map((paycheck) => ({
+    id: `expected:${paycheck.source_id}/${paycheck.payday}`,
+    owner_id: paycheck.owner_id,
+    kind: "paycheck" as const,
+    amount: paycheck.amount,
+    received_on: paycheck.payday,
+    income_source_id: paycheck.source_id,
+    note: paycheck.name,
+  }));
+  return { income: [...logged, ...expected], projected: expected.length > 0 };
+}
+
 export type Leftover = { user_id: string; income: number; obligation: number; leftover: number };
 
 // REQ-61: what each person has left after their share of the household
