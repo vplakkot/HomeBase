@@ -205,3 +205,7 @@ https://home-base-peach.vercel.app/api/notifications/test
 
 Not before. Production is still serving v0.0.5, which has no such
 address, so moving it early just means an hourly `404`.
+
+(Since 2026-09-24 the hourly test is gone and `/api/notifications/test`
+with it. The Finances reminders read only the host part of `notify_url`,
+so the path left in the vault no longer matters.)
