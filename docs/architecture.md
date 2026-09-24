@@ -402,13 +402,13 @@ Two things start a send:
   does nothing. The route has no session to check — the database isn't a
   person — so it compares the secret against `NOTIFY_SECRET` in constant
   time ([`lib/notifications/schedule-auth.ts`](../lib/notifications/schedule-auth.ts)),
-  and the proxy's matcher skips just that path. Vercel's own Deployment
+  and the proxy's matcher skips just that path (and the receipt address below). Vercel's own Deployment
   Protection is off for this reason and one bigger one: it would have
   required every visitor, household members included, to hold a Vercel
   account. HomeBase's invite-only sign-in is the real gate. Until
-  2026-09-24 the job sent an hourly test notification; it now drives the
-  Finances reminders instead (see below), and only the origin of
-  `notify_url` is used.
+  2026-09-24 a job sent an hourly test notification; it was stopped, and a
+  separate job, `finance-reminders`, now uses the same clock and secret
+  (see below), reading only the origin of `notify_url`.
 - **"Send test now"** in the admin console
   ([`app/admin/send-test-form.tsx`](../app/admin/send-test-form.tsx)),
   behind `manage_members` like everything else there, which calls the
@@ -425,7 +425,7 @@ sequenceDiagram
 
     Cron->>Route: POST, hourly, Bearer <vault secret>
     Route->>Route: constant-time secret check
-    Route->>Send: sendPush()
+    Route->>Send: sendFinanceReminders() → sendPush()
     Send->>DB: who is switched on, and their devices
     DB-->>Send: devices
     Send->>Apple: one signed, encrypted request per device
