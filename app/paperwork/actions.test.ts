@@ -133,10 +133,18 @@ describe("updatePaper (REQ-97)", () => {
 describe("removePaper (REQ-97)", () => {
   it("removes it, so nothing logged by mistake is stuck", async () => {
     given();
-    await expect(removePaper(form({ id: P1 }))).rejects.toThrow("REDIRECT:/paperwork");
+    await expect(removePaper(form({ id: P1, fileId: FILE }))).rejects.toThrow(
+      new RegExp(`^REDIRECT:/paperwork/files/${FILE}$`),
+    );
     const query = on("paperwork")[0];
     expect(query.delete).toHaveBeenCalled();
     expect(query.eq).toHaveBeenCalledWith("id", P1);
+  });
+
+  // REQ-100: you land back where the paper was.
+  it("goes back to the unfiled list when it had no file", async () => {
+    given();
+    await expect(removePaper(form({ id: P1, fileId: "" }))).rejects.toThrow(/^REDIRECT:\/paperwork\/unfiled$/);
   });
 
   it("touches nothing without a proper id", async () => {
