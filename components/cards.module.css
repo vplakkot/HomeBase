@@ -332,6 +332,27 @@ legend .info::after {
   font-weight: 700;
 }
 
+/* A field in focus is ringed in the module's own colour, not the
+   browser's blue. A $ or % field rings its whole box, so the ring
+   doesn't sit inside it. */
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible,
+.withPrefix:focus-within,
+.withSuffix:focus-within {
+  outline: 2px solid var(--module-loud);
+  outline-offset: 1px;
+}
+
+.withPrefix input:focus-visible,
+.withSuffix input:focus-visible {
+  outline: none;
+}
+
+.form {
+  accent-color: var(--module-loud);
+}
+
 .withPrefix input,
 .withSuffix input {
   flex: 1;

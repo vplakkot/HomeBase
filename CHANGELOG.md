@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Look fixes. A field in focus is ringed in its module's colour instead
+  of the browser's blue (a $ field rings its whole box), and choice
+  buttons take the module's colour. Paperwork's "Add a category first"
+  is a button, not a bare blue link. On Finances home the three column
+  labels line up, and the Monthly entry and admin rows sit on the light
+  brick tint instead of white on cream.
+
 - Paperwork, a new module (slate, last on Home). Log paperwork as it
   arrives: name, whose it is (or Joint), document date, notes and
   keep-until. Left without a file it's Unfiled, and Home shows "N

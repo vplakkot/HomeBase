@@ -102,11 +102,14 @@
   gap: var(--space-3);
 }
 
+/* Every column's head is the same height, hint icon or not, so the
+   three labels line up across a desktop. */
 .groupHead {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-3);
+  min-height: var(--tap-target-min);
 }
 
 .groupNote {
@@ -132,6 +135,28 @@
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
+}
+
+/* Rows that open a page (Monthly entry, the admin rows) sit on the
+   module's light tint, so they don't read as white on cream (Vin,
+   2026-09-24). */
+.tinted {
+  border-color: var(--module-quiet-line);
+  background: var(--module-quiet);
+  color: var(--module-quiet-ink);
+}
+
+.tinted .rowText {
+  color: var(--module-quiet-title);
+}
+
+.tinted .cardNote,
+.tinted .locked {
+  color: var(--module-quiet-ink);
+}
+
+.tinted .closeRow + * {
+  border-top-color: var(--module-quiet-line);
 }
 
 .rowText {

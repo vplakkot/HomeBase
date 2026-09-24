@@ -164,7 +164,7 @@ export default async function FinancesPage({
       status={status}
       month={picker}
     >
-      <Link href={`/finances/monthly-entry?month=${startsOn.slice(0, 7)}`} className={styles.entryRow}>
+      <Link href={`/finances/monthly-entry?month=${startsOn.slice(0, 7)}`} className={`${styles.entryRow} ${styles.tinted}`}>
         <span className={styles.rowText}>
           <span className={styles.billName}>{month ? "Monthly entry" : `Open ${monthLabel(startsOn)}`}</span>
           <span className={styles.cardNote}>
@@ -205,7 +205,7 @@ export default async function FinancesPage({
               <Hint text="Leftover excludes personal card spend: it's income logged minus your share of the household." />
             </div>
             {month && month.income.length === 0 ? (
-              <Link href={`/finances/income?month=${startsOn.slice(0, 7)}`} className={styles.entryRow}>
+              <Link href={`/finances/income?month=${startsOn.slice(0, 7)}`} className={`${styles.entryRow} ${styles.tinted}`}>
                 <span className={styles.rowText}>
                   <span className={styles.billName}>No income logged yet</span>
                   <span className={styles.cardNote}>Confirm paychecks to see what&apos;s left</span>
@@ -259,7 +259,9 @@ export default async function FinancesPage({
 
         {totals && totals.people.length > 0 ? (
           <section className={styles.group} aria-labelledby="who-owes">
-            <SectionLabel id="who-owes">Who owes what</SectionLabel>
+            <div className={styles.groupHead}>
+              <SectionLabel id="who-owes">Who owes what</SectionLabel>
+            </div>
             <ul className={styles.people}>
               {totals.people.map((person) => {
                 const name = nameOf.get(person.user_id) ?? "Someone";
@@ -375,7 +377,7 @@ export default async function FinancesPage({
 
       <section className={styles.group} aria-labelledby="admin">
         <SectionLabel id="admin">Admin</SectionLabel>
-        <div className={styles.card}>
+        <div className={`${styles.card} ${styles.tinted}`}>
           {month && !month.closed_at ? (
             canManageBudget ? (
               <details className={styles.closeRow}>
