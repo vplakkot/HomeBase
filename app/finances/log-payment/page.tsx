@@ -25,10 +25,10 @@ const SECTION = "Log payment";
 export default async function LogPaymentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; bill?: string }>;
 }) {
   const { supabase, canManageMembers, account } = await financesViewer();
-  const { month: asked } = await searchParams;
+  const { month: asked, bill: chosen } = await searchParams;
   const todayIso = householdToday();
   const [opened, people, splits] = await Promise.all([
     listOpenedMonths(supabase),
@@ -111,7 +111,7 @@ export default async function LogPaymentPage({
             ) : choices.length === 0 ? (
               <p className={styles.empty}>No bill has an amount entered yet, so there&apos;s nothing to pay toward.</p>
             ) : (
-              <PaymentForm people={people} bills={choices} />
+              <PaymentForm people={people} bills={choices} chosen={chosen} />
             )}
           </div>
         </section>

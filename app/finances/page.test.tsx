@@ -399,6 +399,29 @@ describe("closing a month and the verdict", () => {
     id: `i-${owner_id}`, owner_id, kind: "paycheck", amount, received_on: "2026-09-04", income_source_id: null, note: "",
   });
 
+  // REQ-93: "numbers are ready" clears once the other person opens the month.
+  function acknowledged() {
+    return fake.from.mock.calls.flatMap(([table], index) =>
+      table === "action_item_acks"
+        ? (fake.from.mock.results[index].value.upsert as ReturnType<typeof vi.fn>).mock.calls.map(([row]) => row)
+        : [],
+    );
+  }
+  const enteredRent = (entered_by: string) => ({
+    id: "mb-rent", name: "Rent", kind: "rent", due_day: 1, amount: "2000.00", personal_answer: null, entered_by,
+    personal_charges: [], payments: [],
+  });
+
+  it("marks the month's numbers as seen when someone else entered them", async () => {
+    await show({ bills: [enteredRent("u-alex")] });
+    expect(acknowledged()).toEqual([{ key: "ready:2026-09-01" }]);
+  });
+
+  it("marks nothing seen for the person who entered the numbers themselves", async () => {
+    await show({ bills: [enteredRent("user-1")] });
+    expect(acknowledged()).toEqual([]);
+  });
+
   it("reads Squared once every bill is paid and nobody owes anything, and says it closes tonight", async () => {
     await show({ bills: [rentPaidBy([["u-alex", "1200.00"], ["u-sam", "800.00"]])] });
     expect(status()).toContain("Squared");

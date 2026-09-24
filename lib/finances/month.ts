@@ -31,6 +31,8 @@ export type MonthBill = {
   due_day: number;
   amount: number | null;
   personal_answer: "none" | "some" | null;
+  // Who entered it; rent the month pre-enters has no one (REQ-93).
+  entered_by?: string | null;
   personal_charges: PersonalCharge[];
   payments: Payment[];
 };
@@ -54,7 +56,7 @@ const MONTH_FIELDS = `id, starts_on, closed_at, closed_by, closed_automatically,
   people:month_people(user_id, percent, outstanding),
   income:month_income(id, owner_id, kind, amount, received_on, income_source_id, note),
   savings:month_savings(user_id, to_joint, own),
-  bills:month_bills(id, name, kind, due_day, amount, personal_answer,
+  bills:month_bills(id, name, kind, due_day, amount, personal_answer, entered_by,
     personal_charges(id, owner_id, amount, note),
     payments(id, payer_id, amount, created_at)),
   direct_payments(id, payer_id, amount, note, paid_on)`;
@@ -69,8 +71,22 @@ export async function readMonth(supabase: SupabaseClient, startsOn: string): Pro
     .eq("starts_on", startsOn)
     .maybeSingle();
   if (error) throw new Error(`Could not read the month: ${error.message}`);
-  if (!data) return null;
-  const month = data as unknown as Month;
+  return data ? tidyMonth(data as unknown as Month) : null;
+}
+
+// Every month opened since the given one, oldest first (REQ-93's items
+// look at the month running and any before it still open).
+export async function readMonthsSince(supabase: SupabaseClient, since: string): Promise<Month[]> {
+  const { data, error } = await supabase
+    .from("months")
+    .select(MONTH_FIELDS)
+    .gte("starts_on", since)
+    .order("starts_on", { ascending: true });
+  if (error) throw new Error(`Could not read the months: ${error.message}`);
+  return ((data ?? []) as unknown as Month[]).map(tidyMonth);
+}
+
+function tidyMonth(month: Month): Month {
   return {
     ...month,
     bills: [...month.bills]

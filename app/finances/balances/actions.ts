@@ -6,6 +6,7 @@ import { hasPermission } from "../../../lib/auth/permissions";
 import { ACCOUNT_ORDER } from "../../../lib/finances/balances";
 import { householdToday, monthStart } from "../../../lib/finances/budget-year";
 import { parseAmount } from "../../../lib/finances/money";
+import { acknowledge } from "../../../lib/finances/snapshot";
 import { createClient } from "../../../lib/supabase/server";
 
 export type FormState = { error?: string; saved?: boolean };
@@ -77,4 +78,14 @@ export async function removeBalances(formData: FormData): Promise<void> {
   const { error } = await supabase.from("balances").delete().eq("month", month);
   if (error) throw new Error(`Could not remove the balances: ${error.message}`);
   revalidatePath("/finances", "layout");
+}
+
+// REQ-93: a cash gap is news, not a task, so it clears once someone says
+// they've seen it — for them; the other person still sees theirs.
+export async function acknowledgeCashGap(formData: FormData): Promise<void> {
+  const supabase = await requireMember();
+  const month = balanceMonth(formData);
+  if (!month) redirect("/finances/balances");
+  await acknowledge(supabase, `cash-gap:${month}`);
+  revalidatePath("/", "layout");
 }

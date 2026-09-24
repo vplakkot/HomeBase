@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type CSSProperties, type UIEvent } from "react";
 import type { ActionItem } from "../lib/module-status";
 import { moduleColours, type Module } from "../lib/modules";
@@ -20,8 +21,8 @@ export type HomeActionItem = { module: Module; item: ActionItem };
 // by side. Nothing moves unless someone swipes: the card never rotates on
 // its own.
 //
-// In v0.2 the cards don't open anything: deep links need the screens
-// they'd open, which come later.
+// A card with somewhere to go is a link to the exact screen where the
+// action happens (REQ-91); the design's example items have nowhere to go.
 export function ActionItems({ labelId, items }: { labelId: string; items: HomeActionItem[] }) {
   const [current, setCurrent] = useState(0);
   const count = items.length;
@@ -63,7 +64,7 @@ export function ActionItems({ labelId, items }: { labelId: string; items: HomeAc
               aria-labelledby={labelId}
             >
               {items.map(({ module, item }) => (
-                <li key={`${module.slug}-${item.rank}`} className={styles.item}>
+                <li key={`${module.slug}-${item.rank}-${item.text}`} className={styles.item}>
                   <Card module={module} item={item} />
                 </li>
               ))}
@@ -73,7 +74,7 @@ export function ActionItems({ labelId, items }: { labelId: string; items: HomeAc
             <div className={styles.dots} aria-hidden="true">
               {items.map(({ module, item }, index) => (
                 <span
-                  key={`${module.slug}-${item.rank}`}
+                  key={`${module.slug}-${item.rank}-${item.text}`}
                   className={index === current ? `${styles.dot} ${styles.dotOn}` : styles.dot}
                 />
               ))}
@@ -89,8 +90,8 @@ export function ActionItems({ labelId, items }: { labelId: string; items: HomeAc
 // of detail and a chevron. No module name; the icon says which it is.
 function Card({ module, item }: HomeActionItem) {
   const Icon = MODULE_ICONS[module.slug];
-  return (
-    <div className={styles.card} style={moduleColours(module) as CSSProperties}>
+  const inside = (
+    <>
       <span className={styles.chip} aria-hidden="true">
         <Icon size={20} />
       </span>
@@ -101,6 +102,16 @@ function Card({ module, item }: HomeActionItem) {
       <span className={styles.go} aria-hidden="true">
         <ChevronRightIcon />
       </span>
+    </>
+  );
+  const colours = moduleColours(module) as CSSProperties;
+  return item.href ? (
+    <Link href={item.href} className={styles.card} style={colours}>
+      {inside}
+    </Link>
+  ) : (
+    <div className={styles.card} style={colours}>
+      {inside}
     </div>
   );
 }

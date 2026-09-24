@@ -812,6 +812,48 @@ their leftover from `leftovers()`, flagging more than `CASH_GAP_FLAG`
 check and the trend. On desktop, an SVG line chart drawn in our own
 code (`chart.tsx`, no chart library) shows the total.
 
+## Finances action items and reminders
+
+Home's Action items card and the Finances tile now show real items
+(REQ-91, REQ-93). [`lib/finances/action-items.ts`](../lib/finances/action-items.ts)
+works out one person's items from a snapshot of the Finances data
+([`lib/finances/snapshot.ts`](../lib/finances/snapshot.ts): the split,
+the months opened in the last year, balances, acknowledgements). Nothing
+is stored per item: each clears when the data it watches changes. Each
+item carries a rank (month-ended and bill-due-soon first), a link to the
+exact screen (Log payment opens with the bill picked via `?bill=`), and,
+for the six moments REQ-70 names, a push: its text has no dollar figures
+and its *topic* says when a repeat is due (a new month, another fortnight).
+
+Three things can't be worked out, so they are stored:
+
+| Table / column | One row is | Key facts |
+|---|---|---|
+| `month_bills.entered_by` | who entered a bill | set by `enter_bill()`; rent the month pre-enters has none; drives "numbers are ready" |
+| `action_item_acks` | a person having seen or acknowledged an item | `user_id` + `key` (e.g. `ready:2026-09-01`); each person reads and writes only their own; opening Finances home records "ready", **Got it** on Balances records "cash-gap" |
+| `finance_pushes` | a push already sent | `user_id` + `topic`; only the secret key touches it |
+
+```mermaid
+sequenceDiagram
+    participant Cron as pg_cron (10 past each hour)
+    participant Route as /api/notifications/finances
+    participant Items as action-items.ts
+    participant DB as finance_pushes
+    participant Send as lib/notifications/send.ts
+    Cron->>Route: POST, shared secret
+    Route->>Route: outside 9am–9pm New York? stop
+    Route->>Items: pushesDue(snapshot, already sent)
+    Items-->>Route: one per person, most urgent unsent
+    Route->>DB: claim (insert, do nothing if there)
+    Route->>Send: sendPush(to that person) if the claim went in
+```
+
+The job reuses the test notification's vault secrets; it keeps only the
+origin of `notify_url` and calls `/api/notifications/finances` there.
+`sendPush()` is the test notification's sender made general: it still
+skips anyone whose notifications switch is off, and logs each device
+under the trigger `finances`. See [lesson 23](lessons/23-to-dos-that-clear-themselves.md).
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:
@@ -822,8 +864,8 @@ These are deliberately absent at this stage, not overlooked:
 - **Screens still to design** — Sign-in, sign-up and set-password have
   no mockup, so they keep a plain layout in the design's fonts and
   colours.
-- **The rest of Finances** — balances, action items and reminders
-  arrive in batches after the months above.
+- **Three-paycheck months** — REQ-93's item waits on REQ-62, now in
+  Draft.
 
 Each of these will get its own entry in this document (and likely its own
 diagram) once it exists.

@@ -14,13 +14,17 @@ export type BillChoice = { id: string; name: string; left: number };
 // REQ-57, as the design's sheet has it (docs/design/DESIGN.md §7): who
 // paid, the amount, and the bill it went toward. `payment` fills it in
 // to change one already logged; its bill is offered even once paid off.
+// `chosen` picks a bill for a new payment, when an action item about that
+// bill led here (REQ-91).
 export function PaymentForm({
   people,
   bills,
   payment,
+  chosen,
 }: {
   people: Person[];
   bills: BillChoice[];
+  chosen?: string;
   payment?: { id: string; payer_id: string; month_bill_id: string; amount: number };
 }) {
   const [state, formAction, pending] = useActionState(savePayment, initialState);
@@ -69,7 +73,7 @@ export function PaymentForm({
                 type="radio"
                 name="monthBillId"
                 value={bill.id}
-                defaultChecked={payment?.month_bill_id === bill.id}
+                defaultChecked={payment ? payment.month_bill_id === bill.id : chosen === bill.id}
                 required
               />
               {bill.name}

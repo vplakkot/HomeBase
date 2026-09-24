@@ -104,6 +104,17 @@
   April. Closed months keep the split they had. The prompt goes once
   April's split is saved. (#162)
 
+- Action items. Home's card now shows what Finances needs from you,
+  most urgent first, and tapping one opens the exact screen: enter the
+  month's numbers, numbers ready (for whoever didn't enter them), a bill
+  due within 5 days (Log payment opens on that bill), no payment in 14
+  days, a month ended unsquared (close it, or pay), a month squared and
+  closing tonight, a cash gap (Got it on Balances clears it), balances
+  at quarter end, and the March split review. The Finances tile says
+  the most urgent one, or how the month stands. An hourly job pushes six
+  of these moments, once each, between 9am and 9pm, with no dollar
+  amounts. (#164)
+
 ## 0.3.0 - 2026-09-22
 
 The Finances module gets its setup: an admin sets the split, each

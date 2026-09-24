@@ -26,6 +26,7 @@ import { formatMoney } from "../../lib/finances/money";
 import { nothingToSaveReasons, savingsPlan } from "../../lib/finances/savings";
 import { closeMonthWithBalance } from "./actions";
 import { marchReview } from "../../lib/finances/recalibrate";
+import { acknowledge } from "../../lib/finances/snapshot";
 import { FinancesFrame, financesViewer } from "./frame";
 import { Hint } from "./hint";
 import styles from "./page.module.css";
@@ -42,14 +43,14 @@ import styles from "./page.module.css";
 // close one with a balance left (REQ-59). A closed month is shown as it
 // closed, with the percentages written on it (REQ-52). The verdict card
 // says whether the month moved you forward (REQ-61), with what goes into
-// joint savings (REQ-63) or, in words, why nothing does (REQ-64). Action items come
-// with REQ-68.
+// joint savings (REQ-63) or, in words, why nothing does (REQ-64). Opening
+// a month someone else entered clears its "numbers are ready" item (REQ-93).
 export default async function FinancesPage({
   searchParams,
 }: {
   searchParams?: Promise<{ month?: string }>;
 } = {}) {
-  const { supabase, canManageMembers, canManageBudget, account } = await financesViewer();
+  const { supabase, canManageMembers, canManageBudget, account, userId } = await financesViewer();
   const todayIso = householdToday();
   const [splits, bills, people, opened] = await Promise.all([
     listSplits(supabase),
@@ -150,6 +151,11 @@ export default async function FinancesPage({
   // What was still owed when the month closed, and by whom (REQ-59).
   const leftOwing = month?.closed_at ? month.people.filter((person) => person.outstanding > 0) : [];
   const allEntered = month ? month.bills.every(billEntered) : false;
+  // REQ-93: "numbers are ready" clears once the person who didn't enter
+  // them has opened the month. Losing this only leaves the note up.
+  if (month && allEntered && month.bills.some((bill) => bill.entered_by && bill.entered_by !== userId)) {
+    await acknowledge(supabase, `ready:${startsOn}`).catch((reason) => console.error(reason));
+  }
 
   return (
     <FinancesFrame

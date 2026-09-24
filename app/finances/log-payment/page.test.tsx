@@ -63,7 +63,8 @@ function given(months: unknown[] = [SEPTEMBER]) {
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
 }
 
-const page = async () => render(await LogPaymentPage({ searchParams: Promise.resolve({}) }));
+const page = async (params: { bill?: string } = {}) =>
+  render(await LogPaymentPage({ searchParams: Promise.resolve(params) }));
 
 describe("Log payment", () => {
   // REQ-57: who paid, how much, and toward which bill. Only bills with
@@ -84,6 +85,14 @@ describe("Log payment", () => {
     ]);
     // Alex's rent covers their $1,560 share; Sam owes $1,040 less $150.
     expect(log.textContent).toContain("Alex is paid up · Sam still owes $890.00");
+  });
+
+  // REQ-91: an item about a bill opens Log payment with that bill picked.
+  it("picks the bill an action item named", async () => {
+    given();
+    await page({ bill: "mb-joint" });
+    const form = screen.getByRole("region", { name: "Log a payment" });
+    expect(within(form).getByRole("radio", { name: /^Joint card/ })).toHaveProperty("checked", true);
   });
 
   // REQ-57: a mistake can be edited or deleted.
