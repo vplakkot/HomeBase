@@ -41,6 +41,7 @@ export function FinancesFrame({
 }) {
   const mark = month ? monthMark(month.closed, month.startsOn, householdToday()) : undefined;
   const at = month && mark ? month.startsOn.slice(0, 7) : undefined;
+  const logPayment = month?.closed ? null : at ? `/finances/log-payment?month=${at}` : "/finances/log-payment";
   return (
     <ModuleFrame
       slug="finances"
@@ -48,6 +49,7 @@ export function FinancesFrame({
       mark={mark}
       tabMonth={at}
       pinnedInHeader
+      pinnedHref={logPayment}
       actions={
         <>
           <ButtonLink href="/finances/history">Previous months</ButtonLink>
@@ -56,11 +58,11 @@ export function FinancesFrame({
               <SettingsIcon size={20} />
             </ButtonLink>
           ) : null}
-          {month?.closed ? null : (
-            <ButtonLink href={at ? `/finances/log-payment?month=${at}` : "/finances/log-payment"} desktopOnly>
+          {logPayment ? (
+            <ButtonLink href={logPayment} desktopOnly>
               Log payment
             </ButtonLink>
-          )}
+          ) : null}
         </>
       }
       {...props}

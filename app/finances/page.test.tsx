@@ -235,17 +235,26 @@ describe("the Finances header", () => {
     const title = screen.getByRole("heading", { level: 1 });
     expect(title.textContent).toBe("Finances — August 2026Closed");
     expect(title.querySelector("sup")?.textContent).toBe("Closed");
-    // A closed month takes no payments.
+    // A closed month takes no payments, on a desktop or a phone.
+    const phoneBar = screen.getByRole("main").nextElementSibling as HTMLElement;
     expect(within(screen.getByRole("banner")).queryByRole("link", { name: "Log payment" })).toBeNull();
+    expect(within(phoneBar).queryByRole("link", { name: "Log payment" })).toBeNull();
     const tabs = screen.getByRole("navigation", { name: "Finances sections" });
     expect(within(tabs).getByRole("link", { name: "Payments" }).getAttribute("href")).toBe("/finances/payments?month=2026-08");
     expect(within(tabs).getByRole("link", { name: "History" }).getAttribute("href")).toBe("/finances/history");
   });
 
-  it("marks a month gone by that never closed Open", async () => {
+  it("marks a month gone by that never closed Open, and logs payments against it", async () => {
     const august = { ...SEPTEMBER, id: "m-aug", starts_on: "2026-08-01" };
     await showMonth({ months: [august, SEPTEMBER], month: "2026-08" });
     expect(screen.getByRole("heading", { level: 1 }).querySelector("sup")?.textContent).toBe("Open");
+    // The header's button (desktop) and the pinned one (phone) both.
+    const phoneBar = screen.getByRole("main").nextElementSibling as HTMLElement;
+    for (const place of [screen.getByRole("banner"), phoneBar]) {
+      expect(within(place).getByRole("link", { name: "Log payment" }).getAttribute("href")).toBe(
+        "/finances/log-payment?month=2026-08",
+      );
+    }
   });
 
   it("styles the mark as small plain text, not a pill", () => {

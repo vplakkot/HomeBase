@@ -57,8 +57,10 @@ end;
 $$;
 
 -- The job. pg_cron runs on UTC, so it asks what month it is in New York.
--- It does nothing until a split is in force: before the budget year is
--- set up there is no month to run. p_today is there for the live check.
+-- It does nothing until a split is in force and the bill list has a bill:
+-- before the budget year is set up there is no month to run, and a month
+-- with no bills would count as squared, so the nightly close would lock
+-- it minutes later. p_today is there for the live check.
 create function public.open_current_month(
   p_today date default (now() at time zone 'America/New_York')::date
 )
@@ -70,7 +72,8 @@ as $$
 declare
   starts date := date_trunc('month', p_today)::date;
 begin
-  if not exists (select 1 from public.splits where effective_from <= starts) then
+  if not exists (select 1 from public.splits where effective_from <= starts)
+     or not exists (select 1 from public.bills) then
     return null;
   end if;
   return public.create_month(starts);

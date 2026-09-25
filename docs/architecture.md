@@ -682,7 +682,8 @@ A month exists once someone opens it in Monthly entry,
 
 A month opens itself (REQ-101): a pg_cron job, `open-current-month`, runs
 two minutes past every hour and calls `open_current_month()`, which opens
-the month now running in New York once a split is in force. A person can
+the month now running in New York once a split is in force and the bill
+list has a bill. A person can
 still open it first from Monthly entry with `open_month()`, which checks
 membership and opens only the month now running (the day passed in from
 `householdToday()`). Both go through `create_month()`, which no one signed
@@ -755,8 +756,9 @@ flowchart LR
 ```
 
 Since REQ-103 an admin closes with a balance only from the "ended, not
-squared" action item, which opens `/finances/close-month`; a month still
-running can no longer be closed early.
+squared" action item, which opens `/finances/close-month`, so the app no
+longer offers closing a month still running early. The database function
+itself would still allow it.
 
 - **Squared** is worked out twice, on purpose: `monthStatus()` in the
   app for Home's tile and the action items, and `month_balances()` / `month_is_squared()`

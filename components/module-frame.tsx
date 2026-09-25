@@ -23,6 +23,7 @@ export function ModuleFrame({
   actions,
   tabMonth,
   pinnedInHeader,
+  pinnedHref,
   children,
 }: {
   slug: string;
@@ -34,6 +35,7 @@ export function ModuleFrame({
   actions?: ReactNode;
   tabMonth?: string;
   pinnedInHeader?: boolean;
+  pinnedHref?: string | null;
   children: ReactNode;
 }) {
   const module = moduleBySlug(slug);
@@ -43,7 +45,7 @@ export function ModuleFrame({
       current={module.slug}
       canAdminister={canManageMembers}
       account={account}
-      phoneBar={<ModuleBar module={module} current={section} />}
+      phoneBar={<ModuleBar module={module} current={section} pinnedHref={pinnedHref} />}
       style={moduleColours(module) as CSSProperties}
     >
       <header className={styles.header}>
