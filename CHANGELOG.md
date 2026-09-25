@@ -9,8 +9,9 @@
   Log payment. The page runs: action items, each with its own button;
   Progress (what's still to pay); Outstanding balances (was "Who owes
   what"); then the bills with due dates, progress and "Overdue" when
-  late. Savings is paused, so its tab and card are hidden. Closing a month with a balance is now only
-  an action item, once the month has ended.
+  late. Savings is paused, so its tab and card are hidden. Closing a
+  month with a balance is now only an action item, once the month has
+  ended.
 - A Payments tab lists every payment logged in the month, newest first.
 - Previous months opens History, a list of every month. A past month
   shows "Closed" or "Open" after its name, and the tabs stay on it.

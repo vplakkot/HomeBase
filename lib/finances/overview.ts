@@ -6,7 +6,7 @@ import { billEntered, type Month, type MonthTotals } from "./month";
 // summary — still to pay, the bills, paid so far, how much of it is paid
 // and how many bills are late — and one row per bill with its due date
 // and progress. Worked out from monthTotals, so the figures agree with
-// Who owes what.
+// Outstanding balances.
 
 export type OverviewBill = {
   id: string;

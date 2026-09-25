@@ -204,7 +204,7 @@
   background: var(--module-loud);
 }
 
-/* Who owes what: one card per person, two across when there's room. */
+/* Outstanding balances: one card per person, two across when there's room. */
 .people {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
