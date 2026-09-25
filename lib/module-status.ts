@@ -33,8 +33,8 @@ const COMING_SOON: ModuleStatus = {
   actionItems: [],
 };
 
-// The mockups' three-item example (home-phone-3-actions and
-// home-desktop-3-actions): Finances, Pets and Health need someone, the
+// The v0.2 mockups' three-item example (home-phone-3-actions and
+// home-desktop-3-actions, removed from the repo on 2026-09-25): Finances, Pets and Health need someone, the
 // rest are calm. Finances' item differs from the mockup's "Groceries over
 // by $142", because DESIGN.md rules out spending categories. Calendar's
 // item is a fourth, shown only with ?demo=4, where it makes Calendar loud

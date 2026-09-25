@@ -4,6 +4,7 @@ import {
   chosenMonth,
   dueInMonth,
   isSquared,
+  monthMark,
   monthShares,
   monthStatus,
   monthTotals,
@@ -275,5 +276,17 @@ describe("dueInMonth", () => {
   it("moves a 31st to the last day of a shorter month", () => {
     expect(dueInMonth(31, "2026-09-01")).toBe("Due 30 Sep");
     expect(dueInMonth(31, "2027-02-01")).toBe("Due 28 Feb");
+  });
+});
+
+// REQ-102: the small mark after a month's title.
+describe("monthMark", () => {
+  it("is nothing for the month now running", () => {
+    expect(monthMark(false, "2026-09-01", "2026-09-22")).toBeUndefined();
+  });
+
+  it("is Closed for a month gone by that closed, Open for one that never did", () => {
+    expect(monthMark(true, "2026-08-01", "2026-09-22")).toBe("Closed");
+    expect(monthMark(false, "2026-08-01", "2026-09-22")).toBe("Open");
   });
 });

@@ -7,8 +7,6 @@ import {
   dayLabel,
   listOpenedMonths,
   monthShares,
-  monthStatus,
-  pickableMonths,
   readMonth,
 } from "../../../lib/finances/month";
 import { formatMoney } from "../../../lib/finances/money";
@@ -29,7 +27,7 @@ export default async function IncomePage({
 }: {
   searchParams: Promise<{ month?: string }>;
 }) {
-  const { supabase, canManageMembers, account } = await financesViewer();
+  const { supabase, canManageMembers, canManageBudget, account } = await financesViewer();
   const { month: asked } = await searchParams;
   const todayIso = householdToday();
   const [opened, people, splits, sources] = await Promise.all([
@@ -44,8 +42,8 @@ export default async function IncomePage({
     canManageMembers,
     account,
     section: SECTION,
-    status: monthStatus(month, monthShares(month, splits, startsOn), todayIso),
-    month: { current: startsOn, options: pickableMonths(opened, todayIso) },
+    canManageBudget,
+    month: { startsOn, closed: Boolean(month?.closed_at) },
   };
 
   if (!month) {

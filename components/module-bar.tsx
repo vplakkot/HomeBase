@@ -62,7 +62,7 @@ export function ModuleBar({ module, current }: { module: Module; current?: strin
               <span className={styles.rowName}>Overview</span>
             </Link>
           </li>
-          {module.sections.map((section) => {
+          {module.sections.filter((section) => !section.hidden).map((section) => {
             const text = (
               <>
                 <span className={styles.rowText}>

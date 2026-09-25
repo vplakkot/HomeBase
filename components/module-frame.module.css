@@ -1,5 +1,5 @@
-/* On a phone: the icon and name, then the month and its status on a row
-   of their own. On a desktop all four share one row. */
+/* On a phone: the icon and title, then the buttons on a row of their
+   own. On a desktop they share one row, buttons on the right. */
 .header {
   display: flex;
   flex-direction: column;
@@ -7,14 +7,14 @@
 }
 
 .name,
-.month {
+.actions {
   display: flex;
   align-items: center;
   gap: var(--space-3);
 }
 
-.month {
-  justify-content: space-between;
+.actions {
+  flex-wrap: wrap;
 }
 
 .chip {
@@ -50,6 +50,7 @@
   .header {
     flex-direction: row;
     align-items: center;
+    justify-content: space-between;
   }
 
   .chip {
@@ -66,13 +67,20 @@
   }
 }
 
-/* The month's status chip (DESIGN.md §7). "No budget year" is the
-   neutral one. */
-.status {
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--color-track);
-  color: var(--color-ink);
+.dash {
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+.context {
+  color: var(--module-loud);
+}
+
+/* A past month's state: small plain text, so it never reads as a button. */
+.mark {
+  margin-left: var(--space-1);
+  color: var(--color-muted);
   font-size: var(--text-caption);
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: 0;
 }

@@ -68,7 +68,6 @@ describe("Monthly entry before the month is opened", () => {
     expect(card.textContent).toContain("copies in the household's 2 bills");
     expect(card.textContent).toContain("apply from the next month opened");
     expect(within(card).getByRole("button", { name: "Open September 2026" })).toBeDefined();
-    expect(screen.getByText("Incomplete")).toBeDefined();
   });
 });
 
@@ -100,12 +99,12 @@ describe("Monthly entry in an opened month", () => {
     expect(bills.textContent).toContain("Due 1 Sep");
   });
 
-  // REQ-53: a bill not entered is shown, and the month is Incomplete.
-  it("marks a bill not yet entered and the month as Incomplete", async () => {
+  // REQ-53: a bill not entered is shown. That the month reads Incomplete
+  // is Home's tile and the action item's job (REQ-101), tested there.
+  it("marks a bill not yet entered", async () => {
     given({ months: [SEPTEMBER] });
     await page();
     expect(screen.getByRole("region", { name: "Bills" }).textContent).toContain("Not entered");
-    expect(screen.getByText("Incomplete")).toBeDefined();
   });
 
   // REQ-54 and REQ-94: a card statement asks about personal charges, as a
@@ -175,12 +174,13 @@ describe("Monthly entry in an opened month", () => {
     expect(screen.getByText("Alex · 5 Sep")).toBeDefined();
   });
 
-  it("reads Open once every bill is entered", async () => {
+  // REQ-102: the header names the month, with no mark while it runs.
+  it("names the month in the header, with no status beside it", async () => {
     given({
       months: [{ ...SEPTEMBER, bills: [{ ...SEPTEMBER.bills[1], amount: "2000.00" }, SEPTEMBER.bills[0]] }],
     });
     await page();
-    expect(screen.getByText("Open")).toBeDefined();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Finances — September 2026");
   });
 });
 

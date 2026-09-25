@@ -42,7 +42,7 @@ describe("the bar inside a module, on a phone", () => {
 });
 
 describe("the Sections sheet", () => {
-  it("lists the overview, then the module's seven sections, Monthly entry, Log payment, Income, Savings, Balances and Budget year open, the rest coming", () => {
+  it("lists the overview, then the module's sections, leaving out Savings while it's paused", () => {
     render(<ModuleBar module={finances} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const sheet = openSheet();
@@ -51,11 +51,10 @@ describe("the Sections sheet", () => {
       "Overview",
       "Monthly entryBills, personal charges, One-time Payments",
       "Log paymentSeveral times a month",
+      "PaymentsEvery payment logged in the month",
       "IncomeConfirm paychecks, add ESPP, RSU, bonus",
-      "SavingsVerdict and what you actually saved",
       "BalancesEnter and see trends",
-      "HistoryClosed months, read-onlyComing soon",
-      "Budget yearSplit %, income sources and billsAdmin only",
+      "HistoryEvery month so far",
     ]);
   });
 
@@ -76,16 +75,16 @@ describe("the Sections sheet", () => {
       ["Overview", "/finances"],
       ["Monthly entryBills, personal charges, One-time Payments", "/finances/monthly-entry"],
       ["Log paymentSeveral times a month", "/finances/log-payment"],
+      ["PaymentsEvery payment logged in the month", "/finances/payments"],
       ["IncomeConfirm paychecks, add ESPP, RSU, bonus", "/finances/income"],
-      ["SavingsVerdict and what you actually saved", "/finances/savings"],
       ["BalancesEnter and see trends", "/finances/balances"],
-      ["Budget yearSplit %, income sources and billsAdmin only", "/finances/budget-year"],
+      ["HistoryEvery month so far", "/finances/history"],
     ]);
     expect(links.map((link) => link.getAttribute("aria-current"))).toEqual(["page", null, null, null, null, null, null]);
   });
 
   it("marks a section as where you are when you're on its page", () => {
-    render(<ModuleBar module={finances} current="Budget year" />);
+    render(<ModuleBar module={finances} current="History" />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const links = within(openSheet()).getAllByRole("link");
     expect(links.map((link) => link.getAttribute("aria-current"))).toEqual([null, null, null, null, null, null, "page"]);

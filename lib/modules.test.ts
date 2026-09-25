@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readTokens } from "../test/css";
 import {
+  SAVINGS_PAUSED,
   MODULES,
   NOTHING_SWITCHED_OFF,
   moduleBySlug,
@@ -78,21 +79,25 @@ describe("the module list", () => {
 describe("the Finances sections", () => {
   const finances = moduleBySlug("finances");
 
-  it("are the seven of the design, in its order", () => {
+  it("are the design's tabs in its order, Log payment pinned (DESIGN.md §7)", () => {
     expect(finances.sections.map((section) => section.name)).toEqual([
       "Monthly entry",
       "Log payment",
+      "Payments",
       "Income",
       "Savings",
       "Balances",
       "History",
-      "Budget year",
     ]);
   });
 
-  it("mark only Budget year as admin-only", () => {
-    expect(
-      finances.sections.filter((section) => section.adminOnly).map((section) => section.name),
-    ).toEqual(["Budget year"]);
+  it("have no admin-only tab: Budget year sits behind the settings gear (REQ-103)", () => {
+    expect(finances.sections.some((section) => section.adminOnly)).toBe(false);
+    expect(finances.sections.some((section) => section.name === "Budget year")).toBe(false);
+  });
+
+  it("hide Savings while savings is paused", () => {
+    expect(SAVINGS_PAUSED).toBe(true);
+    expect(finances.sections.find((section) => section.name === "Savings")?.hidden).toBe(true);
   });
 });

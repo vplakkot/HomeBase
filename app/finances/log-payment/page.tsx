@@ -4,9 +4,7 @@ import {
   chosenMonth,
   listOpenedMonths,
   monthShares,
-  monthStatus,
   monthTotals,
-  pickableMonths,
   readMonth,
 } from "../../../lib/finances/month";
 import { formatMoney } from "../../../lib/finances/money";
@@ -27,7 +25,7 @@ export default async function LogPaymentPage({
 }: {
   searchParams: Promise<{ month?: string; bill?: string }>;
 }) {
-  const { supabase, canManageMembers, account } = await financesViewer();
+  const { supabase, canManageMembers, canManageBudget, account } = await financesViewer();
   const { month: asked, bill: chosen } = await searchParams;
   const todayIso = householdToday();
   const [opened, people, splits] = await Promise.all([
@@ -42,8 +40,8 @@ export default async function LogPaymentPage({
     canManageMembers,
     account,
     section: SECTION,
-    status: monthStatus(month, shares, todayIso),
-    month: { current: startsOn, options: pickableMonths(opened, todayIso) },
+    canManageBudget,
+    month: { startsOn, closed: Boolean(month?.closed_at) },
   };
 
   if (!month) {
