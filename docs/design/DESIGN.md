@@ -1,4 +1,4 @@
-# HomeBase design (v0.2)
+# HomeBase design (v1.0)
 
 This folder is the design reference for HomeBase. The **rules below take priority over the mockups**: the mockups show a few example states, the rules say what to do in every state.
 
@@ -79,6 +79,7 @@ Replaces the old "Needs you" label. Label: **ACTION ITEMS**.
 - **Desktop:** up to 3 dark cards side by side.
 - **None:** replace the card with a green "All clear" row ("No action items today").
 - Never auto-rotate.
+- This section is Home's action items. Inside a module, action items use the module-home card instead (§6, Module home layout).
 
 ## 6. Navigation inside a module
 
@@ -94,21 +95,46 @@ A fixed bottom bar with exactly three buttons, the same in every module:
 A module may pin its most frequent action above this bar (Finances: **Log payment**).
 
 ### Desktop
-Sidebar as on Home, with the current module highlighted. The module's sections become a row of tabs under the page title. Admin-only sections show a lock icon.
+Sidebar as on Home, with the current module highlighted. The module's sections become a row of tabs under the page title. Admin settings are not a tab: they open from the settings gear in the header (see below).
 
-## 7. Finances (reference for v1.0; v0.2 builds the shell only)
+### Module home layout (all modules — Vin, 2026-09-25)
+Every module home follows the same rules. Mockups: `finances-desktop.html`, `paperwork-desktop-overview.html`.
 
-Mockups: `finances-*.html`. Home of the module is the **current month**:
-- Header: module icon + "Finances", month picker, status chip (No budget year / Incomplete / Open / Squared / Closed; ended-unsquared shows as "Ended · not squared").
-- Action items (same component as Home, Finances items only).
-- **Colour rules** (Vin, 2026-09-24): the page is bright white (`--color-ground` #FFFFFF) and every card on Finances home is the dark panel (`--color-panel`, charcoal, like Home's action items) — no pale tint; solid brick means "needs you" (a button, someone who still owes, money to move into or out of savings); green means done (paid, paid up); on a card, names and figures are white and the rest light grey.
-- **Verdict card**: a title and figures, the why on an info icon, never a minus sign. Leftover = income minus share; while the month runs, pay the Budget year expects counts until it's confirmed ("projected"). Three states: money to save (loud brick) — "On track to move you forward", the joint figure, each person's "$X to joint"; someone short (loud brick) — **"Take from savings"** and how much each short person takes; otherwise (charcoal card) — "Nothing to save yet" and each person's leftover. The full breakdown, including what's each person's own, is on the Savings page.
-- **Who owes what**: one card per person (outstanding, paid of owed): brick while they owe, green "Paid up" once they don't.
-- **Bills**: one line per bill: its name, and the amount left or a "Paid" / "Not entered" chip. Due dates and the rest live in Monthly entry.
-- **Admin** block at the bottom: Close month with balance, Budget year. Members see these **locked with "Admin only"**, not hidden.
-- **Log payment** pinned above the bottom bar; opens a sheet: who paid (segmented), amount, toward (bill chips), Save.
+**Surfaces and cards**
+- The page and every card use the shell background (`--color-ground`). No filled, tinted or dark cards on a module home.
+- Every card: **1.5px border in the module's loud colour**, **no shadow**, corner radius **`--radius-lg` (20px)** — the same as Home's module tiles. Hard rule, no exceptions.
+
+**Colour**
+- The module colour is used only for: card borders, buttons, progress bars, the active tab, the context in the title (e.g. the month), and urgent text such as "Overdue".
+- Main text charcoal, secondary text grey. Charcoal is never a card fill.
+- Status is **plain text** (Paid, Overdue), never a pill or chip. A past month's status is a small superscript after the title: "Closed", or "Open" if it was never closed. The current month shows none.
+
+**Buttons**
+- One button style everywhere on a module home — header, action item rows, "Acknowledge", "Previous months": solid module colour, white text, 44px tall, `--radius-md` (16px), 15px weight 600. No outlined or grey variants.
+- **Settings gear**: module admin settings sit behind an icon-only gear button in the header, same button style, `aria-label="[Module] settings"`.
+
+**Structure, top to bottom**
+1. Header: module icon + title ("[Module] — [context]", context in the module colour), then the header buttons (secondary actions, settings gear, primary action).
+2. Section tabs.
+3. **Action items** card — only when there are items. One row per item: title, one line of detail, its button on the right. Acknowledge-only items use an "Acknowledge" button.
+4. **Summary** card — the numbers that matter for the module.
+5. Detail sections.
+
+## 7. Finances (reference for v1.0)
+
+Mockups: `finances-desktop.html` (Overview), `finances-desktop-payments.html`. Follows the module home layout (§6). Home of the module is the **current month**:
+- **Header:** "Finances — September 2026" (month in brick), then **Previous months** (opens History), the settings gear (Budget year), and **Log payment**. No month picker, no status chip.
+- **Tabs:** Overview, Monthly entry, Payments, Income, Balances, History. Savings is hidden while savings is paused. Budget year is not a tab; it opens from the settings gear.
+- **Action items** (REQ-93): e.g. a bill "Overdue" or due soon (Log payment), "Household over budget" and one "You'll be over budget" per person whose share is more than their income (Acknowledge), month ended not squared. "Close month" appears only as an action item.
+- **Summary:** still to pay (large), bills this month, paid so far, split, one progress bar, and "N% paid · N bill overdue".
+- **Who owes what:** one card per person: outstanding, share %, progress bar, "Paid $X of $Y". "How this was worked out" link.
+- **Bills:** one row per bill: name, due date ("1 Sep · Overdue" in brick when late), progress, amount left.
+- **Payments tab:** every payment logged in the month, newest first: date, who paid, toward (bill or "Direct payment"), amount; count and total above.
+- **New month** opens automatically on the 1st: fixed bills (rent) pre-filled, card statements as placeholder rows, paychecks pre-filled to confirm.
+- **Log payment** on phone stays pinned above the bottom bar; opens a sheet: who paid (segmented), amount, toward (bill chips), Save.
 - **First run** (no budget year): the whole page is one card, "Set up your budget year", with Start setup (admin). Members see a message naming the admin, no button.
-- **Desktop:** sections as tabs; verdict, people and bills in three columns; two chart slots below — *Share paid by person, by month* (stacked bars) and *Income vs bills, by month* (paired bars). **Reserve the space now; build the charts later.**
+- **Desktop charts:** two chart slots are still reserved for later — *Share paid by person, by month* and *Income vs bills, by month*. Build later.
+- Replaced on 2026-09-25: dark panel cards, loud brick / green card fills, the verdict card, status chips and the Admin block.
 
 ## 8. Admin console
 
@@ -123,7 +149,7 @@ v0.2 builds the page layout and cards; the controls inside are wired up in later
 
 ## 9. Components (build once, reuse)
 
-Brand lockup · Module tile (loud / quiet, phone / desktop) · Action item card (single / stacked, desktop row) · All-clear row · Quick add bar (phone) and buttons (desktop) · Module bottom bar · Bottom sheet · Section tabs (desktop) · Sidebar · Status chip · Person card · Bill row · Toggle switch · Section label.
+Brand lockup · Module tile (loud / quiet, phone / desktop) · Action item card (single / stacked, desktop row) · All-clear row · Quick add bar (phone) and buttons (desktop) · Module bottom bar · Bottom sheet · Section tabs (desktop) · Sidebar · Module card (1.5px module-colour border, `--radius-lg`) · Module header (title, buttons, settings gear) · Button (one style) · Action items card (module home) · Summary card · Plain-text status · Person card · Bill row · Toggle switch · Section label.
 
 ## 10. Hard rules
 
@@ -132,3 +158,14 @@ Brand lockup · Module tile (loud / quiet, phone / desktop) · Action item card 
 - Tap targets at least 44 px; text contrast at least 4.5:1 (use the `on-loud` tokens).
 - Layout switch at 1024 px.
 - Never remove a capability on phone; at most put it behind one extra tap.
+
+## 11. Paperwork (reference for v1.0)
+
+Mockups: `paperwork-desktop-overview.html`, `paperwork-desktop-categories.html`, `paperwork-desktop-category.html`. Follows the module home layout (§6). Each paperwork item is called a **document** in the UI ("18 documents", "Log document"); the module is still Paperwork.
+- **Header:** "Paperwork", search bar, settings gear (categories: admin), **Log document**.
+- **Tabs:** Overview, Unfiled, Categories.
+- **Action items:** the only one is "N documents unfiled on your desk" with **File it**.
+- **Summary:** locations · files · documents.
+- **Locations:** one card per office location, then "Archived in storage" (one card per box).
+- **Categories tab:** one card per category (files · documents). A category page lists its documents by year, newest first; a year with nothing between the oldest and newest shows "Nothing logged for [year]" in the module colour so gaps stand out; undated documents last.
+
