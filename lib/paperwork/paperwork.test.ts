@@ -1,8 +1,12 @@
 import { describe, expect, it, type vi } from "vitest";
 import { fakeSupabase } from "../../test/fake-supabase";
-import { paperworkTile, UNFILED_HREF } from "./action-items";
+import { paperworkTile, unfiledItem, UNFILED_HREF } from "./action-items";
 import {
+  categoryCards,
   countUnfiled,
+  documentsByYear,
+  officeLocations,
+  sameLocation,
   fileId,
   fileRows,
   keepUntil,
@@ -136,9 +140,9 @@ describe("Paperwork on Home (REQ-97)", () => {
 
   it("says how many are unfiled, and opens the unfiled list", () => {
     const tile = paperworkTile(3);
-    expect(tile.status).toBe("3 unfiled paperwork");
+    expect(tile.status).toBe("3 documents unfiled");
     expect(tile.actionItems).toEqual([
-      expect.objectContaining({ text: "3 unfiled paperwork", href: UNFILED_HREF }),
+      expect.objectContaining({ text: "3 documents unfiled", href: UNFILED_HREF }),
     ]);
     expect(UNFILED_HREF).toBe("/paperwork/unfiled");
   });
@@ -157,5 +161,77 @@ describe("countUnfiled (REQ-97)", () => {
     const query = fake.from.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
     expect(query.select).toHaveBeenCalledWith("id", { count: "exact", head: true });
     expect(query.is).toHaveBeenCalledWith("file_id", null);
+  });
+});
+
+describe("locations (REQ-100)", () => {
+  it("are the same place however the case, spacing or dots differ", () => {
+    expect(sameLocation("Office · Cabinet", "office cabinet")).toBe(true);
+    expect(sameLocation("Hall cupboard", "hall  cupboard.")).toBe(true);
+    expect(sameLocation("Office · Cabinet", "Office · Desk")).toBe(false);
+  });
+
+  it("are suggested once each, in the first spelling used", () => {
+    const at = (location: string, number: number) => ({ ...file(number, TAXES), location });
+    expect(officeLocations([at("Office · Cabinet", 1), at("office cabinet", 2), at("Glovebox", 3)])).toEqual([
+      "Glovebox",
+      "Office · Cabinet",
+    ]);
+  });
+});
+
+describe("Paperwork's own action item (REQ-100)", () => {
+  it("counts documents on the desk and names the day the oldest was logged", () => {
+    const desk = [
+      { ...paper("a", "Water bill notice", null), logged_on: "2026-09-20" },
+      { ...paper("b", "Parking permit", null), logged_on: "2026-09-12" },
+      paper("c", "2024 federal return", "f-42"),
+    ];
+    expect(unfiledItem(desk)).toEqual({ text: "2 documents unfiled on your desk", detail: "Oldest logged 12 Sep" });
+    expect(unfiledItem([{ ...paper("a", "One", null) }])?.text).toBe("1 document unfiled on your desk");
+  });
+
+  it("is absent when everything is filed", () => {
+    expect(unfiledItem([paper("c", "2024 federal return", "f-42")])).toBeNull();
+  });
+});
+
+describe("browsing by category (REQ-105)", () => {
+  const dated = (id: string, name: string, date: string | null, fileId = "f-42") => ({
+    ...paper(id, name, fileId),
+    document_date: date,
+  });
+
+  it("counts each category's files and the documents in them, leaving unfiled ones out", () => {
+    expect(categoryCards([TAXES, CAR], FILES, PAPERS)).toEqual([
+      { category: TAXES, files: 2, documents: 2 },
+      { category: CAR, files: 1, documents: 1 },
+    ]);
+  });
+
+  it("lists documents by year, newest first, with an empty row for a year with nothing, and undated last", () => {
+    const rows = documentsByYear([
+      dated("a", "2018 return", "2018-04-10"),
+      dated("b", "W-2", "2024-01-31", "f-1"),
+      dated("c", "Federal return", "2024-04-15"),
+      dated("d", "2020 return", "2020-04-15"),
+      dated("e", "Old receipt", null),
+    ]);
+    expect(rows.map((row) => [row.year, row.papers.map((one) => one.name)])).toEqual([
+      [2024, ["Federal return", "W-2"]],
+      [2023, []],
+      [2022, []],
+      [2021, []],
+      [2020, ["2020 return"]],
+      [2019, []],
+      [2018, ["2018 return"]],
+      [null, ["Old receipt"]],
+    ]);
+  });
+
+  it("shows no gaps before the oldest or after the newest year, and nothing when empty", () => {
+    expect(documentsByYear([dated("a", "Return", "2022-04-15")]).map((row) => row.year)).toEqual([2022]);
+    expect(documentsByYear([dated("a", "Receipt", null)]).map((row) => row.year)).toEqual([null]);
+    expect(documentsByYear([])).toEqual([]);
   });
 });

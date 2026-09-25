@@ -1,0 +1,527 @@
+/* Paperwork's screens on the module home rules (DESIGN.md §6 and §11,
+   REQ-100, REQ-103, REQ-105):
+   - the page and every card are the shell background; each card has a
+     1.5px border in the module colour, no shadow, --radius-lg corners;
+   - the module colour is only for borders, buttons, the active tab and
+     urgent text ("Nothing logged for 2019");
+   - main text is ink, secondary text muted grey; status is plain text;
+   - every button is components/button.tsx's one style. */
+
+/* The header's tools: search, gear, Log document. On a phone the search
+   takes a row of its own; on a desktop all three share one. */
+.tools {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+@media (min-width: 1024px) {
+  .tools {
+    flex-wrap: nowrap;
+  }
+}
+
+/* The header's search. On a phone it takes the header's row of buttons
+   to itself; on a desktop it sits before the gear and Log document. */
+.search {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-ground);
+  color: var(--color-muted);
+}
+
+.search:focus-within {
+  outline: 2px solid var(--module-loud);
+  outline-offset: 1px;
+}
+
+.search input {
+  flex-grow: 1;
+  min-width: 0;
+  min-height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-body);
+  outline: none;
+}
+
+.clear {
+  color: var(--color-ink);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+@media (min-width: 1024px) {
+  .search {
+    flex: 0 0 340px;
+  }
+}
+
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+}
+
+.crumbs a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.crumbs a:hover {
+  text-decoration: underline;
+}
+
+.crumbs [aria-current] {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/* A section: its heading above, then its card or cards. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-display-sm);
+  font-weight: 700;
+}
+
+.count {
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+}
+
+.sectionTitle .count {
+  margin-left: var(--space-2);
+}
+
+/* Every card: shell background, module-colour border, no shadow. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--space-6);
+  overflow: hidden;
+  border: 1.5px solid var(--module-loud);
+  border-radius: var(--radius-lg);
+  background: var(--color-ground);
+  box-shadow: none;
+  color: var(--color-ink);
+}
+
+/* A card that is a list: rows edge to edge, a hairline between them. */
+.rows {
+  gap: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rows > li + li {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+/* An action item: its title and one line of detail, its button on the
+   right. */
+.itemRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  padding: var(--space-4) var(--space-6);
+}
+
+.itemText {
+  display: flex;
+  flex: 1 1 16rem;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.strong {
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+.note {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+}
+
+/* The summary: a few numbers side by side. */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-6);
+  margin: 0;
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.factLabel {
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.factValue {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-display-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+@media (min-width: 1024px) {
+  .factValue {
+    font-size: var(--text-display-xl);
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* A place, file or category: a card that is its own link. */
+.linkCard {
+  composes: card;
+  height: 100%;
+  min-height: var(--tap-target-min);
+  text-decoration: none;
+}
+
+.linkCard:hover .cardTitle,
+.linkCard:focus-visible .cardTitle {
+  text-decoration: underline;
+}
+
+.cardTitle {
+  font-size: var(--text-body-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cardDetail {
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+}
+
+.noLabel {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+/* A table of documents inside a card. A desktop shows its column heads;
+   on a phone each row stacks. */
+.table {
+  composes: card;
+  gap: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tableHead {
+  display: none;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--color-line-soft);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.table > li:first-child .row,
+.tableHead + li .row {
+  border-top: none;
+}
+
+a.row:hover .rowName {
+  text-decoration: underline;
+}
+
+.rowName {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.rowCell {
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+}
+
+@media (min-width: 1024px) {
+  .tableHead {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-6);
+    border-bottom: 1px solid var(--color-line-soft);
+    color: var(--color-muted);
+    font-size: var(--text-label);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .row {
+    display: grid;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .items {
+    grid-template-columns: 2.4fr 1fr 1fr 1fr;
+  }
+
+  .found {
+    grid-template-columns: 2fr 1.2fr 1.4fr;
+  }
+
+  .unfiled {
+    grid-template-columns: 2.4fr 1fr 1fr auto;
+  }
+}
+
+/* A category's documents by year (REQ-105): the year on the left, its
+   documents beside it. A year with nothing is in the module colour. */
+.yearRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-6);
+}
+
+.year {
+  font-size: var(--text-body-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.yearDocs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.doc:hover .rowName {
+  text-decoration: underline;
+}
+
+.gap {
+  color: var(--module-loud);
+  font-weight: 600;
+}
+
+.gap .rowCell {
+  color: inherit;
+  font-weight: 600;
+}
+
+@media (min-width: 1024px) {
+  .yearRow {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-6);
+  }
+
+  .yearHead {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+
+  .doc,
+  .yearHead > :last-child {
+    display: grid;
+    grid-template-columns: 2fr 1fr 2fr;
+    align-items: center;
+    gap: var(--space-6);
+  }
+}
+
+/* The file's head: ID · category, then label, place and status, with
+   Add document and Manage file beside it. */
+.fileHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-display-md);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.facts strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.fileButtons {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (min-width: 1024px) {
+  .fileHead {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+/* Manage file's menu: a card of its own, set off by its border. */
+.menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: min(300px, 100%);
+  min-width: 260px;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2);
+  border: 1.5px solid var(--module-loud);
+  border-radius: var(--radius-md);
+  background: var(--color-ground);
+  list-style: none;
+}
+
+.menuItem {
+  width: 100%;
+  min-height: var(--tap-target-min);
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuItem:hover,
+.menuItem:focus-visible {
+  background: var(--color-line-soft);
+}
+
+.divider {
+  height: 1px;
+  margin: var(--space-1);
+  background: var(--color-line-soft);
+}
+
+/* What goes on the printer's label, big enough to copy from. */
+.label {
+  composes: card;
+  align-items: center;
+  font-family: var(--font-display);
+  font-size: var(--text-display-md);
+  font-weight: 800;
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* For screen readers only: the search field's name. */
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

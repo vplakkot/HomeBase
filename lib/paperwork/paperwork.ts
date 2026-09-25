@@ -50,17 +50,78 @@ export function keepUntil(documentDate: string | null, loggedOn: string, years: 
   return `${year + years}-${String(month).padStart(2, "0")}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
 }
 
-// Where a file is (REQ-98): its office location while active, or the box
-// it's archived in.
-export function whereItIs(
+// Where a file is (REQ-100): the office location it's kept in while
+// active, or the storage box it's archived in (REQ-98). `href` opens that
+// place's list of files.
+export type Place = { name: string; href: string };
+
+export function placeOf(
   file: Pick<PaperFile, "status" | "location" | "storage_entry_id">,
   storage: readonly StorageEntry[],
-): string {
-  if (file.status === "archived") {
+): Place {
+  if (file.status === "archived" && file.storage_entry_id) {
     const box = storage.find((entry) => entry.id === file.storage_entry_id);
-    return `Archived in ${box ? `${entryId(box)} · ${box.name}` : "a storage box"}`;
+    return {
+      name: box ? boxName(box) : "A storage box",
+      href: `/paperwork/boxes/${file.storage_entry_id}`,
+    };
   }
-  return `Last stored location: ${file.location}`;
+  return { name: file.location, href: locationHref(file.location) };
+}
+
+export function boxName(box: Pick<StorageEntry, "number" | "name">): string {
+  return `Box ${entryId(box)} · ${box.name}`;
+}
+
+// A location is free text, so "Office · Cabinet" and "office  cabinet"
+// are the same place: compared without case, spacing or dots.
+export function sameLocation(a: string, b: string): boolean {
+  const key = (text: string) => text.toLowerCase().replace(/[\s·.]+/g, " ").trim();
+  return key(a) === key(b);
+}
+
+export function locationHref(location: string): string {
+  return `/paperwork/locations/${encodeURIComponent(location)}`;
+}
+
+// REQ-100's first screen: one card per office location, then one per
+// storage box holding archived files, each with its files and how many
+// papers those hold. A location is spelt the way its first file spells it.
+export type PlaceCard = Place & { files: FileRow[]; items: number };
+
+export function places(
+  files: readonly PaperFile[],
+  categories: readonly Category[],
+  papers: readonly Paper[],
+  storage: readonly StorageEntry[],
+): { office: PlaceCard[]; archived: PlaceCard[] } {
+  const office: PlaceCard[] = [];
+  const archived: PlaceCard[] = [];
+  for (const row of fileRows(files, categories, papers)) {
+    const place = placeOf(row.file, storage);
+    const list = row.file.status === "archived" ? archived : office;
+    const card = list.find((one) =>
+      row.file.status === "archived" ? one.href === place.href : sameLocation(one.name, place.name),
+    );
+    if (card) {
+      card.files.push(row);
+      card.items += row.count;
+    } else {
+      list.push({ ...place, files: [row], items: row.count });
+    }
+  }
+  const byName = (a: PlaceCard, b: PlaceCard) => a.name.localeCompare(b.name);
+  return { office: office.sort(byName), archived: archived.sort(byName) };
+}
+
+// Every office location in use, for the location field's suggestions,
+// so the same place keeps one spelling.
+export function officeLocations(files: readonly PaperFile[]): string[] {
+  const names: string[] = [];
+  for (const file of files) {
+    if (!names.some((name) => sameLocation(name, file.location))) names.push(file.location);
+  }
+  return names.sort((a, b) => a.localeCompare(b));
 }
 
 export function ownerName(paper: Pick<Paper, "owner_id">, people: { user_id: string; name: string }[]): string {
@@ -144,3 +205,55 @@ export async function countUnfiled(supabase: SupabaseClient): Promise<number> {
   if (error) throw new Error(`Could not count unfiled paperwork: ${error.message}`);
   return count ?? 0;
 }
+
+// REQ-105: the Categories tab, one card per category with how many files
+// it has and how many documents those hold.
+export type CategoryCard = { category: Category; files: number; documents: number };
+
+export function categoryCards(
+  categories: readonly Category[],
+  files: readonly PaperFile[],
+  papers: readonly Paper[],
+): CategoryCard[] {
+  return categories.map((category) => {
+    const ids = new Set(files.filter((file) => file.category_id === category.id).map((file) => file.id));
+    return {
+      category,
+      files: ids.size,
+      documents: papers.filter((paper) => paper.file_id !== null && ids.has(paper.file_id)).length,
+    };
+  });
+}
+
+// REQ-105: a category's documents across every file and place, by the
+// year of their document date, newest first. A year between the oldest
+// and the newest with nothing in it is still a row (an empty list), so a
+// gap stands out; undated documents come last, as year null.
+export type YearRow = { year: number | null; papers: Paper[] };
+
+export function documentsByYear(papers: readonly Paper[]): YearRow[] {
+  const dated = papers.filter((paper) => paper.document_date);
+  const undated = papers.filter((paper) => !paper.document_date);
+  const yearOf = (paper: Paper) => Number(paper.document_date!.slice(0, 4));
+  const rows: YearRow[] = [];
+  if (dated.length > 0) {
+    const years = dated.map(yearOf);
+    for (let year = Math.max(...years); year >= Math.min(...years); year -= 1) {
+      rows.push({
+        year,
+        papers: dated
+          .filter((paper) => yearOf(paper) === year)
+          .sort((a, b) => b.document_date!.localeCompare(a.document_date!) || a.name.localeCompare(b.name)),
+      });
+    }
+  }
+  if (undated.length > 0) {
+    rows.push({ year: null, papers: [...undated].sort((a, b) => a.name.localeCompare(b.name)) });
+  }
+  return rows;
+}
+
+// "1 document", "18 documents": the UI calls each paper a document
+// (Vin, 2026-09-25); the module is still Paperwork.
+export const documentsCount = (count: number) => (count === 1 ? "1 document" : `${count} documents`);
+export const filesCount = (count: number) => (count === 1 ? "1 file" : `${count} files`);

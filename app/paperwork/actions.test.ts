@@ -34,7 +34,10 @@ const P1 = "66666666-6666-4666-8666-666666666666";
 let fake: ReturnType<typeof fakeSupabase>;
 
 function given(permissions: string[] = ["use_modules"], tables: Record<string, unknown[]> = {}) {
-  fake = fakeSupabase({ permissions, tables: { paperwork_files: [{ id: NEW_FILE }], ...tables } });
+  fake = fakeSupabase({
+    permissions,
+    tables: { paperwork_files: [{ id: NEW_FILE, number: 5 }], paperwork_categories: [{ name: "Taxes" }], ...tables },
+  });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
 }
 
@@ -82,10 +85,11 @@ describe("logPaper (REQ-97)", () => {
     });
   });
 
-  it("makes a new file on the way, then opens it to show the label", async () => {
+  // REQ-100: you stay where you were; the form shows the label to print.
+  it("makes a new file on the way, and says its label instead of opening it", async () => {
     given();
     const fields = { ...PAPER, fileId: "new", categoryId: TAXES, location: "Desk drawer", label: "" };
-    await expect(logPaper({}, form(fields))).rejects.toThrow(`REDIRECT:/paperwork/files/${NEW_FILE}?new=1`);
+    expect(await logPaper({}, form(fields))).toEqual({ saved: true, newFile: "F-0005 · Taxes" });
     expect(on("paperwork_files")[0].insert).toHaveBeenCalledWith({ category_id: TAXES, location: "Desk drawer", label: null });
     expect(on("paperwork")[0].insert.mock.calls[0][0].file_id).toBe(NEW_FILE);
   });
@@ -103,7 +107,7 @@ describe("logPaper (REQ-97)", () => {
 
   it("needs a name, and saves nothing without one", async () => {
     given();
-    expect(await logPaper({}, form({ ...PAPER, name: "  ", fileId: "" }))).toEqual({ error: "Give the paperwork a name." });
+    expect(await logPaper({}, form({ ...PAPER, name: "  ", fileId: "" }))).toEqual({ error: "Give the document a name." });
     expect(on("paperwork")).toEqual([]);
   });
 
@@ -114,28 +118,33 @@ describe("logPaper (REQ-97)", () => {
 });
 
 describe("updatePaper (REQ-97)", () => {
-  it("changes any field, including moving it to another file", async () => {
+  // REQ-100: moving is its own form (filePaper), so editing leaves the
+  // file alone.
+  it("changes any field but its file", async () => {
     given();
     await updatePaper({}, form({ id: P1, ...PAPER, name: "2016 return", fileId: FILE }));
     const query = on("paperwork")[0];
-    expect(query.update).toHaveBeenCalledWith(expect.objectContaining({ name: "2016 return", file_id: FILE }));
+    expect(query.update).toHaveBeenCalledWith(expect.objectContaining({ name: "2016 return" }));
+    expect(query.update.mock.calls[0][0]).not.toHaveProperty("file_id");
     expect(query.eq).toHaveBeenCalledWith("id", P1);
-  });
-
-  it("can put it back to Unfiled", async () => {
-    given();
-    await updatePaper({}, form({ id: P1, ...PAPER, fileId: "" }));
-    expect(on("paperwork")[0].update.mock.calls[0][0].file_id).toBeNull();
   });
 });
 
 describe("removePaper (REQ-97)", () => {
   it("removes it, so nothing logged by mistake is stuck", async () => {
     given();
-    await expect(removePaper(form({ id: P1 }))).rejects.toThrow("REDIRECT:/paperwork");
+    await expect(removePaper(form({ id: P1, fileId: FILE }))).rejects.toThrow(
+      new RegExp(`^REDIRECT:/paperwork/files/${FILE}$`),
+    );
     const query = on("paperwork")[0];
     expect(query.delete).toHaveBeenCalled();
     expect(query.eq).toHaveBeenCalledWith("id", P1);
+  });
+
+  // REQ-100: you land back where the paper was.
+  it("goes back to the unfiled list when it had no file", async () => {
+    given();
+    await expect(removePaper(form({ id: P1, fileId: "" }))).rejects.toThrow(/^REDIRECT:\/paperwork\/unfiled$/);
   });
 
   it("touches nothing without a proper id", async () => {
@@ -168,17 +177,28 @@ describe("filePaper (REQ-97)", () => {
   it("can make a new file for it", async () => {
     given();
     const fields = { id: P1, fileId: "new", categoryId: CAR, location: "Glovebox", label: "Hatchback", keepUntil: "" };
-    await expect(filePaper({}, form(fields))).rejects.toThrow(`REDIRECT:/paperwork/files/${NEW_FILE}?new=1`);
+    expect(await filePaper({}, form(fields))).toEqual({ saved: true, newFile: "F-0005 · Taxes" });
     expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_id: NEW_FILE, keep_until: null });
+  });
+
+  // REQ-100: "Move to another file" can also put it back on the desk.
+  it("moves a filed paper to another file, or back to Unfiled", async () => {
+    given();
+    expect(await filePaper({}, form({ id: P1, fileId: FILE, keepUntil: "", moving: "yes" }))).toEqual({ saved: true });
+    expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_id: FILE, keep_until: null });
+    given();
+    expect(await filePaper({}, form({ id: P1, fileId: "", keepUntil: "", moving: "yes" }))).toEqual({ saved: true });
+    expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_id: null, keep_until: null });
   });
 });
 
 describe("files (REQ-88)", () => {
-  it("makes a file and opens it to show the label", async () => {
+  it("makes a file and says its label to print", async () => {
     given();
-    await expect(makeFile({}, form({ categoryId: TAXES, location: "Hall cupboard", label: "Returns" }))).rejects.toThrow(
-      `REDIRECT:/paperwork/files/${NEW_FILE}?new=1`,
-    );
+    expect(await makeFile({}, form({ categoryId: TAXES, location: "Hall cupboard", label: "Returns" }))).toEqual({
+      saved: true,
+      newFile: "F-0005 · Taxes",
+    });
     expect(on("paperwork_files")[0].insert).toHaveBeenCalledWith({
       category_id: TAXES,
       location: "Hall cupboard",

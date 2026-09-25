@@ -4,9 +4,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasPermission } from "../../lib/auth/permissions";
+import { labelText } from "../../lib/paperwork/paperwork";
 import { createClient } from "../../lib/supabase/server";
 
-export type FormState = { error?: string; saved?: boolean };
+// newFile: the label of a file the form just made ("F-0005 · Taxes"),
+// shown once so it can be printed (REQ-100).
+export type FormState = { error?: string; saved?: boolean; newFile?: string };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -39,8 +42,8 @@ function refresh() {
   revalidatePath("/");
 }
 
-// A new file's fields, from a form that makes one. The printed label is
-// shown on the file's page, which the caller goes to next.
+// A new file's fields, from a form that makes one. The form then shows
+// the label to print, and leaves you where you were (REQ-100).
 type NewFile = { category_id: string; location: string; label: string | null };
 
 function newFileFields(formData: FormData): NewFile | { error: string } {
@@ -51,10 +54,19 @@ function newFileFields(formData: FormData): NewFile | { error: string } {
   return { category_id, location, label: text(formData, "label") || null };
 }
 
-async function createFile(supabase: SupabaseClient, fields: NewFile): Promise<{ id: string } | { error: string }> {
-  const { data, error } = await supabase.from("paperwork_files").insert(fields).select("id").single();
+async function createFile(
+  supabase: SupabaseClient,
+  fields: NewFile,
+): Promise<{ id: string; label: string } | { error: string }> {
+  const { data, error } = await supabase.from("paperwork_files").insert(fields).select("id, number").single();
   if (error || !data) return { error: error?.message ?? "Could not make the file." };
-  return { id: (data as { id: string }).id };
+  const made = data as { id: string; number: number };
+  const { data: category } = await supabase
+    .from("paperwork_categories")
+    .select("name")
+    .eq("id", fields.category_id)
+    .maybeSingle();
+  return { id: made.id, label: labelText({ number: Number(made.number) }, category as { name: string } | undefined) };
 }
 
 // Which file the paperwork goes in: none (Unfiled), one that exists, or a
@@ -62,25 +74,28 @@ async function createFile(supabase: SupabaseClient, fields: NewFile): Promise<{ 
 async function chosenFile(
   supabase: SupabaseClient,
   formData: FormData,
-): Promise<{ fileId: string | null; created: boolean } | { error: string }> {
+): Promise<{ fileId: string | null; newFile?: string } | { error: string }> {
   const choice = text(formData, "fileId");
-  if (choice === "") return { fileId: null, created: false };
+  if (choice === "") return { fileId: null };
   if (choice === "new") {
     const fields = newFileFields(formData);
     if ("error" in fields) return fields;
     const made = await createFile(supabase, fields);
-    return "error" in made ? made : { fileId: made.id, created: true };
+    return "error" in made ? made : { fileId: made.id, newFile: made.label };
   }
   if (!UUID.test(choice)) return { error: "Choose a file, or leave it Unfiled." };
-  return { fileId: choice, created: false };
+  return { fileId: choice };
 }
+
+// What a form that may have made a file says back.
+const done = (newFile?: string): FormState => (newFile ? { saved: true, newFile } : { saved: true });
 
 function paperFields(formData: FormData) {
   const name = text(formData, "name");
   const owner = text(formData, "ownerId");
   const documentDate = text(formData, "documentDate");
   const keepUntil = text(formData, "keepUntil");
-  if (name === "") return { error: "Give the paperwork a name." };
+  if (name === "") return { error: "Give the document a name." };
   if (owner !== "joint" && !UUID.test(owner)) return { error: "Say whose it is, or Joint." };
   if (documentDate !== "" && !DATE.test(documentDate)) return { error: "Enter the document date as a date." };
   if (keepUntil !== "" && !DATE.test(keepUntil)) return { error: "Enter keep-until as a date." };
@@ -94,8 +109,7 @@ function paperFields(formData: FormData) {
 }
 
 // REQ-97: log paperwork as it arrives, Unfiled, or straight into a file
-// when refiling old papers. A new file made on the way opens its page, so
-// its label can be printed.
+// when refiling old papers or adding to the file you're on (REQ-100).
 export async function logPaper(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
   const fields = paperFields(formData);
@@ -105,34 +119,36 @@ export async function logPaper(_previous: FormState, formData: FormData): Promis
   const { error } = await supabase.from("paperwork").insert({ ...fields, file_id: file.fileId });
   if (error) return { error: error.message };
   refresh();
-  if (file.created) redirect(`/paperwork/files/${file.fileId}?new=1`);
-  return { saved: true };
+  return done(file.newFile);
 }
 
-// REQ-97: change any of the paperwork's fields, its file included.
+// REQ-97: change any of the paperwork's fields. Moving it to another
+// file is its own form (filePaper), so this leaves the file alone.
 export async function updatePaper(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to change." };
   const fields = paperFields(formData);
   if ("error" in fields) return { error: fields.error };
-  const file = await chosenFile(supabase, formData);
-  if ("error" in file) return { error: file.error };
-  const { error } = await supabase.from("paperwork").update({ ...fields, file_id: file.fileId }).eq("id", id);
+  const { error } = await supabase.from("paperwork").update(fields).eq("id", id);
   if (error) return { error: error.message };
   refresh();
-  if (file.created) redirect(`/paperwork/files/${file.fileId}?new=1`);
   return { saved: true };
 }
 
 // REQ-97: filing an unfiled paper is the "done": it leaves the unfiled
-// list and Home's count.
+// list and Home's count. Moving a filed paper to another file is the
+// same thing (REQ-100).
 export async function filePaper(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to change." };
   const keepUntil = text(formData, "keepUntil");
-  if (text(formData, "fileId") === "") return { error: "Choose a file, or make a new one." };
+  // Moving a filed paper may put it back on the desk (Unfiled); filing
+  // an unfiled one needs a file.
+  if (text(formData, "fileId") === "" && formData.get("moving") !== "yes") {
+    return { error: "Choose a file, or make a new one." };
+  }
   if (keepUntil !== "" && !DATE.test(keepUntil)) return { error: "Enter keep-until as a date." };
   const file = await chosenFile(supabase, formData);
   if ("error" in file) return { error: file.error };
@@ -142,10 +158,10 @@ export async function filePaper(_previous: FormState, formData: FormData): Promi
     .eq("id", id);
   if (error) return { error: error.message };
   refresh();
-  if (file.created) redirect(`/paperwork/files/${file.fileId}?new=1`);
-  return { saved: true };
+  return done(file.newFile);
 }
 
+// Back to the file it was in, or the unfiled list.
 export async function removePaper(formData: FormData): Promise<void> {
   const supabase = await requireMember();
   const id = rowId(formData);
@@ -153,10 +169,11 @@ export async function removePaper(formData: FormData): Promise<void> {
   const { error } = await supabase.from("paperwork").delete().eq("id", id);
   if (error) throw new Error(`Could not remove the paperwork: ${error.message}`);
   refresh();
-  redirect("/paperwork");
+  const fileId = text(formData, "fileId");
+  redirect(UUID.test(fileId) ? `/paperwork/files/${fileId}` : "/paperwork/unfiled");
 }
 
-// REQ-88: a new file gets the next number, and its page shows the label.
+// REQ-88: a new file gets the next number, and the form shows its label.
 export async function makeFile(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
   const fields = newFileFields(formData);
@@ -164,7 +181,7 @@ export async function makeFile(_previous: FormState, formData: FormData): Promis
   const made = await createFile(supabase, fields);
   if ("error" in made) return { error: made.error };
   refresh();
-  redirect(`/paperwork/files/${made.id}?new=1`);
+  return done(made.label);
 }
 
 // REQ-88: a file that moved gets its new location; the old one is gone.

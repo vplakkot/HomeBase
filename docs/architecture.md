@@ -882,16 +882,34 @@ anything can be found without searching the cupboards.
 Every member reads everything and logs, files, moves and removes files
 and paperwork. [`lib/paperwork/paperwork.ts`](../lib/paperwork/paperwork.ts)
 reads it all in one go (the household is small) and works out the
-files list, search and keep-until (document date, or the logged date,
-plus the category's years). Pages live under `/paperwork`: Files (the
-module's home, with search and New file), a file's page (label to
-print, its papers, change or remove), Unfiled, Log paperwork (pinned),
-a paper's page and Categories (admin only).
+places, files, search and keep-until (document date, or the logged date,
+plus the category's years).
 
-Home's "N unfiled paperwork" is an action item from
+The screens work like a filing cabinet (REQ-100) and follow the module
+home rules (DESIGN.md §11): Overview → a location's files → a file's
+documents (the UI calls each paper a document). A location is the files'
+free-text `location`, grouped ignoring case, spacing and dots, so there's
+no table of places; a storage box holding archived files is a place too.
+Routes: `/paperwork` (action item, summary, locations, archived boxes),
+`/paperwork/locations/[name]`, `/paperwork/boxes/[id]`,
+`/paperwork/files/[id]`, `/paperwork/items/[id]`, `/paperwork/unfiled`,
+`/paperwork/categories` and `/paperwork/categories/[id]` (every member
+browses a category's documents by year, with empty years shown as gaps,
+REQ-105), and `/paperwork/settings` (admin: manage categories, behind the
+header's gear, not a tab). The tabs are Overview, Unfiled and Categories.
+[`app/paperwork/frame.tsx`](../app/paperwork/frame.tsx) draws every
+screen's header (search, settings gear, Log document), tabs and
+breadcrumb; a search is `?q=` on whatever screen it was typed on, and its
+results replace that screen. Forms open in sheets
+([`app/paperwork/sheets.tsx`](../app/paperwork/sheets.tsx)) so you stay
+where you are; a form that makes a file returns its label, shown once to
+print, instead of opening the file.
+
+Home's "N documents unfiled" is an action item from
 [`lib/paperwork/action-items.ts`](../lib/paperwork/action-items.ts),
-ranked after every Finances item. Like Finances' items it clears itself:
-filing the last paper is the "done". It sends no push.
+ranked after every Finances item; the Overview shows the same item with
+when the oldest was logged. Like Finances' items it clears itself:
+filing the last document is the "done". It sends no push.
 
 Module pages now share [`components/module-frame.tsx`](../components/module-frame.tsx)
 (header, section tabs, phone bar) and

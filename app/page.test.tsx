@@ -16,7 +16,10 @@ beforeAll(installDialogStandIn);
 vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
 vi.mock("../lib/finances/snapshot", () => ({ readFinanceSnapshot: vi.fn() }));
-vi.mock("../lib/paperwork/paperwork", () => ({ countUnfiled: vi.fn(async () => 0) }));
+vi.mock("../lib/paperwork/paperwork", async (original) => ({
+  ...(await original<typeof import("../lib/paperwork/paperwork")>()),
+  countUnfiled: vi.fn(async () => 0),
+}));
 vi.mock("../lib/storage/storage", async (original) => ({
   ...(await original<typeof import("../lib/storage/storage")>()),
   countEntries: vi.fn(async () => 0),
@@ -230,9 +233,9 @@ describe("HomePage", () => {
     render(await home());
     const section = screen.getByRole("region", { name: "Action items" });
     const link = within(section).getByRole("link");
-    expect(link.textContent).toContain("3 unfiled paperwork");
+    expect(link.textContent).toContain("3 documents unfiled");
     expect(link.getAttribute("href")).toBe("/paperwork/unfiled");
-    expect(tiles().at(-2)).toMatchObject({ name: "Paperwork", status: "3 unfiled paperwork", loud: true });
+    expect(tiles().at(-2)).toMatchObject({ name: "Paperwork", status: "3 documents unfiled", loud: true });
   });
 
   it("with ?demo, shows the design's example, loud and quiet tiles side by side", async () => {
