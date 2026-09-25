@@ -5,7 +5,7 @@ import { SettingsIcon } from "../../components/icons";
 import { ModuleFrame } from "../../components/module-frame";
 import { readAccount } from "../../lib/account";
 import { hasPermission } from "../../lib/auth/permissions";
-import { householdToday, monthLabel } from "../../lib/finances/budget-year";
+import { householdToday, monthLabel, monthStart } from "../../lib/finances/budget-year";
 import { monthMark } from "../../lib/finances/month";
 import { createClient } from "../../lib/supabase/server";
 
@@ -39,8 +39,10 @@ export function FinancesFrame({
   canManageBudget: boolean;
   month?: { startsOn: string; closed: boolean };
 }) {
-  const mark = month ? monthMark(month.closed, month.startsOn, householdToday()) : undefined;
-  const at = month && mark ? month.startsOn.slice(0, 7) : undefined;
+  const today = householdToday();
+  const mark = month ? monthMark(month.closed, month.startsOn, today) : undefined;
+  // Only a month other than this one needs naming in links.
+  const at = month && month.startsOn !== monthStart(today) ? month.startsOn.slice(0, 7) : undefined;
   const logPayment = month?.closed ? null : at ? `/finances/log-payment?month=${at}` : "/finances/log-payment";
   return (
     <ModuleFrame
