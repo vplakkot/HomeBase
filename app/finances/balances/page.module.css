@@ -84,3 +84,8 @@
   font-size: var(--text-body-sm);
   font-weight: 600;
 }
+
+/* The month picker, at the top of the balances card (REQ-106). */
+.picker {
+  padding-top: var(--space-3);
+}

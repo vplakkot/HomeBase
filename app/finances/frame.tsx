@@ -30,12 +30,14 @@ export async function financesViewer() {
 // it in the title — "Finances — September 2026" — with "Closed" or "Open"
 // after a past one (REQ-102), and its tabs keep that month. The header's
 // buttons: Previous months (History), the settings gear for an admin
-// (Budget year), and Log payment while the month can take one.
+// (Budget year), and Log payment while the month can take one. A page
+// that isn't about a month names itself instead ("Finances — Settings").
 export function FinancesFrame({
   canManageBudget,
   month,
+  context,
   ...props
-}: Omit<ComponentProps<typeof ModuleFrame>, "slug" | "context" | "mark" | "actions" | "tabMonth" | "pinnedInHeader"> & {
+}: Omit<ComponentProps<typeof ModuleFrame>, "slug" | "mark" | "actions" | "tabMonth" | "pinnedInHeader"> & {
   canManageBudget: boolean;
   month?: { startsOn: string; closed: boolean };
 }) {
@@ -47,7 +49,7 @@ export function FinancesFrame({
   return (
     <ModuleFrame
       slug="finances"
-      context={month ? monthLabel(month.startsOn) : undefined}
+      context={month ? monthLabel(month.startsOn) : context}
       mark={mark}
       tabMonth={at}
       pinnedInHeader

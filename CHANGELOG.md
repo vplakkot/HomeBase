@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Monthly entry, Income, Balances and Budget year now look like Finances
+  home. Each section's heading sits above its card; every card is white
+  with a thin brick border; saved things are plain rows split by grey
+  lines instead of brick and pale tiles. Status reads as plain text ("Not
+  entered", "In force"), and every button, Remove included, is the same
+  solid brick button. Income lists the paychecks to confirm first,
+  Balances keeps its month picker inside its card, and Budget year's
+  header reads "Finances — Settings". Storage and the Paperwork settings
+  page share these cards, so they changed the same way.
+
 - Paperwork, redesigned on the module home rules and like opening a
   filing cabinet. Its Overview runs: the one action item while documents
   wait on your desk ("File it"), a summary of locations, files and

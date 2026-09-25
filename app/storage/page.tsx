@@ -53,7 +53,7 @@ export default async function StoragePage({ searchParams }: { searchParams: Prom
                           <span className={local.title}>
                             {entryId(entry)} · {entry.name}
                           </span>
-                          <span className={styles.chip}>{entry.is_box ? "Box" : "Not a box"}</span>
+                          <span className={styles.status}>{entry.is_box ? "Box" : "Not a box"}</span>
                         </span>
                         {preview ? <span className={styles.detail}>{preview}</span> : null}
                       </Link>

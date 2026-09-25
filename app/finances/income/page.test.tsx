@@ -76,6 +76,14 @@ describe("Income (REQ-60)", () => {
     expect(within(rows[0]).getByRole("button", { name: "Confirm" })).toBeDefined();
   });
 
+  // REQ-106: paychecks to confirm come first, then what has landed.
+  it("puts the paychecks to confirm before what has landed", async () => {
+    await page([SEPTEMBER]);
+    const regions = screen.getAllByRole("region").map((region) => region.getAttribute("aria-labelledby"));
+    expect(regions.indexOf("expected")).toBeLessThan(regions.indexOf("received"));
+    expect(regions.indexOf("expected")).toBeGreaterThanOrEqual(0);
+  });
+
   it("logs any other income by kind, owner and amount", async () => {
     await page([SEPTEMBER]);
     const received = screen.getByRole("region", { name: "Received this month" });
