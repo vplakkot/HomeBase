@@ -52,9 +52,9 @@ function monthOptions(today: string): { value: string; label: string }[] {
   });
 }
 
-// Every card on this page is the same shape: a tinted head with its name
-// and a line of plain English, the form for adding on the module's quiet
-// tint, then what's already saved as rounded boxes below (#132).
+// Every card on this page is the same shape: its heading above, with the
+// explanation on an info icon, then inside the card the form for adding
+// and what's already saved as rows below it (#132, REQ-106).
 function Card({
   name,
   hint,
@@ -86,8 +86,8 @@ function Card({
   );
 }
 
-// One saved thing: a rounded box with a name, a figure or chip, one line
-// of detail, and the two ways to change it.
+// One saved thing: a row with a name, a figure or plain-text status, one
+// line of detail, and the two ways to change it.
 function Entry({
   name,
   aside,
