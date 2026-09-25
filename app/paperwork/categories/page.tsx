@@ -2,18 +2,22 @@ import styles from "../../../components/cards.module.css";
 import { Hint } from "../../../components/hint";
 import { LockIcon } from "../../../components/icons";
 import { CategoryForm, RemoveCategoryForm } from "../forms";
-import { PaperworkFrame, paperworkViewer } from "../frame";
+import { PaperworkScreen, paperworkViewer } from "../frame";
 
 const SECTION = "Categories";
 
-// REQ-88: the admin's Paperwork settings. Categories are the household's
-// own, none built in, each with an optional default keep-until in years.
-export default async function CategoriesPage() {
-  const { canManageMembers, canManagePaperwork, account, categories, files } = await paperworkViewer();
+// REQ-88: the admin's Paperwork settings, behind the toolbar's settings
+// button (REQ-100). Categories are the household's own, none built in,
+// each with an optional default keep-until in years.
+export default async function CategoriesPage({ searchParams }: { searchParams?: Promise<{ q?: string }> }) {
+  const { q = "" } = (await searchParams) ?? {};
+  const viewer = await paperworkViewer();
+  const { canManagePaperwork, categories, files } = viewer;
+  const screen = { viewer, here: "/paperwork/categories", query: q, crumbs: [{ name: SECTION }] };
 
   if (!canManagePaperwork) {
     return (
-      <PaperworkFrame canManageMembers={canManageMembers} account={account} section={SECTION}>
+      <PaperworkScreen {...screen}>
         <div className={styles.cards}>
           <section className={styles.card} aria-labelledby="locked">
             <header className={styles.head}>
@@ -27,12 +31,12 @@ export default async function CategoriesPage() {
             </header>
           </section>
         </div>
-      </PaperworkFrame>
+      </PaperworkScreen>
     );
   }
 
   return (
-    <PaperworkFrame canManageMembers={canManageMembers} account={account} section={SECTION}>
+    <PaperworkScreen {...screen}>
       <div className={styles.cards}>
         <section className={styles.card} aria-labelledby="categories">
           <header className={styles.head}>
@@ -83,6 +87,6 @@ export default async function CategoriesPage() {
           </div>
         </section>
       </div>
-    </PaperworkFrame>
+    </PaperworkScreen>
   );
 }

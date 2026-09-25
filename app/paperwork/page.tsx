@@ -1,156 +1,89 @@
 import Link from "next/link";
-import styles from "../../components/cards.module.css";
-import { Hint } from "../../components/hint";
-import { fileRows, labelText, ownerName, search, whereItIs } from "../../lib/paperwork/paperwork";
-import { NewFileForm } from "./forms";
-import { PaperworkFrame, paperworkViewer } from "./frame";
-import local from "../../components/tiles.module.css";
+import { places, unfiled, type PlaceCard } from "../../lib/paperwork/paperwork";
+import { filesCount, itemsCount } from "./file-cards";
+import { PaperworkScreen, paperworkViewer } from "./frame";
+import styles from "./paperwork.module.css";
 
-// Paperwork's home: every file (REQ-88), found by ID, label name or
-// category, and paperwork found by name. Archived files show only when
-// asked for (REQ-98). Any member sees them all.
-export default async function PaperworkPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; category?: string; archived?: string }>;
-}) {
-  const { canManageMembers, canManagePaperwork, account, people, categories, files, papers, storage } =
-    await paperworkViewer();
-  const { q = "", category = "", archived = "" } = await searchParams;
-  const categoryId = categories.some((row) => row.id === category) ? category : null;
-  // REQ-98: archived files are hidden unless asked for.
-  const showArchived = archived === "1";
-  const archivedCount = files.filter((file) => file.status === "archived").length;
-  const shown = showArchived ? files : files.filter((file) => file.status !== "archived");
-  const found = search(fileRows(shown, categories, papers), papers, q, categoryId);
-  const toggle = new URLSearchParams({
-    ...(q ? { q } : {}),
-    ...(categoryId ? { category: categoryId } : {}),
-    ...(showArchived ? {} : { archived: "1" }),
-  }).toString();
-  const toggleArchived = toggle ? `/paperwork?${toggle}` : "/paperwork";
-  const searching = q.trim() !== "" || categoryId !== null;
-  const fileOf = (id: string | null) => files.find((file) => file.id === id);
+// Paperwork's first screen (REQ-100): the filing cabinet from the
+// outside. A card per office location, then a card per storage box that
+// holds archived files, and a banner while paperwork waits on the desk.
+export default async function PaperworkPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const viewer = await paperworkViewer();
+  const { q = "" } = await searchParams;
+  const { office, archived } = places(viewer.files, viewer.categories, viewer.papers, viewer.storage);
+  const waiting = unfiled(viewer.papers).length;
 
   return (
-    <PaperworkFrame canManageMembers={canManageMembers} account={account}>
-      <div className={styles.cards}>
-        <section className={styles.card} aria-labelledby="files">
-          <header className={styles.head}>
-            <h2 id="files" className={styles.name}>
-              Search
-            </h2>
-            <Hint text="Find a file by its ID, label name or category, or paperwork by its name." />
-          </header>
-          <div className={styles.addBlock}>
-            <form method="get" className={styles.form} role="search">
-              <label className={styles.field}>
-                <span>Search</span>
-                <input name="q" defaultValue={q} placeholder="F-0042, a label or a paper's name" />
-              </label>
-              <label className={styles.field}>
-                <span>Category</span>
-                <select name="category" defaultValue={categoryId ?? ""}>
-                  <option value="">All categories</option>
-                  {categories.map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {row.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="submit" className={styles.primary}>
-                Search
-              </button>
-              {showArchived ? <input type="hidden" name="archived" value="1" /> : null}
-              {searching ? (
-                <Link href={showArchived ? "/paperwork?archived=1" : "/paperwork"} className={styles.quiet}>
-                  Show everything
-                </Link>
-              ) : null}
-              {archivedCount > 0 ? (
-                <Link href={toggleArchived} className={styles.quiet}>
-                  {showArchived ? "Hide archived files" : `Show archived files (${archivedCount})`}
-                </Link>
-              ) : null}
-            </form>
-          </div>
-          <div className={styles.entries}>
-            {found.files.length === 0 ? (
-              <p className={styles.empty}>{searching ? "No files match." : "No files yet."}</p>
-            ) : (
-              <ul className={styles.list}>
-                {found.files.map(({ file, category: its, count }) => (
-                  <li key={file.id} className={styles.entry}>
-                    <Link href={`/paperwork/files/${file.id}`} className={local.tileLink}>
-                      <span className={styles.entryHead}>
-                        <span className={local.title}>{labelText(file, its)}</span>
-                        <span className={styles.chip}>{count === 1 ? "1 paper" : `${count} papers`}</span>
-                      </span>
-                      {file.label ? <span className={styles.detail}>{file.label}</span> : null}
-                      <span className={styles.detail}>{whereItIs(file, storage)}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+    <PaperworkScreen viewer={viewer} here="/paperwork" query={q}>
+      {waiting > 0 ? (
+        <Link href="/paperwork/unfiled" className={styles.banner}>
+          <DeskIcon />
+          <span>{waiting} unfiled on your desk</span>
+          File {waiting === 1 ? "it" : "them"} ›
+        </Link>
+      ) : null}
+      <section className={styles.group} aria-labelledby="office">
+        <h2 id="office" className={styles.groupTitle}>
+          Where your files are
+        </h2>
+        {office.length === 0 ? (
+          <p className={styles.empty}>No files yet. Log paperwork and choose New file… to make the first.</p>
+        ) : (
+          <Places cards={office} icon={<CabinetIcon />} />
+        )}
+      </section>
+      {archived.length > 0 ? (
+        <section className={styles.group} aria-labelledby="archived">
+          <h2 id="archived" className={styles.groupTitle}>
+            Archived in storage
+          </h2>
+          <Places cards={archived} icon={<BoxIcon />} />
         </section>
-
-        {q.trim() !== "" ? (
-          <section className={styles.card} aria-labelledby="found-paperwork">
-            <header className={styles.head}>
-              <h2 id="found-paperwork" className={styles.name}>
-                Paperwork
-              </h2>
-            </header>
-            <div className={styles.entries}>
-              {found.papers.length === 0 ? (
-                <p className={styles.empty}>No paperwork matches.</p>
-              ) : (
-                <ul className={styles.list}>
-                  {found.papers.map((paper) => {
-                    const file = fileOf(paper.file_id);
-                    const its = categories.find((row) => row.id === file?.category_id);
-                    return (
-                      <li key={paper.id} className={file ? styles.entry : styles.todo}>
-                        <Link href={`/paperwork/items/${paper.id}`} className={local.tileLink}>
-                          <span className={local.title}>{paper.name}</span>
-                          <span className={styles.detail}>
-                            {ownerName(paper, people)} · {file ? labelText(file, its) : "Unfiled"}
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </section>
-        ) : null}
-
-        <section className={styles.card} aria-labelledby="new-file">
-          <header className={styles.head}>
-            <h2 id="new-file" className={styles.name}>
-              Add files
-            </h2>
-            <Hint text="It gets the next ID, which never changes. Type the ID and category into your label printer." />
-          </header>
-          <div className={styles.addBlock}>
-            {categories.length === 0 ? (
-              canManagePaperwork ? (
-                <Link href="/paperwork/categories" className={styles.primary}>
-                  Add a category first
-                </Link>
-              ) : (
-                <p className={`${styles.form} ${styles.empty}`}>An admin adds the categories first.</p>
-              )
-            ) : (
-              <NewFileForm categories={categories} />
-            )}
-          </div>
-        </section>
-      </div>
-    </PaperworkFrame>
+      ) : null}
+    </PaperworkScreen>
   );
 }
+
+function Places({ cards, icon }: { cards: PlaceCard[]; icon: React.ReactNode }) {
+  return (
+    <ul className={styles.grid}>
+      {cards.map((card) => (
+        <li key={card.href}>
+          <Link href={card.href} className={styles.card}>
+            <span className={styles.cardIcon}>{icon}</span>
+            <span className={styles.cardText}>
+              <span className={styles.cardTitle}>{card.name}</span>
+              <span className={styles.cardDetail}>
+                {filesCount(card.files.length)} · {itemsCount(card.items)}
+              </span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const Svg = ({ children }: { children: React.ReactNode }) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {children}
+  </svg>
+);
+const CabinetIcon = () => (
+  <Svg>
+    <rect x="4" y="3" width="16" height="18" rx="2" />
+    <path d="M4 12h16M10 7.5h4M10 16.5h4" />
+  </Svg>
+);
+const BoxIcon = () => (
+  <Svg>
+    <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
+    <path d="M3 7l9 4 9-4M12 11v10" />
+  </Svg>
+);
+const DeskIcon = () => (
+  <Svg>
+    <path d="M6 3h8l4 4v14H6z" />
+    <path d="M14 3v4h4" />
+  </Svg>
+);

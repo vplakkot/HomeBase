@@ -3,6 +3,8 @@ import { fakeSupabase } from "../../test/fake-supabase";
 import { paperworkTile, UNFILED_HREF } from "./action-items";
 import {
   countUnfiled,
+  officeLocations,
+  sameLocation,
   fileId,
   fileRows,
   keepUntil,
@@ -157,5 +159,21 @@ describe("countUnfiled (REQ-97)", () => {
     const query = fake.from.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
     expect(query.select).toHaveBeenCalledWith("id", { count: "exact", head: true });
     expect(query.is).toHaveBeenCalledWith("file_id", null);
+  });
+});
+
+describe("locations (REQ-100)", () => {
+  it("are the same place however the case, spacing or dots differ", () => {
+    expect(sameLocation("Office · Cabinet", "office cabinet")).toBe(true);
+    expect(sameLocation("Hall cupboard", "hall  cupboard.")).toBe(true);
+    expect(sameLocation("Office · Cabinet", "Office · Desk")).toBe(false);
+  });
+
+  it("are suggested once each, in the first spelling used", () => {
+    const at = (location: string, number: number) => ({ ...file(number, TAXES), location });
+    expect(officeLocations([at("Office · Cabinet", 1), at("office cabinet", 2), at("Glovebox", 3)])).toEqual([
+      "Glovebox",
+      "Office · Cabinet",
+    ]);
   });
 });

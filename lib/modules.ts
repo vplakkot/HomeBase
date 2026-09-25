@@ -93,14 +93,11 @@ export const MODULES: readonly Module[] = [
     name: "Paperwork",
     tokens: "paperwork",
     href: "/paperwork",
+    // REQ-100 dropped these tabs; Vin kept them (2026-09-24): the top bar
+    // is how every module is found, and a place may have two ways in.
+    // Log paperwork stays in Paperwork's own toolbar, as a sheet.
     sections: [
       { name: "Unfiled", description: "Paperwork waiting for a file", href: "/paperwork/unfiled" },
-      {
-        name: "Log paperwork",
-        description: "As it arrives",
-        pinned: true,
-        href: "/paperwork/log",
-      },
       {
         name: "Categories",
         description: "Categories and how long to keep",
