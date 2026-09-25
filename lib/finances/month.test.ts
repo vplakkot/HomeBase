@@ -281,8 +281,12 @@ describe("dueInMonth", () => {
 
 // REQ-102: the small mark after a month's title.
 describe("monthMark", () => {
-  it("is nothing for the month now running", () => {
+  it("is nothing for the month now running while it's open", () => {
     expect(monthMark(false, "2026-09-01", "2026-09-22")).toBeUndefined();
+  });
+
+  it("is Closed for the month now running once it closed early", () => {
+    expect(monthMark(true, "2026-09-01", "2026-09-29")).toBe("Closed");
   });
 
   it("is Closed for a month gone by that closed, Open for one that never did", () => {

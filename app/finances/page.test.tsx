@@ -244,6 +244,17 @@ describe("the Finances header", () => {
     expect(within(tabs).getByRole("link", { name: "History" }).getAttribute("href")).toBe("/finances/history");
   });
 
+  // Vin, 2026-09-25: paid up and closed early, the month now running
+  // says so too.
+  it("marks the month now running Closed once it closed early, and takes no payments", async () => {
+    const closed = { ...SEPTEMBER, closed_at: "2026-09-29T04:05:00Z", closed_automatically: true };
+    await showMonth({ months: [closed], today: "2026-09-29T16:00:00Z" });
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Finances — September 2026Closed");
+    expect(within(screen.getByRole("banner")).queryByRole("link", { name: "Log payment" })).toBeNull();
+    const tabs = screen.getByRole("navigation", { name: "Finances sections" });
+    expect(within(tabs).getByRole("link", { name: "Payments" }).getAttribute("href")).toBe("/finances/payments");
+  });
+
   it("marks a month gone by that never closed Open, and logs payments against it", async () => {
     const august = { ...SEPTEMBER, id: "m-aug", starts_on: "2026-08-01" };
     await showMonth({ months: [august, SEPTEMBER], month: "2026-08" });

@@ -14,7 +14,9 @@
   ended.
 - A Payments tab lists every payment logged in the month, newest first.
 - Previous months opens History, a list of every month. A past month
-  shows "Closed" or "Open" after its name, and the tabs stay on it.
+  shows "Closed" or "Open" after its name, and the tabs stay on it. The
+  month now running shows "Closed" too once it's paid up and closed
+  early.
 - Each month opens itself on the 1st, with rent filled in and card
   statements waiting for their amounts. Nobody has to open it.
 

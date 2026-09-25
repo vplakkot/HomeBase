@@ -107,7 +107,7 @@ Every module home follows the same rules. Mockups: `finances-desktop.html`, `pap
 **Colour**
 - The module colour is used only for: card borders, buttons, progress bars, the active tab, the context in the title (e.g. the month), and urgent text such as "Overdue".
 - Main text charcoal, secondary text grey. Charcoal is never a card fill.
-- Status is **plain text** (Paid, Overdue), never a pill or chip. A past month's status is a small superscript after the title: "Closed", or "Open" if it was never closed. The current month shows none.
+- Status is **plain text** (Paid, Overdue), never a pill or chip. A past month's status is a small superscript after the title: "Closed", or "Open" if it was never closed. The current month shows none while it is open, and "Closed" once it closes early, paid up (Vin, 2026-09-25).
 
 **Buttons**
 - One button style everywhere on a module home — header, action item rows, "Acknowledge", "Previous months": solid module colour, white text, 44px tall, `--radius-md` (16px), 15px weight 600. No outlined or grey variants.

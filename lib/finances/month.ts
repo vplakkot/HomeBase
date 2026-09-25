@@ -164,12 +164,13 @@ export function chosenMonth(asked: string | undefined, opened: string[], today: 
   return wanted && opened.includes(wanted) ? wanted : monthStart(today);
 }
 
-// REQ-102: a month gone by carries a small mark after its title —
-// "Closed", or "Open" if it was never closed. The month now running, or
-// one still to come, carries none.
+// REQ-102: a closed month carries a small "Closed" after its title, even
+// the month now running once it's paid up and closed early (Vin,
+// 2026-09-25). A month gone by that never closed reads "Open"; the month
+// now running, while open, carries nothing.
 export function monthMark(closed: boolean, startsOn: string, today: string): "Closed" | "Open" | undefined {
-  if (startsOn >= monthStart(today)) return undefined;
-  return closed ? "Closed" : "Open";
+  if (closed) return "Closed";
+  return startsOn < monthStart(today) ? "Open" : undefined;
 }
 
 // The months the picker offers: every opened one plus the month now
