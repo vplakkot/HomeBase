@@ -7,9 +7,9 @@
   header reads "Finances — September 2026" and has Previous months, a
   settings gear for admins (Budget year moved there from the tabs) and
   Log payment. The page runs: action items, each with its own button;
-  a summary of what's still to pay; who owes what; then the bills with
-  due dates, progress and "Overdue" when late. Savings is paused, so its
-  tab and card are hidden. Closing a month with a balance is now only
+  Progress (what's still to pay); Outstanding balances (was "Who owes
+  what"); then the bills with due dates, progress and "Overdue" when
+  late. Savings is paused, so its tab and card are hidden. Closing a month with a balance is now only
   an action item, once the month has ended.
 - A Payments tab lists every payment logged in the month, newest first.
 - Previous months opens History, a list of every month. A past month

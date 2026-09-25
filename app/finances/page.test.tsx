@@ -293,12 +293,12 @@ describe("the Finances tabs", () => {
 
 // REQ-103: Finances home, top to bottom.
 describe("Finances home", () => {
-  it("runs Action items, Summary, Who owes what, Bills, in that order", async () => {
+  it("runs Action items, Progress, Outstanding balances, Bills, in that order, each under a heading", async () => {
     await showMonth();
     const headings = within(screen.getByRole("main"))
       .getAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent);
-    expect(headings).toEqual(["Action items 4", "Still to pay in September", "Who owes what", "Bills"]);
+    expect(headings).toEqual(["Action items 4", "Progress", "Outstanding balances", "Bills"]);
   });
 
   it("gives each action item its own button on the right", async () => {
@@ -324,20 +324,21 @@ describe("Finances home", () => {
 
   it("sums up the month: still to pay, the bills, paid so far, the split, one bar", async () => {
     await showMonth();
-    const summary = region("Still to pay in September");
+    const summary = region("Progress");
     expect(summary.textContent).toBe(
+      "Progress" +
       "Still to pay in September$1,400.00Bills this month$2,600.00Paid so far$1,200.00Split60 / 4046% paid · 1 bill overdue",
     );
   });
 
   it("gives each person a card: outstanding, share, a bar, paid of owed", async () => {
     await showMonth();
-    const people = within(region("Who owes what")).getAllByRole("listitem");
+    const people = within(region("Outstanding balances")).getAllByRole("listitem");
     expect(people.map((person) => person.textContent)).toEqual([
       "Sam40% share$1,040.00outstandingPaid $0.00 of $1,040.00",
       "Alex60% share$360.00outstandingPaid $1,200.00 of $1,560.00",
     ]);
-    expect(region("Who owes what").textContent).toContain("How this was worked out");
+    expect(region("Outstanding balances").textContent).toContain("How this was worked out");
   });
 
   it("says Paid in plain text once someone owes nothing", async () => {
@@ -346,7 +347,7 @@ describe("Finances home", () => {
       bills: [{ ...SEPTEMBER.bills[0], payments: [{ id: "p-1", payer_id: "user-1", amount: "1200.00", created_at: "2026-09-20T15:00:00Z" }] }],
     };
     await showMonth({ months: [paid] });
-    expect(within(region("Who owes what")).getAllByRole("listitem")[1].textContent).toBe(
+    expect(within(region("Outstanding balances")).getAllByRole("listitem")[1].textContent).toBe(
       "Alex60% sharePaidPaid $1,200.00 of $1,200.00",
     );
   });

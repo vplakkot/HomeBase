@@ -126,8 +126,8 @@ Mockups: `finances-desktop.html` (Overview), `finances-desktop-payments.html`. F
 - **Header:** "Finances — September 2026" (month in brick), then **Previous months** (opens History), the settings gear (Budget year), and **Log payment**. No month picker, no status chip.
 - **Tabs:** Overview, Monthly entry, Payments, Income, Balances, History. Savings is hidden while savings is paused. Budget year is not a tab; it opens from the settings gear.
 - **Action items** (REQ-93): e.g. a bill "Overdue" or due soon (Log payment), "Household over budget" and one "You'll be over budget" per person whose share is more than their income (Acknowledge), month ended not squared. "Close month" appears only as an action item.
-- **Summary:** still to pay (large), bills this month, paid so far, split, one progress bar, and "N% paid · N bill overdue".
-- **Who owes what:** one card per person: outstanding, share %, progress bar, "Paid $X of $Y". "How this was worked out" link.
+- **Progress** (the summary card, under its own heading like every section; Vin, 2026-09-25): still to pay (large), bills this month, paid so far, split, one progress bar, and "N% paid · N bill overdue".
+- **Outstanding balances** (was "Who owes what"; Vin, 2026-09-25): one card per person: outstanding, share %, progress bar, "Paid $X of $Y". "How this was worked out" link.
 - **Bills:** one row per bill: name, due date ("1 Sep · Overdue" in brick when late), progress, amount left.
 - **Payments tab:** every payment logged in the month, newest first: date, who paid, toward (bill or "Direct payment"), amount; count and total above.
 - **New month** opens automatically on the 1st: fixed bills (rent) pre-filled, card statements as placeholder rows, paychecks pre-filled to confirm.

@@ -15,7 +15,8 @@ import styles from "./page.module.css";
 // asked for another (docs/design/DESIGN.md §6–§7, REQ-103). Top to
 // bottom: the module's action items, each with its button (REQ-93; "Close
 // month" lives only there); the summary — still to pay, the bills, paid
-// so far and the split; who owes what, one card per person (REQ-56, 58);
+// so far and the split, under Progress; outstanding balances, one card
+// per person (REQ-56, 58);
 // and the bills with due dates and progress. Every card is white with a
 // module-colour border, and status is plain text. Until a split covers
 // this month, the page is one card asking for setup. Savings is paused,
@@ -129,34 +130,39 @@ export default async function FinancesPage({
       ) : null}
 
       {summary ? (
-        <section className={styles.card} aria-labelledby="summary">
-          <div className={styles.summaryTop}>
-            <div className={styles.figureBlock}>
-              <h2 id="summary" className={styles.label}>
-                Still to pay in {monthName}
-              </h2>
-              <span className={styles.bigFigure}>{formatMoney(summary.stillToPay)}</span>
-            </div>
-            <dl className={styles.facts}>
-              <div>
-                <dt className={styles.note}>Bills this month</dt>
-                <dd className={styles.fact}>{formatMoney(summary.bills)}</dd>
-              </div>
-              <div>
-                <dt className={styles.note}>Paid so far</dt>
-                <dd className={styles.fact}>{formatMoney(summary.paid)}</dd>
-              </div>
-              <div>
-                <dt className={styles.note}>Split</dt>
-                <dd className={styles.fact}>{shares.map((share) => share.percent).join(" / ")}</dd>
-              </div>
-            </dl>
+        <section className={styles.section} aria-labelledby="progress">
+          <div className={styles.sectionHead}>
+            <h2 id="progress" className={styles.sectionTitle}>
+              Progress
+            </h2>
           </div>
-          <Bar percent={summary.percentPaid} thick />
-          <p className={styles.note}>
-            {summary.percentPaid}% paid
-            {summary.overdue > 0 ? ` · ${summary.overdue} bill${summary.overdue === 1 ? "" : "s"} overdue` : ""}
-          </p>
+          <div className={styles.card}>
+            <div className={styles.summaryTop}>
+              <div className={styles.figureBlock}>
+                <span className={styles.label}>Still to pay in {monthName}</span>
+                <span className={styles.bigFigure}>{formatMoney(summary.stillToPay)}</span>
+              </div>
+              <dl className={styles.facts}>
+                <div>
+                  <dt className={styles.note}>Bills this month</dt>
+                  <dd className={styles.fact}>{formatMoney(summary.bills)}</dd>
+                </div>
+                <div>
+                  <dt className={styles.note}>Paid so far</dt>
+                  <dd className={styles.fact}>{formatMoney(summary.paid)}</dd>
+                </div>
+                <div>
+                  <dt className={styles.note}>Split</dt>
+                  <dd className={styles.fact}>{shares.map((share) => share.percent).join(" / ")}</dd>
+                </div>
+              </dl>
+            </div>
+            <Bar percent={summary.percentPaid} thick />
+            <p className={styles.note}>
+              {summary.percentPaid}% paid
+              {summary.overdue > 0 ? ` · ${summary.overdue} bill${summary.overdue === 1 ? "" : "s"} overdue` : ""}
+            </p>
+          </div>
         </section>
       ) : null}
 
@@ -183,7 +189,7 @@ export default async function FinancesPage({
         <section className={styles.section} aria-labelledby="who-owes">
           <div className={styles.sectionHead}>
             <h2 id="who-owes" className={styles.sectionTitle}>
-              Who owes what
+              Outstanding balances
             </h2>
           </div>
           <ul className={styles.people}>
