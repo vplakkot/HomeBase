@@ -205,3 +205,55 @@ export async function countUnfiled(supabase: SupabaseClient): Promise<number> {
   if (error) throw new Error(`Could not count unfiled paperwork: ${error.message}`);
   return count ?? 0;
 }
+
+// REQ-105: the Categories tab, one card per category with how many files
+// it has and how many documents those hold.
+export type CategoryCard = { category: Category; files: number; documents: number };
+
+export function categoryCards(
+  categories: readonly Category[],
+  files: readonly PaperFile[],
+  papers: readonly Paper[],
+): CategoryCard[] {
+  return categories.map((category) => {
+    const ids = new Set(files.filter((file) => file.category_id === category.id).map((file) => file.id));
+    return {
+      category,
+      files: ids.size,
+      documents: papers.filter((paper) => paper.file_id !== null && ids.has(paper.file_id)).length,
+    };
+  });
+}
+
+// REQ-105: a category's documents across every file and place, by the
+// year of their document date, newest first. A year between the oldest
+// and the newest with nothing in it is still a row (an empty list), so a
+// gap stands out; undated documents come last, as year null.
+export type YearRow = { year: number | null; papers: Paper[] };
+
+export function documentsByYear(papers: readonly Paper[]): YearRow[] {
+  const dated = papers.filter((paper) => paper.document_date);
+  const undated = papers.filter((paper) => !paper.document_date);
+  const yearOf = (paper: Paper) => Number(paper.document_date!.slice(0, 4));
+  const rows: YearRow[] = [];
+  if (dated.length > 0) {
+    const years = dated.map(yearOf);
+    for (let year = Math.max(...years); year >= Math.min(...years); year -= 1) {
+      rows.push({
+        year,
+        papers: dated
+          .filter((paper) => yearOf(paper) === year)
+          .sort((a, b) => b.document_date!.localeCompare(a.document_date!) || a.name.localeCompare(b.name)),
+      });
+    }
+  }
+  if (undated.length > 0) {
+    rows.push({ year: null, papers: [...undated].sort((a, b) => a.name.localeCompare(b.name)) });
+  }
+  return rows;
+}
+
+// "1 document", "18 documents": the UI calls each paper a document
+// (Vin, 2026-09-25); the module is still Paperwork.
+export const documentsCount = (count: number) => (count === 1 ? "1 document" : `${count} documents`);
+export const filesCount = (count: number) => (count === 1 ? "1 file" : `${count} files`);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useId, useState } from "react";
+import { buttonClass } from "../../components/button";
 import styles from "../../components/cards.module.css";
 import type { Person } from "../../lib/finances/budget-year";
 import { keepUntil, labelText, type Category, type Paper, type PaperFile } from "../../lib/paperwork/paperwork";
@@ -274,8 +275,8 @@ export function PaperForm({
         />
       )}
       <KeepUntilField value={keep.value} onType={keep.onType} />
-      <button type="submit" className={styles.primary} disabled={pending}>
-        {pending ? "Saving…" : paper ? "Save changes" : "Log paperwork"}
+      <button type="submit" className={buttonClass} disabled={pending}>
+        {pending ? "Saving…" : paper ? "Save changes" : "Log document"}
       </button>
       <Outcome state={state} saved={paper ? "Saved." : "Logged."} />
     </form>
@@ -315,7 +316,7 @@ export function FileItForm({
         onCategory={keep.onCategory}
       />
       <KeepUntilField value={keep.value} onType={keep.onType} />
-      <button type="submit" className={styles.primary} disabled={pending}>
+      <button type="submit" className={buttonClass} disabled={pending}>
         {pending ? "Saving…" : moving ? "Move it" : `File ${paper.name}`}
       </button>
       <Outcome state={state} saved={moving ? "Moved." : "Filed."} />
@@ -340,7 +341,7 @@ export function NewFileForm({
   return (
     <form action={formAction} className={styles.form}>
       <NewFileFields categories={categories} locations={locations} location={location} />
-      <button type="submit" className={styles.primary} disabled={pending || categories.length === 0}>
+      <button type="submit" className={buttonClass} disabled={pending || categories.length === 0}>
         {pending ? "Making…" : "Make the file"}
       </button>
       <Outcome state={state} saved="Made." />
@@ -366,7 +367,7 @@ export function FileEditForm({
     <form action={formAction} className={styles.form}>
       <input type="hidden" name="id" value={file.id} />
       <NewFileFields categories={categories} locations={locations} file={file} />
-      <button type="submit" className={styles.primary} disabled={pending}>
+      <button type="submit" className={buttonClass} disabled={pending}>
         {pending ? "Saving…" : "Save the file"}
       </button>
       <Outcome state={state} saved="Saved." />
@@ -381,8 +382,8 @@ export function RemoveFileForm({ file, label }: { file: PaperFile; label: string
   return (
     <form action={removeFile} className={styles.form}>
       <input type="hidden" name="id" value={file.id} />
-      <p className={styles.check}>Remove {label}? Its paperwork goes back to Unfiled.</p>
-      <button type="submit" className={styles.primary}>
+      <p className={styles.check}>Remove {label}? Its documents go back to Unfiled.</p>
+      <button type="submit" className={buttonClass}>
         Yes, remove the file
       </button>
     </form>
@@ -409,7 +410,7 @@ export function CategoryForm({ category }: { category?: Category }) {
           defaultValue={category?.keep_years ?? ""}
         />
       </label>
-      <button type="submit" className={styles.primary} disabled={pending}>
+      <button type="submit" className={buttonClass} disabled={pending}>
         {pending ? "Saving…" : category ? "Save the category" : "Add the category"}
       </button>
       <Outcome state={state} saved="Saved." />
@@ -447,7 +448,7 @@ export function RemoveCategoryForm({
           </select>
         </label>
       ) : null}
-      <button type="submit" className={styles.primary} disabled={pending || (inUse > 0 && others.length === 0)}>
+      <button type="submit" className={buttonClass} disabled={pending || (inUse > 0 && others.length === 0)}>
         {inUse > 0 ? `Move the files and remove ${category.name}` : `Remove ${category.name}`}
       </button>
       <Outcome state={state} saved="Removed." />
@@ -484,7 +485,7 @@ export function ArchiveFileForm({
           ))}
         </select>
       </label>
-      <button type="submit" className={styles.primary} disabled={pending || boxes.length === 0}>
+      <button type="submit" className={buttonClass} disabled={pending || boxes.length === 0}>
         {pending ? "Archiving…" : "Archive the file"}
       </button>
       <Outcome state={state} saved="Archived." />
@@ -508,7 +509,7 @@ export function BringBackForm({
     <form action={formAction} className={styles.form}>
       <input type="hidden" name="id" value={file.id} />
       <LocationField label="New location" placeholder="Where the file is kept now" locations={locations} />
-      <button type="submit" className={styles.primary} disabled={pending}>
+      <button type="submit" className={buttonClass} disabled={pending}>
         {pending ? "Saving…" : "Bring it back"}
       </button>
       <Outcome state={state} saved="Back in the office." />

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useState, type ReactNode } from "react";
 import { BottomSheet } from "../../components/bottom-sheet";
+import { ButtonLink, buttonClass } from "../../components/button";
+import { SettingsIcon } from "../../components/icons";
 import type { Person } from "../../lib/finances/budget-year";
 import type { Category, Paper, PaperFile } from "../../lib/paperwork/paperwork";
 import type { StorageEntry } from "../../lib/storage/storage";
@@ -50,32 +52,35 @@ function useSheet() {
   return { open, setOpen, saved, notice };
 }
 
-// The header on every Paperwork screen (REQ-100): the one search and Log
-// paperwork. Categories is a tab in the top bar. The search stays on the screen it's typed on: results replace the view,
-// and Clear goes back to it.
-export function Toolbar({
+// The header's tools on every Paperwork screen (DESIGN.md §11): the one
+// search, the settings gear for an admin, and Log document. The search
+// stays on the screen it's typed on: results replace the view, and Clear
+// goes back to it.
+export function HeaderTools({
   here,
   query,
   choices,
+  settings,
 }: {
   here: string;
   query: string;
   choices: PaperworkChoices;
+  settings: boolean;
 }) {
   const sheet = useSheet();
   return (
-    <div className={styles.toolbar}>
+    <div className={styles.tools}>
       <form method="get" action={here} role="search" className={styles.search}>
         <SearchIcon />
         <label htmlFor="paperwork-search" className={styles.hidden}>
-          Search Paperwork
+          Search files and documents
         </label>
         <input
           id="paperwork-search"
           type="search"
           name="q"
           defaultValue={query}
-          placeholder="Search paperwork, file IDs, labels, categories"
+          placeholder="Search files and documents"
         />
         {query ? (
           <Link href={here} className={styles.clear}>
@@ -83,13 +88,15 @@ export function Toolbar({
           </Link>
         ) : null}
       </form>
-      <div className={styles.buttons}>
-        <button type="button" className={styles.log} onClick={() => sheet.setOpen(true)}>
-          <PlusIcon />
-          Log paperwork
-        </button>
-      </div>
-      <BottomSheet open={sheet.open} onClose={() => sheet.setOpen(false)} title="Log paperwork">
+      {settings ? (
+        <ButtonLink href="/paperwork/settings" label="Paperwork settings">
+          <SettingsIcon size={20} />
+        </ButtonLink>
+      ) : null}
+      <button type="button" className={buttonClass} onClick={() => sheet.setOpen(true)}>
+        Log document
+      </button>
+      <BottomSheet open={sheet.open} onClose={() => sheet.setOpen(false)} title="Log document">
         {sheet.open ? <PaperForm {...choices} onSaved={sheet.saved} /> : null}
       </BottomSheet>
       {sheet.notice}
@@ -97,16 +104,15 @@ export function Toolbar({
   );
 }
 
-// REQ-100: "Add paperwork" on a file logs straight into it.
+// REQ-100: "Add document" on a file logs straight into it.
 export function AddPaperwork({ file, choices }: { file: PaperFile; choices: PaperworkChoices }) {
   const sheet = useSheet();
   return (
     <>
-      <button type="button" className={styles.secondary} onClick={() => sheet.setOpen(true)}>
-        <PlusIcon />
-        Add paperwork
+      <button type="button" className={buttonClass} onClick={() => sheet.setOpen(true)}>
+        Add document
       </button>
-      <BottomSheet open={sheet.open} onClose={() => sheet.setOpen(false)} title="Add paperwork">
+      <BottomSheet open={sheet.open} onClose={() => sheet.setOpen(false)} title="Add document">
         {sheet.open ? <PaperForm {...choices} intoFile={file} onSaved={sheet.saved} /> : null}
       </BottomSheet>
     </>
@@ -143,7 +149,7 @@ export function ManageFile({
     <>
       <button
         type="button"
-        className={styles.menuButton}
+        className={buttonClass}
         aria-expanded={menu}
         aria-controls="manage-file"
         onClick={() => setMenu((now) => !now)}
@@ -170,7 +176,7 @@ export function ManageFile({
           </li>
           <li className={styles.divider} aria-hidden="true" />
           <li>
-            <button type="button" className={`${styles.menuItem} ${styles.danger}`} onClick={() => choose("remove")}>
+            <button type="button" className={styles.menuItem} onClick={() => choose("remove")}>
               Remove file
             </button>
           </li>
@@ -199,13 +205,13 @@ export function ManageFile({
         ) : boxes.length === 0 ? (
           <div className={styles.sheetBody}>
             <p className={styles.empty}>There are no storage boxes yet.</p>
-            <Link href="/storage/add" className={styles.secondary}>
+            <Link href="/storage/add" className={buttonClass}>
               Add a box in Storage
             </Link>
           </div>
         ) : (
           <div className={styles.sheetBody}>
-            <p className={styles.empty}>The whole file goes. To keep some of it, move that paperwork first.</p>
+            <p className={styles.empty}>The whole file goes. To keep some of it, move those documents first.</p>
             <ArchiveFileForm file={file} boxes={boxes} onSaved={close} />
           </div>
         )}
@@ -234,7 +240,7 @@ export function FileItButton({
     <>
       <button
         type="button"
-        className={moving ? styles.secondary : styles.fileIt}
+        className={buttonClass}
         aria-label={moving ? undefined : `File ${paper.name}`}
         onClick={() => sheet.setOpen(true)}
       >
@@ -263,8 +269,7 @@ export function NewFile({ location, choices }: { location?: string; choices: Pap
   const sheet = useSheet();
   return (
     <>
-      <button type="button" className={styles.secondary} onClick={() => sheet.setOpen(true)}>
-        <PlusIcon />
+      <button type="button" className={buttonClass} onClick={() => sheet.setOpen(true)}>
         New file
       </button>
       <BottomSheet open={sheet.open} onClose={() => sheet.setOpen(false)} title="New file">
@@ -304,11 +309,6 @@ const SearchIcon = () => (
   <Svg>
     <circle cx="11" cy="11" r="7" />
     <path d="M20 20l-3.5-3.5" />
-  </Svg>
-);
-const PlusIcon = () => (
-  <Svg>
-    <path d="M12 5v14M5 12h14" />
   </Svg>
 );
 const ChevronIcon = () => (

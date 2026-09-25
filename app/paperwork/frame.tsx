@@ -6,7 +6,10 @@ import { readAccount } from "../../lib/account";
 import { hasPermission } from "../../lib/auth/permissions";
 import { householdToday, listPeople } from "../../lib/finances/budget-year";
 import {
+  documentsCount,
+  fileId,
   fileRows,
+  filesCount,
   labelText,
   officeLocations,
   placeOf,
@@ -16,7 +19,7 @@ import {
 import { readStorage } from "../../lib/storage/storage";
 import { createClient } from "../../lib/supabase/server";
 import styles from "./paperwork.module.css";
-import { Toolbar } from "./sheets";
+import { HeaderTools } from "./sheets";
 
 // Who is looking at a Paperwork page, what they may do there, and
 // everything Paperwork holds, with Storage's entries for the boxes files
@@ -51,38 +54,41 @@ export type PaperworkViewer = Awaited<ReturnType<typeof paperworkViewer>>;
 // with none) the screen you're on.
 export type Crumb = { name: string; href?: string };
 
-// Every Paperwork screen (REQ-100): the module's header and top bar, the
-// toolbar with the one search, and a breadcrumb below the top level. With a search
-// typed, the results take the screen's place; clearing it brings the
-// screen back.
+// Every Paperwork screen (REQ-100, DESIGN.md §11): the module header
+// with the one search, the settings gear (admin) and Log document; the
+// tabs, Overview, Unfiled and Categories, with `tab` the one you're under
+// (Settings highlights none); and a breadcrumb below the top level. With
+// a search typed, the results take the screen's place; clearing it
+// brings the screen back.
 export function PaperworkScreen({
   viewer,
   here,
   query,
+  tab,
   crumbs = [],
   children,
 }: {
   viewer: PaperworkViewer;
   here: string;
   query: string;
+  tab?: "Unfiled" | "Categories" | "Settings";
   crumbs?: Crumb[];
   children: ReactNode;
 }) {
   const searching = query.trim() !== "";
   const trail: Crumb[] = searching
     ? [{ name: "Paperwork", href: "/paperwork" }, { name: `Results for “${query.trim()}”` }]
-    : crumbs.length > 0
-      ? [{ name: "Paperwork", href: "/paperwork" }, ...crumbs]
-      : [{ name: "Paperwork" }];
+    : [{ name: "Paperwork", href: "/paperwork" }, ...crumbs];
   return (
     <ModuleFrame
       slug="paperwork"
       canManageMembers={viewer.canManageMembers}
       account={viewer.account}
-      section={trail.at(-1)?.name === "Paperwork" ? undefined : trail.at(-1)?.name}
+      section={tab}
+      context={tab === "Settings" ? "Settings" : undefined}
+      actions={<HeaderTools here={here} query={query} choices={viewer.choices} settings={viewer.canManagePaperwork} />}
     >
       <div className={styles.screen}>
-        <Toolbar here={here} query={query} choices={viewer.choices} />
         {/* Below the top level only: there it would just say Paperwork. */}
         {trail.length > 1 ? (
           <nav aria-label="Breadcrumb">
@@ -106,51 +112,79 @@ export function PaperworkScreen({
   );
 }
 
-// REQ-100's search: files by ID, label name or category, and paperwork by
-// name, grouped. Each paper says which file it's in and where that is.
+// A section of a Paperwork screen: its heading above, with a count or
+// note and any button on the right, then whatever it holds.
+export function Section({
+  id,
+  title,
+  aside,
+  action,
+  children,
+}: {
+  id: string;
+  title: ReactNode;
+  aside?: ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className={styles.section} aria-labelledby={id}>
+      <div className={styles.sectionHead}>
+        <h2 id={id} className={styles.sectionTitle}>
+          {title}
+        </h2>
+        {aside ? <span className={styles.count}>{aside}</span> : null}
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+// One number in a summary card: "Files", 16.
+export function Fact({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className={styles.fact}>
+      <dt className={styles.factLabel}>{label}</dt>
+      <dd className={styles.factValue}>{value}</dd>
+    </div>
+  );
+}
+
+// REQ-100's search: files by ID, label name or category, and documents by
+// name, grouped. Each document says which file it's in and where that is.
 function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: string }) {
   const { files, categories, papers, storage } = viewer;
   const found = search(fileRows(files, categories, papers), papers, query, null);
   const fileOf = (id: string | null) => files.find((file) => file.id === id);
-  const categoryOf = (id: string) => categories.find((row) => row.id === id);
   return (
     <>
-      <section className={styles.group} aria-labelledby="found-files">
-        <h2 id="found-files" className={styles.groupTitle}>
-          Files · {found.files.length}
-        </h2>
+      <Section id="found-files" title="Files" aside={filesCount(found.files.length)}>
         {found.files.length === 0 ? (
           <p className={styles.empty}>No files match.</p>
         ) : (
           <ul className={styles.grid}>
             {found.files.map(({ file, category, count }) => (
               <li key={file.id}>
-                <Link href={`/paperwork/files/${file.id}`} className={styles.card}>
-                  <span className={styles.cardText}>
-                    <span className={styles.cardTitle}>{labelText(file, category)}</span>
-                    <span className={styles.cardDetail}>
-                      {[file.label, placeOf(file, storage).name, count === 1 ? "1 item" : `${count} items`]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
+                <Link href={`/paperwork/files/${file.id}`} className={styles.linkCard}>
+                  <span className={styles.cardTitle}>{labelText(file, category)}</span>
+                  <span className={styles.cardDetail}>
+                    {[file.label, placeOf(file, storage).name, documentsCount(count)].filter(Boolean).join(" · ")}
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
         )}
-      </section>
-      <section className={styles.group} aria-labelledby="found-paperwork">
-        <h2 id="found-paperwork" className={styles.groupTitle}>
-          Paperwork · {found.papers.length}
-        </h2>
+      </Section>
+      <Section id="found-documents" title="Documents" aside={documentsCount(found.papers.length)}>
         {found.papers.length === 0 ? (
-          <p className={styles.empty}>No paperwork matches.</p>
+          <p className={styles.empty}>No documents match.</p>
         ) : (
           <ul className={styles.table}>
             <li className={`${styles.tableHead} ${styles.found}`} aria-hidden="true">
-              <span>Paperwork</span>
-              <span>In file</span>
+              <span>Document</span>
+              <span>File</span>
               <span>Where</span>
             </li>
             {found.papers.map((paper) => {
@@ -159,9 +193,7 @@ function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: stri
                 <li key={paper.id}>
                   <Link href={`/paperwork/items/${paper.id}`} className={`${styles.row} ${styles.found}`}>
                     <span className={styles.rowName}>{paper.name}</span>
-                    <span className={styles.rowCell}>
-                      {file ? labelText(file, categoryOf(file.category_id)) : "Unfiled"}
-                    </span>
+                    <span className={styles.rowCell}>{file ? fileId(file) : "Unfiled"}</span>
                     <span className={styles.rowCell}>{file ? placeOf(file, storage).name : "Your desk"}</span>
                   </Link>
                 </li>
@@ -169,7 +201,7 @@ function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: stri
             })}
           </ul>
         )}
-      </section>
+      </Section>
     </>
   );
 }

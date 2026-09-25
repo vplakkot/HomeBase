@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
-import { places } from "../../../../lib/paperwork/paperwork";
-import { FileCards, filesCount } from "../../file-cards";
-import { PaperworkScreen, paperworkViewer } from "../../frame";
-import styles from "../../paperwork.module.css";
+import { filesCount, places } from "../../../../lib/paperwork/paperwork";
+import { FileCards } from "../../file-cards";
+import { PaperworkScreen, Section, paperworkViewer } from "../../frame";
 
-// REQ-100's second screen for a storage box: the paperwork files archived
+// REQ-100's second screen for a storage box: the files archived
 // in it (REQ-98). The box's own contents live in Storage.
 export default async function BoxPage({
   params,
@@ -21,11 +20,9 @@ export default async function BoxPage({
 
   return (
     <PaperworkScreen viewer={viewer} here={place.href} query={q} crumbs={[{ name: place.name }]}>
-      <div className={styles.titleRow}>
-        <h2 className={styles.title}>{place.name}</h2>
-        <span className={styles.count}>{filesCount(place.files.length)}</span>
-      </div>
-      <FileCards rows={place.files} />
+      <Section id="files" title={place.name} aside={filesCount(place.files.length)}>
+        <FileCards rows={place.files} />
+      </Section>
     </PaperworkScreen>
   );
 }

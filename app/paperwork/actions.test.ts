@@ -107,7 +107,7 @@ describe("logPaper (REQ-97)", () => {
 
   it("needs a name, and saves nothing without one", async () => {
     given();
-    expect(await logPaper({}, form({ ...PAPER, name: "  ", fileId: "" }))).toEqual({ error: "Give the paperwork a name." });
+    expect(await logPaper({}, form({ ...PAPER, name: "  ", fileId: "" }))).toEqual({ error: "Give the document a name." });
     expect(on("paperwork")).toEqual([]);
   });
 

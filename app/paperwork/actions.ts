@@ -95,7 +95,7 @@ function paperFields(formData: FormData) {
   const owner = text(formData, "ownerId");
   const documentDate = text(formData, "documentDate");
   const keepUntil = text(formData, "keepUntil");
-  if (name === "") return { error: "Give the paperwork a name." };
+  if (name === "") return { error: "Give the document a name." };
   if (owner !== "joint" && !UUID.test(owner)) return { error: "Say whose it is, or Joint." };
   if (documentDate !== "" && !DATE.test(documentDate)) return { error: "Enter the document date as a date." };
   if (keepUntil !== "" && !DATE.test(keepUntil)) return { error: "Enter keep-until as a date." };

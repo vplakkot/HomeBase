@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Paperwork, redesigned on the module home rules and like opening a
+  filing cabinet. Its Overview runs: the one action item while documents
+  wait on your desk ("File it"), a summary of locations, files and
+  documents, a card per office location, then the storage boxes holding
+  archived files. Open a place to see its files, a file to see its
+  documents; a breadcrumb always says where you are. The header has one
+  search for files and documents, a settings gear for admins, and Log
+  document. Every card is white with a thin slate border, status is plain
+  text, and every button is the same solid slate. Log document, Add
+  document, File it and everything under a file's Manage file menu open
+  over the screen you're on; a new file shows its label to print once.
+  Each paperwork item is now called a document.
+- The Categories tab is for everyone: a card per category, and a
+  category's page lists its documents by year, newest first. A year with
+  nothing logged says so in slate, so a missing year's taxes stand out.
+  Managing categories moved behind the Paperwork settings gear.
 - Finances home follows the new module home rules. Every card is white
   with a thin brick border; status is plain text, with no chips. The
   header reads "Finances — September 2026" and has Previous months, a

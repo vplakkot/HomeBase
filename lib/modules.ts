@@ -93,17 +93,12 @@ export const MODULES: readonly Module[] = [
     name: "Paperwork",
     tokens: "paperwork",
     href: "/paperwork",
-    // REQ-100 dropped these tabs; Vin kept them (2026-09-24): the top bar
-    // is how every module is found, and a place may have two ways in.
-    // Log paperwork stays in Paperwork's own toolbar, as a sheet.
+    // DESIGN.md §11: Overview, Unfiled and Categories. Log document is a
+    // sheet from the header, and managing categories is behind the
+    // settings gear (admin), not a tab.
     sections: [
-      { name: "Unfiled", description: "Paperwork waiting for a file", href: "/paperwork/unfiled" },
-      {
-        name: "Categories",
-        description: "Categories and how long to keep",
-        adminOnly: true,
-        href: "/paperwork/categories",
-      },
+      { name: "Unfiled", description: "Documents waiting for a file", href: "/paperwork/unfiled" },
+      { name: "Categories", description: "Every document by category and year", href: "/paperwork/categories" },
     ],
   },
   // Added in v1.0 (REQ-87); Vin chose teal and the last place on

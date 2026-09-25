@@ -1,61 +1,77 @@
 import Link from "next/link";
-import { places, unfiled, type PlaceCard } from "../../lib/paperwork/paperwork";
-import { filesCount, itemsCount } from "./file-cards";
-import { PaperworkScreen, paperworkViewer } from "./frame";
+import { ButtonLink } from "../../components/button";
+import { UNFILED_HREF, unfiledItem } from "../../lib/paperwork/action-items";
+import { documentsCount, filesCount, places, type PlaceCard } from "../../lib/paperwork/paperwork";
+import { Fact, PaperworkScreen, Section, paperworkViewer } from "./frame";
 import styles from "./paperwork.module.css";
 
-// Paperwork's first screen (REQ-100): the filing cabinet from the
-// outside. A card per office location, then a card per storage box that
-// holds archived files, and a banner while paperwork waits on the desk.
+// Paperwork's Overview (REQ-100, DESIGN.md §11): the filing cabinet from
+// the outside. Top to bottom: the action item while documents wait on the
+// desk, a summary (locations · files · documents), a card per office
+// location, then a card per storage box that holds archived files.
 export default async function PaperworkPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const viewer = await paperworkViewer();
   const { q = "" } = await searchParams;
   const { office, archived } = places(viewer.files, viewer.categories, viewer.papers, viewer.storage);
-  const waiting = unfiled(viewer.papers).length;
+  const item = unfiledItem(viewer.papers);
 
   return (
     <PaperworkScreen viewer={viewer} here="/paperwork" query={q}>
-      {waiting > 0 ? (
-        <Link href="/paperwork/unfiled" className={styles.banner}>
-          <DeskIcon />
-          <span>{waiting} unfiled on your desk</span>
-          File {waiting === 1 ? "it" : "them"} ›
-        </Link>
+      {item ? (
+        <Section
+          id="action-items"
+          title={
+            <>
+              Action items <span className={styles.count}>1</span>
+            </>
+          }
+        >
+          <ul className={`${styles.card} ${styles.rows}`}>
+            <li className={styles.itemRow}>
+              <span className={styles.itemText}>
+                <span className={styles.strong}>{item.text}</span>
+                <span className={styles.note}>{item.detail}</span>
+              </span>
+              <ButtonLink href={UNFILED_HREF}>File it</ButtonLink>
+            </li>
+          </ul>
+        </Section>
       ) : null}
-      <section className={styles.group} aria-labelledby="office">
-        <h2 id="office" className={styles.groupTitle}>
-          Where your files are
-        </h2>
-        {office.length === 0 ? (
-          <p className={styles.empty}>No files yet. Log paperwork and choose New file… to make the first.</p>
-        ) : (
-          <Places cards={office} icon={<CabinetIcon />} />
-        )}
+
+      <section className={styles.card} aria-label="Summary">
+        <dl className={styles.summary}>
+          <Fact label="Locations" value={office.length + archived.length} />
+          <Fact label="Files" value={viewer.files.length} />
+          <Fact label="Documents" value={viewer.papers.length} />
+        </dl>
       </section>
+
+      <Section id="locations" title="Locations">
+        {office.length === 0 ? (
+          <p className={styles.empty}>No files yet. Log a document and choose New file… to make the first.</p>
+        ) : (
+          <Places cards={office} />
+        )}
+      </Section>
+
       {archived.length > 0 ? (
-        <section className={styles.group} aria-labelledby="archived">
-          <h2 id="archived" className={styles.groupTitle}>
-            Archived in storage
-          </h2>
-          <Places cards={archived} icon={<BoxIcon />} />
-        </section>
+        <Section id="archived" title="Archived in storage">
+          <Places cards={archived} />
+        </Section>
       ) : null}
     </PaperworkScreen>
   );
 }
 
-function Places({ cards, icon }: { cards: PlaceCard[]; icon: React.ReactNode }) {
+function Places({ cards }: { cards: PlaceCard[] }) {
   return (
     <ul className={styles.grid}>
       {cards.map((card) => (
         <li key={card.href}>
-          <Link href={card.href} className={styles.card}>
-            <span className={styles.cardIcon}>{icon}</span>
-            <span className={styles.cardText}>
-              <span className={styles.cardTitle}>{card.name}</span>
-              <span className={styles.cardDetail}>
-                {filesCount(card.files.length)} · {itemsCount(card.items)}
-              </span>
+          <Link href={card.href} className={styles.linkCard}>
+            <span className={styles.cardTitle}>{card.name}</span>
+            <span className={styles.cardDetail}>
+              {filesCount(card.files.length)} · {documentsCount(card.items)}
             </span>
           </Link>
         </li>
@@ -63,27 +79,3 @@ function Places({ cards, icon }: { cards: PlaceCard[]; icon: React.ReactNode }) 
     </ul>
   );
 }
-
-const Svg = ({ children }: { children: React.ReactNode }) => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    {children}
-  </svg>
-);
-const CabinetIcon = () => (
-  <Svg>
-    <rect x="4" y="3" width="16" height="18" rx="2" />
-    <path d="M4 12h16M10 7.5h4M10 16.5h4" />
-  </Svg>
-);
-const BoxIcon = () => (
-  <Svg>
-    <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
-    <path d="M3 7l9 4 9-4M12 11v10" />
-  </Svg>
-);
-const DeskIcon = () => (
-  <Svg>
-    <path d="M6 3h8l4 4v14H6z" />
-    <path d="M14 3v4h4" />
-  </Svg>
-);
