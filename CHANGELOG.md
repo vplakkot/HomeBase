@@ -10,8 +10,8 @@
   screen, and Clear takes you back. Log paperwork, Add paperwork, File
   it and everything under a file's Manage file menu open over the screen
   you're on; a new file shows its label to print once, and you stay
-  put. The Overview, Unfiled and Categories tabs are gone: unfiled
-  paperwork is a banner, and Categories is the admin's settings button.
+  put. The top bar keeps Overview, Unfiled and Categories; unfiled
+  paperwork also shows as a charcoal banner on the first screen.
 
 - Storage, a new module (teal, last on Home). Log everything in the
   basement, boxes and loose items alike. Each entry gets an ID (S-001,

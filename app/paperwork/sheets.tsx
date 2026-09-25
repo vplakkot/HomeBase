@@ -50,19 +50,16 @@ function useSheet() {
   return { open, setOpen, saved, notice };
 }
 
-// The header on every Paperwork screen (REQ-100): the one search, Log
-// paperwork, and for an admin the settings that hold Categories. The
-// search stays on the screen it's typed on: results replace the view,
+// The header on every Paperwork screen (REQ-100): the one search and Log
+// paperwork. Categories is a tab in the top bar. The search stays on the screen it's typed on: results replace the view,
 // and Clear goes back to it.
 export function Toolbar({
   here,
   query,
-  canManagePaperwork,
   choices,
 }: {
   here: string;
   query: string;
-  canManagePaperwork: boolean;
   choices: PaperworkChoices;
 }) {
   const sheet = useSheet();
@@ -91,11 +88,6 @@ export function Toolbar({
           <PlusIcon />
           Log paperwork
         </button>
-        {canManagePaperwork ? (
-          <Link href="/paperwork/categories" className={styles.iconButton} aria-label="Categories (admin)">
-            <SettingsIcon />
-          </Link>
-        ) : null}
       </div>
       <BottomSheet open={sheet.open} onClose={() => sheet.setOpen(false)} title="Log paperwork">
         {sheet.open ? <PaperForm {...choices} onSaved={sheet.saved} /> : null}
@@ -322,11 +314,5 @@ const PlusIcon = () => (
 const ChevronIcon = () => (
   <Svg size={16}>
     <path d="M6 9l6 6 6-6" />
-  </Svg>
-);
-const SettingsIcon = () => (
-  <Svg size={20}>
-    <circle cx="12" cy="12" r="3" />
-    <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" />
   </Svg>
 );

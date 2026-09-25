@@ -72,19 +72,6 @@
   cursor: pointer;
 }
 
-.iconButton {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: var(--tap-target-min);
-  height: var(--tap-target-min);
-  border: 1px solid var(--module-quiet-line);
-  border-radius: var(--radius-md);
-  background: var(--module-quiet);
-  color: var(--module-quiet-ink);
-}
-
 @media (min-width: 1024px) {
   .toolbar {
     grid-template-columns: minmax(0, 1fr) auto;

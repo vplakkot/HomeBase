@@ -106,33 +106,33 @@ const links = (region: HTMLElement) =>
     .map((link) => [link.textContent, link.getAttribute("href")]);
 
 describe("the module's structure (REQ-100)", () => {
-  it("has no section tabs: browsing and search are the whole module", async () => {
-    given();
+  // Vin kept the top bar (2026-09-24), over REQ-100's "tabs removed":
+  // it's how every module is found, and two ways to one place is fine.
+  it("keeps the top bar: Overview, Unfiled and Categories", async () => {
+    given(ADMIN);
     render(await home());
-    expect(screen.queryByRole("navigation", { name: "Paperwork sections" })).toBeNull();
+    const tabs = screen.getByRole("navigation", { name: "Paperwork sections" });
+    expect(links(tabs)).toEqual([
+      ["Overview", "/paperwork"],
+      ["Unfiled", "/paperwork/unfiled"],
+      ["CategoriesAdmin only", "/paperwork/categories"],
+    ]);
   });
 
-  it("puts search, Log paperwork and (for an admin) Categories in the header of every screen", async () => {
+  it("puts search and Log paperwork in the header of every screen", async () => {
     given(ADMIN);
     for (const page of [home(), place("Hall cupboard"), openFile("f-42"), UnfiledPage({ searchParams: q() })]) {
       render(await page);
       expect(screen.getByRole("searchbox", { name: "Search Paperwork" })).toBeDefined();
       expect(screen.getByRole("button", { name: "Log paperwork" })).toBeDefined();
-      expect(screen.getByRole("link", { name: "Categories (admin)" }).getAttribute("href")).toBe("/paperwork/categories");
       cleanup();
     }
-  });
-
-  it("gives a member no Categories button", async () => {
-    given();
-    render(await home());
-    expect(screen.queryByRole("link", { name: "Categories (admin)" })).toBeNull();
   });
 
   it("shows where you are below the top level, each step linking back up", async () => {
     given();
     render(await home());
-    expect(crumbs()).toEqual(["Paperwork"]);
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).toBeNull();
     cleanup();
     render(await openFile("f-42"));
     expect(crumbs()).toEqual(["Paperwork", "Hall cupboard", "F-0042"]);

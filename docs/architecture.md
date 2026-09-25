@@ -880,8 +880,9 @@ location's files → a file's paperwork. A location is the files' free-text
 of places; a storage box holding archived files is a place too. Routes:
 `/paperwork` (locations, plus the unfiled banner), `/paperwork/locations/[name]`,
 `/paperwork/boxes/[id]`, `/paperwork/files/[id]`, `/paperwork/items/[id]`,
-`/paperwork/unfiled` and `/paperwork/categories` (admin, behind the
-toolbar's settings button). The module has no section tabs.
+`/paperwork/unfiled` and `/paperwork/categories` (admin). The top bar
+keeps Overview, Unfiled and Categories tabs (Vin, over REQ-100's
+"tabs removed"), so Unfiled is reachable from the tab and the banner.
 [`app/paperwork/frame.tsx`](../app/paperwork/frame.tsx) draws every screen's
 toolbar (search, Log paperwork) and breadcrumb; a search is `?q=` on
 whatever screen it was typed on, and its results replace that screen.

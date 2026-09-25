@@ -51,8 +51,8 @@ export type PaperworkViewer = Awaited<ReturnType<typeof paperworkViewer>>;
 // with none) the screen you're on.
 export type Crumb = { name: string; href?: string };
 
-// Every Paperwork screen (REQ-100): the module's header, the toolbar with
-// the one search, and a breadcrumb below the top level. With a search
+// Every Paperwork screen (REQ-100): the module's header and top bar, the
+// toolbar with the one search, and a breadcrumb below the top level. With a search
 // typed, the results take the screen's place; clearing it brings the
 // screen back.
 export function PaperworkScreen({
@@ -82,26 +82,24 @@ export function PaperworkScreen({
       section={trail.at(-1)?.name === "Paperwork" ? undefined : trail.at(-1)?.name}
     >
       <div className={styles.screen}>
-        <Toolbar
-          here={here}
-          query={query}
-          canManagePaperwork={viewer.canManagePaperwork}
-          choices={viewer.choices}
-        />
-        <nav aria-label="Breadcrumb">
-          <ol className={styles.crumbs}>
-            {trail.map((crumb, index) => (
-              <li key={`${crumb.name}-${index}`}>
-                {index > 0 ? <span aria-hidden="true">› </span> : null}
-                {crumb.href && index < trail.length - 1 ? (
-                  <Link href={crumb.href}>{crumb.name}</Link>
-                ) : (
-                  <span aria-current="page">{crumb.name}</span>
-                )}
-              </li>
-            ))}
-          </ol>
-        </nav>
+        <Toolbar here={here} query={query} choices={viewer.choices} />
+        {/* Below the top level only: there it would just say Paperwork. */}
+        {trail.length > 1 ? (
+          <nav aria-label="Breadcrumb">
+            <ol className={styles.crumbs}>
+              {trail.map((crumb, index) => (
+                <li key={`${crumb.name}-${index}`}>
+                  {index > 0 ? <span aria-hidden="true">› </span> : null}
+                  {crumb.href && index < trail.length - 1 ? (
+                    <Link href={crumb.href}>{crumb.name}</Link>
+                  ) : (
+                    <span aria-current="page">{crumb.name}</span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        ) : null}
         {searching ? <SearchResults viewer={viewer} query={query} /> : children}
       </div>
     </ModuleFrame>
