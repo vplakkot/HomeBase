@@ -10,14 +10,23 @@
 export type ModuleSection = {
   name: string;
   description: string;
-  // Admin-only sections are shown to members too, locked (DESIGN.md §7).
+  // Admin-only sections are shown to members too, locked. Finances has
+  // none now: its admin settings sit behind the header's gear (§6).
   adminOnly?: boolean;
   // The module's most frequent action (DESIGN.md §6): a button of its own
   // rather than a tab on a desktop.
   pinned?: boolean;
   // The section's page, once it has one; until then it's listed as coming.
   href?: string;
+  // A page about one month: its link keeps the month you're looking at.
+  monthly?: boolean;
+  // Not listed at all, for now (Finances: Savings while it's paused).
+  hidden?: boolean;
 };
+
+// Savings is paused (REQ-103, 2026-09-25): its tab and the verdict card
+// are hidden. The page and its data stay; flip this to bring them back.
+export const SAVINGS_PAUSED = true;
 
 export type Module = {
   slug: string;
@@ -41,31 +50,35 @@ export const MODULES: readonly Module[] = [
         name: "Monthly entry",
         description: "Bills, personal charges, One-time Payments",
         href: "/finances/monthly-entry",
+        monthly: true,
       },
       {
         name: "Log payment",
         description: "Several times a month",
         pinned: true,
         href: "/finances/log-payment",
+        monthly: true,
+      },
+      {
+        name: "Payments",
+        description: "Every payment logged in the month",
+        href: "/finances/payments",
+        monthly: true,
       },
       {
         name: "Income",
         description: "Confirm paychecks, add ESPP, RSU, bonus",
         href: "/finances/income",
+        monthly: true,
       },
       {
         name: "Savings",
         description: "Verdict and what you actually saved",
         href: "/finances/savings",
+        hidden: SAVINGS_PAUSED,
       },
       { name: "Balances", description: "Enter and see trends", href: "/finances/balances" },
-      { name: "History", description: "Closed months, read-only" },
-      {
-        name: "Budget year",
-        description: "Split %, income sources and bills",
-        adminOnly: true,
-        href: "/finances/budget-year",
-      },
+      { name: "History", description: "Every month so far", href: "/finances/history" },
     ],
   },
   { slug: "calendar", name: "Calendar", tokens: "calendar", href: null, sections: [] },

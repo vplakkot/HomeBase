@@ -7,8 +7,6 @@ import {
   dueInMonth,
   listOpenedMonths,
   monthShares,
-  monthStatus,
-  pickableMonths,
   readMonth,
   type MonthBill,
 } from "../../../lib/finances/month";
@@ -38,7 +36,7 @@ export default async function MonthlyEntryPage({
 }: {
   searchParams: Promise<{ month?: string }>;
 }) {
-  const { supabase, canManageMembers, account } = await financesViewer();
+  const { supabase, canManageMembers, canManageBudget, account } = await financesViewer();
   const { month: asked } = await searchParams;
   const todayIso = householdToday();
   const [opened, people, bills, splits] = await Promise.all([
@@ -54,8 +52,8 @@ export default async function MonthlyEntryPage({
     canManageMembers,
     account,
     section: SECTION,
-    status: monthStatus(month, monthShares(month, splits, startsOn), todayIso),
-    month: { current: startsOn, options: pickableMonths(opened, todayIso) },
+    canManageBudget,
+    month: { startsOn, closed: Boolean(month?.closed_at) },
   };
 
   if (!month) {

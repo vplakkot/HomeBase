@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Paperwork Categories — desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#1C1B22;background-color:#FFFEFE}
+a{color:#4A5568}a:hover{color:#2D3748}
+</style>
+</helmet>
+<div style="width: 1440px; height: 720px; box-sizing: border-box; padding: 40px 64px 56px; display: flex; flex-direction: column; gap: 32px; font-variant-numeric: tabular-nums; background-color: {{shell}}; color: #1C1B22">
+
+<header style="display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 24px">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="width: 44px; height: 44px; border-radius: 12px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M9 13h6"></path><path d="M9 17h6"></path></svg>
+</div>
+<h1 style="margin: 0; font-size: 36px; font-weight: 700; letter-spacing: -0.02em">Paperwork</h1>
+</div>
+<div style="display: flex; align-items: center; gap: 12px">
+<label style="height: 44px; width: 340px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid #D9D6D2; border-radius: 16px; display: flex; align-items: center; gap: 10px; color: #625E68">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input type="search" placeholder="Search files and documents" aria-label="Search files and documents" style="border: 0; outline: none; background: transparent; font: inherit; font-size: 15px; color: #1C1B22; width: 100%">
+</label>
+<button aria-label="Paperwork settings" style="height: 44px; width: 44px; padding: 0; border: 0; border-radius: 16px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+</button>
+<button style="height: 44px; padding: 0 20px; border: 0; border-radius: 16px; background: {{accent}}; font: inherit; font-size: 15px; font-weight: 600; color: #FFFFFF">Log document</button>
+</div>
+</div>
+<nav style="display: flex; gap: 32px; border-bottom: 1px solid #E6E3DF">
+<a href="PaperworkHome.dc.html" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">Overview</a>
+<a href="#" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">Unfiled</a>
+<a href="PaperworkCategories.dc.html" style="padding: 12px 0; font-size: 15px; font-weight: 600; color: #1C1B22; text-decoration: none; border-bottom: 2px solid {{accent}}; margin-bottom: -1px">Categories</a>
+</nav>
+</header>
+
+<section style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; justify-content: space-between"><h2 style="margin: 0; font-size: 18px; font-weight: 700">Categories</h2><span style="font-size: 14px; color: #625E68">6 categories</span></div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<a href="PaperworkTaxes.dc.html" style="border: {{border}} solid {{accent}}; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: #1C1B22">
+<div style="font-size: 17px; font-weight: 700">Taxes</div>
+<div style="font-size: 14px; color: #625E68">2 files · 7 documents</div>
+</a>
+<a href="#" style="border: {{border}} solid {{accent}}; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: #1C1B22">
+<div style="font-size: 17px; font-weight: 700">Insurance</div>
+<div style="font-size: 14px; color: #625E68">3 files · 4 documents</div>
+</a>
+<a href="#" style="border: {{border}} solid {{accent}}; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: #1C1B22">
+<div style="font-size: 17px; font-weight: 700">Medical</div>
+<div style="font-size: 14px; color: #625E68">3 files · 3 documents</div>
+</a>
+<a href="#" style="border: {{border}} solid {{accent}}; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: #1C1B22">
+<div style="font-size: 17px; font-weight: 700">Home &amp; property</div>
+<div style="font-size: 14px; color: #625E68">3 files · 2 documents</div>
+</a>
+<a href="#" style="border: {{border}} solid {{accent}}; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: #1C1B22">
+<div style="font-size: 17px; font-weight: 700">Vehicles</div>
+<div style="font-size: 14px; color: #625E68">2 files · 1 documents</div>
+</a>
+<a href="#" style="border: {{border}} solid {{accent}}; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: #1C1B22">
+<div style="font-size: 17px; font-weight: 700">Personal IDs</div>
+<div style="font-size: 14px; color: #625E68">3 files · 1 documents</div>
+</a>
+</div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#4A5568"},"shell":{"editor":"color","default":"#FFFEFE"},"border":{"editor":"enum","options":["1px","1.5px","2px"],"default":"1.5px"},"$preview":{"width":1440,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      accent: this.props.accent ?? '#4A5568',
+      shell: this.props.shell ?? '#FFFEFE',
+      border: this.props.border ?? '1.5px'
+    };
+  }
+}
+</script>
+</body>
+</html>

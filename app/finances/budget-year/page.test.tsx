@@ -119,11 +119,13 @@ describe("the Budget year section", () => {
     expect(within(main).queryByRole("button")).toBeNull();
   });
 
-  it("marks itself as where you are in the section tabs", async () => {
+  // REQ-103: Budget year is the Finances settings, behind the header's
+  // gear, not a tab.
+  it("opens from the settings gear, not a tab", async () => {
     await renderAs(ADMIN);
     const tabs = screen.getByRole("navigation", { name: "Finances sections" });
-    expect(within(tabs).getByRole("link", { name: /Budget year/ }).getAttribute("aria-current")).toBe("page");
-    expect(within(tabs).getByRole("link", { name: "Overview" }).getAttribute("aria-current")).toBeNull();
+    expect(within(tabs).queryByRole("link", { name: /Budget year/ })).toBeNull();
+    expect(screen.getByRole("link", { name: "Finances settings" }).getAttribute("href")).toBe("/finances/budget-year");
   });
 
   // #132: the three cards are the same shape — a head, the add form, then

@@ -14,13 +14,13 @@ import {
   chosenMonth,
   listOpenedMonths,
   monthShares,
-  monthStatus,
   monthTotals,
   pickableMonths,
   readMonth,
 } from "../../../lib/finances/month";
 import { formatMoney } from "../../../lib/finances/money";
 import styles from "../../../components/cards.module.css";
+import { MonthPicker } from "../../../components/month-picker";
 import { FinancesFrame, financesViewer } from "../frame";
 import { Hint } from "../../../components/hint";
 import { acknowledgeCashGap, removeBalances } from "./actions";
@@ -40,7 +40,7 @@ export default async function BalancesPage({
 }: {
   searchParams: Promise<{ month?: string }>;
 }) {
-  const { supabase, canManageMembers, account } = await financesViewer();
+  const { supabase, canManageMembers, canManageBudget, account } = await financesViewer();
   const { month: asked } = await searchParams;
   const todayIso = householdToday();
   const [opened, people, splits, balances, acks] = await Promise.all([
@@ -59,8 +59,7 @@ export default async function BalancesPage({
     canManageMembers,
     account,
     section: SECTION,
-    status: monthStatus(month, shares, todayIso),
-    month: { current: startsOn, options: pickableMonths(known, todayIso) },
+    canManageBudget,
   };
   const nameOf = (userId: string) => people.find((person) => person.user_id === userId)?.name ?? "Someone";
 
@@ -87,6 +86,7 @@ export default async function BalancesPage({
             <h2 id="enter" className={styles.name}>
               {monthLabel(startsOn)} balances
             </h2>
+            <MonthPicker current={startsOn} options={pickableMonths(known, todayIso)} />
             <Hint text="Last month's figures fill in as a starting point. A blank box isn't saved, and shows as not entered." />
           </header>
           <div className={styles.entries}>

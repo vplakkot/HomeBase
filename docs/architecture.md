@@ -680,8 +680,15 @@ A month exists once someone opens it in Monthly entry,
 | `personal_charges` | a charge inside a card statement that is one person's | `month_bill_id`, `owner_id`, `amount`, `note` |
 | `direct_payments` | shared spend one person paid off the tracked cards ("one-time payments" on screen) | `month_id`, `payer_id`, `amount`, `note`, `paid_on` |
 
-`open_month()` opens only the month now running (the day passed in from
-`householdToday()`) and copies the bill list in (rent arrives already
+A month opens itself (REQ-101): a pg_cron job, `open-current-month`, runs
+two minutes past every hour and calls `open_current_month()`, which opens
+the month now running in New York once a split is in force and the bill
+list has a bill. A person can
+still open it first from Monthly entry with `open_month()`, which checks
+membership and opens only the month now running (the day passed in from
+`householdToday()`). Both go through `create_month()`, which no one signed
+in can call; a second opener finds the month there and copies nothing
+twice. Opening copies the bill list in (rent arrives already
 entered, with its amount from the bill), so a bill changed or
 removed later reaches only months opened after that (REQ-94). While the
 month now running is open, the Budget year form asks whether it takes a
@@ -744,13 +751,17 @@ nothing in it changes.
 flowchart LR
   Open -->|every bill paid, nobody owes| Squared
   Squared -->|pg_cron, just after midnight New York| Closed
-  Open -->|admin: Close month with balance| Closed
   Open -->|month over, not squared| Ended["Ended · not squared"]
-  Ended -->|admin: Close month with balance| Closed
+  Ended -->|admin: Close month action item| Closed
 ```
 
+Since REQ-103 an admin closes with a balance only from the "ended, not
+squared" action item, which opens `/finances/close-month`, so the app no
+longer offers closing a month still running early. The database function
+itself would still allow it.
+
 - **Squared** is worked out twice, on purpose: `monthStatus()` in the
-  app for the header chip, and `month_balances()` / `month_is_squared()`
+  app for Home's tile and the action items, and `month_balances()` / `month_is_squared()`
   in the database for the nightly close, which runs without the app.
   Both use the same rule, including who takes the rounding cent.
 - **The nightly close** is a pg_cron job, `close-squared-months`, at
@@ -887,6 +898,15 @@ Module pages now share [`components/module-frame.tsx`](../components/module-fram
 [`components/cards.module.css`](../components/cards.module.css) (the
 cards first drawn for Budget year), so a module looks like itself by
 setting its colour tokens, not by copying Finances.
+
+Module homes follow one set of rules (DESIGN.md §6, REQ-103), applied
+first to Finances: the header names what you're looking at
+("Finances — September 2026"), its buttons use the one button in
+[`components/button.tsx`](../components/button.tsx), admin settings sit
+behind a gear rather than a tab, and every card is white with a
+module-colour border. A section can be `hidden` (Finances' Savings,
+while `SAVINGS_PAUSED`), and a `monthly` one keeps `?month=` in its tab
+link so a past month opened from History stays in view across tabs.
 
 ## Storage
 

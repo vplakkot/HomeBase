@@ -5,9 +5,7 @@ import {
   chosenMonth,
   listOpenedMonths,
   monthShares,
-  monthStatus,
   monthTotals,
-  pickableMonths,
   readMonth,
   type Month,
 } from "../../../lib/finances/month";
@@ -38,7 +36,7 @@ export default async function SavingsPage({
 }: {
   searchParams: Promise<{ month?: string }>;
 }) {
-  const { supabase, canManageMembers, account } = await financesViewer();
+  const { supabase, canManageMembers, canManageBudget, account } = await financesViewer();
   const { month: asked } = await searchParams;
   const todayIso = householdToday();
   const [opened, people, splits] = await Promise.all([
@@ -55,8 +53,8 @@ export default async function SavingsPage({
     canManageMembers,
     account,
     section: SECTION,
-    status: monthStatus(month, monthShares(month, splits, startsOn), todayIso),
-    month: { current: startsOn, options: pickableMonths(opened, todayIso) },
+    canManageBudget,
+    month: { startsOn, closed: Boolean(month?.closed_at) },
   };
   const nameOf = (userId: string) => people.find((person) => person.user_id === userId)?.name ?? "Someone";
   const closed = months.filter((row) => row.closed_at);

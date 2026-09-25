@@ -1,0 +1,37 @@
+/* The one button on a module home (DESIGN.md §6): solid module colour,
+   white text, 44px tall. No outlined or grey variants. */
+.button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--module-loud);
+  color: var(--module-on-loud);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Icon only, square: the settings gear. */
+.icon {
+  width: 44px;
+  padding: 0;
+}
+
+.desktopOnly {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .desktopOnly {
+    display: inline-flex;
+  }
+}

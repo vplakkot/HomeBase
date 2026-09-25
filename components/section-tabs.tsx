@@ -8,16 +8,29 @@ import styles from "./section-tabs.module.css";
 // instead. Overview is the module's home. Admin-only sections carry a
 // lock. The pinned action (Finances: Log payment) is a button at the end
 // of the row, not a tab. A section without a page yet is listed but
-// can't be opened.
-export function SectionTabs({ module, current }: { module: Module; current?: string }) {
+// can't be opened. A module whose header carries the pinned action
+// (Finances, DESIGN.md §7) leaves it out here. Looking at a month other
+// than this one, the month's pages keep it (`month`, as 2026-08).
+export function SectionTabs({
+  module,
+  current,
+  month,
+  pinnedInHeader = false,
+}: {
+  module: Module;
+  current?: string;
+  month?: string;
+  pinnedInHeader?: boolean;
+}) {
   const tabClass = (here: boolean) => (here ? `${styles.tab} ${styles.current}` : styles.tab);
-  const pinned = module.sections.find((section) => section.pinned && section.href);
+  const pinned = pinnedInHeader ? undefined : module.sections.find((section) => section.pinned && section.href);
+  const hrefOf = (href: string, monthly?: boolean) => (month && monthly ? `${href}?month=${month}` : href);
   return (
     <nav className={styles.tabs} aria-label={`${module.name} sections`}>
       <ul className={styles.list}>
         <li>
           <Link
-            href={module.href ?? "/"}
+            href={hrefOf(module.href ?? "/", true)}
             className={tabClass(!current)}
             aria-current={current ? undefined : "page"}
           >
@@ -25,7 +38,7 @@ export function SectionTabs({ module, current }: { module: Module; current?: str
           </Link>
         </li>
         {module.sections
-          .filter((section) => !section.pinned)
+          .filter((section) => !section.pinned && !section.hidden)
           .map((section) => {
             const here = current === section.name;
             const lock = section.adminOnly ? (
@@ -37,7 +50,7 @@ export function SectionTabs({ module, current }: { module: Module; current?: str
             return (
               <li key={section.name}>
                 {section.href ? (
-                  <Link href={section.href} className={tabClass(here)} aria-current={here ? "page" : undefined}>
+                  <Link href={hrefOf(section.href, section.monthly)} className={tabClass(here)} aria-current={here ? "page" : undefined}>
                     {section.name}
                     {lock}
                   </Link>

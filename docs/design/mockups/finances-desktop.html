@@ -2,136 +2,193 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>HomeBase — Finances, laptop</title>
+<title>Finances Overview — desktop</title>
 <script src="./support.js"></script>
 </head>
 <body>
 <x-dc>
 <helmet>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap">
 <style>
-body { margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; background: #FCFBF9; }
-a { color: #121016; text-decoration: none; }
-a:hover { opacity: 0.92; }
+body{margin:0;font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#1C1B22;background-color:#FFFEFE}
+a{color:#A64332}a:hover{color:#7E2F22}
 </style>
 </helmet>
-<div style="width: 1440px; height: 900px; box-sizing: border-box; background: #FCFBF9; display: flex;">
+<div style="width: 1440px; height: 1400px; box-sizing: border-box; padding: 40px 64px 56px; display: flex; flex-direction: column; gap: 32px; font-variant-numeric: tabular-nums; background-color: {{shell}}; color: #1C1B22">
 
-  <aside style="width: 248px; flex-shrink: 0; box-sizing: border-box; padding: 26px 16px; background: #FFFFFF; border-right: 1px solid #E4DFD6; display: flex; flex-direction: column; gap: 24px;">
-    <div style="display: flex; align-items: center; gap: 9px; padding: 0 8px;"><svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#121016"></rect><path d="M13 31L32 15l19 16" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path><rect x="18" y="33" width="12.5" height="11" rx="3" fill="#B23A2B"></rect><rect x="33.5" y="33" width="12.5" height="11" rx="3" fill="#2F5BEA"></rect><rect x="18" y="47" width="12.5" height="11" rx="3" fill="#E0A526"></rect><rect x="33.5" y="47" width="12.5" height="11" rx="3" fill="#1F7A4D"></rect></svg><span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px; font-weight: 800; color: #121016; letter-spacing: -0.02em;">HomeBase</span></div>
-    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 12px; font-size: 14px; font-weight: 600; color: #121016;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#121016" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1z"></path></svg> Home</a>
-    <div style="display: flex; flex-direction: column; gap: 4px;">
-      <p style="margin: 0 0 6px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #6B6675;">MODULES</p>
-      <a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 12px; background: #F9E7E4; font-size: 14px; font-weight: 700; color: #8E2D21;">
-        <span style="width: 12px; height: 12px; border-radius: 4px; background: #B23A2B;"></span>Finances
-      </a>
-      <a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 12px; background: transparent; font-size: 14px; font-weight: 600; color: #121016;">
-        <span style="width: 12px; height: 12px; border-radius: 4px; background: #2F5BEA;"></span>Calendar
-      </a>
-      <a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 12px; background: transparent; font-size: 14px; font-weight: 600; color: #121016;">
-        <span style="width: 12px; height: 12px; border-radius: 4px; background: #E8618C;"></span>Pets
-      </a>
-      <a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 12px; background: transparent; font-size: 14px; font-weight: 600; color: #121016;">
-        <span style="width: 12px; height: 12px; border-radius: 4px; background: #6D4AE0;"></span>Wine
-      </a>
-      <a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 12px; background: transparent; font-size: 14px; font-weight: 600; color: #121016;">
-        <span style="width: 12px; height: 12px; border-radius: 4px; background: #E0A526;"></span>Meal Plans
-      </a>
-      <a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 12px; background: transparent; font-size: 14px; font-weight: 600; color: #121016;">
-        <span style="width: 12px; height: 12px; border-radius: 4px; background: #1F7A4D;"></span>Health
-      </a>
-    </div>
-    <div style="margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px; border: 1px solid #E4DFD6; border-radius: 14px;">
-      <span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 700; color: #121016;">Vin</span><span style="font-size: 12px; font-weight: 500; color: #6B6675;">Admin</span></span>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6675" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
-    </div>
-  </aside>
+<!-- Header -->
+<header style="display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="width: 44px; height: 44px; border-radius: 12px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+</div>
+<h1 style="margin: 0; font-size: 36px; font-weight: 700; letter-spacing: -0.02em">Finances <span style="color: #8A8690; font-weight: 400">—</span> <span style="color: {{accent}}">September 2026</span></h1>
+</div>
+<div style="display: flex; align-items: center; gap: 12px">
+<a href="#" style="height: 44px; padding: 0 20px; border-radius: 16px; background: {{accent}}; font-size: 15px; font-weight: 600; color: #FFFFFF; box-sizing: border-box; text-decoration: none; display: flex; align-items: center; gap: 8px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Previous months</a>
+<button aria-label="Finances settings" style="height: 44px; width: 44px; padding: 0; border: 0; border-radius: 16px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+</button>
+<button style="height: 44px; padding: 0 20px; border: 0; border-radius: 16px; background: {{accent}}; font: inherit; font-size: 15px; font-weight: 600; color: #FFFFFF">Log payment</button>
+</div>
+</div>
+<nav style="display: flex; gap: 32px; border-bottom: 1px solid #E6E3DF">
+<a href="#" style="padding: 12px 0; font-size: 15px; font-weight: 600; color: #1C1B22; text-decoration: none; border-bottom: 2px solid {{accent}}; margin-bottom: -1px">Overview</a>
+<a href="#" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">Monthly entry</a>
+<a href="Payments.dc.html" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">Payments</a>
+<a href="#" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">Income</a>
+<a href="#" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">Balances</a>
+<a href="#" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">History</a>
+</nav>
+</header>
 
-  <main style="flex-grow: 1; min-width: 0; padding: 26px 32px; display: flex; flex-direction: column; gap: 20px; overflow: hidden;">
+<!-- Action items -->
+<section style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; gap: 10px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Action items</h2>
+<span style="font-size: 14px; color: #625E68">4</span>
+</div>
+<div style="border: {{border}} solid {{accent}}; border-radius: 20px; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 24px; border-bottom: 1px solid #EDEBE8">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 15px; font-weight: 600">Monthly Rent payment <span style="color: {{accent}}">· Overdue</span></div>
+<div style="font-size: 13px; color: #625E68">Was due 1 Sep · $2,675.00 · 24 days overdue</div>
+</div>
+<button style="height: 44px; padding: 0 20px; border: 0; border-radius: 16px; background: {{accent}}; font: inherit; font-size: 15px; font-weight: 600; color: #FFFFFF">Log payment</button>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 24px; border-bottom: 1px solid #EDEBE8">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 15px; font-weight: 600">Chase Visa 5544 is due soon</div>
+<div style="font-size: 13px; color: #625E68">Due 28 Sep · $11,000.00 left</div>
+</div>
+<button style="height: 44px; padding: 0 20px; border: 0; border-radius: 16px; background: {{accent}}; font: inherit; font-size: 15px; font-weight: 600; color: #FFFFFF">Log payment</button>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 24px; border-bottom: 1px solid #EDEBE8">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 15px; font-weight: 600">Household over budget this month</div>
+<div style="font-size: 13px; color: #625E68">Total bills are more than total income. The difference comes from balances.</div>
+</div>
+<button style="height: 44px; padding: 0 20px; border: 0; border-radius: 16px; background: {{accent}}; font: inherit; font-size: 15px; font-weight: 600; color: #FFFFFF">Acknowledge</button>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 24px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 15px; font-weight: 600">You’ll be over budget this month</div>
+<div style="font-size: 13px; color: #625E68">Your share is more than your income this month.</div>
+</div>
+<button style="height: 44px; padding: 0 20px; border: 0; border-radius: 16px; background: {{accent}}; font: inherit; font-size: 15px; font-weight: 600; color: #FFFFFF">Acknowledge</button>
+</div>
+</div>
+</section>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
-      <div style="display: flex; align-items: center; gap: 14px;">
-        <span style="width: 40px; height: 40px; border-radius: 12px; background: #B23A2B; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1v22"></path><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"></path></svg></span>
-        <h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 32px; font-weight: 800; color: #121016; letter-spacing: -0.02em;">Finances</h1>
-        <button type="button" style="min-height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border: 1px solid #E4DFD6; border-radius: 999px; background: #FFFFFF; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; font-weight: 700; color: #121016; cursor: pointer;">September 2026 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#121016" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
-        <span style="display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: #E8EEFE; color: #2646AE; font-size: 12px; font-weight: 700;">Open</span>
-      </div>
-      <a href="FinLaptop.dc.html" style="min-height: 46px; display: flex; align-items: center; gap: 8px; padding: 0 20px; background: #B23A2B; border-radius: 14px; color: #FFFFFF; font-size: 15px; font-weight: 700;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg> Log payment</a>
-    </div>
+<!-- Summary -->
+<section style="border: {{border}} solid {{accent}}; border-radius: 20px; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 14px; font-weight: 600; color: #625E68">Still to pay in September</div>
+<div style="font-size: 48px; font-weight: 700; letter-spacing: -0.02em; line-height: 1">$13,675.00</div>
+</div>
+<div style="display: flex; gap: 48px">
+<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end">
+<div style="font-size: 13px; color: #625E68">Bills this month</div>
+<div style="font-size: 20px; font-weight: 600">$14,675.00</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end">
+<div style="font-size: 13px; color: #625E68">Paid so far</div>
+<div style="font-size: 20px; font-weight: 600">$1,000.00</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end">
+<div style="font-size: 13px; color: #625E68">Split</div>
+<div style="font-size: 20px; font-weight: 600">67 / 33</div>
+</div>
+</div>
+</div>
+<div style="height: 8px; border-radius: 999px; background: #EDEBE8; overflow: hidden">
+<div style="width: 7%; height: 100%; background: {{accent}}; border-radius: 999px"></div>
+</div>
+<div style="font-size: 13px; color: #625E68">7% paid · 1 bill overdue</div>
+</section>
 
-    <nav style="display: flex; gap: 4px; flex-wrap: wrap;"><a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px; background: #121016; color: #FFFFFF; font-size: 13px; font-weight: 700;">Overview</a><a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px; background: transparent; color: #6B6675; font-size: 13px; font-weight: 700;">Monthly entry</a><a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px; background: transparent; color: #6B6675; font-size: 13px; font-weight: 700;">Income</a><a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px; background: transparent; color: #6B6675; font-size: 13px; font-weight: 700;">Savings</a><a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px; background: transparent; color: #6B6675; font-size: 13px; font-weight: 700;">Balances</a><a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px; background: transparent; color: #6B6675; font-size: 13px; font-weight: 700;">History</a><a href="FinLaptop.dc.html" style="display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px; background: transparent; color: #6B6675; font-size: 13px; font-weight: 700;">Budget year <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B6675" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 018 0v3"></path></svg></a></nav>
+<!-- Who owes what -->
+<section style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Who owes what</h2>
+<a href="#" style="font-size: 14px; font-weight: 600; text-decoration: none">How this was worked out</a>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+<div style="border: {{border}} solid {{accent}}; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="font-size: 15px; font-weight: 600">Member A</div>
+<span style="font-size: 13px; color: #625E68">33% share</span>
+</div>
+<div style="display: flex; align-items: baseline; gap: 8px">
+<div style="font-size: 32px; font-weight: 700; letter-spacing: -0.01em">$3,842.75</div>
+<div style="font-size: 13px; color: #625E68">outstanding</div>
+</div>
+<div style="height: 6px; border-radius: 999px; background: #EDEBE8; overflow: hidden">
+<div style="width: 21%; height: 100%; background: {{accent}}"></div>
+</div>
+<div style="font-size: 13px; color: #625E68">Paid $1,000.00 of $4,842.75</div>
+</div>
+<div style="border: {{border}} solid {{accent}}; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="font-size: 15px; font-weight: 600">vineeshp+homebase-test</div>
+<span style="font-size: 13px; color: #625E68">67% share</span>
+</div>
+<div style="display: flex; align-items: baseline; gap: 8px">
+<div style="font-size: 32px; font-weight: 700; letter-spacing: -0.01em">$9,832.25</div>
+<div style="font-size: 13px; color: #625E68">outstanding</div>
+</div>
+<div style="height: 6px; border-radius: 999px; background: #EDEBE8; overflow: hidden">
+<div style="width: 0%; height: 100%; background: {{accent}}"></div>
+</div>
+<div style="font-size: 13px; color: #625E68">Paid $0.00 of $9,832.25</div>
+</div>
+</div>
+</section>
 
-    <div style="display: flex; gap: 14px;">
-        <a href="FinLaptop.dc.html" style="flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: #1B1824; border-radius: 18px;">
-          <span style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; background: #B23A2B; display: flex; align-items: center; justify-content: center;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M8 3v4M16 3v4M3 11h18"></path></svg></span>
-          <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 15px; font-weight: 700; color: #FFFFFF;">Electric due in 5 days</span><span style="font-size: 12px; font-weight: 500; color: #C9C4D8;">$180 still to pay</span></span>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9C4D8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg>
-        </a>
-        <a href="FinLaptop.dc.html" style="flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: #1B1824; border-radius: 18px;">
-          <span style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; background: #B23A2B; display: flex; align-items: center; justify-content: center;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>
-          <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 15px; font-weight: 700; color: #FFFFFF;">No payment from Vin in 14 days</span><span style="font-size: 12px; font-weight: 500; color: #C9C4D8;">$540 outstanding</span></span>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9C4D8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg>
-        </a>
-    </div>
+<!-- Bills -->
+<section style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Bills</h2>
+<a href="#" style="font-size: 14px; font-weight: 600; text-decoration: none">Edit in Monthly entry</a>
+</div>
+<div style="border: {{border}} solid {{accent}}; border-radius: 20px; overflow: hidden">
+<div style="display: grid; grid-template-columns: 2fr 1fr 2fr 1fr; gap: 24px; padding: 14px 24px; border-bottom: 1px solid #EDEBE8; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #625E68">
+<div>Bill</div><div>Due</div><div>Progress</div><div style="text-align: right">Left</div>
+</div>
+<div style="display: grid; grid-template-columns: 2fr 1fr 2fr 1fr; gap: 24px; padding: 20px 24px; align-items: center; border-bottom: 1px solid #EDEBE8">
+<div style="font-size: 15px; font-weight: 600">Monthly Rent payment</div>
+<div style="font-size: 14px; font-weight: 600; color: {{accent}}">1 Sep · Overdue</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="height: 6px; border-radius: 999px; background: #EDEBE8; overflow: hidden"><div style="width: 0%; height: 100%; background: {{accent}}"></div></div>
+<div style="font-size: 13px; color: #625E68">$0.00 of $2,675.00</div>
+</div>
+<div style="font-size: 15px; font-weight: 700; text-align: right">$2,675.00</div>
+</div>
+<div style="display: grid; grid-template-columns: 2fr 1fr 2fr 1fr; gap: 24px; padding: 20px 24px; align-items: center">
+<div style="font-size: 15px; font-weight: 600">Chase Visa 5544</div>
+<div style="font-size: 14px; color: #4A4650">28 Sep</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="height: 6px; border-radius: 999px; background: #EDEBE8; overflow: hidden"><div style="width: 8%; height: 100%; background: {{accent}}"></div></div>
+<div style="font-size: 13px; color: #625E68">$1,000.00 of $12,000.00</div>
+</div>
+<div style="font-size: 15px; font-weight: 700; text-align: right">$11,000.00</div>
+</div>
+</div>
+</section>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 16px;">
-      <div style="display: flex; flex-direction: column; gap: 10px; padding: 20px; background: #B23A2B; border-radius: 22px;">
-        <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #F6D3CE;">THIS MONTH</span>
-        <span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.02em; line-height: 1.15;">On track to move you forward</span>
-        <span style="margin-top: auto; font-size: 13px; font-weight: 600; color: #F6D3CE;">Joint savings, projected</span>
-        <span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 36px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.02em;">$1,150</span>
-        <span style="font-size: 12px; font-weight: 500; color: #F6D3CE;">Leftover excludes personal card spend.</span>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <p style="margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #6B6675;">WHO OWES WHAT</p>
-      <div style="display: flex; flex-direction: column; gap: 8px; padding: 14px; background: #FFFFFF; border: 1px solid #E4DFD6; border-radius: 18px;">
-        <span style="font-size: 14px; font-weight: 700; color: #121016;">Vin</span>
-        <span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 800; color: #121016; letter-spacing: -0.02em;">$540</span>
-        <span style="font-size: 12px; font-weight: 500; color: #6B6675;">outstanding · paid $1,800 of $2,340</span>
-        <div style="height: 6px; border-radius: 999px; background: #EDE8E0; overflow: hidden;"><div style="width: 77%; height: 6px; background: #B23A2B;"></div></div>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 8px; padding: 14px; background: #FFFFFF; border: 1px solid #E4DFD6; border-radius: 18px;">
-        <span style="font-size: 14px; font-weight: 700; color: #121016;">Megan</span>
-        <span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 800; color: #196640; letter-spacing: -0.02em;">Paid up</span>
-        <span style="font-size: 12px; font-weight: 500; color: #6B6675;">paid $1,560 of $1,560</span>
-        <div style="height: 6px; border-radius: 999px; background: #EDE8E0; overflow: hidden;"><div style="width: 100%; height: 6px; background: #1F7A4D;"></div></div>
-      </div>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline;"><p style="margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #6B6675;">BILLS</p><span style="font-size: 12px; font-weight: 600; color: #6B6675;">$285 of $3,270 left</span></div>
-        <div style="display: flex; flex-direction: column; background: #FFFFFF; border: 1px solid #E4DFD6; border-radius: 18px; overflow: hidden;">
-          <div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr 0.9fr; gap: 8px; align-items: center; min-height: 36px; padding: 0 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #6B6675;"><span>BILL</span><span>DUE</span><span>PAID / TOTAL</span><span style="text-align: right;">LEFT</span></div>
-          <div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr 0.9fr; gap: 8px; align-items: center; min-height: 40px; padding: 0 14px; border-top: 1px solid #EFEBE4; font-size: 13px; font-weight: 600; color: #121016;"><span style="font-weight: 700;">Mortgage</span><span style="color: #6B6675;">1 Sep</span><span>$2,800 / $2,800</span><span style="text-align: right;"><span style="display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: #E3F2EA; color: #196640; font-size: 12px; font-weight: 700;">Paid</span></span></div><div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr 0.9fr; gap: 8px; align-items: center; min-height: 40px; padding: 0 14px; border-top: 1px solid #EFEBE4; font-size: 13px; font-weight: 600; color: #121016;"><span style="font-weight: 700;">Car insurance</span><span style="color: #6B6675;">28 Sep</span><span>$105 / $210</span><span style="text-align: right;"><span style="font-weight: 700; color: #8E2D21;">$105</span></span></div><div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr 0.9fr; gap: 8px; align-items: center; min-height: 40px; padding: 0 14px; border-top: 1px solid #EFEBE4; font-size: 13px; font-weight: 600; color: #121016;"><span style="font-weight: 700;">Electric</span><span style="color: #6B6675;">25 Sep</span><span>$0 / $180</span><span style="text-align: right;"><span style="font-weight: 700; color: #8E2D21;">$180</span></span></div><div style="display: grid; grid-template-columns: 1.4fr 1fr 1fr 0.9fr; gap: 8px; align-items: center; min-height: 40px; padding: 0 14px; border-top: 1px solid #EFEBE4; font-size: 13px; font-weight: 600; color: #121016;"><span style="font-weight: 700;">Internet</span><span style="color: #6B6675;">12 Sep</span><span>$80 / $80</span><span style="text-align: right;"><span style="display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: #E3F2EA; color: #196640; font-size: 12px; font-weight: 700;">Paid</span></span></div>
-        </div>
-      </div>
-    </div>
-
-    <div style="display: flex; gap: 16px;">
-      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 18px; background: #FFFFFF; border: 1.5px dashed #D6D0C6; border-radius: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-          <span style="font-size: 15px; font-weight: 700; color: #121016;">Share paid by person, by month</span>
-          <span style="display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: #EDE8E0; color: #4A4553; font-size: 12px; font-weight: 700;">Planned · later version</span>
-        </div>
-        <div style="display: flex; gap: 16px;"><span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #6B6675;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #B23A2B;"></span>Vin</span><span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #6B6675;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #D9D3E6;"></span>Megan</span></div>
-        <div style="display: flex; align-items: flex-end; gap: 8px; padding-top: 6px;"><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 34px; height: 130px; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden;"><div style="height: 42%; background: #D9D3E6;"></div><div style="height: 58%; background: #B23A2B;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">Apr</span></div><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 34px; height: 130px; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden;"><div style="height: 45%; background: #D9D3E6;"></div><div style="height: 55%; background: #B23A2B;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">May</span></div><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 34px; height: 130px; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden;"><div style="height: 40%; background: #D9D3E6;"></div><div style="height: 60%; background: #B23A2B;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">Jun</span></div><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 34px; height: 130px; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden;"><div style="height: 48%; background: #D9D3E6;"></div><div style="height: 52%; background: #B23A2B;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">Jul</span></div><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 34px; height: 130px; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden;"><div style="height: 43%; background: #D9D3E6;"></div><div style="height: 57%; background: #B23A2B;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">Aug</span></div><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="width: 34px; height: 130px; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden;"><div style="height: 41%; background: #D9D3E6;"></div><div style="height: 59%; background: #B23A2B;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">Sep</span></div></div>
-      </div>
-      <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 18px; background: #FFFFFF; border: 1.5px dashed #D6D0C6; border-radius: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-          <span style="font-size: 15px; font-weight: 700; color: #121016;">Income vs bills, by month</span>
-          <span style="display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: #EDE8E0; color: #4A4553; font-size: 12px; font-weight: 700;">Planned · later version</span>
-        </div>
-        <div style="display: flex; gap: 16px;"><span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #6B6675;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #1F7A4D;"></span>Income</span><span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #6B6675;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #B23A2B;"></span>Bills</span></div>
-        <div style="display: flex; align-items: flex-end; gap: 8px; padding-top: 6px;"><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="height: 130px; display: flex; align-items: flex-end; gap: 4px;"><div style="width: 15px; height: 88%; background: #1F7A4D; border-radius: 5px 5px 0 0;"></div><div style="width: 15px; height: 70%; background: #B23A2B; border-radius: 5px 5px 0 0;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">Apr</span></div><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="height: 130px; display: flex; align-items: flex-end; gap: 4px;"><div style="width: 15px; height: 88%; background: #1F7A4D; border-radius: 5px 5px 0 0;"></div><div style="width: 15px; height: 74%; background: #B23A2B; border-radius: 5px 5px 0 0;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">May</span></div><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="height: 130px; display: flex; align-items: flex-end; gap: 4px;"><div style="width: 15px; height: 92%; background: #1F7A4D; border-radius: 5px 5px 0 0;"></div><div style="width: 15px; height: 86%; background: #B23A2B; border-radius: 5px 5px 0 0;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">Jun</span></div><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="height: 130px; display: flex; align-items: flex-end; gap: 4px;"><div style="width: 15px; height: 88%; background: #1F7A4D; border-radius: 5px 5px 0 0;"></div><div style="width: 15px; height: 95%; background: #B23A2B; border-radius: 5px 5px 0 0;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">Jul</span></div><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="height: 130px; display: flex; align-items: flex-end; gap: 4px;"><div style="width: 15px; height: 88%; background: #1F7A4D; border-radius: 5px 5px 0 0;"></div><div style="width: 15px; height: 80%; background: #B23A2B; border-radius: 5px 5px 0 0;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">Aug</span></div><div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 6px;"><div style="height: 130px; display: flex; align-items: flex-end; gap: 4px;"><div style="width: 15px; height: 100%; background: #1F7A4D; border-radius: 5px 5px 0 0;"></div><div style="width: 15px; height: 76%; background: #B23A2B; border-radius: 5px 5px 0 0;"></div></div><span style="font-size: 11px; font-weight: 600; color: #6B6675;">Sep</span></div></div>
-      </div>
-    </div>
-
-  </main>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#A64332"},"shell":{"editor":"color","default":"#FFFEFE"},"border":{"editor":"enum","options":["1px","1.5px","2px"],"default":"1.5px"},"$preview":{"width":1440,"height":1400}}'>
 class Component extends DCLogic {
   renderVals() {
-    return {};
+    return {
+      accent: this.props.accent ?? '#A64332',
+      shell: this.props.shell ?? '#FFFEFE',
+      border: this.props.border ?? '1.5px'
+    };
   }
 }
 </script>

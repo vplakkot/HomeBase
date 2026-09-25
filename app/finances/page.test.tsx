@@ -106,197 +106,17 @@ describe("the Finances page", () => {
     expect(card.textContent).toContain("Ask Alex or Sam to set up the budget year.");
   });
 
-  // REQ-50, #132: the split in force is the latest one that had started
-  // by today; a later one doesn't reach back.
-  it("uses the split in force this month, not a later one", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-10-15T12:00:00Z"));
-    given({
-      signedIn: true,
-      permissions: MEMBER,
-      split: SPLIT,
-    });
-    fake.from.mockImplementation((table: string) => {
-      const rows =
-        table === "splits"
-          ? [
-              { ...SPLIT, id: "s-2", effective_from: "2026-11-01", shares: [{ user_id: "u-alex", percent: 90 }, { user_id: "u-sam", percent: 10 }] },
-              SPLIT,
-            ]
-          : [];
-      const result = { data: rows, error: null };
-      const query: Record<string, unknown> = {
-        then: (resolve: (value: typeof result) => unknown) => Promise.resolve(result).then(resolve),
-        maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
-      };
-      for (const method of ["select", "eq", "is", "order", "insert", "update", "delete"]) {
-        query[method] = () => query;
-      }
-      return query;
-    });
-    render(await FinancesPage());
-    vi.useRealTimers();
-    const admin = screen.getByRole("region", { name: "Admin" });
-    expect(admin.textContent).toContain("From April 2026 · Alex 60% · Sam 40%");
-  });
-
-  // REQ-94: every bill in the list is a row on Finances home. Nothing can
-  // be entered yet, so the month reads as incomplete. Vin, 2026-09-24:
-  // Overview shows the bill and its amount only; the due date lives in
-  // Monthly entry.
-  it("shows each bill as a row once the budget year exists", async () => {
-    given({ signedIn: true, permissions: MEMBER, split: SPLIT, bills: BILLS });
-    render(await FinancesPage());
-    const bills = screen.getByRole("region", { name: "Bills" });
-    expect(within(bills).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "RentNot entered",
-      "Joint cardNot entered",
-    ]);
-    expect(screen.getByText("Incomplete")).toBeDefined();
-  });
-
-  // REQ-94, REQ-53: once the month is opened its rows are the month's own
-  // copy of the bills — a bill renamed since doesn't reach it — with the
-  // amount entered, and Not entered for the rest.
-  it("shows an opened month's own bills with their amounts", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-09-22T16:00:00Z"));
-    fake = fakeSupabase({
-      permissions: MEMBER,
-      people: PEOPLE,
-      tables: {
-        splits: [SPLIT],
-        bills: [{ id: "b-card", name: "Renamed card", kind: "card", due_day: 22 }],
-        months: [
-          {
-            id: "m-sep",
-            starts_on: "2026-09-01",
-            bills: [
-              { id: "mb-rent", name: "Rent", kind: "rent", due_day: 1, amount: "2000.00", personal_answer: null, personal_charges: [], payments: [] },
-              { id: "mb-card", name: "Joint card", kind: "card", due_day: 22, amount: null, personal_answer: null, personal_charges: [], payments: [] },
-            ],
-            direct_payments: [],
-          },
-        ],
-      },
-    });
-    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
-    render(await FinancesPage());
-    vi.useRealTimers();
-    const bills = screen.getByRole("region", { name: "Bills" });
-    expect(within(bills).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "Rent$2,000.00 left",
-      "Joint cardNot entered",
-    ]);
-    // Vin, 2026-09-23: Monthly entry is reachable from home, clearly.
-    const entry = screen.getByRole("link", { name: /still to enter/ });
-    expect(entry.textContent).toBe("Monthly entry1 bill still to enter");
-    expect(entry.getAttribute("href")).toBe("/finances/monthly-entry?month=2026-09");
-    expect(screen.getByText("Incomplete")).toBeDefined();
-  });
-
-  // REQ-56, 57, 58, 92: the month in focus shows each person's owed, paid
-  // and outstanding, and each bill's paid of total and what's left. Alex
-  // paid rent, Sam paid the Amazon card, and the joint card is still open.
-  it("shows who owes what and what's left on each bill", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-09-22T16:00:00Z"));
-    const bill = (id: string, name: string, due_day: number, amount: string, payments: unknown[]) => ({
-      id, name, kind: "card", due_day, amount, personal_answer: "none", personal_charges: [], payments,
-    });
-    fake = fakeSupabase({
-      permissions: MEMBER,
-      people: PEOPLE,
-      tables: {
-        splits: [SPLIT],
-        bills: [],
-        months: [
-          {
-            id: "m-sep",
-            starts_on: "2026-09-01",
-            bills: [
-              { ...bill("mb-rent", "Rent", 1, "2000.00", [{ id: "p-1", payer_id: "u-alex", amount: "2000.00", created_at: "2026-09-01" }]), kind: "rent", personal_answer: null },
-              bill("mb-amazon", "Amazon card", 10, "400.00", [{ id: "p-2", payer_id: "u-sam", amount: "400.00", created_at: "2026-09-10" }]),
-              bill("mb-joint", "Joint card", 22, "600.00", [{ id: "p-3", payer_id: "u-sam", amount: "150.00", created_at: "2026-09-12" }]),
-            ],
-            direct_payments: [{ id: "d-1", payer_id: "u-sam", amount: "100.00", note: "Taxi", paid_on: "2026-09-03" }],
-          },
-        ],
-      },
-    });
-    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
-    render(await FinancesPage());
-    vi.useRealTimers();
-
-    // Shared: 3,000 of bills + 100 one-time = 3,100. Alex 60% = 1,860,
-    // paid 2,000: a 140 credit. Sam 40% = 1,240, paid 400 + 150 + the
-    // 100 taxi = 650, so 590 outstanding.
-    const people = screen.getByRole("region", { name: "Who owes what" });
-    expect(within(people).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "AlexPaid uppaid $2,000.00 of $1,860.00 · $140.00 credit",
-      "Sam$590.00outstanding · paid $650.00 of $1,240.00",
-    ]);
-    expect(people.textContent).toContain("Shared$3,100.00");
-    expect(people.textContent).toContain("Sam: 40% of $3,100.00 = $1,240.00 owed. Paid $650.00 ($100.00 of it in One-time Payments).");
-
-    const bills = screen.getByRole("region", { name: "Bills" });
-    expect(bills.textContent).toContain("$450.00 of $3,000.00 left");
-    expect(within(bills).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "RentPaid",
-      "Amazon cardPaid",
-      "Joint card$450.00 left",
-    ]);
-  });
-
-  it("shows the year's split in the Admin block, locked for a member", async () => {
-    given({ signedIn: true, permissions: MEMBER, split: SPLIT });
-    render(await FinancesPage());
-    const admin = screen.getByRole("region", { name: "Admin" });
-    expect(admin.textContent).toContain("From April 2026 · Alex 60% · Sam 40%");
-    expect(admin.textContent).toContain("Admin only");
-    expect(within(admin).queryByRole("link")).toBeNull();
-  });
-
-  it("lets an admin open the budget year from the Admin block", async () => {
-    given({ signedIn: true, permissions: ADMIN, split: SPLIT });
-    render(await FinancesPage());
-    const admin = screen.getByRole("region", { name: "Admin" });
-    expect(within(admin).getByRole("link", { name: /^Budget year/ }).getAttribute("href")).toBe(
-      "/finances/budget-year",
-    );
-  });
-
-  it("prompts the admin in March to review the split for April (REQ-69)", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2027-03-10T16:00:00Z"));
-    given({ signedIn: true, permissions: ADMIN, split: SPLIT });
-    render(await FinancesPage());
-    vi.useRealTimers();
-    const admin = screen.getByRole("region", { name: "Admin" });
-    expect(within(admin).getByRole("link", { name: /^Budget year/ }).textContent).toBe(
-      "Budget yearReview the split for April 2027",
-    );
-  });
-
   // Vin, 2026-09-23: a phone has no tabs, so the header says where you are.
   it("names the section under the title, on a phone only", async () => {
     given({ signedIn: true, permissions: ADMIN, split: SPLIT });
     render(await FinancesPage());
-    expect(screen.getByRole("banner").textContent).toContain("FinancesOverview");
+    expect(screen.getByRole("banner").textContent).toContain("Overview");
     const css = readFileSync(join(REPO_ROOT, "components/module-frame.module.css"), "utf-8");
     expect(styleOf(css, "where", true).get("display")).toBe("none");
   });
 
-  // Vin, 2026-09-23: the white tiles read light on light, so each person
-  // is a brick tile, green once paid up.
-  it("draws each person as a brick tile, green once paid up", () => {
-    const css = readFileSync(join(REPO_ROOT, "app/finances/page.module.css"), "utf-8");
-    expect(styleOf(css, "person", false).get("background")).toBe("var(--module-loud)");
-    expect(css).toMatch(/\.person:has\(\.paidUp\) \{\s*background: var\(--color-success\);/);
-  });
-
-  // Vin, 2026-09-23: the page couldn't scroll to the Admin block; the
-  // column squashed the cards instead. Children now keep their height.
+  // Vin, 2026-09-23: the page couldn't scroll to the bottom; the column
+  // squashed the cards instead. Children now keep their height.
   it("lets a long page scroll rather than squash its cards", () => {
     const css = readFileSync(join(REPO_ROOT, "components/app-frame.module.css"), "utf-8");
     expect(css).toMatch(/\.main > \* \{\s*flex-shrink: 0;/);
@@ -318,247 +138,323 @@ describe("the Finances page", () => {
       .filter((link) => link.getAttribute("aria-current") === "page");
     expect(here.map((link) => link.textContent)).toEqual(["Finances"]);
   });
+});
 
-  // REQ-17: the designed header (DESIGN.md §7).
-  it("heads the page with the Finances icon and name, the month and its status", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date(2026, 8, 22, 9));
-    given({ signedIn: true });
-    await act(async () => render(await FinancesPage()));
-    vi.useRealTimers();
-    const header = screen.getByRole("main").querySelector("header")!;
-    expect(header.querySelector("svg")).not.toBeNull();
-    expect(within(header).getByRole("heading", { level: 1 }).textContent).toBe("Finances");
-    // Only the month now running until another is opened, so nothing to choose.
-    const month = within(header).getByRole("combobox", { name: "Month" }) as HTMLSelectElement;
-    expect(month.selectedOptions[0].textContent).toBe("September 2026");
-    expect(month.disabled).toBe(true);
-    expect(within(header).getByText("No budget year")).toBeDefined();
+// September 2026, seen on the 22nd by Alex (the signed-in "user-1"), an
+// admin. Split 60/40. Rent $2,000 was due on the 1st and Alex paid
+// $1,200 of it on the 2nd; the joint card's $600 is due on the 25th;
+// the Amazon card isn't entered yet.
+const ME = [
+  { user_id: "user-1", name: "Alex", manages_budget: true },
+  { user_id: "u-sam", name: "Sam", manages_budget: false },
+];
+const MY_SPLIT = { ...SPLIT, shares: [{ user_id: "user-1", percent: 60 }, { user_id: "u-sam", percent: 40 }] };
+const SEPTEMBER = {
+  id: "m-sep",
+  starts_on: "2026-09-01",
+  closed_at: null,
+  closed_by: null,
+  closed_automatically: false,
+  split_from: null,
+  people: [],
+  income: [],
+  savings: [],
+  direct_payments: [],
+  bills: [
+    {
+      id: "mb-rent", name: "Rent", kind: "rent", due_day: 1, amount: "2000.00", personal_answer: null, entered_by: null,
+      personal_charges: [], payments: [{ id: "p-1", payer_id: "user-1", amount: "1200.00", created_at: "2026-09-02T15:00:00Z" }],
+    },
+    {
+      id: "mb-joint", name: "Joint card", kind: "card", due_day: 25, amount: "600.00", personal_answer: "none", entered_by: "user-1",
+      personal_charges: [], payments: [],
+    },
+    {
+      id: "mb-amazon", name: "Amazon card", kind: "card", due_day: 28, amount: null, personal_answer: null, entered_by: null,
+      personal_charges: [], payments: [],
+    },
+  ],
+};
+
+async function showMonth({
+  months = [SEPTEMBER],
+  bills = [],
+  permissions = ADMIN,
+  today = "2026-09-22T16:00:00Z",
+  month,
+}: {
+  months?: Record<string, unknown>[];
+  bills?: Record<string, unknown>[];
+  permissions?: string[];
+  today?: string;
+  month?: string;
+} = {}) {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(today));
+  fake = fakeSupabase({
+    permissions,
+    people: ME,
+    tables: { splits: [MY_SPLIT], bills, months },
+  });
+  vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+  render(await FinancesPage({ searchParams: Promise.resolve({ month }) }));
+  vi.useRealTimers();
+}
+
+const region = (name: string) => screen.getByRole("region", { name });
+
+// REQ-102: the month in the title, no picker, no status pill.
+describe("the Finances header", () => {
+  it("reads Finances — September 2026, the month in the module colour, with nothing beside it", async () => {
+    await showMonth();
+    const title = screen.getByRole("heading", { level: 1 });
+    expect(title.textContent).toBe("Finances — September 2026");
+    expect(title.querySelector("sup")).toBeNull();
+    expect(screen.queryByRole("combobox")).toBeNull();
+    const css = readFileSync(join(REPO_ROOT, "components/module-frame.module.css"), "utf-8");
+    expect(styleOf(css, "context", false).get("color")).toBe("var(--module-loud)");
   });
 
-  it("shows the sections as tabs on a desktop, Overview first, Budget year locked", async () => {
-    given({ signedIn: true });
-    render(await FinancesPage());
+  it("has Previous months, the settings gear and Log payment", async () => {
+    await showMonth();
+    const header = screen.getByRole("banner");
+    expect(within(header).getByRole("link", { name: "Previous months" }).getAttribute("href")).toBe("/finances/history");
+    expect(within(header).getByRole("link", { name: "Finances settings" }).getAttribute("href")).toBe("/finances/budget-year");
+    expect(within(header).getByRole("link", { name: "Log payment" }).getAttribute("href")).toBe("/finances/log-payment");
+  });
+
+  it("shows a member no settings gear", async () => {
+    await showMonth({ permissions: MEMBER });
+    expect(screen.queryByRole("link", { name: "Finances settings" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Previous months" })).toBeDefined();
+  });
+
+  it("marks a closed month gone by Closed, in plain small text, and keeps it in the tabs", async () => {
+    const august = { ...SEPTEMBER, id: "m-aug", starts_on: "2026-08-01", closed_at: "2026-09-01T04:00:00Z" };
+    await showMonth({ months: [august, SEPTEMBER], month: "2026-08" });
+    const title = screen.getByRole("heading", { level: 1 });
+    expect(title.textContent).toBe("Finances — August 2026Closed");
+    expect(title.querySelector("sup")?.textContent).toBe("Closed");
+    // A closed month takes no payments, on a desktop or a phone.
+    const phoneBar = screen.getByRole("main").nextElementSibling as HTMLElement;
+    expect(within(screen.getByRole("banner")).queryByRole("link", { name: "Log payment" })).toBeNull();
+    expect(within(phoneBar).queryByRole("link", { name: "Log payment" })).toBeNull();
     const tabs = screen.getByRole("navigation", { name: "Finances sections" });
-    const items = within(tabs).getAllByRole("listitem");
-    expect(items.map((item) => item.textContent)).toEqual([
+    expect(within(tabs).getByRole("link", { name: "Payments" }).getAttribute("href")).toBe("/finances/payments?month=2026-08");
+    expect(within(tabs).getByRole("link", { name: "History" }).getAttribute("href")).toBe("/finances/history");
+  });
+
+  it("marks a month gone by that never closed Open, and logs payments against it", async () => {
+    const august = { ...SEPTEMBER, id: "m-aug", starts_on: "2026-08-01" };
+    await showMonth({ months: [august, SEPTEMBER], month: "2026-08" });
+    expect(screen.getByRole("heading", { level: 1 }).querySelector("sup")?.textContent).toBe("Open");
+    // The header's button (desktop) and the pinned one (phone) both.
+    const phoneBar = screen.getByRole("main").nextElementSibling as HTMLElement;
+    for (const place of [screen.getByRole("banner"), phoneBar]) {
+      expect(within(place).getByRole("link", { name: "Log payment" }).getAttribute("href")).toBe(
+        "/finances/log-payment?month=2026-08",
+      );
+    }
+  });
+
+  it("styles the mark as small plain text, not a pill", () => {
+    const css = readFileSync(join(REPO_ROOT, "components/module-frame.module.css"), "utf-8");
+    const mark = styleOf(css, "mark", false);
+    expect(mark.get("background")).toBeUndefined();
+    expect(mark.get("border-radius")).toBeUndefined();
+    expect(mark.get("font-size")).toBe("var(--text-caption)");
+  });
+});
+
+// REQ-103, REQ-104: the tabs.
+describe("the Finances tabs", () => {
+  it("are Overview, Monthly entry, Payments, Income, Balances, History: no Savings while paused, no Budget year", async () => {
+    await showMonth();
+    const tabs = screen.getByRole("navigation", { name: "Finances sections" });
+    expect(within(tabs).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
       "Overview",
       "Monthly entry",
+      "Payments",
       "Income",
-      "Savings",
       "Balances",
       "History",
-      "Budget yearAdmin only",
-      "Log payment",
     ]);
-    expect(within(tabs).getByRole("link", { name: "Log payment" }).getAttribute("href")).toBe(
-      "/finances/log-payment",
-    );
-    expect(within(tabs).getByRole("link", { name: "Overview" }).getAttribute("aria-current")).toBe(
-      "page",
-    );
-    expect(items[6].querySelector("svg")).not.toBeNull();
+    expect(within(tabs).getByRole("link", { name: "Overview" }).getAttribute("aria-current")).toBe("page");
+  });
+
+  it("underline the tab you're on in the module colour", () => {
     const css = readFileSync(join(REPO_ROOT, "components/section-tabs.module.css"), "utf-8");
+    expect(styleOf(css, "current", false).get("border-bottom-color")).toBe("var(--module-loud)");
+    expect(styleOf(css, "current", false).get("background")).toBeUndefined();
     expect(styleOf(css, "tabs", false).get("display")).toBe("none");
     expect(styleOf(css, "tabs", true).get("display")).toBe("block");
   });
 });
 
-// Batch 4 (#152): Squared and Closed, closing with a balance (REQ-59),
-// a closed month keeping its percentages (REQ-52) and the verdict
-// (REQ-61). Rent $2,000 split 60/40: Alex owes $1,200, Sam $800.
-describe("closing a month and the verdict", () => {
-  const rentPaidBy = (payments: [string, string][]) => ({
-    id: "mb-rent",
-    name: "Rent",
-    kind: "rent",
-    due_day: 1,
-    amount: "2000.00",
-    personal_answer: null,
-    personal_charges: [],
-    payments: payments.map(([payer_id, amount], i) => ({ id: `p-${i}`, payer_id, amount, created_at: "2026-09-02" })),
+// REQ-103: Finances home, top to bottom.
+describe("Finances home", () => {
+  it("runs Action items, Progress, Outstanding balances, Bills, in that order, each under a heading", async () => {
+    await showMonth();
+    const headings = within(screen.getByRole("main"))
+      .getAllByRole("heading", { level: 2 })
+      .map((heading) => heading.textContent);
+    expect(headings).toEqual(["Action items 4", "Progress", "Outstanding balances", "Bills"]);
   });
 
-  async function show(month: Record<string, unknown>, permissions = ADMIN, today = "2026-09-22T16:00:00Z") {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date(today));
-    fake = fakeSupabase({
-      permissions,
-      people: PEOPLE,
-      tables: {
-        splits: [SPLIT],
-        bills: [],
-        months: [{ id: "m-sep", starts_on: "2026-09-01", direct_payments: [], income: [], people: [], closed_at: null, closed_by: null, split_from: null, ...month }],
-      },
-    });
-    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
-    render(await FinancesPage({ searchParams: Promise.resolve({ month: "2026-09" }) }));
-    vi.useRealTimers();
-  }
+  it("gives each action item its own button on the right", async () => {
+    await showMonth();
+    const rows = within(region("Action items 4")).getAllByRole("listitem");
+    expect(
+      rows.map((row) => {
+        const action = within(row).getByRole("link");
+        return [row.querySelector("span")?.textContent, action.textContent, action.getAttribute("href")];
+      }),
+    ).toEqual([
+      ["Rent overdue$800.00 left to pay", "Log payment", "/finances/log-payment?month=2026-09&bill=mb-rent"],
+      ["Joint card due in 3 days$600.00 left to pay", "Log payment", "/finances/log-payment?month=2026-09&bill=mb-joint"],
+      ["No payment in 14 daysYou owe $360.00 for September", "Log payment", "/finances/log-payment?month=2026-09"],
+      ["Enter September's numbers1 bill still to enter", "Enter numbers", "/finances/monthly-entry?month=2026-09"],
+    ]);
+  });
 
-  const status = () => screen.getByRole("banner").textContent;
-  const paycheck = (owner_id: string, amount: string) => ({
-    id: `i-${owner_id}`, owner_id, kind: "paycheck", amount, received_on: "2026-09-04", income_source_id: null, note: "",
+  it("shows no action items card when there are none", async () => {
+    await showMonth({ months: [] });
+    expect(screen.queryByRole("heading", { name: /Action items/ })).toBeNull();
+  });
+
+  it("sums up the month: still to pay, the bills, paid so far, the split, one bar", async () => {
+    await showMonth();
+    const summary = region("Progress");
+    expect(summary.textContent).toBe(
+      "Progress" +
+      "Still to pay in September$1,400.00Bills this month$2,600.00Paid so far$1,200.00Split60 / 4046% paid · 1 bill overdue",
+    );
+  });
+
+  it("gives each person a card: outstanding, share, a bar, paid of owed", async () => {
+    await showMonth();
+    const people = within(region("Outstanding balances")).getAllByRole("listitem");
+    expect(people.map((person) => person.textContent)).toEqual([
+      "Sam40% share$1,040.00outstandingPaid $0.00 of $1,040.00",
+      "Alex60% share$360.00outstandingPaid $1,200.00 of $1,560.00",
+    ]);
+    expect(region("Outstanding balances").textContent).toContain("How this was worked out");
+  });
+
+  it("says Paid in plain text once someone owes nothing", async () => {
+    const paid = {
+      ...SEPTEMBER,
+      bills: [{ ...SEPTEMBER.bills[0], payments: [{ id: "p-1", payer_id: "user-1", amount: "1200.00", created_at: "2026-09-20T15:00:00Z" }] }],
+    };
+    await showMonth({ months: [paid] });
+    expect(within(region("Outstanding balances")).getAllByRole("listitem")[1].textContent).toBe(
+      "Alex60% sharePaidPaid $1,200.00 of $1,200.00",
+    );
+  });
+
+  it("lists each bill with its due date, progress and what's left; a late one reads Overdue", async () => {
+    await showMonth();
+    const bills = region("Bills");
+    const rows = within(bills).getAllByRole("row").slice(1);
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "Rent1 Sep · Overdue$1,200.00 of $2,000.00$800.00",
+      "Joint card25 Sep$0.00 of $600.00$600.00",
+      "Amazon card28 SepNot entered—",
+    ]);
+    expect(within(bills).getByRole("link", { name: "Edit in Monthly entry" }).getAttribute("href")).toBe(
+      "/finances/monthly-entry?month=2026-09",
+    );
+  });
+
+  // Savings is paused; Close month is only an action item; Budget year is
+  // behind the gear.
+  it("has no verdict card and no Admin block", async () => {
+    await showMonth();
+    const main = screen.getByRole("main").textContent;
+    expect(main).not.toContain("Nothing to save");
+    expect(main).not.toContain("Admin");
+    expect(main).not.toContain("Close month");
+    expect(main).not.toContain("Budget year");
+  });
+
+  it("shows a closed month as it closed: its split, and what was left and whose", async () => {
+    const august = {
+      ...SEPTEMBER,
+      id: "m-aug",
+      starts_on: "2026-08-01",
+      closed_at: "2026-09-01T14:00:00Z",
+      closed_by: "user-1",
+      split_from: "2026-04-01",
+      people: [
+        { user_id: "user-1", percent: "60.00", outstanding: "0.00" },
+        { user_id: "u-sam", percent: "40.00", outstanding: "800.00" },
+      ],
+    };
+    await showMonth({ months: [august, SEPTEMBER], month: "2026-08" });
+    const closed = region("Closed month");
+    expect(closed.textContent).toContain("Closed 1 Sep · split from April 2026: Alex 60% · Sam 40%");
+    expect(closed.textContent).toContain("Closed with $800.00 of Sam's unpaid.");
+  });
+
+  it("says a month not open yet will open on its own", async () => {
+    await showMonth({ months: [], bills: [{ id: "b-rent", name: "Rent", kind: "rent", due_day: 1 }] });
+    expect(region("Bills").textContent).toContain("isn't open yet: it opens on its own");
   });
 
   // REQ-93: "numbers are ready" clears once the other person opens the month.
   function acknowledged() {
     return fake.from.mock.calls.flatMap(([table], index) =>
       table === "action_item_acks"
-        ? (fake.from.mock.results[index].value.upsert as ReturnType<typeof vi.fn>).mock.calls.map(([row]) => row)
+        ? ((fake.from.mock.results[index].value.upsert as ReturnType<typeof vi.fn>).mock.calls.map(([row]) => row))
         : [],
     );
   }
-  const enteredRent = (entered_by: string) => ({
-    id: "mb-rent", name: "Rent", kind: "rent", due_day: 1, amount: "2000.00", personal_answer: null, entered_by,
-    personal_charges: [], payments: [],
+  const entered = (entered_by: string) => ({
+    ...SEPTEMBER,
+    bills: [{ ...SEPTEMBER.bills[0], entered_by }],
   });
 
   it("marks the month's numbers as seen when someone else entered them", async () => {
-    await show({ bills: [enteredRent("u-alex")] });
+    await showMonth({ months: [entered("u-sam")] });
     expect(acknowledged()).toEqual([{ key: "ready:2026-09-01" }]);
   });
 
   it("marks nothing seen for the person who entered the numbers themselves", async () => {
-    await show({ bills: [enteredRent("user-1")] });
+    await showMonth({ months: [entered("user-1")] });
     expect(acknowledged()).toEqual([]);
   });
+});
 
-  it("reads Squared once every bill is paid and nobody owes anything, and says it closes tonight", async () => {
-    await show({ bills: [rentPaidBy([["u-alex", "1200.00"], ["u-sam", "800.00"]])] });
-    expect(status()).toContain("Squared");
-    expect(screen.getByRole("region", { name: "Admin" }).textContent).toContain("Squared: it closes on its own tonight");
-    expect(screen.queryByRole("button", { name: /^Close / })).toBeNull();
+// REQ-103: the module home rules, in the stylesheets.
+describe("the module home rules", () => {
+  const page = readFileSync(join(REPO_ROOT, "app/finances/page.module.css"), "utf-8");
+  const button = readFileSync(join(REPO_ROOT, "components/button.module.css"), "utf-8");
+
+  it("draws every card on the shell background with a 1.5px module-colour border, 20px corners, no shadow", () => {
+    const card = styleOf(page, "card", false);
+    expect(card.get("background")).toBe("var(--color-ground)");
+    expect(card.get("border")).toBe("1.5px solid var(--module-loud)");
+    expect(card.get("border-radius")).toBe("var(--radius-lg)");
+    expect(card.get("box-shadow")).toBe("none");
   });
 
-  it("reads Ended · not squared once the month is over with money owed", async () => {
-    await show({ bills: [rentPaidBy([["u-alex", "1200.00"]])] }, ADMIN, "2026-10-02T16:00:00Z");
-    expect(status()).toContain("Ended · not squared");
+  it("uses ink for main text and grey for the rest, never a charcoal fill", () => {
+    expect(styleOf(page, "card", false).get("color")).toBe("var(--color-ink)");
+    expect(styleOf(page, "note", false).get("color")).toBe("var(--color-muted)");
+    expect(page).not.toMatch(/background:\s*var\(--color-(panel|ink)\)/);
   });
 
-  it("lets an admin close a month with a balance, saying who owes what first", async () => {
-    await show({ bills: [rentPaidBy([["u-alex", "1200.00"]])] });
-    const admin = screen.getByRole("region", { name: "Admin" });
-    expect(admin.textContent).toContain("Sam still owes $800.00. Closing records that and locks September 2026");
-    const close = within(admin).getByRole("button", { name: "Close September 2026" });
-    const form = close.closest("form")!;
-    expect(new FormData(form).get("monthId")).toBe("m-sep");
+  it("has no chips or pills: status is plain text", () => {
+    expect(page).not.toMatch(/chip|Chip|\.status/);
   });
 
-  it("shows a member Close month with balance locked, not hidden", async () => {
-    await show({ bills: [rentPaidBy([["u-alex", "1200.00"]])] }, MEMBER);
-    const admin = screen.getByRole("region", { name: "Admin" });
-    expect(admin.textContent).toContain("Close month with balanceAdmin only");
-    expect(within(admin).queryByRole("button")).toBeNull();
-  });
-
-  it("shows a closed month as it closed: its split, and what was left and whose", async () => {
-    await show({
-      bills: [rentPaidBy([["u-alex", "1200.00"]])],
-      closed_at: "2026-09-30T14:00:00Z",
-      closed_by: "u-alex",
-      split_from: "2026-04-01",
-      people: [
-        { user_id: "u-alex", percent: "60.00", outstanding: "0.00" },
-        { user_id: "u-sam", percent: "40.00", outstanding: "800.00" },
-      ],
-    }, ADMIN, "2026-10-05T16:00:00Z");
-    expect(status()).toContain("Closed");
-    const closed = screen.getByRole("region", { name: "Closed month" });
-    expect(closed.textContent).toContain("Closed 30 Sep · split from April 2026: Alex 60% · Sam 40%");
-    expect(closed.textContent).toContain(
-      "Closed with $800.00 of Sam's unpaid. When it shows up on next month's statement, declare it as Sam's personal charge so it isn't split again.",
-    );
-    expect(screen.queryByRole("button", { name: /^Close / })).toBeNull();
-  });
-
-  it("says the month moved you forward, with joint savings from the lower leftover and what's each person's", async () => {
-    await show({
-      bills: [rentPaidBy([])],
-      income: [paycheck("u-alex", "2500.00"), paycheck("u-sam", "1000.00")],
-    });
-    const verdict = screen.getByRole("region", { name: "This month" });
-    expect(verdict.textContent).toContain(
-      "On track to move you forward$200.00Joint savings, projectedAlex$100.00 to jointSam$100.00 to joint",
-    );
-    expect(within(verdict).getByRole("note").getAttribute("aria-label")).toContain("Leftover excludes personal card spend");
-    // What's each person's own is on the Savings page, not repeated here.
-    expect(verdict.textContent).not.toContain("yours");
-  });
-
-  // Vin, 2026-09-24: a title and each person's figure, no minus sign;
-  // the why is on the info icon, not in sentences. Someone whose share
-  // is more than their income takes the difference from savings.
-  it("says who takes how much from savings when their share is more than their income", async () => {
-    await show({
-      bills: [rentPaidBy([])],
-      income: [paycheck("u-alex", "1000.00"), paycheck("u-sam", "900.00")],
-    });
-    const verdict = screen.getByRole("region", { name: "This month" });
-    expect(verdict.textContent).toContain("Take from savingsAlex$200.00");
-    expect(verdict.textContent).not.toContain("Sam");
-    expect(verdict.textContent).not.toContain("−");
-    expect(within(verdict).getByRole("note").getAttribute("aria-label")).toContain("takes the difference from savings");
-  });
-
-  it("has nothing to save when one person has nothing left, even if the other has plenty", async () => {
-    await show({
-      bills: [rentPaidBy([])],
-      income: [paycheck("u-alex", "5000.00"), paycheck("u-sam", "800.00")],
-    });
-    const verdict = screen.getByRole("region", { name: "This month" });
-    expect(verdict.textContent).toContain("Nothing to save yet");
-    expect(verdict.textContent).toContain("Sam$0.00 left");
-  });
-
-  it("says Moved you forward, not projected, once the month is closed", async () => {
-    await show({
-      bills: [rentPaidBy([["u-alex", "1200.00"], ["u-sam", "800.00"]])],
-      income: [paycheck("u-alex", "2500.00"), paycheck("u-sam", "1000.00")],
-      closed_at: "2026-09-30T14:00:00Z",
-      split_from: "2026-04-01",
-      people: [
-        { user_id: "u-alex", percent: "60.00", outstanding: "0.00" },
-        { user_id: "u-sam", percent: "40.00", outstanding: "0.00" },
-      ],
-    }, ADMIN, "2026-10-05T16:00:00Z");
-    const verdict = screen.getByRole("region", { name: "This month" });
-    expect(verdict.textContent).toContain("Moved you forward$200.00Joint savings");
-    expect(verdict.textContent).not.toContain("projected");
-  });
-
-  // Vin, 2026-09-24: pay the Budget year expects counts until someone
-  // confirms it, so the start of a month isn't a false "take from savings".
-  it("counts expected pay until it's confirmed, while the month runs", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-09-02T16:00:00Z"));
-    fake = fakeSupabase({
-      permissions: ADMIN,
-      people: PEOPLE,
-      tables: {
-        splits: [SPLIT],
-        bills: [],
-        income_sources: [
-          { id: "src-alex", name: "Acme pay", owner_id: "u-alex", net_amount: "2500", cadence: "monthly", anchor_date: "2026-09-15", effective_from: "2026-01-01", ended_on: null },
-          { id: "src-sam", name: "Beta pay", owner_id: "u-sam", net_amount: "1000", cadence: "monthly", anchor_date: "2026-09-15", effective_from: "2026-01-01", ended_on: null },
-        ],
-        months: [{ id: "m-sep", starts_on: "2026-09-01", bills: [rentPaidBy([])], direct_payments: [], income: [], people: [], closed_at: null, closed_by: null, split_from: null }],
-      },
-    });
-    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
-    render(await FinancesPage({ searchParams: Promise.resolve({ month: "2026-09" }) }));
-    vi.useRealTimers();
-    const verdict = screen.getByRole("region", { name: "This month" });
-    // Rent 2,000 at 60/40 against 2,500 and 1,000 expected: 1,300 and 200
-    // left, so 100 each to joint.
-    expect(verdict.textContent).toContain("On track to move you forward$200.00Joint savings, projected");
-  });
-
-  it("points to Income when nothing is logged yet", async () => {
-    await show({ bills: [rentPaidBy([])] });
-    const verdict = screen.getByRole("region", { name: "This month" });
-    expect(within(verdict).getByRole("link", { name: /No income logged yet/ }).getAttribute("href")).toBe(
-      "/finances/income?month=2026-09",
-    );
+  it("has one button: solid module colour, white text, 44px tall, 16px corners, 15px weight 600", () => {
+    const style = styleOf(button, "button", false);
+    expect(style.get("background")).toBe("var(--module-loud)");
+    expect(style.get("color")).toBe("var(--module-on-loud)");
+    expect(style.get("min-height")).toBe("44px");
+    expect(style.get("border-radius")).toBe("var(--radius-md)");
+    expect(style.get("font-size")).toBe("var(--text-body)");
+    expect(style.get("font-weight")).toBe("600");
   });
 });

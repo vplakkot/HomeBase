@@ -1,50 +1,27 @@
 import Link from "next/link";
-import { ChevronRightIcon, LockIcon } from "../../components/icons";
-import { SectionLabel } from "../../components/section-label";
-import {
-  householdToday,
-  listPeople,
-  listSplits,
-  monthLabel,
-  splitInForce,
-} from "../../lib/finances/budget-year";
+import { ButtonLink, buttonClass } from "../../components/button";
+import { householdToday, listPeople, listSplits, monthLabel, splitInForce } from "../../lib/finances/budget-year";
+import { financeItems } from "../../lib/finances/action-items";
 import { listBills } from "../../lib/finances/bills";
-import { listIncomeHistory } from "../../lib/finances/income";
-import { leftovers, projectedIncome } from "../../lib/finances/leftover";
-import {
-  billEntered,
-  chosenMonth,
-  dayLabel,
-  listOpenedMonths,
-  monthShares,
-  monthStatus,
-  monthTotals,
-  pickableMonths,
-  readMonth,
-} from "../../lib/finances/month";
+import { billEntered, chosenMonth, dayLabel, listOpenedMonths, monthShares, monthTotals, readMonth } from "../../lib/finances/month";
 import { formatMoney } from "../../lib/finances/money";
-import { savingsPlan } from "../../lib/finances/savings";
-import { closeMonthWithBalance } from "./actions";
-import { marchReview } from "../../lib/finances/recalibrate";
-import { acknowledge } from "../../lib/finances/snapshot";
+import { monthSummary, progress } from "../../lib/finances/overview";
+import { acknowledge, readFinanceSnapshot } from "../../lib/finances/snapshot";
+import { acknowledgeItem } from "./actions";
 import { FinancesFrame, financesViewer } from "./frame";
-import { Hint } from "../../components/hint";
 import styles from "./page.module.css";
 
-// The Finances module's home: the current month (docs/design/DESIGN.md §7).
-// Until a budget year covers this month, the whole page is one card asking
-// for setup: an admin gets Start setup, a member is told who to ask. Once
-// it exists, the month in focus (REQ-92) shows who owes what — one card
-// per person with their obligation, paid and outstanding (REQ-56, 58) —
-// and the month's bills as rows (REQ-53, REQ-94): the month's own copy
-// once it's opened, with paid of total and what's left, or the
-// household's list before that. A month with a bill still to enter reads
-// Incomplete; one squared closes on its own that night, and an admin can
-// close one with a balance left (REQ-59). A closed month is shown as it
-// closed, with the percentages written on it (REQ-52). The verdict card
-// says whether the month moved you forward (REQ-61), with what goes into
-// joint savings (REQ-63) or, in words, why nothing does (REQ-64). Opening
-// a month someone else entered clears its "numbers are ready" item (REQ-93).
+// The Finances module's home: one month, the one running unless History
+// asked for another (docs/design/DESIGN.md §6–§7, REQ-103). Top to
+// bottom: the module's action items, each with its button (REQ-93; "Close
+// month" lives only there); the summary — still to pay, the bills, paid
+// so far and the split, under Progress; outstanding balances, one card
+// per person (REQ-56, 58);
+// and the bills with due dates and progress. Every card is white with a
+// module-colour border, and status is plain text. Until a split covers
+// this month, the page is one card asking for setup. Savings is paused,
+// so its verdict card isn't shown. Opening a month someone else entered
+// clears its "numbers are ready" item (REQ-93).
 export default async function FinancesPage({
   searchParams,
 }: {
@@ -52,46 +29,35 @@ export default async function FinancesPage({
 } = {}) {
   const { supabase, canManageMembers, canManageBudget, account, userId } = await financesViewer();
   const todayIso = householdToday();
-  const [splits, bills, people, opened, sources] = await Promise.all([
+  const [splits, bills, people, opened] = await Promise.all([
     listSplits(supabase),
     listBills(supabase),
     listPeople(supabase),
     listOpenedMonths(supabase),
-    listIncomeHistory(supabase),
   ]);
   const asked = (await searchParams)?.month;
   const split = splitInForce(splits, todayIso);
-  // REQ-69: in March the admin is prompted to review April's split.
-  const reviewFor = marchReview(todayIso, splits);
   const startsOn = chosenMonth(asked, opened, todayIso);
-  const picker = { current: startsOn, options: pickableMonths(opened, todayIso) };
+  const frame = { canManageMembers, canManageBudget, account };
 
   if (!split) {
     const admins = people.filter((person) => person.manages_budget).map((person) => person.name);
     return (
-      <FinancesFrame
-        canManageMembers={canManageMembers}
-        account={account}
-        status="No budget year"
-        month={picker}
-      >
-        <section className={styles.firstRun} aria-labelledby="first-run">
-          <h2 id="first-run" className={styles.firstRunTitle}>
+      <FinancesFrame {...frame} month={{ startsOn, closed: false }}>
+        <section className={styles.card} aria-labelledby="first-run">
+          <h2 id="first-run" className={styles.cardTitle}>
             Set up your budget year
           </h2>
           {canManageBudget ? (
             <>
-              <p className={styles.firstRunText}>
-                Before anything else, choose how you split shared costs and add each
-                person&apos;s income sources and the household&apos;s bills. You only do it
-                once a year.
+              <p className={styles.note}>
+                Before anything else, choose how you split shared costs and add each person&apos;s income
+                sources and the household&apos;s bills. You only do it once a year.
               </p>
-              <Link href="/finances/budget-year" className={styles.firstRunButton}>
-                Start setup
-              </Link>
+              <ButtonLink href="/finances/budget-year">Start setup</ButtonLink>
             </>
           ) : (
-            <p className={styles.firstRunText}>
+            <p className={styles.note}>
               Finances isn&apos;t set up yet.{" "}
               {admins.length === 1
                 ? `${admins[0]}, your admin, needs to set up the budget year.`
@@ -106,84 +72,103 @@ export default async function FinancesPage({
   }
 
   const month = opened.includes(startsOn) ? await readMonth(supabase, startsOn) : null;
+  // REQ-93: "numbers are ready" clears once the person who didn't enter
+  // them has opened the month. Losing this only leaves the item up.
+  if (
+    month &&
+    month.bills.length > 0 &&
+    month.bills.every(billEntered) &&
+    month.bills.some((bill) => bill.entered_by && bill.entered_by !== userId)
+  ) {
+    await acknowledge(supabase, `ready:${startsOn}`).catch((reason) => console.error(reason));
+  }
+  const items = financeItems(await readFinanceSnapshot(supabase, todayIso, people), userId);
+
   // The month shown runs on the split that had started by then, or the
   // percentages written on it when it closed.
   const shares = monthShares(month, splits, startsOn);
   const totals = month ? monthTotals(month, shares) : null;
-  const status = monthStatus(month, shares, todayIso);
-  const ended = Boolean(month?.closed_at) || status === "Ended · not squared";
-  // While the month runs, expected pay counts until it's confirmed; once
-  // it has ended, only what was confirmed.
-  const income = month
-    ? ended
-      ? { income: month.income, projected: false }
-      : projectedIncome(sources, startsOn, month.income)
-    : null;
-  const verdict = month && income && totals && totals.people.length > 0 ? leftovers(totals, income.income) : null;
-  // What goes into joint savings (REQ-63), or why nothing does (REQ-64).
-  const plan = verdict ? savingsPlan(verdict.people) : null;
-  const short = verdict ? verdict.people.filter((person) => person.leftover < 0) : [];
-  // Overview shows each bill's name and what's left, or where it stands;
-  // due dates and the rest live in Monthly entry (Vin, 2026-09-24).
-  const rows = month
-    ? month.bills.map((bill) => {
-        const money = totals?.bills.find((row) => row.id === bill.id);
-        return {
-          id: bill.id,
-          name: bill.name,
-          chip: !billEntered(bill)
-            ? { text: "Not entered", done: false }
-            : money && money.left <= 0
-              ? { text: "Paid", done: true }
-              : null,
-          left: money && billEntered(bill) && money.left > 0 ? money.left : null,
-        };
-      })
-    : bills.map((bill) => ({
-        id: bill.id,
-        name: bill.name,
-        chip: { text: "Not entered", done: false },
-        left: null,
-      }));
-  const toEnter = month ? month.bills.filter((bill) => !billEntered(bill)).length : 0;
-  const billsLeft = totals ? totals.bills.reduce((sum, row) => sum + Math.max(row.left, 0), 0) : 0;
+  const summary = month && totals ? monthSummary(month, totals, todayIso) : null;
   const nameOf = new Map(people.map((person) => [person.user_id, person.name]));
   const percentages = (list: { user_id: string; percent: number }[]) =>
     list.map((share) => `${nameOf.get(share.user_id) ?? "Someone"} ${share.percent}%`).join(" · ");
-  const sharesLine = percentages(split.shares);
   // What was still owed when the month closed, and by whom (REQ-59).
   const leftOwing = month?.closed_at ? month.people.filter((person) => person.outstanding > 0) : [];
-  const allEntered = month ? month.bills.every(billEntered) : false;
-  // REQ-93: "numbers are ready" clears once the person who didn't enter
-  // them has opened the month. Losing this only leaves the note up.
-  if (month && allEntered && month.bills.some((bill) => bill.entered_by && bill.entered_by !== userId)) {
-    await acknowledge(supabase, `ready:${startsOn}`).catch((reason) => console.error(reason));
-  }
+  const monthName = monthLabel(startsOn).split(" ")[0];
+  const at = startsOn.slice(0, 7);
 
   return (
-    <FinancesFrame
-      canManageMembers={canManageMembers}
-      account={account}
-      status={status}
-      month={picker}
-    >
-      <Link href={`/finances/monthly-entry?month=${startsOn.slice(0, 7)}`} className={styles.entryRow}>
-        <span className={styles.rowText}>
-          <span className={styles.billName}>{month ? "Monthly entry" : `Open ${monthLabel(startsOn)}`}</span>
-          <span className={styles.cardNote}>
-            {!month
-              ? "Copies in the bill list, ready to enter"
-              : toEnter > 0
-                ? `${toEnter} bill${toEnter === 1 ? "" : "s"} still to enter`
-                : "Bills, personal charges and One-time Payments"}
-          </span>
-        </span>
-        <ChevronRightIcon />
-      </Link>
+    <FinancesFrame {...frame} month={{ startsOn, closed: Boolean(month?.closed_at) }}>
+      {items.length > 0 ? (
+        <section className={styles.section} aria-labelledby="action-items">
+          <div className={styles.sectionHead}>
+            <h2 id="action-items" className={styles.sectionTitle}>
+              Action items <span className={styles.count}>{items.length}</span>
+            </h2>
+          </div>
+          <ul className={`${styles.card} ${styles.rows}`}>
+            {items.map((item) => (
+              <li key={item.key} className={styles.itemRow}>
+                <span className={styles.itemText}>
+                  <span className={styles.strong}>{item.text}</span>
+                  <span className={styles.note}>{item.detail}</span>
+                </span>
+                {item.button === "Acknowledge" ? (
+                  <form action={acknowledgeItem}>
+                    <input type="hidden" name="key" value={item.key} />
+                    <button type="submit" className={buttonClass}>
+                      Acknowledge
+                    </button>
+                  </form>
+                ) : (
+                  <ButtonLink href={item.href}>{item.button}</ButtonLink>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {summary ? (
+        <section className={styles.section} aria-labelledby="progress">
+          <div className={styles.sectionHead}>
+            <h2 id="progress" className={styles.sectionTitle}>
+              Progress
+            </h2>
+          </div>
+          <div className={styles.card}>
+            <div className={styles.summaryTop}>
+              <div className={styles.figureBlock}>
+                <span className={styles.label}>Still to pay in {monthName}</span>
+                <span className={styles.bigFigure}>{formatMoney(summary.stillToPay)}</span>
+              </div>
+              <dl className={styles.facts}>
+                <div>
+                  <dt className={styles.note}>Bills this month</dt>
+                  <dd className={styles.fact}>{formatMoney(summary.bills)}</dd>
+                </div>
+                <div>
+                  <dt className={styles.note}>Paid so far</dt>
+                  <dd className={styles.fact}>{formatMoney(summary.paid)}</dd>
+                </div>
+                <div>
+                  <dt className={styles.note}>Split</dt>
+                  <dd className={styles.fact}>{shares.map((share) => share.percent).join(" / ")}</dd>
+                </div>
+              </dl>
+            </div>
+            <Bar percent={summary.percentPaid} thick />
+            <p className={styles.note}>
+              {summary.percentPaid}% paid
+              {summary.overdue > 0 ? ` · ${summary.overdue} bill${summary.overdue === 1 ? "" : "s"} overdue` : ""}
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       {month?.closed_at ? (
         <section className={styles.card} aria-label="Closed month">
-          <p className={styles.cardNote}>
+          <p className={styles.note}>
             Closed {dayLabel(month.closed_at.slice(0, 10))}
             {month.closed_automatically ? ", squared" : ""} · split from{" "}
             {month.split_from ? monthLabel(month.split_from) : "no split"}: {percentages(month.people)}
@@ -191,7 +176,7 @@ export default async function FinancesPage({
           {leftOwing.map((person) => {
             const name = nameOf.get(person.user_id) ?? "Someone";
             return (
-              <p key={person.user_id} className={styles.cardNote}>
+              <p key={person.user_id} className={styles.note}>
                 Closed with {formatMoney(person.outstanding)} of {name}&apos;s unpaid. When it shows up on next
                 month&apos;s statement, declare it as {name}&apos;s personal charge so it isn&apos;t split again.
               </p>
@@ -200,236 +185,142 @@ export default async function FinancesPage({
         </section>
       ) : null}
 
-      <div className={styles.columns}>
-        {verdict ? (
-          <section className={styles.group} aria-labelledby="verdict">
-            <div className={styles.groupHead}>
-              <SectionLabel id="verdict">This month</SectionLabel>
-              <Hint text="Each person's income minus their share of the bills. Pay the Budget year expects counts until it's confirmed. Savings start once both have some left; anyone short takes the difference from savings. Leftover excludes personal card spend." />
-            </div>
-            {income && income.income.length === 0 ? (
-              <Link href={`/finances/income?month=${startsOn.slice(0, 7)}`} className={styles.entryRow}>
-                <span className={styles.rowText}>
-                  <span className={styles.billName}>No income logged yet</span>
-                  <span className={styles.cardNote}>Confirm paychecks to see what&apos;s left</span>
-                </span>
-                <ChevronRightIcon />
-              </Link>
-            ) : (
-              <div className={(plan && plan.joint > 0) || short.length > 0 ? styles.verdict : styles.verdictQuiet}>
-                <span className={styles.verdictTitle}>
-                  {plan && plan.joint > 0
-                    ? ended
-                      ? "Moved you forward"
-                      : "On track to move you forward"
-                    : short.length > 0
-                      ? ended
-                        ? "Took from savings"
-                        : "Take from savings"
-                      : ended
-                        ? "Nothing to save this month"
-                        : "Nothing to save yet"}
-                </span>
-                {plan && plan.joint > 0 ? (
-                  <>
-                    <span className={styles.figure}>{formatMoney(plan.joint)}</span>
-                    <span className={styles.verdictLabel}>Joint savings{ended ? "" : ", projected"}</span>
-                    {plan.people.map((person) => (
-                      <span key={person.user_id} className={styles.verdictLine}>
-                        <span>{nameOf.get(person.user_id) ?? "Someone"}</span>
-                        <span>{formatMoney(person.toJoint)} to joint</span>
-                      </span>
-                    ))}
-                  </>
-                ) : short.length > 0 ? (
-                  <>
-                    {income?.projected ? <span className={styles.verdictLabel}>Projected</span> : null}
-                    {short.map((person) => (
-                      <span key={person.user_id} className={styles.verdictLine}>
-                        <span>{nameOf.get(person.user_id) ?? "Someone"}</span>
-                        <span>{formatMoney(-person.leftover)}</span>
-                      </span>
-                    ))}
-                  </>
-                ) : (
-                  verdict.people.map((person) => (
-                    <span key={person.user_id} className={styles.verdictLine}>
-                      <span>{nameOf.get(person.user_id) ?? "Someone"}</span>
-                      <span>{formatMoney(person.leftover)} left</span>
-                    </span>
-                  ))
-                )}
-              </div>
-            )}
-          </section>
-        ) : null}
-
-        {totals && totals.people.length > 0 ? (
-          <section className={styles.group} aria-labelledby="who-owes">
-            <div className={styles.groupHead}>
-              <SectionLabel id="who-owes">Who owes what</SectionLabel>
-            </div>
-            <ul className={styles.people}>
-              {totals.people.map((person) => {
-                const name = nameOf.get(person.user_id) ?? "Someone";
-                const settled = person.outstanding <= 0;
-                return (
-                  <li key={person.user_id} className={styles.person}>
-                    <span className={styles.personName}>{name}</span>
-                    {settled ? (
-                      <span className={`${styles.figure} ${styles.paidUp}`}>Paid up</span>
-                    ) : (
-                      <span className={styles.figure}>{formatMoney(person.outstanding)}</span>
-                    )}
-                    <span className={styles.cardNote}>
-                      {settled ? "" : "outstanding · "}paid {formatMoney(person.paid)} of{" "}
-                      {formatMoney(person.obligation)}
-                      {person.outstanding < 0 ? ` · ${formatMoney(-person.outstanding)} credit` : ""}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-            <details className={styles.workings}>
-              <summary>How this was worked out</summary>
-              <dl className={styles.sums}>
-                <dt>Bills entered</dt>
-                <dd>{formatMoney(totals.expenses)}</dd>
-                <dt>Less personal charges</dt>
-                <dd>− {formatMoney(totals.personal)}</dd>
-                <dt>Plus One-time Payments</dt>
-                <dd>+ {formatMoney(totals.direct)}</dd>
-                <dt>Shared</dt>
-                <dd>{formatMoney(totals.sharedBase)}</dd>
-              </dl>
-              {totals.people.map((person) => {
-                const name = nameOf.get(person.user_id) ?? "Someone";
-                return (
-                  <p key={person.user_id} className={styles.cardNote}>
-                    {name}: {person.percent}% of {formatMoney(totals.sharedBase)} ={" "}
-                    {formatMoney(person.share)}
-                    {person.personal > 0
-                      ? `, plus ${formatMoney(person.personal)} of their own personal charges = ${formatMoney(person.obligation)}`
-                      : ""}{" "}
-                    owed. Paid {formatMoney(person.paid)}
-                    {person.fronted > 0 ? ` (${formatMoney(person.fronted)} of it in One-time Payments)` : ""}
-                    .
-                  </p>
-                );
-              })}
-              <p className={styles.cardNote}>
-                Together that&apos;s {formatMoney(totals.expenses + totals.direct)}: the bills plus the
-                One-time Payments.
-              </p>
-            </details>
-          </section>
-        ) : null}
-
-        <section className={styles.group} aria-labelledby="bills">
-          <div className={styles.groupHead}>
-            <SectionLabel id="bills">Bills</SectionLabel>
-            {totals ? (
-              <span className={styles.groupNote}>
-                {formatMoney(billsLeft)} of {formatMoney(totals.expenses)} left
-              </span>
-            ) : null}
+      {totals && totals.people.length > 0 ? (
+        <section className={styles.section} aria-labelledby="who-owes">
+          <div className={styles.sectionHead}>
+            <h2 id="who-owes" className={styles.sectionTitle}>
+              Outstanding balances
+            </h2>
           </div>
-          <div className={styles.card}>
-            {rows.length === 0 ? (
-              <p className={styles.cardNote}>No bills in the list yet.</p>
-            ) : (
-              <ul className={styles.rows}>
-                {rows.map((row) => (
-                  <li key={row.id} className={styles.billRow}>
-                    <span className={styles.billName}>{row.name}</span>
-                    {row.chip ? (
-                      <span className={row.chip.done ? styles.paidChip : styles.status}>{row.chip.text}</span>
-                    ) : row.left !== null ? (
-                      <span className={styles.owed}>{formatMoney(row.left)} left</span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
-      </div>
-
-      <section className={styles.group} aria-labelledby="admin">
-        <SectionLabel id="admin">Admin</SectionLabel>
-        <div className={styles.card}>
-          {month && !month.closed_at ? (
-            canManageBudget ? (
-              <details className={styles.closeRow}>
-                <summary className={styles.entryRowInner}>
-                  <span className={styles.rowText}>
-                    <span className={styles.billName}>Close month with balance</span>
-                    <span className={styles.cardNote}>
-                      {status === "Squared"
-                        ? "Squared: it closes on its own tonight"
-                        : allEntered
-                          ? "Only if what's owed won't be paid"
-                          : "Enter every bill first"}
-                    </span>
+          <ul className={styles.people}>
+            {totals.people.map((person) => {
+              const settled = person.outstanding <= 0;
+              return (
+                <li key={person.user_id} className={`${styles.card} ${styles.person}`}>
+                  <span className={styles.personHead}>
+                    <span className={styles.strong}>{nameOf.get(person.user_id) ?? "Someone"}</span>
+                    <span className={styles.note}>{person.percent}% share</span>
                   </span>
-                  <ChevronRightIcon />
-                </summary>
-                {allEntered && status !== "Squared" ? (
-                  <form action={closeMonthWithBalance} className={styles.closeForm}>
-                    <input type="hidden" name="monthId" value={month.id} />
-                    <p className={styles.cardNote}>
-                      {(totals?.people ?? [])
-                        .filter((person) => person.outstanding > 0)
-                        .map((person) => `${nameOf.get(person.user_id) ?? "Someone"} still owes ${formatMoney(person.outstanding)}`)
-                        .join(" · ") || "Nobody owes anything, but a bill isn't paid in full"}
-                      . Closing records that and locks {monthLabel(startsOn)}; nothing carries into next month.
-                    </p>
-                    <button type="submit" className={styles.firstRunButton}>
-                      Close {monthLabel(startsOn)}
-                    </button>
-                  </form>
-                ) : null}
-              </details>
+                  <span className={styles.figureLine}>
+                    <span className={styles.personFigure}>
+                      {settled ? "Paid" : formatMoney(person.outstanding)}
+                    </span>
+                    {settled ? null : <span className={styles.note}>outstanding</span>}
+                  </span>
+                  <Bar percent={progress(person.paid, person.obligation)} />
+                  <span className={styles.note}>
+                    Paid {formatMoney(person.paid)} of {formatMoney(person.obligation)}
+                    {person.outstanding < 0 ? ` · ${formatMoney(-person.outstanding)} credit` : ""}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <details className={styles.workings}>
+            <summary>How this was worked out</summary>
+            <dl className={styles.sums}>
+              <dt>Bills entered</dt>
+              <dd>{formatMoney(totals.expenses)}</dd>
+              <dt>Less personal charges</dt>
+              <dd>− {formatMoney(totals.personal)}</dd>
+              <dt>Plus One-time Payments</dt>
+              <dd>+ {formatMoney(totals.direct)}</dd>
+              <dt>Shared</dt>
+              <dd>{formatMoney(totals.sharedBase)}</dd>
+            </dl>
+            {totals.people.map((person) => (
+              <p key={person.user_id} className={styles.note}>
+                {nameOf.get(person.user_id) ?? "Someone"}: {person.percent}% of {formatMoney(totals.sharedBase)} ={" "}
+                {formatMoney(person.share)}
+                {person.personal > 0
+                  ? `, plus ${formatMoney(person.personal)} of their own personal charges = ${formatMoney(person.obligation)}`
+                  : ""}{" "}
+                owed. Paid {formatMoney(person.paid)}
+                {person.fronted > 0 ? ` (${formatMoney(person.fronted)} of it in One-time Payments)` : ""}.
+              </p>
+            ))}
+            <p className={styles.note}>
+              Together that&apos;s {formatMoney(totals.expenses + totals.direct)}: the bills plus the One-time
+              Payments.
+            </p>
+          </details>
+        </section>
+      ) : null}
+
+      <section className={styles.section} aria-labelledby="bills">
+        <div className={styles.sectionHead}>
+          <h2 id="bills" className={styles.sectionTitle}>
+            Bills
+          </h2>
+          <Link href={`/finances/monthly-entry?month=${at}`} className={styles.link}>
+            Edit in Monthly entry
+          </Link>
+        </div>
+        <div className={styles.card}>
+          {summary ? (
+            summary.rows.length === 0 ? (
+              <p className={styles.empty}>No bills this month.</p>
             ) : (
-              <div className={styles.entryRowInner}>
-                <span className={styles.rowText}>
-                  <span className={styles.billName}>Close month with balance</span>
-                </span>
-                <span className={styles.locked}>
-                  <LockIcon />
-                  Admin only
-                </span>
-              </div>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th scope="col">Bill</th>
+                    <th scope="col">Due</th>
+                    <th scope="col">Progress</th>
+                    <th scope="col" className={styles.right}>
+                      Left
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summary.rows.map((row) => (
+                    <tr key={row.id}>
+                      <th scope="row" className={styles.strong}>
+                        {row.name}
+                      </th>
+                      <td className={row.overdue ? styles.urgent : styles.muted}>
+                        {dayLabel(row.due)}
+                        {row.overdue ? " · Overdue" : ""}
+                      </td>
+                      <td>
+                        {row.entered ? (
+                          <span className={styles.progressCell}>
+                            <Bar percent={progress(row.paid, row.total)} />
+                            <span className={styles.note}>
+                              {formatMoney(Math.min(row.paid, row.total))} of {formatMoney(row.total)}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className={styles.note}>Not entered</span>
+                        )}
+                      </td>
+                      <td className={`${styles.right} ${styles.strong}`}>
+                        {!row.entered ? "—" : row.left > 0 ? formatMoney(row.left) : "Paid"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )
-          ) : null}
-          {canManageBudget ? (
-            <Link href="/finances/budget-year" className={styles.entryRowInner}>
-              <span className={styles.rowText}>
-                <span className={styles.billName}>Budget year</span>
-                <span className={styles.cardNote}>
-                  {reviewFor
-                    ? `Review the split for ${monthLabel(reviewFor)}`
-                    : `From ${monthLabel(split.effective_from)} · ${sharesLine}`}
-                </span>
-              </span>
-              <ChevronRightIcon />
-            </Link>
+          ) : bills.length === 0 ? (
+            <p className={styles.empty}>No bills in the list yet.</p>
           ) : (
-            <div className={styles.entryRowInner}>
-              <span className={styles.rowText}>
-                <span className={styles.billName}>Budget year</span>
-                <span className={styles.cardNote}>
-                  From {monthLabel(split.effective_from)} · {sharesLine}
-                </span>
-              </span>
-              <span className={styles.locked}>
-                <LockIcon />
-                Admin only
-              </span>
-            </div>
+            <p className={styles.empty}>
+              {monthLabel(startsOn)} isn&apos;t open yet: it opens on its own, with {bills.length} bill
+              {bills.length === 1 ? "" : "s"} from the list.
+            </p>
           )}
         </div>
       </section>
     </FinancesFrame>
+  );
+}
+
+// A progress bar (DESIGN.md §6): the module colour on a neutral track.
+function Bar({ percent, thick = false }: { percent: number; thick?: boolean }) {
+  return (
+    <span className={thick ? `${styles.track} ${styles.thick}` : styles.track} aria-hidden="true">
+      <span className={styles.fill} style={{ width: `${percent}%` }} />
+    </span>
   );
 }

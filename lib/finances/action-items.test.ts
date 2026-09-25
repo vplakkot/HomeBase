@@ -159,7 +159,8 @@ describe("Finances action items (REQ-93)", () => {
     expect(find(financeItems(s, ALEX), "ended:")).toMatchObject({
       text: "August ended, not squared",
       detail: "Close it with the balance left",
-      href: "/finances?month=2026-08",
+      href: "/finances/close-month?month=2026-08",
+      button: "Close month",
       rank: RANKS.ended,
       push: { topic: "ended:2026-08-01" },
     });

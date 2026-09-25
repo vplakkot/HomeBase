@@ -133,7 +133,7 @@ export default async function BudgetYearPage() {
 
   if (!canManageBudget) {
     return (
-      <FinancesFrame canManageMembers={canManageMembers} account={account} section={SECTION}>
+      <FinancesFrame canManageMembers={canManageMembers} canManageBudget={canManageBudget} account={account} section={SECTION}>
         <div className={styles.cards}>
           <section className={styles.card} aria-labelledby="locked">
             <header className={styles.head}>
@@ -199,7 +199,7 @@ export default async function BudgetYearPage() {
     : null;
 
   return (
-    <FinancesFrame canManageMembers={canManageMembers} account={account} section={SECTION}>
+    <FinancesFrame canManageMembers={canManageMembers} canManageBudget={canManageBudget} account={account} section={SECTION}>
       <div className={styles.cards}>
         {review ? (
           <section className={styles.card} aria-labelledby="march-review">

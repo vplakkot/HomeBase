@@ -132,6 +132,20 @@ export async function listOpenedMonths(supabase: SupabaseClient): Promise<string
   return ((data ?? []) as { starts_on: string }[]).map((row) => row.starts_on);
 }
 
+// Every opened month, newest first, and whether it has closed (History,
+// REQ-102).
+export async function listMonthsClosed(supabase: SupabaseClient): Promise<{ startsOn: string; closed: boolean }[]> {
+  const { data, error } = await supabase
+    .from("months")
+    .select("starts_on, closed_at")
+    .order("starts_on", { ascending: false });
+  if (error) throw new Error(`Could not list the months: ${error.message}`);
+  return ((data ?? []) as { starts_on: string; closed_at: string | null }[]).map((row) => ({
+    startsOn: row.starts_on,
+    closed: row.closed_at !== null,
+  }));
+}
+
 // Whether a month has closed; a month never opened hasn't.
 export async function monthClosed(supabase: SupabaseClient, startsOn: string): Promise<boolean> {
   const { data, error } = await supabase
@@ -148,6 +162,14 @@ export async function monthClosed(supabase: SupabaseClient, startsOn: string): P
 export function chosenMonth(asked: string | undefined, opened: string[], today: string): string {
   const wanted = asked && /^\d{4}-\d{2}$/.test(asked) ? `${asked}-01` : null;
   return wanted && opened.includes(wanted) ? wanted : monthStart(today);
+}
+
+// REQ-102: a month gone by carries a small mark after its title —
+// "Closed", or "Open" if it was never closed. The month now running, or
+// one still to come, carries none.
+export function monthMark(closed: boolean, startsOn: string, today: string): "Closed" | "Open" | undefined {
+  if (startsOn >= monthStart(today)) return undefined;
+  return closed ? "Closed" : "Open";
 }
 
 // The months the picker offers: every opened one plus the month now

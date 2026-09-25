@@ -12,16 +12,26 @@ import styles from "./module-bar.module.css";
 // (docs/design/DESIGN.md §6). Sections shows as selected while you're on
 // the module's own home; `current` names the section page you're on. A
 // module's pinned action (Finances: Log payment) sits just above the bar.
-export function ModuleBar({ module, current }: { module: Module; current?: string }) {
+// `pinnedHref` points the pinned action somewhere else (Finances: the
+// month you're looking at), and null leaves it out (a closed month).
+export function ModuleBar({
+  module,
+  current,
+  pinnedHref,
+}: {
+  module: Module;
+  current?: string;
+  pinnedHref?: string | null;
+}) {
   const [sheet, setSheet] = useState<"sections" | "modules" | null>(null);
   const close = () => setSheet(null);
-  const pinned = module.sections.find((section) => section.pinned && section.href);
+  const pinned = pinnedHref === null ? undefined : module.sections.find((section) => section.pinned && section.href);
 
   return (
     <>
       {pinned?.href && current !== pinned.name ? (
         <div className={styles.pinnedRow} style={moduleColours(module) as CSSProperties}>
-          <Link href={pinned.href} className={styles.pinned}>
+          <Link href={pinnedHref ?? pinned.href} className={styles.pinned}>
             {pinned.name}
           </Link>
         </div>
@@ -62,7 +72,7 @@ export function ModuleBar({ module, current }: { module: Module; current?: strin
               <span className={styles.rowName}>Overview</span>
             </Link>
           </li>
-          {module.sections.map((section) => {
+          {module.sections.filter((section) => !section.hidden).map((section) => {
             const text = (
               <>
                 <span className={styles.rowText}>

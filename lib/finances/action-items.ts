@@ -21,6 +21,9 @@ import { marchReview } from "./recalibrate";
 
 export type FinanceItem = ActionItem & {
   href: string;
+  // The label on its button on Finances home (DESIGN.md §6). "Acknowledge"
+  // marks the one item that's only news and is cleared right there.
+  button: string;
   // Also what an acknowledgement records, for the two items that take one.
   key: string;
   // In-app only when null. No dollar figures, ever (DESIGN.md §10).
@@ -81,6 +84,7 @@ export function financeItems(snapshot: FinanceSnapshot, viewer: string): Finance
         detail: "Closes tonight",
         rank: RANKS.squared,
         href: `/finances?month=${at}`,
+        button: "View month",
         push: null,
       });
       continue;
@@ -97,6 +101,7 @@ export function financeItems(snapshot: FinanceSnapshot, viewer: string): Finance
           detail: `You owe ${formatMoney(mine.outstanding)}`,
           rank: RANKS.ended,
           href: `/finances/log-payment?month=${at}`,
+          button: "Log payment",
           push,
         });
       } else if (me.manages_budget) {
@@ -105,7 +110,8 @@ export function financeItems(snapshot: FinanceSnapshot, viewer: string): Finance
           text: `${name} ended, not squared`,
           detail: "Close it with the balance left",
           rank: RANKS.ended,
-          href: `/finances?month=${at}`,
+          href: `/finances/close-month?month=${at}`,
+          button: "Close month",
           push,
         });
       }
@@ -127,6 +133,7 @@ export function financeItems(snapshot: FinanceSnapshot, viewer: string): Finance
           detail: who.length > 0 ? `Entered by ${who.join(" and ")}` : "Every bill is entered",
           rank: RANKS.ready,
           href: `/finances?month=${at}`,
+          button: "View month",
           push: { topic: key, body: `${name}'s numbers are in.` },
         });
       }
@@ -144,6 +151,7 @@ export function financeItems(snapshot: FinanceSnapshot, viewer: string): Finance
         detail: `${formatMoney(left)} left to pay`,
         rank: RANKS.dueSoon,
         href: `/finances/log-payment?month=${at}&bill=${bill.id}`,
+        button: "Log payment",
         push: null,
       });
     }
@@ -157,6 +165,7 @@ export function financeItems(snapshot: FinanceSnapshot, viewer: string): Finance
           detail: `You owe ${formatMoney(mine.outstanding)} for ${name}`,
           rank: RANKS.noPayment,
           href: `/finances/log-payment?month=${at}`,
+          button: "Log payment",
           push: {
             topic: `nudge:${month.starts_on}:${since}`,
             body: `You have a balance on ${name} and no payment in ${QUIET_DAYS} days.`,
@@ -183,6 +192,7 @@ export function financeItems(snapshot: FinanceSnapshot, viewer: string): Finance
       detail: `Quarter ended ${monthLabel(quarter.month)}`,
       rank: RANKS.balances,
       href: `/finances/balances?month=${quarter.month.slice(0, 7)}`,
+      button: "Update balances",
       // Pushed once the quarter has actually ended, not on its last day.
       push: quarter.ended ? { topic: key, body: "A quarter has ended. Time to update balances." } : null,
     });
@@ -197,6 +207,7 @@ export function financeItems(snapshot: FinanceSnapshot, viewer: string): Finance
       detail: `For the year from ${monthLabel(april)}`,
       rank: RANKS.recalibrate,
       href: "/finances/budget-year",
+      button: "Review split",
       push: { topic: key, body: "It's March: time to review the split for April." },
     });
   }
@@ -213,6 +224,7 @@ function enterItem(startsOn: string, detail: string): FinanceItem {
     detail,
     rank: RANKS.enter,
     href: `/finances/monthly-entry?month=${startsOn.slice(0, 7)}`,
+    button: "Enter numbers",
     push: { topic: key, body: `Time to enter ${name}'s numbers.` },
   };
 }
@@ -258,6 +270,7 @@ function cashGap(snapshot: FinanceSnapshot): FinanceItem | null {
       detail: `${name}'s cash is ${formatMoney(check.gap)} above the leftover`,
       rank: RANKS.cashGap,
       href: `/finances/balances?month=${latest.slice(0, 7)}`,
+      button: "Acknowledge",
       push: null,
     };
   }

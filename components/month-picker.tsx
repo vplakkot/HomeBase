@@ -4,7 +4,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronDownIcon } from "./icons";
 import styles from "./month-picker.module.css";
 
-// The month a module is showing, in its header (docs/design/DESIGN.md §7).
+// Which month a page shows, where it lets you choose (Balances: headers
+// no longer carry a picker, REQ-102).
 // The page names the month it shows and the months there are to choose
 // from, each as "YYYY-MM-01"; choosing one reloads the same page on it.
 export function MonthPicker({ current, options }: { current: string; options: string[] }) {

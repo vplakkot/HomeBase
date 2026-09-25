@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Finances Payments — desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#1C1B22;background-color:#FFFEFE}
+a{color:#A64332}a:hover{color:#7E2F22}
+</style>
+</helmet>
+<div style="width: 1440px; height: 760px; box-sizing: border-box; padding: 40px 64px 56px; display: flex; flex-direction: column; gap: 32px; font-variant-numeric: tabular-nums; background-color: {{shell}}; color: #1C1B22">
+
+<!-- Header -->
+<header style="display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="width: 44px; height: 44px; border-radius: 12px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+</div>
+<h1 style="margin: 0; font-size: 36px; font-weight: 700; letter-spacing: -0.02em">Finances <span style="color: #8A8690; font-weight: 400">—</span> <span style="color: {{accent}}">September 2026</span></h1>
+</div>
+<div style="display: flex; align-items: center; gap: 12px">
+<a href="#" style="height: 44px; padding: 0 20px; border-radius: 16px; background: {{accent}}; font-size: 15px; font-weight: 600; color: #FFFFFF; box-sizing: border-box; text-decoration: none; display: flex; align-items: center; gap: 8px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Previous months</a>
+<button aria-label="Finances settings" style="height: 44px; width: 44px; padding: 0; border: 0; border-radius: 16px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+</button>
+<button style="height: 44px; padding: 0 20px; border: 0; border-radius: 16px; background: {{accent}}; font: inherit; font-size: 15px; font-weight: 600; color: #FFFFFF">Log payment</button>
+</div>
+</div>
+<nav style="display: flex; gap: 32px; border-bottom: 1px solid #E6E3DF">
+<a href="Main.dc.html" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">Overview</a>
+<a href="#" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">Monthly entry</a>
+<a href="#" style="padding: 12px 0; font-size: 15px; font-weight: 600; color: #1C1B22; text-decoration: none; border-bottom: 2px solid {{accent}}; margin-bottom: -1px">Payments</a>
+<a href="#" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">Income</a>
+<a href="#" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">Balances</a>
+<a href="#" style="padding: 12px 0; font-size: 15px; font-weight: 500; color: #625E68; text-decoration: none">History</a>
+</nav>
+</header>
+
+<!-- Payments -->
+<section style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Payments made</h2>
+<span style="font-size: 14px; color: #625E68">2 payments · $1,000.00 in September</span>
+</div>
+<div style="border: {{border}} solid {{accent}}; border-radius: 20px; overflow: hidden">
+<div style="display: grid; grid-template-columns: 1fr 1.5fr 2fr 1fr; gap: 24px; padding: 14px 24px; border-bottom: 1px solid #EDEBE8; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #625E68">
+<div>Date</div><div>Paid by</div><div>Toward</div><div style="text-align: right">Amount</div>
+</div>
+<div style="display: grid; grid-template-columns: 1fr 1.5fr 2fr 1fr; gap: 24px; padding: 20px 24px; align-items: center; border-bottom: 1px solid #EDEBE8">
+<div style="font-size: 14px; color: #4A4650">18 Sep</div>
+<div style="font-size: 15px; font-weight: 600">Member A</div>
+<div style="font-size: 14px; color: #4A4650">Chase Visa 5544</div>
+<div style="font-size: 15px; font-weight: 700; text-align: right">$400.00</div>
+</div>
+<div style="display: grid; grid-template-columns: 1fr 1.5fr 2fr 1fr; gap: 24px; padding: 20px 24px; align-items: center">
+<div style="font-size: 14px; color: #4A4650">3 Sep</div>
+<div style="font-size: 15px; font-weight: 600">Member A</div>
+<div style="font-size: 14px; color: #4A4650">Chase Visa 5544</div>
+<div style="font-size: 15px; font-weight: 700; text-align: right">$600.00</div>
+</div>
+</div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#A64332"},"shell":{"editor":"color","default":"#FFFEFE"},"border":{"editor":"enum","options":["1px","1.5px","2px"],"default":"1.5px"},"$preview":{"width":1440,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      accent: this.props.accent ?? '#A64332',
+      shell: this.props.shell ?? '#FFFEFE',
+      border: this.props.border ?? '1.5px'
+    };
+  }
+}
+</script>
+</body>
+</html>

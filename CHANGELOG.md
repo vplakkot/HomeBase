@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Finances home follows the new module home rules. Every card is white
+  with a thin brick border; status is plain text, with no chips. The
+  header reads "Finances — September 2026" and has Previous months, a
+  settings gear for admins (Budget year moved there from the tabs) and
+  Log payment. The page runs: action items, each with its own button;
+  Progress (what's still to pay); Outstanding balances (was "Who owes
+  what"); then the bills with due dates, progress and "Overdue" when
+  late. Savings is paused, so its tab and card are hidden. Closing a
+  month with a balance is now only an action item, once the month has
+  ended.
+- A Payments tab lists every payment logged in the month, newest first.
+- Previous months opens History, a list of every month. A past month
+  shows "Closed" or "Open" after its name, and the tabs stay on it.
+- Each month opens itself on the 1st, with rent filled in and card
+  statements waiting for their amounts. Nobody has to open it.
+
 - Storage, a new module (teal, last on Home). Log everything in the
   basement, boxes and loose items alike. Each entry gets an ID (S-001,
   S-002…) that never changes, shown big for the label printer. A box
