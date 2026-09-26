@@ -1043,7 +1043,9 @@ review screen ──readLabel (server action)──▶ Vision images:annotate
   drink and rating, and comes back with the reading: "We've had this"
   (with everyone's stars, comments and buy again, Open existing or Save
   as new), a near match (a different vintage), a want-to-try call-out,
-  or "New to us". It matches a name even when the reading split it
+  or "New to us". A name that's only a grape, region or kind of wine
+  (`isGenericName`: "Pinot Grigio", "Rioja") matches only with the same
+  producer, and is shown with its producer first (`displayName`). It matches a name even when the reading split it
   between producer and name, and runs again (`checkDrink`) half a
   second after the name, producer or vintage is corrected on the review
   screen. Nothing is saved to answer it. See

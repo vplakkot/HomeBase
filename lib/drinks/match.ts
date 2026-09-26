@@ -1,5 +1,5 @@
-import { buyAgainText, ratingsFor, vintageText, type Drink, type DrinkFields, type Person, type Rating } from "./drinks";
-import { fold } from "./lists";
+import { buyAgainText, displayName, ratingsFor, vintageText, type Drink, type DrinkFields, type Person, type Rating } from "./drinks";
+import { fold, isGenericName } from "./lists";
 
 // The shop check (REQ-33): have we had the wine just scanned? It matches
 // on producer, wine name and vintage. The same producer and name with a
@@ -30,6 +30,16 @@ const words = (...texts: (string | null | undefined)[]) => fold(texts.filter(Boo
 // name. At least one of those words must be a real word (four letters or
 // more), so "La" alone never matches.
 function sameWine(drink: Drink, read: Partial<DrinkFields>): boolean {
+  // A generic name ("Pinot Grigio") is only the same wine from the same
+  // producer, and both sides must name one.
+  if (isGenericName(drink.name) || isGenericName(read.name ?? "")) {
+    if (!drink.producer || !read.producer) return false;
+    const a = words(drink.producer);
+    const b = words(read.producer);
+    const within = (x: string[], y: string[]) => x.some((word) => word.length >= 4) && x.every((word) => y.includes(word));
+    if (!(within(a, b) || within(b, a))) return false;
+    return same(drink.name, read.name);
+  }
   if (same(drink.name, read.name)) return true;
   const within = (name: string[], all: string[]) =>
     name.length > 0 && name.some((word) => word.length >= 4) && name.every((word) => all.includes(word));
@@ -41,7 +51,7 @@ function sameWine(drink: Drink, read: Partial<DrinkFields>): boolean {
 function summary(drink: Drink, people: readonly Person[], ratings: readonly Rating[]): Summary {
   return {
     id: drink.id,
-    name: drink.name,
+    name: displayName(drink),
     producer: drink.producer,
     vintage: vintageText(drink),
     wanted: drink.how === "want_to_try",
