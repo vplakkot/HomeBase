@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Lessons caught up. Lesson 19 now covers the rule shared by Paperwork
+  and Storage (an archived file sits in a box), lesson 21 the month that
+  opens itself on the 1st, and a new lesson 25 explains screens that
+  stay put: forms in sheets, search kept in the address, and one set of
+  card styles shared by every module.
+
 ## 1.0.0 - 2026-09-25
 
 HomeBase does real work. Finances runs the household's month end to

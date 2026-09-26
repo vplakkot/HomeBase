@@ -48,6 +48,32 @@ midnight. The live check (`supabase/checks/closing_a_month.sql`) proves
 the job is scheduled and that closing does the right thing, but it
 can't move the clock.
 
+### The month that opens itself (#182)
+
+The same alarm clock now does the start of the month too. Until
+REQ-101, a month existed only once somebody visited Monthly entry and
+pressed Open. Now a job called `open-current-month` runs at two minutes
+past every hour and asks "what month is it in New York?" On the first
+run after midnight on the 1st, it opens that month: rent comes in
+already filled with its amount, card statements wait for theirs. Every
+other run finds the month already open and does nothing.
+
+Three details worth knowing:
+
+- **Two openers at once is harmless.** A person can still open the
+  month by hand. Both paths go through one function, `create_month()`,
+  which inserts the month with `on conflict do nothing`: whoever comes
+  second finds it there and copies no bills, so the list is never
+  doubled. Like two people reaching for the same light switch: the light
+  is on either way.
+- **It waits until there's something to run.** No split yet, or no
+  bills, and the job does nothing. A month with no bills would count as
+  squared, and the nightly close would lock it minutes after it opened.
+- **The job can't be told the date, but the check can.** The function
+  takes `p_today`, defaulting to today in New York, so
+  `supabase/checks/months_open_themselves.sql` can say "pretend it's the
+  1st" without waiting for the calendar.
+
 ## 3. The same rule, written twice, on purpose
 
 "Is this month squared?" is answered in two places:
