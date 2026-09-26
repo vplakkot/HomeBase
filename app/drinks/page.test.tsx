@@ -7,6 +7,7 @@ import { fakeSupabase } from "../../test/fake-supabase";
 import DrinkPage from "./[id]/page";
 import NewDrinkPage from "./new/page";
 import WantToTryPage from "./want-to-try/page";
+import WinesPage from "./wines/page";
 import DrinksPage from "./page";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -71,18 +72,19 @@ function given(drinks: unknown[] = DRINKS) {
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
 }
 
-const list = (params: { q?: string; type?: string; sort?: string } = {}) => DrinksPage({ searchParams: Promise.resolve(params) });
+const list = (params: { q?: string; type?: string; sort?: string } = {}) => WinesPage({ searchParams: Promise.resolve(params) });
+const overview = (params: Record<string, string> = {}) => DrinksPage({ searchParams: Promise.resolve(params) });
 const open = (id: string) => DrinkPage({ params: Promise.resolve({ id }) });
 const cards = () =>
-  within(screen.getByRole("region", { name: /Our drinks|Results/ }))
+  within(screen.getByRole("region", { name: /Wines|Results/ }))
     .queryAllByRole("link")
     .map((link) => link.textContent);
 
-describe("the Drinks list (REQ-30)", () => {
+describe("the Wines list (REQ-30, REQ-121)", () => {
   it("shows each drink's type, name, producer, vintage and every member's rating or not rated", async () => {
     given();
     render(await list());
-    const [cremant, oldVine, reserva] = within(screen.getByRole("region", { name: /Our drinks/ })).getAllByRole("link");
+    const [cremant, oldVine, reserva] = within(screen.getByRole("region", { name: /Wines/ })).getAllByRole("link");
     expect(cremant.textContent).toContain("Sparkling · Maison Pretend · NV");
     expect(reserva.textContent).toContain("Red · Bodega Ficticia · 2019");
     const ratings = (card: HTMLElement) =>
@@ -121,12 +123,12 @@ describe("the Drinks list (REQ-30)", () => {
     expect(sort.value).toBe("rating:user-2");
   });
 
-  it("says so when there's nothing yet, and offers Scan a label and Add by hand", async () => {
+  it("says so when there's nothing yet, and offers Scan and Add by hand", async () => {
     given([]);
     render(await list());
-    expect(screen.getByText("Nothing recorded yet. Scan a label or add one by hand to start.")).toBeTruthy();
+    expect(screen.getByText("Nothing recorded yet. Scan a label or add one by hand.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Add by hand" }).getAttribute("href")).toBe("/drinks/new");
-    expect(screen.getByRole("link", { name: "Scan a label" }).getAttribute("href")).toBe("/drinks/scan");
+    expect(screen.getByRole("button", { name: "Scan" })).toBeTruthy();
   });
 
   // One-handed: every control is at least the 44px tap target, the list
@@ -310,7 +312,7 @@ describe("buy again (REQ-34)", () => {
   it("shows each person's answer in the list and on the drink's page, and nothing when unset", async () => {
     withRatings();
     render(await list());
-    const reserva = within(screen.getByRole("region", { name: /Our drinks/ })).getAllByRole("link")[2];
+    const reserva = within(screen.getByRole("region", { name: /Wines/ })).getAllByRole("link")[2];
     expect(within(within(reserva).getByRole("list", { name: "Ratings" })).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
       "Sam ★★★☆☆ · Buy again: yes",
       "Alex ★★★★★",
@@ -335,5 +337,73 @@ describe("generic names in the list (Vin, 2026-09-26)", () => {
     given([drink("g1", "Pinot Grigio", { producer: "Gaetano D'Aquino", type: "white", vintage: 2025 })]);
     render(await list());
     expect(cards()[0]).toContain("Gaetano D'Aquino · Pinot Grigio");
+  });
+});
+
+describe("the Overview (REQ-120)", () => {
+  const WISH = drink("d9", "Someday Barolo", { how: "want_to_try", created_at: "2026-09-25T12:00:00Z" });
+
+  it("sums up how many wines we've recorded, had and want to try", async () => {
+    // Reserva and Old Vine are rated; Crémant isn't yet.
+    given([...DRINKS, WISH]);
+    render(await overview());
+    expect(screen.getByText("3 wines · 2 had · 1 want to try")).toBeTruthy();
+  });
+
+  it("shows the 3 most recently added drinks with name, vintage and stars, each opening the drink", async () => {
+    given([...DRINKS, WISH]);
+    render(await overview());
+    const region = within(screen.getByRole("region", { name: "Recent scans" }));
+    const links = region.getAllByRole("link").filter((link) => link.textContent !== "Choose a photo");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/drinks/d9", "/drinks/d3", "/drinks/d2"]);
+    expect(links[2].textContent).toContain("Old Vine2021");
+    expect(within(links[2]).getByRole("list", { name: "Ratings" }).textContent).toBe("Alex ★★★★★");
+    expect(links[1].textContent).toContain("NV");
+  });
+
+  it("doesn't hold the full list", async () => {
+    given([...DRINKS, WISH]);
+    render(await overview());
+    expect(screen.queryByText(/Reserva/)).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Type" })).toBeNull();
+    // The header's search looks through Wines.
+    expect(screen.getByRole("search").getAttribute("action")).toBe("/drinks/wines");
+  });
+
+  it("says when nothing is recorded yet, and offers Scan", async () => {
+    given([]);
+    render(await overview());
+    expect(screen.getByText("Nothing recorded yet.")).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "Nothing yet" })).getByRole("button", { name: "Scan" })).toBeTruthy();
+  });
+
+  it("sends a link kept from when the list lived here on to Wines", async () => {
+    given();
+    await expect(overview({ q: "lamb", sort: "oldest" })).rejects.toThrow("REDIRECT:/drinks/wines?q=lamb&sort=oldest");
+  });
+});
+
+describe("the Wines section (REQ-121)", () => {
+  const WISH = drink("d9", "Someday Barolo", { how: "want_to_try" });
+
+  it("comes first among Drinks' sections, before Want to try", async () => {
+    given();
+    render(await list());
+    const tabs = within(screen.getByRole("navigation", { name: /sections/i })).getAllByRole("link");
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Overview", "Wines", "Want to try"]);
+    expect(screen.getByRole("search").getAttribute("action")).toBe("/drinks/wines");
+  });
+
+  it("leads a drink's breadcrumb back to Wines, or to Want to try for a wish", async () => {
+    given([...DRINKS, WISH]);
+    render(await open("d1"));
+    const crumbs = () => within(screen.getByRole("navigation", { name: "Breadcrumb" })).getAllByRole("link");
+    expect(crumbs().map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["Drinks", "/drinks"],
+      ["Wines", "/drinks/wines"],
+    ]);
+    cleanup();
+    render(await open("d9"));
+    expect(crumbs()[1].getAttribute("href")).toBe("/drinks/want-to-try");
   });
 });

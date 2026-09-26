@@ -8,6 +8,7 @@ import { hasPermission } from "../../lib/auth/permissions";
 import { readDrinks, readPeople } from "../../lib/drinks/drinks";
 import { signedPhotoLinks, thumbPath } from "../../lib/drinks/photos";
 import { createClient } from "../../lib/supabase/server";
+import { ScanButton } from "./scan-button";
 import styles from "./drinks.module.css";
 
 // Who is looking at a Drinks page, every drink and rating, and the
@@ -34,20 +35,26 @@ export async function drinksViewer() {
 
 export type DrinksViewer = Awaited<ReturnType<typeof drinksViewer>>;
 
-// Every Drinks screen: the module header with Add by hand and Scan a
-// label (which also takes a photo already taken), and below the
-// top level a breadcrumb back to the list.
+// Every Drinks screen: the module header with Add by hand and Scan, and
+// below the top level a breadcrumb back to the list it came from
+// (REQ-121: Wines, or Want to try for a wish). The scan is a screen of
+// its own (REQ-122): its Cancel in place of the header's buttons.
 export function DrinksScreen({
   viewer,
   section,
   crumb,
+  parent,
   tools,
+  actions,
   children,
 }: {
   viewer: DrinksViewer;
   section?: string;
   crumb?: string;
+  parent?: { name: string; href: string };
   tools?: ReactNode;
+  // In place of Add by hand and Scan.
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -57,11 +64,13 @@ export function DrinksScreen({
       canManageMembers={viewer.canManageMembers}
       account={viewer.account}
       actions={
-        <div className={styles.tools}>
-          {tools}
-          <ButtonLink href="/drinks/new">Add by hand</ButtonLink>
-          <ButtonLink href="/drinks/scan">Scan a label</ButtonLink>
-        </div>
+        actions ?? (
+          <div className={styles.tools}>
+            {tools}
+            <ButtonLink href="/drinks/new">Add by hand</ButtonLink>
+            <ScanButton />
+          </div>
+        )
       }
     >
       <div className={styles.screen}>
@@ -71,6 +80,12 @@ export function DrinksScreen({
               <li>
                 <Link href="/drinks">Drinks</Link>
               </li>
+              {parent ? (
+                <li>
+                  <span aria-hidden="true">› </span>
+                  <Link href={parent.href}>{parent.name}</Link>
+                </li>
+              ) : null}
               <li>
                 <span aria-hidden="true">› </span>
                 <span aria-current="page">{crumb}</span>

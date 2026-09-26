@@ -90,8 +90,12 @@ export const MODULES: readonly Module[] = [
     name: "Drinks",
     tokens: "wine",
     href: "/drinks",
-    // REQ-36: the wines we only want to try have their own view.
-    sections: [{ name: "Want to try", description: "Wines to try next", href: "/drinks/want-to-try" }],
+    // REQ-121: the full list is Wines, first; REQ-36: the wines we only
+    // want to try have their own view.
+    sections: [
+      { name: "Wines", description: "Every wine we've recorded", href: "/drinks/wines" },
+      { name: "Want to try", description: "Wines to try next", href: "/drinks/want-to-try" },
+    ],
   },
   { slug: "meal-plans", name: "Meal Plans", tokens: "meals", href: null, sections: [] },
   { slug: "health", name: "Health", tokens: "health", href: null, sections: [] },

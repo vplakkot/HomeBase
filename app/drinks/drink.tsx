@@ -44,7 +44,11 @@ export function DrinkScreen({
   const shown = details.filter((row): row is [string, string] => row[1] !== null);
 
   return (
-    <DrinksScreen viewer={viewer} crumb={displayName(drink)}>
+    <DrinksScreen
+      viewer={viewer}
+      crumb={displayName(drink)}
+      parent={untried ? { name: "Want to try", href: "/drinks/want-to-try" } : { name: "Wines", href: "/drinks/wines" }}
+    >
       <div className={styles.fileHead}>
         <h2 className={styles.title}>{displayName(drink)}</h2>
         <div className={styles.fileButtons}>

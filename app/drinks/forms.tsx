@@ -288,7 +288,7 @@ export function PhotosForm({ drinkId, onSaved }: { drinkId: string; onSaved: () 
   };
   return (
     <div className={cards.form}>
-      {pending ? <p className={styles.unrated}>Saving the photos…</p> : <LabelPhotos onDone={save} />}
+      {pending ? <p className={styles.unrated}>Saving the photos…</p> : <LabelPhotos onDone={save} done="Save the photo" />}
       <Outcome state={state} />
     </div>
   );

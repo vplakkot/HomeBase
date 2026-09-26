@@ -1,13 +1,12 @@
 import { drinksViewer } from "../frame";
 import { DrinksList } from "../list";
 
-// REQ-36: the wines we want to try, kept out of the main list. Same
-// search, type filter and sort as the list.
-export default async function WantToTryPage({
+// REQ-121: the full list of our wines, a section of its own.
+export default async function WinesPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string; type?: string; sort?: string }>;
 }) {
   const [viewer, params] = await Promise.all([drinksViewer(), searchParams]);
-  return <DrinksList viewer={viewer} wanted {...params} />;
+  return <DrinksList viewer={viewer} {...params} />;
 }

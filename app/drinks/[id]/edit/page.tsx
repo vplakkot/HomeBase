@@ -10,7 +10,11 @@ export default async function EditDrinkPage({ params }: { params: Promise<{ id: 
   const drink = viewer.drinks.find((row) => row.id === id);
   if (!drink) notFound();
   return (
-    <DrinksScreen viewer={viewer} crumb={`Edit ${drink.name}`}>
+    <DrinksScreen
+      viewer={viewer}
+      crumb={`Edit ${drink.name}`}
+      parent={{ name: drink.name, href: `/drinks/${drink.id}` }}
+    >
       <section className={styles.formCard} aria-label={`Edit ${drink.name}`}>
         <DrinkForm drink={drink} />
       </section>

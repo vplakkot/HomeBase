@@ -185,6 +185,29 @@ export function listDrinks(
   return found.sort((a, b) => stars(b) - stars(a) || added(b) - added(a));
 }
 
+// REQ-120: the Overview's summary. "Recorded" counts the wines in the
+// Wines section (as Home's tile does); "had" is the ones someone rated.
+export type DrinksSummary = { recorded: number; had: number; wanted: number };
+
+export function drinksSummary(drinks: readonly Drink[], ratings: readonly Rating[]): DrinksSummary {
+  const kept = drinks.filter((drink) => drink.how !== "want_to_try");
+  const rated = new Set(ratings.map((row) => row.drink_id));
+  return {
+    recorded: kept.length,
+    had: kept.filter((drink) => rated.has(drink.id)).length,
+    wanted: drinks.length - kept.length,
+  };
+}
+
+export function summaryText({ recorded, had, wanted }: DrinksSummary): string {
+  return `${recorded} ${recorded === 1 ? "wine" : "wines"} · ${had} had · ${wanted} want to try`;
+}
+
+// REQ-120: the most recently added drinks, wishes included.
+export function recentDrinks(drinks: readonly Drink[], count = 3): Drink[] {
+  return [...drinks].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, count);
+}
+
 // What a form sends, tidied into a drink's fields (REQ-37): only the name
 // is required. Grapes come one per field and are kept as written; the
 // lists only match them (REQ-27).
