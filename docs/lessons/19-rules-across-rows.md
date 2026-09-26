@@ -84,3 +84,29 @@ come to $10.06 — a cent that was never spent, like cutting a cake in
 half and ending up with a crumb too many. `monthTotals()` rounds
 every share but the last, and gives the last person whatever is left,
 so the crumb always lands on someone's plate and the sum is exact.
+
+## A rule that spans two modules (Storage, #177)
+
+Paperwork and Storage each have their own table, but one promise
+belongs to both: an archived paperwork file sits in a **box**. A loose
+suitcase can't hold a folder. That promise can be broken from either
+side, so it's guarded from either side:
+
+| Someone tries to… | Which table is written | Guard |
+|---|---|---|
+| archive a file into something that isn't a box | `paperwork_files` | trigger `refuse_file_outside_a_box` |
+| untick "It's a box" while it holds files | `storage_entries` | trigger `refuse_unboxing_with_files` |
+| remove a box that holds files | `storage_entries` | the file's link says `on delete restrict` |
+
+It's the same shape as the payments rule above: find every door into
+the broken state and put a guard on each, not just on the one you
+thought of first. A shop with two entrances needs a security tag reader
+at both.
+
+The app asks first too, so people read "It holds 2 archived paperwork
+files. Bring them back or archive them to another box first" rather
+than a database error. That's the friendly message; the triggers are
+the ones a stale page can't get round.
+
+Proven after merge by `supabase/checks/storage.sql`, which tries all
+three doors as a real member and undoes everything at the end.

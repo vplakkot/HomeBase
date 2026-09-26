@@ -953,7 +953,7 @@ has the header search, whose results replace the view, and Add to
 storage, a sheet whose one-time notice shows the new ID to print. Edit,
 the label and Remove (after a confirm) are behind the entry's Manage
 menu. Storage's stylesheet borrows Paperwork's shapes with `composes`
-rather than copying them. Paperwork's file page archives
+rather than copying them (see [lesson 25](lessons/25-a-screen-that-stays-put.md)). Paperwork's file page archives
 a file or brings it back; its files list hides archived files until
 asked. Home's Storage tile only counts entries; it raises no action
 items.
