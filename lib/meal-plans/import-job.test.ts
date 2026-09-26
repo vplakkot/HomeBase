@@ -47,6 +47,14 @@ describe("reading an uploaded video after the phone moves on (REQ-112)", () => {
     expect(discard).toHaveBeenCalled();
   });
 
+  it("only writes its result over a row still processing (not one removed or given up on)", async () => {
+    const fake = admin();
+    const check = vi.fn(async () => ({ state: "ACTIVE" as const, uri: "u" }));
+    await processVideoImport(fake as never, ID, { wait, check, read: vi.fn(async () => ({ draft: DRAFT })), discard: vi.fn(async () => {}) });
+    const query = fake.from.mock.results.map((r) => r.value as Record<string, ReturnType<typeof vi.fn>>).find((q) => q.update.mock.calls.length > 0)!;
+    expect(query.eq).toHaveBeenCalledWith("status", "processing");
+  });
+
   it("leaves an import alone that isn't processing (already read, or removed)", async () => {
     const fake = admin("ready");
     const read = vi.fn();

@@ -12,9 +12,9 @@ const POLL_MS = 3000;
 // import fails rather than hang.
 const READY_WITHIN_MS = 150_000;
 
-// A row still processing after this was lost (the server stopped before
-// finishing); one still uploading was abandoned. Both become failures the
-// person can dismiss or try again.
+// A row still processing this long after its upload finished was lost
+// (the server stopped before finishing); one still uploading this long was
+// abandoned. Both become failures the person can dismiss or try again.
 export const PROCESSING_GIVES_UP_MS = 10 * 60_000;
 export const UPLOAD_GIVES_UP_MS = 2 * 60 * 60_000;
 
@@ -52,7 +52,9 @@ export async function processVideoImport(
     admin
       .from("recipe_imports")
       .update({ ...fields, gemini_file: null, updated_at: new Date().toISOString() })
-      .eq("id", importId);
+      .eq("id", importId)
+      // Removed or given up on meanwhile: leave it be.
+      .eq("status", "processing");
   try {
     const ready = await waitUntilReady(file, deps.check, deps.wait);
     if ("error" in ready) {

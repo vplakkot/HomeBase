@@ -46,6 +46,7 @@ export type RecipeImport = {
   photo: string | null;
   seen: boolean;
   created_at: string;
+  updated_at: string;
 };
 
 const text = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
@@ -61,6 +62,9 @@ export function isCookingMethod(value: unknown): value is CookingMethod {
 }
 
 // Only http(s) links are kept: the card opens them.
+// REQ-110: the database keeps a cuisine to 40 characters.
+export const MAX_CUISINE = 40;
+
 export function linkOrNull(value: unknown): string | null {
   const link = text(value);
   if (!link) return null;
@@ -125,6 +129,7 @@ export function recipeFieldsFrom(formData: FormData): RecipeFields | { error: st
   const page_url = linkOrNull(pageText);
   if (videoText && !video_url) return { error: "The video link should start with https://." };
   if (pageText && !page_url) return { error: "The recipe page link should start with https://." };
+  if (text(formData.get("cuisine")).length > MAX_CUISINE) return { error: `Keep the cuisine under ${MAX_CUISINE} letters.` };
   return {
     name,
     cuisine: orNull(formData.get("cuisine")),
@@ -178,7 +183,7 @@ export async function readCuisines(supabase: SupabaseClient): Promise<string[]> 
   return (data ?? []).map((row: { name: string }) => row.name);
 }
 
-const IMPORT_COLUMNS = "id, name, video_url, status, draft, error, photo, seen, created_at";
+const IMPORT_COLUMNS = "id, name, video_url, status, draft, error, photo, seen, created_at, updated_at";
 
 // The signed-in person's imports (the table only shows each person theirs).
 export async function readImports(supabase: SupabaseClient): Promise<RecipeImport[]> {

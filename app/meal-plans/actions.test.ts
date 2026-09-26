@@ -113,15 +113,15 @@ describe("adding a recipe from a video (REQ-112, BETA)", () => {
   });
 
   it("asks Google (from the server) how much arrived, while the video is still going", async () => {
-    given({ recipe_imports: [{ id: IMPORT, upload_url: "https://upload.example/one-time", status: "uploading" }] });
+    given({ recipe_imports: [{ id: IMPORT, upload_url: "https://generativelanguage.googleapis.com/upload/v1beta/files?upload_id=x", status: "uploading" }] });
     vi.mocked(uploadProgress).mockResolvedValue({ final: false, received: 8388608 });
     expect(await videoProgress(IMPORT)).toEqual({ received: 8388608 });
-    expect(uploadProgress).toHaveBeenCalledWith("https://upload.example/one-time");
+    expect(uploadProgress).toHaveBeenCalledWith("https://generativelanguage.googleapis.com/upload/v1beta/files?upload_id=x");
   });
 
   it("once the video has all arrived, marks it processing and reads it after answering", async () => {
     const { after } = await import("next/server");
-    given({ recipe_imports: [{ id: IMPORT, upload_url: "https://upload.example/one-time", status: "uploading" }] });
+    given({ recipe_imports: [{ id: IMPORT, upload_url: "https://generativelanguage.googleapis.com/upload/v1beta/files?upload_id=x", status: "uploading" }] });
     vi.mocked(uploadProgress).mockResolvedValue({ final: true, file: "files/abc123" });
     expect(await videoProgress(IMPORT)).toEqual({ done: true });
     const update = on("recipe_imports").find((query) => query.update.mock.calls.length > 0)!;
@@ -138,10 +138,26 @@ describe("adding a recipe from a video (REQ-112, BETA)", () => {
 
   it("gives up on an import left processing too long, so the toast can say so", async () => {
     const old = new Date(Date.now() - 11 * 60_000).toISOString();
-    given({ recipe_imports: [{ id: IMPORT, name: "Test", status: "processing", seen: false, created_at: old }] });
+    given({ recipe_imports: [{ id: IMPORT, name: "Test", status: "processing", seen: false, created_at: old, updated_at: old }] });
     const [item] = await myRecipeImports();
     expect(item).toMatchObject({ status: "failed", error: "It stopped before finishing." });
-    expect(on("recipe_imports").some((query) => query.update.mock.calls.length > 0)).toBe(true);
+    const update = on("recipe_imports").find((query) => query.update.mock.calls.length > 0)!;
+    expect(update.eq).toHaveBeenCalledWith("status", "processing");
+  });
+
+  it("counts processing from when the upload finished, so a slow upload isn't failed as it starts being read", async () => {
+    const started = new Date(Date.now() - 30 * 60_000).toISOString();
+    const finished = new Date(Date.now() - 60_000).toISOString();
+    given({ recipe_imports: [{ id: IMPORT, name: "Test", status: "processing", seen: false, created_at: started, updated_at: finished }] });
+    const [item] = await myRecipeImports();
+    expect(item.status).toBe("processing");
+    expect(on("recipe_imports").some((query) => query.update.mock.calls.length > 0)).toBe(false);
+  });
+
+  it("won't use an upload link that isn't Google's", async () => {
+    given({ recipe_imports: [{ id: IMPORT, upload_url: "https://elsewhere.example/steal", status: "uploading" }] });
+    expect(await videoProgress(IMPORT)).toEqual({ error: "That upload isn't one of ours." });
+    expect(uploadProgress).not.toHaveBeenCalled();
   });
 
   it("throws a draft away with its still", async () => {

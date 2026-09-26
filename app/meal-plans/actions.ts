@@ -18,6 +18,10 @@ import { createClient } from "../../lib/supabase/server";
 export type FormState = { error?: string; saved?: boolean };
 
 const UUID = /^[0-9a-f-]{36}$/i;
+// A row's own person can change it directly in the database, so what the
+// server reads back from it is checked before it's used with our key.
+const GEMINI_FILE = /^files\/[a-z0-9-]+$/i;
+const UPLOAD_LINK = "https://generativelanguage.googleapis.com/upload/";
 const MAX_PHOTO_UPLOAD = 1024 * 1024;
 const MAX_RECIPE_TEXT = 20_000;
 
@@ -115,9 +119,10 @@ export async function startVideoImport(formData: FormData): Promise<VideoStart> 
   const still = photoFrom(formData);
   if (still && "error" in still) return still;
   const id = crypto.randomUUID();
+  let photo: string | null = null;
   try {
-    const photo = still ? await storePhoto(supabase, `imports/${id}`, still) : null;
     const uploadUrl = await openVideoUpload(size, mime, name);
+    photo = still ? await storePhoto(supabase, `imports/${id}`, still) : null;
     const { error } = await supabase
       .from("recipe_imports")
       .insert({ id, name, video_url, photo, status: "uploading", upload_url: uploadUrl });
@@ -125,6 +130,7 @@ export async function startVideoImport(formData: FormData): Promise<VideoStart> 
     return { id, uploadUrl };
   } catch (error) {
     Sentry.captureException(error);
+    await removePhoto(supabase, photo);
     return { error: "The upload couldn't start. Try again." };
   }
 }
@@ -144,9 +150,10 @@ export async function videoProgress(id: string): Promise<VideoProgress> {
     .select("upload_url, status")
     .eq("id", importId)
     .maybeSingle();
-  if (!row?.upload_url || row.status !== "uploading") return { error: "That upload isn't one of ours." };
+  if (!row?.upload_url?.startsWith(UPLOAD_LINK) || row.status !== "uploading") return { error: "That upload isn't one of ours." };
   const progress = await uploadProgress(row.upload_url);
   if (!progress.final) return { received: progress.received };
+  if (!GEMINI_FILE.test(progress.file)) return { error: "That upload isn't one of ours." };
   const { data, error } = await supabase
     .from("recipe_imports")
     .update({ status: "processing", gemini_file: progress.file, upload_url: null, updated_at: new Date().toISOString() })
@@ -185,13 +192,20 @@ export async function myRecipeImports(): Promise<RecipeImport[]> {
   const imports = await readImports(supabase).catch(() => []);
   const now = Date.now();
   for (const item of imports) {
-    const age = now - Date.parse(item.created_at);
+    // Age in its current step: processing counts from when the upload
+    // finished, not from when it started.
+    const age = now - Date.parse(item.updated_at);
     const lost =
       (item.status === "processing" && age > PROCESSING_GIVES_UP_MS) || (item.status === "uploading" && age > UPLOAD_GIVES_UP_MS);
     if (lost) {
+      const was = item.status;
       item.status = "failed";
       item.error = "It stopped before finishing.";
-      await supabase.from("recipe_imports").update({ status: "failed", error: item.error }).eq("id", item.id);
+      await supabase
+        .from("recipe_imports")
+        .update({ status: "failed", error: item.error, upload_url: null, updated_at: new Date().toISOString() })
+        .eq("id", item.id)
+        .eq("status", was);
     }
   }
   return imports.filter((item) => !item.seen || item.status === "uploading" || item.status === "processing");
@@ -210,7 +224,7 @@ export async function dismissImport(formData: FormData): Promise<void> {
   if (!importId) return;
   const { data } = await supabase.from("recipe_imports").select("photo, gemini_file").eq("id", importId).maybeSingle();
   await supabase.from("recipe_imports").delete().eq("id", importId);
-  if (data?.gemini_file) await deleteVideo(data.gemini_file);
+  if (data?.gemini_file && GEMINI_FILE.test(data.gemini_file)) await deleteVideo(data.gemini_file);
   await removePhoto(supabase, data?.photo ?? null);
   refresh();
   if (formData.get("stay") !== "yes") redirect("/meal-plans");

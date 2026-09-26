@@ -34,6 +34,21 @@ describe("sending a video to Google in pieces (REQ-112)", () => {
     expect(send.mock.calls[2][1].headers).toEqual({ "X-Goog-Upload-Command": "upload, finalize", "X-Goog-Upload-Offset": String(PIECE_BYTES) });
   });
 
+  it("counts failures in a row, so many pauses over a long upload don't make it give up", async () => {
+    const file = new Blob([new Uint8Array(PIECE_BYTES * 25 + 10)]);
+    // Every piece fails once (a switch to another app), then goes.
+    let calls = 0;
+    let received = 0;
+    const send = vi.fn((_url: string, init: RequestInit) => {
+      if (++calls % 2 === 1) return offline();
+      received += (init.body as Blob).size;
+      return Promise.resolve(ok());
+    });
+    const check = vi.fn(async () => (received >= file.size ? { done: true as const } : { received }));
+    await sendVideo({ id: "i5", name: "Test", url: "u", file, check }, { send, waitForScreen: async () => {} });
+    expect(received).toBe(file.size);
+  });
+
   it("gives up after too many failures", async () => {
     const file = new Blob([new Uint8Array(PIECE_BYTES + 10)]);
     const send = vi.fn(offline);

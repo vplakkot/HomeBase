@@ -17,6 +17,7 @@
 // Google's X-Goog-Upload-Chunk-Granularity (seen 2026-09-26): every piece
 // but the last must be a multiple of it.
 export const PIECE_BYTES = 8 * 1024 * 1024;
+// Failures in a row before giving up.
 const MAX_RESUMES = 20;
 
 export type UploadProgress = { id: string; name: string; sent: number; total: number; paused: boolean };
@@ -111,6 +112,9 @@ export async function sendVideo(
         if (!last) await pause(problem);
       }
       if (went && !last) {
+        // The limit is on failures in a row, so many pauses over a long
+        // upload don't add up to giving up.
+        failures = 0;
         offset = end;
         progress.sent = offset;
         changed();
