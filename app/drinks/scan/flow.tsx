@@ -9,6 +9,7 @@ import cards from "../../../components/cards.module.css";
 import { checkDrink, readLabel, type Scan } from "../actions";
 import { DrinkForm } from "../forms";
 import { appendShots, LabelPhotos, type Shots } from "../photos";
+import { heldPhoto, releasePhoto } from "./pending";
 import styles from "../drinks.module.css";
 
 type Step = { at: "photos" } | { at: "reading"; shots: Shots } | ({ at: "review"; shots: Shots } & Scan);
@@ -76,13 +77,17 @@ function CheckResult({ check, onSaveAsNew }: { check: ShopCheck; onSaveAsNew?: (
   );
 }
 
-// Scanning a label (REQ-25, REQ-26, REQ-28): the front photo (then Retake
-// or Use it), the back one or Skip, both read together, then the review
+// Scanning a label (REQ-25, REQ-26, REQ-28, REQ-122): the front photo,
+// usually already taken by the header's Scan, then Read it or a back
+// photo that goes on by itself; both are read together, then the review
 // screen: the photos beside the fields read from them. Save keeps the
 // drink and its photos; Cancel keeps nothing. Nothing is stored before
 // Save: the photos wait in the browser until then.
 export function ScanFlow() {
   const [step, setStep] = useState<Step>({ at: "photos" });
+  // The photo the header's Scan took, picked up once.
+  const [held, setHeld] = useState(heldPhoto);
+  useEffect(() => releasePhoto(), []);
   // With the same wine already recorded, the form waits for Save as new.
   const [savingNew, setSavingNew] = useState(false);
 
@@ -104,6 +109,7 @@ export function ScanFlow() {
     return (
       <LabelPhotos
         onDone={read}
+        held={held}
         hint={
           <p className={styles.unrated}>
             Camera not opening? Allow it for HomeBase in the iPhone&apos;s Settings, or choose a photo instead.
@@ -120,7 +126,10 @@ export function ScanFlow() {
       </section>
     );
 
-  return <Review step={step} again={() => setStep({ at: "photos" })} savingNew={savingNew} setSavingNew={setSavingNew} />;
+  return <Review step={step} again={() => {
+        setHeld(null);
+        setStep({ at: "photos" });
+      }} savingNew={savingNew} setSavingNew={setSavingNew} />;
 }
 
 // The review screen (REQ-28) with the shop check above it (REQ-33).
@@ -165,6 +174,10 @@ function Review({
           <img src={shots.back.url} alt="Back label" className={styles.preview} />
         ) : null}
       </section>
+      {/* REQ-122: a retake is always possible here. */}
+      <button type="button" className={styles.linkButton} onClick={again}>
+        Try another photo
+      </button>
       <CheckResult
         check={check}
         onSaveAsNew={check.kind === "same" && !savingNew ? () => setSavingNew(true) : undefined}
@@ -174,9 +187,6 @@ function Review({
           {reading.found ? null : (
             <div className={styles.notice} role="status">
               <p>Nothing could be read from the label. Fill in what it says, or try another photo.</p>
-              <button type="button" className={styles.linkButton} onClick={again}>
-                Try another photo
-              </button>
             </div>
           )}
           <DrinkForm

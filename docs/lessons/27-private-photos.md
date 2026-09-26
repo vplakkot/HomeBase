@@ -43,6 +43,21 @@ side, save as JPEG, and if it's still over 450 KB, save again at lower
 quality until it fits. A worst-case 11 MB test photo came out at 393
 KB, plus a 12 KB copy for the list.
 
+## The camera opens only from a tap
+
+A web page can't open the camera whenever it likes: the browser allows
+it only as the direct result of a tap, like a lift button that only
+works while you're pressing it. So the header's Scan opens the camera
+on the page you're on, with no scan screen in between. The scan screen
+arrives after the photo is taken, and the photo is handed over the way
+you'd hand someone a note on the way through a door: a variable in the
+browser's memory ([`app/drinks/scan/pending.ts`](../../app/drinks/scan/pending.ts)).
+Moving between pages in a Next.js app doesn't reload the scripts, so
+the note is still there when the scan screen looks for it; a full
+reload loses it, and the scan screen then offers the camera itself.
+The same rule is why Add back label and Retake open a picker right away:
+each is a tap.
+
 ## Order matters
 
 Saving a scanned drink touches two places: Storage and the `drinks`

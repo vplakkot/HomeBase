@@ -977,9 +977,12 @@ add form offers them as suggestions and search files spellings together
 (Shiraz finds a Syrah), while the drink keeps what was typed.
 [`lib/drinks/drinks.ts`](../lib/drinks/drinks.ts) reads drinks and
 ratings, and does search, the type filter and the sort. Pages live under
-`/drinks`: the list, whose search, type and sort are one form kept in
-the address, and the same list for Want to try (`/drinks/want-to-try`,
-the module's one section tab), which the main list leaves out; Add a drink (`/drinks/new`) and Edit, full pages because
+`/drinks`: the Overview, a one-line summary (wines recorded, had, want
+to try) and the three most recently added drinks; the Wines section
+(`/drinks/wines`), the full list, whose search, type and sort are one
+form kept in the address; the same list for Want to try
+(`/drinks/want-to-try`), which Wines leaves out. A drink's breadcrumb
+goes back to whichever of the two it belongs in. Add a drink (`/drinks/new`) and Edit, full pages because
 the form is long; and a drink's page, with every member's rating by name
 and a Rate sheet. Home's Drinks tile only counts drinks. See
 [lesson 26](lessons/26-rows-that-belong-to-one-person.md) for how a
@@ -1006,9 +1009,15 @@ phone photo (3–12 MB)
     with their paths; if the row fails, the uploads are removed
 ```
 
-Scanning (`/drinks/scan`) is the browser's file picker: `capture`
-opens the phone's camera, and without it the photo library. Front,
-Retake or Use it, then Add back label or Skip. The photos go to
+Scanning is the browser's file picker: `capture` opens the phone's
+camera, and without it the photo library. The header's Scan opens the
+camera on the page you're on; the photo waits in the browser's memory
+([`app/drinks/scan/pending.ts`](../app/drinks/scan/pending.ts)) while
+the app moves to the scan screen (`/drinks/scan`), which has Cancel
+instead of the header's buttons. There: Read it, Add back label (from
+the camera or the library, whichever the front came from; a back photo
+is read straight away) or Retake. Opened on its own, the scan screen
+offers the camera or Choose a photo. The photos go to
 `readLabel`, which hands them to the label reader (below). The review screen is the Add
 form filled with what was read, next to the photos; nothing is stored
 until Save. A drink without photos gets them later from Manage. See

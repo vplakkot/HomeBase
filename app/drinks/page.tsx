@@ -1,12 +1,15 @@
-import { DrinksHome } from "./home";
+import { redirect } from "next/navigation";
 import { drinksViewer } from "./frame";
+import { DrinksOverview } from "./overview";
 
-// Drinks' home (REQ-30); the screen itself is in home.tsx.
+// Drinks' home (REQ-120); the screen itself is in overview.tsx. A link
+// kept from when the list lived here goes on to Wines with its search.
 export default async function DrinksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; type?: string; sort?: string }>;
+  searchParams: Promise<Record<string, string>>;
 }) {
-  const [viewer, params] = await Promise.all([drinksViewer(), searchParams]);
-  return <DrinksHome viewer={viewer} {...params} />;
+  const params = new URLSearchParams(await searchParams);
+  if (params.size > 0) redirect(`/drinks/wines?${params}`);
+  return <DrinksOverview viewer={await drinksViewer()} />;
 }

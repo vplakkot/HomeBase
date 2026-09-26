@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Drinks, fifth batch: a calmer Overview and a quicker scan. The
+  Overview now sums up where we stand ("12 wines · 5 had · 3 want to
+  try") and shows the three most recent scans; the full list moved to a
+  new Wines section, first before Want to try, and a drink's breadcrumb
+  leads back to it. The header's button is just "Scan" and opens the
+  camera straight away; after the front photo one screen offers Read
+  it, Add back label (which opens the camera, or the library for a
+  photo chosen from there, and reads as soon as the back is in) or
+  Retake. The scan is a screen of its own with Cancel, and the review
+  screen always offers Try another photo.
 - Wines named after their grape or region ("Pinot Grigio", "Rioja")
   are shown with their producer first ("Gaetano D'Aquino · Pinot
   Grigio") in the list, on the drink's page and in the shop check, so

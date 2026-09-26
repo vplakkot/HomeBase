@@ -8,13 +8,15 @@ import { installDialogStandIn } from "../../test/dialog";
 import { fakeSupabase } from "../../test/fake-supabase";
 import DrinkPage from "./[id]/page";
 import DrinksPage from "./page";
+import WinesPage from "./wines/page";
 import ScanPage from "./scan/page";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push, back: vi.fn() }),
   usePathname: () => "/drinks",
   notFound: vi.fn(() => {
     throw new Error("NOT_FOUND");
@@ -90,6 +92,15 @@ async function pick(name: string) {
   });
 }
 const button = (name: string) => screen.getByRole("button", { name });
+// Which file pickers were opened (a test can't see the camera itself).
+function clicks() {
+  const spy = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
+  return () => {
+    const labels = spy.mock.contexts.map((input) => (input as HTMLInputElement).getAttribute("aria-label"));
+    spy.mockRestore();
+    return labels;
+  };
+}
 // Every drink the fake database was asked to add.
 const inserts = () =>
   fake.from.mock.results.flatMap(({ value }) => (value.insert as ReturnType<typeof vi.fn>).mock.calls.map(([row]) => row));
@@ -110,44 +121,87 @@ describe("scanning a label (REQ-25, REQ-26)", () => {
     expect(screen.getByText(/Camera not opening\? Allow it/)).toBeTruthy();
   });
 
-  it("shows the photo with Retake or Use it", async () => {
+  it("shows the photo with Read it, Add back label and Retake, which takes it again the same way", async () => {
     given();
     render(await ScanPage());
     await pick("Take the front label");
     expect(screen.getByRole("img", { name: "Front label, as taken" })).toBeTruthy();
+    expect(button("Read it")).toBeTruthy();
+    expect(button("Add back label")).toBeTruthy();
+    const opened = clicks();
     fireEvent.click(button("Retake"));
-    expect(screen.queryByRole("img", { name: "Front label, as taken" })).toBeNull();
-    expect(button("Take the front label")).toBeTruthy();
+    expect(opened()).toEqual(["Take the front label"]);
+    await pick("Take the front label");
+    expect(screen.getAllByRole("img", { name: "Front label, as taken" })).toHaveLength(1);
   });
 
-  it("offers the back label or Skip, then reads both photos together", async () => {
+  it("opens the camera for the back label straight away, and reads both without another tap", async () => {
     given();
     render(await ScanPage());
     await pick("Take the front label");
-    fireEvent.click(button("Use it"));
-    expect(button("Add back label")).toBeTruthy();
-    expect(button("Skip")).toBeTruthy();
+    const opened = clicks();
     fireEvent.click(button("Add back label"));
+    expect(opened()).toEqual(["Take the back label"]);
     await pick("Take the back label");
-    await act(async () => {
-      fireEvent.click(button("Use it"));
-    });
     await waitFor(() => expect(noReader).toHaveBeenCalled());
     expect(vi.mocked(noReader).mock.calls[0][0]).toHaveLength(2);
     const photos = await screen.findByRole("region", { name: "Label photos" });
     expect(within(photos).getAllByRole("img").map((img) => img.getAttribute("alt"))).toEqual(["Front label", "Back label"]);
   });
 
-  it("works the same from a photo already taken, sending the front alone after Skip", async () => {
+  it("takes the back label from the library after a front chosen there, and reads the front alone on Read it", async () => {
     given();
     render(await ScanPage());
     await pick("Choose a photo");
-    fireEvent.click(button("Use it"));
+    const opened = clicks();
+    fireEvent.click(button("Add back label"));
+    expect(opened()).toEqual(["Choose the back label"]);
+    expect((screen.getByLabelText("Choose the back label") as HTMLInputElement).hasAttribute("capture")).toBe(false);
     await act(async () => {
-      fireEvent.click(button("Skip"));
+      fireEvent.click(button("Read it"));
     });
     await screen.findByRole("region", { name: "Check the details" });
     expect(vi.mocked(noReader).mock.calls[0][0]).toHaveLength(1);
+  });
+});
+
+describe("scanning in fewer taps (REQ-122)", () => {
+  it("says Scan, and opens the camera from the Drinks header", async () => {
+    given();
+    render(await DrinksPage({ searchParams: Promise.resolve({}) }));
+    // With nothing recorded, the Overview offers Scan too; the header's comes first.
+    const camera = screen.getAllByLabelText("Scan with the camera")[0] as HTMLInputElement;
+    expect(camera.getAttribute("capture")).toBe("environment");
+    const opened = clicks();
+    fireEvent.click(screen.getAllByRole("button", { name: "Scan" })[0]);
+    expect(opened()).toEqual(["Scan with the camera"]);
+    expect(screen.queryByRole("link", { name: "Scan a label" })).toBeNull();
+  });
+
+  it("carries the photo taken there to the scan screen, ready to read", async () => {
+    given();
+    render(await DrinksPage({ searchParams: Promise.resolve({}) }));
+    const camera = screen.getAllByLabelText("Scan with the camera")[0];
+    await act(async () => {
+      fireEvent.change(camera, { target: { files: [photo()] } });
+    });
+    expect(push).toHaveBeenCalledWith("/drinks/scan");
+    cleanup();
+    render(await ScanPage());
+    expect(await screen.findByRole("img", { name: "Front label, as taken" })).toBeTruthy();
+    // The back label comes from the camera too.
+    const opened = clicks();
+    fireEvent.click(button("Add back label"));
+    expect(opened()).toEqual(["Take the back label"]);
+  });
+
+  it("is a screen of its own: no Add by hand or Scan, no Overview, and Cancel", async () => {
+    given();
+    render(await ScanPage());
+    expect(screen.queryByRole("link", { name: "Add by hand" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Scan" })).toBeNull();
+    expect(screen.queryByText("Overview", { selector: "header *" })).toBeNull();
+    expect(button("Cancel")).toBeTruthy();
   });
 });
 
@@ -157,9 +211,8 @@ describe("the review screen (REQ-28)", () => {
     given();
     render(await ScanPage());
     await pick("Take the front label");
-    fireEvent.click(button("Use it"));
     await act(async () => {
-      fireEvent.click(button("Skip"));
+      fireEvent.click(button("Read it"));
     });
     return screen.findByRole("region", { name: "Check the details" });
   }
@@ -181,8 +234,14 @@ describe("the review screen (REQ-28)", () => {
     const form = await review();
     expect(within(form).getByRole("status").textContent).toContain("Nothing could be read from the label.");
     expect((within(form).getByRole("textbox", { name: "Name" }) as HTMLInputElement).value).toBe("");
-    fireEvent.click(within(form).getByRole("button", { name: "Try another photo" }));
+    fireEvent.click(button("Try another photo"));
     expect(button("Take the front label")).toBeTruthy();
+  });
+
+  it("offers Try another photo even when the label was read", async () => {
+    await review({ found: true, fields: { name: "Reserva" }, unsure: [] });
+    fireEvent.click(button("Try another photo"));
+    expect(button("Choose a photo")).toBeTruthy();
   });
 
   it("saves my corrections with the photo, without asking for a rating", async () => {
@@ -213,8 +272,8 @@ describe("photos on the list and the drink's page (REQ-32, REQ-30)", () => {
 
   it("shows a label thumbnail in the list, through a private link", async () => {
     given([PICTURED, drink("d2", "Picnic white")]);
-    render(await DrinksPage({ searchParams: Promise.resolve({}) }));
-    const [withPhoto, without] = within(screen.getByRole("region", { name: /Our drinks/ })).getAllByRole("link");
+    render(await WinesPage({ searchParams: Promise.resolve({}) }));
+    const [withPhoto, without] = within(screen.getByRole("region", { name: /Wines/ })).getAllByRole("link");
     expect(withPhoto.querySelector("img")?.getAttribute("src")).toBe("https://signed.example/d1/1-front-thumb.jpg");
     expect(without.querySelector("img")).toBeNull();
   });
@@ -259,9 +318,8 @@ describe("the shop check (REQ-33)", () => {
     vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
     render(await ScanPage());
     await pick("Take the front label");
-    fireEvent.click(button("Use it"));
     await act(async () => {
-      fireEvent.click(button("Skip"));
+      fireEvent.click(button("Read it"));
     });
     return screen.findByRole("region", { name: "Have we had it?" });
   }
@@ -317,9 +375,8 @@ describe("the shop check after a correction (REQ-33)", () => {
     vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
     render(await ScanPage());
     await pick("Take the front label");
-    fireEvent.click(button("Use it"));
     await act(async () => {
-      fireEvent.click(button("Skip"));
+      fireEvent.click(button("Read it"));
     });
     const answer = await screen.findByRole("region", { name: "Have we had it?" });
     expect(within(answer).getByRole("heading").textContent).toBe("New to us");

@@ -6,11 +6,11 @@ import { DrinksScreen, type DrinksViewer } from "./frame";
 import { ListControls, SearchBox } from "./controls";
 import styles from "./drinks.module.css";
 
-// Drinks' home (REQ-30): every drink we've recorded, newest first, each
+// The Wines section (REQ-30, REQ-121): every wine we've recorded, newest first, each
 // with every household member's rating or "not rated". Search, a type
 // filter and a sort sit in the address (?q, ?type, ?sort), so the back
 // button and a shared link keep them.
-export function DrinksHome({
+export function DrinksList({
   viewer,
   q = "",
   type = "",
@@ -26,17 +26,17 @@ export function DrinksHome({
 }) {
   const sort = parseSort(sortParam);
   const drinks = listDrinks(viewer.drinks, viewer.ratings, { query: q, type, sort, wanted });
-  const here = wanted ? "/drinks/want-to-try" : "/drinks";
+  const here = wanted ? "/drinks/want-to-try" : "/drinks/wines";
   const everything = viewer.drinks.filter((drink) => (drink.how === "want_to_try") === wanted).length;
   const filtered = q.trim() !== "" || type !== "";
 
   return (
-    <DrinksScreen viewer={viewer} section={wanted ? "Want to try" : undefined} tools={<SearchBox query={q} here={here} />}>
+    <DrinksScreen viewer={viewer} section={wanted ? "Want to try" : "Wines"} tools={<SearchBox query={q} here={here} />}>
       <ListControls type={type} sort={sortValue(sort)} people={wanted ? [] : viewer.people} />
       <section className={styles.section} aria-labelledby="drinks">
         <div className={styles.sectionHead}>
           <h2 id="drinks" className={styles.sectionTitle}>
-            {filtered ? "Results" : wanted ? "Want to try" : "Our drinks"} <span className={styles.count}>· {drinks.length}</span>
+            {filtered ? "Results" : wanted ? "Want to try" : "Wines"} <span className={styles.count}>· {drinks.length}</span>
           </h2>
         </div>
         {drinks.length === 0 ? (
@@ -45,7 +45,7 @@ export function DrinksHome({
               ? "Nothing matches."
               : wanted
                 ? "Nothing on the list. Add a drink and choose Want to try."
-                : "Nothing recorded yet. Scan a label or add one by hand to start."}
+                : "Nothing recorded yet. Scan a label or add one by hand."}
           </p>
         ) : (
           <ul className={styles.grid}>
