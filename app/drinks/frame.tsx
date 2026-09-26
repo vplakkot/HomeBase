@@ -6,6 +6,7 @@ import { ModuleFrame } from "../../components/module-frame";
 import { readAccount } from "../../lib/account";
 import { hasPermission } from "../../lib/auth/permissions";
 import { readDrinks, readPeople } from "../../lib/drinks/drinks";
+import { signedPhotoLinks, thumbPath } from "../../lib/drinks/photos";
 import { createClient } from "../../lib/supabase/server";
 import styles from "./drinks.module.css";
 
@@ -23,12 +24,18 @@ export async function drinksViewer() {
     readDrinks(supabase),
     readPeople(supabase),
   ]);
-  return { canManageMembers, account, userId: data.claims.sub as string, people, ...stored };
+  // REQ-30, REQ-32: the list's thumbnails, as short-lived private links.
+  const thumbs = await signedPhotoLinks(
+    supabase,
+    stored.drinks.flatMap((drink) => (drink.front_label ? [thumbPath(drink.front_label)] : [])),
+  );
+  return { canManageMembers, account, userId: data.claims.sub as string, people, thumbs, supabase, ...stored };
 }
 
 export type DrinksViewer = Awaited<ReturnType<typeof drinksViewer>>;
 
-// Every Drinks screen: the module header with Add a drink, and below the
+// Every Drinks screen: the module header with Add by hand and Scan a
+// label (which also takes a photo already taken), and below the
 // top level a breadcrumb back to the list.
 export function DrinksScreen({
   viewer,
@@ -52,7 +59,8 @@ export function DrinksScreen({
       actions={
         <div className={styles.tools}>
           {tools}
-          <ButtonLink href="/drinks/new">Add a drink</ButtonLink>
+          <ButtonLink href="/drinks/new">Add by hand</ButtonLink>
+          <ButtonLink href="/drinks/scan">Scan a label</ButtonLink>
         </div>
       }
     >

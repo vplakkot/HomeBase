@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasPermission } from "../../lib/auth/permissions";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { drinkFields } from "../../lib/drinks/drinks";
+import { noReader, type LabelReading } from "../../lib/drinks/label-reader";
+import { LABEL_BUCKET, photoPath, thumbPath, type Side } from "../../lib/drinks/photos";
 import { createClient } from "../../lib/supabase/server";
 
 export type FormState = { error?: string; saved?: boolean };
@@ -27,16 +30,123 @@ function refresh() {
   revalidatePath("/");
 }
 
-// REQ-37: only the name is required. A new drink opens on its own page,
-// where it can be rated straight away.
+// A photo sent with a form: a JPEG the browser has already shrunk
+// (REQ-32), with its small copy for the list.
+const MAX_UPLOAD = 1024 * 1024;
+
+function photoFrom(formData: FormData, side: Side): { full: Blob; thumb: Blob } | null | { error: string } {
+  const full = formData.get(side);
+  const thumb = formData.get(`${side}_thumb`);
+  if (!(full instanceof Blob) || full.size === 0) return null;
+  if (!(thumb instanceof Blob) || thumb.size === 0) return { error: "The photo's small copy is missing. Try again." };
+  if (full.type !== "image/jpeg" || thumb.type !== "image/jpeg") return { error: "Photos are sent as JPEG." };
+  if (full.size > MAX_UPLOAD || thumb.size > MAX_UPLOAD) return { error: "That photo is too big. Try again." };
+  return { full, thumb };
+}
+
+type Photos = Partial<Record<Side, { full: Blob; thumb: Blob }>>;
+
+function photosFrom(formData: FormData): Photos | { error: string } {
+  const photos: Photos = {};
+  for (const side of ["front", "back"] as const) {
+    const photo = photoFrom(formData, side);
+    if (photo && "error" in photo) return photo;
+    if (photo) photos[side] = photo;
+  }
+  if (photos.back && !photos.front) return { error: "Add the front label first." };
+  return photos;
+}
+
+// Puts the photos in the private bucket under the drink's id and says
+// where. On any failure, whatever was already uploaded is taken back.
+async function upload(
+  supabase: SupabaseClient,
+  drinkId: string,
+  photos: Photos,
+): Promise<{ front_label?: string; back_label?: string } | { error: string }> {
+  const bucket = supabase.storage.from(LABEL_BUCKET);
+  const done: string[] = [];
+  const paths: { front_label?: string; back_label?: string } = {};
+  for (const side of ["front", "back"] as const) {
+    const photo = photos[side];
+    if (!photo) continue;
+    const path = photoPath(drinkId, side);
+    for (const [where, blob] of [
+      [path, photo.full],
+      [thumbPath(path), photo.thumb],
+    ] as const) {
+      const { error } = await bucket.upload(where, blob, { contentType: "image/jpeg" });
+      if (error) {
+        if (done.length > 0) await bucket.remove(done);
+        return { error: `The photo didn't upload: ${error.message}` };
+      }
+      done.push(where);
+    }
+    paths[side === "front" ? "front_label" : "back_label"] = path;
+  }
+  return paths;
+}
+
+async function removePhotos(supabase: SupabaseClient, paths: readonly (string | null)[]) {
+  const all = paths.filter((path): path is string => !!path).flatMap((path) => [path, thumbPath(path)]);
+  if (all.length > 0) await supabase.storage.from(LABEL_BUCKET).remove(all);
+}
+
+// REQ-37: only the name and how we got it are required. From a scan
+// (REQ-28), the label photos come too and are kept with it (REQ-32). A
+// new drink opens on its own page, where it can be rated straight away.
 export async function addDrink(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
   const fields = drinkFields(formData);
   if ("error" in fields) return { error: fields.error };
-  const { data, error } = await supabase.from("drinks").insert(fields).select("id").single();
-  if (error || !data) return { error: error?.message ?? "Could not add the drink." };
+  const photos = photosFrom(formData);
+  if ("error" in photos) return { error: photos.error };
+  const id = crypto.randomUUID();
+  const paths = await upload(supabase, id, photos);
+  if ("error" in paths) return { error: paths.error };
+  const { error } = await supabase.from("drinks").insert({ id, ...fields, ...paths });
+  if (error) {
+    await removePhotos(supabase, [paths.front_label ?? null, paths.back_label ?? null]);
+    return { error: error.message };
+  }
   refresh();
-  redirect(`/drinks/${(data as { id: string }).id}`);
+  redirect(`/drinks/${id}`);
+}
+
+// REQ-32: a drink saved without photos (by hand, or from a menu) gets
+// them later, and a bad photo can be replaced; nothing else changes. The
+// old photos go once the new ones are in.
+export async function setPhotos(_previous: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const id = rowId(formData);
+  if (!id) return { error: "Nothing to add photos to." };
+  const photos = photosFrom(formData);
+  if ("error" in photos) return { error: photos.error };
+  if (!photos.front) return { error: "Take or choose the front label." };
+  const { data: before } = await supabase.from("drinks").select("front_label, back_label").eq("id", id).maybeSingle();
+  const paths = await upload(supabase, id, photos);
+  if ("error" in paths) return { error: paths.error };
+  const { error } = await supabase
+    .from("drinks")
+    .update({ front_label: paths.front_label, back_label: paths.back_label ?? null })
+    .eq("id", id);
+  if (error) {
+    await removePhotos(supabase, [paths.front_label ?? null, paths.back_label ?? null]);
+    return { error: error.message };
+  }
+  const old = (before ?? {}) as { front_label?: string | null; back_label?: string | null };
+  await removePhotos(supabase, [old.front_label ?? null, old.back_label ?? null]);
+  refresh();
+  return { saved: true };
+}
+
+// REQ-25, REQ-26: the photos just taken or chosen go to label reading
+// together. Nothing is saved here; the review screen saves (REQ-28).
+export async function readLabel(formData: FormData): Promise<LabelReading> {
+  await requireMember();
+  const photos = photosFrom(formData);
+  if ("error" in photos || !photos.front) return { found: false, fields: {}, unsure: [] };
+  return noReader([photos.front.full, ...(photos.back ? [photos.back.full] : [])]);
 }
 
 export async function updateDrink(_previous: FormState, formData: FormData): Promise<FormState> {
@@ -61,13 +171,16 @@ export async function updateDrink(_previous: FormState, formData: FormData): Pro
   redirect(`/drinks/${id}`);
 }
 
-// Removing asks first (the form does); its ratings go with it.
+// Removing asks first (the form does); its ratings and photos go with it.
 export async function removeDrink(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to remove." };
+  const { data: before } = await supabase.from("drinks").select("front_label, back_label").eq("id", id).maybeSingle();
   const { error } = await supabase.from("drinks").delete().eq("id", id);
   if (error) return { error: error.message };
+  const old = (before ?? {}) as { front_label?: string | null; back_label?: string | null };
+  await removePhotos(supabase, [old.front_label ?? null, old.back_label ?? null]);
   refresh();
   redirect("/drinks");
 }

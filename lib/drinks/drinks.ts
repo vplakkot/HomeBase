@@ -25,6 +25,9 @@ export type Drink = {
   price: string | null;
   place: string | null;
   gift_from: string | null;
+  // REQ-32: where the label photos are in Storage, if there are any.
+  front_label: string | null;
+  back_label: string | null;
   created_at: string;
 };
 
@@ -58,7 +61,7 @@ export type Rating = {
 export type Person = { user_id: string; name: string };
 
 const DRINK_COLUMNS =
-  "id, name, producer, type, vintage, non_vintage, grapes, region, country, abv, bottle_ml, sweetness, method, disgorged_on, how, price, place, gift_from, created_at";
+  "id, name, producer, type, vintage, non_vintage, grapes, region, country, abv, bottle_ml, sweetness, method, disgorged_on, how, price, place, gift_from, front_label, back_label, created_at";
 
 export async function readDrinks(supabase: SupabaseClient): Promise<{ drinks: Drink[]; ratings: Rating[] }> {
   const [drinks, ratings] = await Promise.all([
@@ -176,7 +179,8 @@ export function listDrinks(
 // What a form sends, tidied into a drink's fields (REQ-37): only the name
 // is required. Grapes come one per field and are kept as written; the
 // lists only match them (REQ-27).
-export type DrinkFields = Omit<Drink, "id" | "created_at">;
+// The details a person fills in; the photos are saved on their own.
+export type DrinkFields = Omit<Drink, "id" | "created_at" | "front_label" | "back_label">;
 
 export function isHow(value: string): value is How {
   return (HOWS as readonly string[]).includes(value);

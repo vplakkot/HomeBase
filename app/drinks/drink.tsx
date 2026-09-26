@@ -10,13 +10,23 @@ const changedOn = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "sho
 // One drink (REQ-29, REQ-37): its details, then every household member's
 // rating and comment by name, "Not rated yet" for anyone who hasn't. You
 // can rate it or change your own rating any time; nobody else's.
-export function DrinkScreen({ viewer, drink }: { viewer: DrinksViewer; drink: Drink }) {
+export function DrinkScreen({
+  viewer,
+  drink,
+  links,
+}: {
+  viewer: DrinksViewer;
+  drink: Drink;
+  // The label photos' private links, by path (REQ-32).
+  links: ReadonlyMap<string, string>;
+}) {
   const ratings = ratingsFor(drink.id, viewer.people, viewer.ratings);
   const mine = ratings.find(({ person }) => person.user_id === viewer.userId)?.rating ?? null;
   const size = drink.bottle_ml
     ? (BOTTLE_SIZES.find((row) => row.ml === drink.bottle_ml)?.name ?? `${drink.bottle_ml} ml`)
     : null;
   const untried = drink.how === "want_to_try";
+  const labels = [drink.front_label, drink.back_label].filter((path): path is string => !!path);
   const details: [string, string | null][] = [
     ["How we got it", howText(drink)],
     ["Producer", drink.producer],
@@ -40,9 +50,19 @@ export function DrinkScreen({ viewer, drink }: { viewer: DrinksViewer; drink: Dr
         <div className={styles.fileButtons}>
           {/* REQ-36: rated once we've had it, not while it's only a wish. */}
           {untried ? null : <RateButton drinkId={drink.id} rating={mine} />}
-          <ManageDrink drink={drink} />
+          <ManageDrink drink={drink} hasPhotos={labels.length > 0} />
         </div>
       </div>
+      {labels.length > 0 ? (
+        <section className={styles.labels} aria-label="Label photos">
+          {labels.map((path, index) =>
+            links.get(path) ? (
+              // eslint-disable-next-line @next/next/no-img-element -- a private, short-lived link
+              <img key={path} src={links.get(path)} alt={index === 0 ? "Front label" : "Back label"} className={styles.labelPhoto} />
+            ) : null,
+          )}
+        </section>
+      ) : null}
       <div className={styles.pair}>
         <section className={styles.card} aria-labelledby="ratings">
           <h3 id="ratings" className={styles.cardLabel}>

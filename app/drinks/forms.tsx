@@ -1,16 +1,18 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import Link from "next/link";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import cards from "../../components/cards.module.css";
-import { HOW_NAMES, HOWS, vintageText, type Drink, type How, type Rating } from "../../lib/drinks/drinks";
+import { HOW_NAMES, HOWS, vintageText, type Drink, type DrinkFields, type How, type Rating } from "../../lib/drinks/drinks";
 import { BOTTLE_SIZES, COUNTRIES, DRINK_TYPES, GRAPES, METHODS, REGIONS, SWEETNESS, TYPE_NAMES } from "../../lib/drinks/lists";
-import { addDrink, clearRating, rateDrink, removeDrink, updateDrink, type FormState } from "./actions";
+import { addDrink, clearRating, rateDrink, removeDrink, setPhotos, updateDrink, type FormState } from "./actions";
+import { appendShots, LabelPhotos, type Shots } from "./photos";
 import styles from "./drinks.module.css";
 
 const initialState: FormState = {};
 
 function Outcome({ state }: { state: FormState }) {
-  return state.error ? (
+  return state?.error ? (
     <p role="alert" className={cards.error}>
       {state.error}
     </p>
@@ -19,7 +21,7 @@ function Outcome({ state }: { state: FormState }) {
 
 function useOnSaved(state: FormState, onSaved?: () => void) {
   useEffect(() => {
-    if (state.saved) onSaved?.();
+    if (state?.saved) onSaved?.();
   }, [state, onSaved]);
 }
 
@@ -57,6 +59,11 @@ function Suggestions() {
   );
 }
 
+// REQ-27: a field read with little confidence says so, to be checked.
+function Unsure() {
+  return <em className={styles.unsure}> · check this</em>;
+}
+
 function Field({
   label,
   name,
@@ -65,6 +72,7 @@ function Field({
   placeholder,
   inputMode,
   type = "text",
+  unsure = false,
 }: {
   label: string;
   name: string;
@@ -73,10 +81,14 @@ function Field({
   placeholder?: string;
   inputMode?: "numeric" | "decimal";
   type?: string;
+  unsure?: boolean;
 }) {
   return (
     <label className={cards.field}>
-      <span>{label}</span>
+      <span>
+        {label}
+        {unsure ? <Unsure /> : null}
+      </span>
       <input name={name} type={type} defaultValue={value} list={list} placeholder={placeholder} inputMode={inputMode} autoComplete="off" />
     </label>
   );
@@ -117,27 +129,50 @@ function HowWeGotIt({ drink }: { drink?: Drink }) {
 }
 
 // REQ-37: a drink's details, every one optional except the name and how
-// we got it. The same fields as the scan's review screen (REQ-28, a
-// later batch), which will reuse this form filled in. With `drink`, it
-// changes that drink.
-export function DrinkForm({ drink }: { drink?: Drink }) {
+// we got it. The scan's review screen (REQ-28) is this same form, filled
+// in with what was read (`initial`, with `unsure` fields marked) and
+// sending the label photos (`shots`) with it; Cancel there saves nothing.
+// With `drink`, it changes that drink.
+export function DrinkForm({
+  drink,
+  initial,
+  unsure = [],
+  shots,
+  cancelHref,
+}: {
+  drink?: Drink;
+  initial?: Partial<DrinkFields>;
+  unsure?: readonly string[];
+  shots?: Shots;
+  cancelHref?: string;
+}) {
   const [state, formAction, pending] = useActionState(drink ? updateDrink : addDrink, initialState);
-  const [grapes, setGrapes] = useState<string[]>(drink && drink.grapes.length > 0 ? drink.grapes : [""]);
-  const [type, setType] = useState<string>(drink?.type ?? "");
+  const v: Partial<DrinkFields> = drink ?? initial ?? {};
+  const [grapes, setGrapes] = useState<string[]>(v.grapes && v.grapes.length > 0 ? [...v.grapes] : [""]);
+  const [type, setType] = useState<string>(v.type ?? "");
   const sparkling = type === "sparkling";
+  const check = (name: string) => unsure.includes(name);
+  // With photos, the form's data is sent by hand so they can go with it.
+  const submitWithShots = (event: React.FormEvent<HTMLFormElement>) => {
+    if (!shots) return;
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    appendShots(data, shots);
+    startTransition(() => formAction(data));
+  };
   return (
-    <form action={formAction} className={`${cards.form} ${styles.drinkForm}`}>
+    <form action={formAction} onSubmit={submitWithShots} className={`${cards.form} ${styles.drinkForm}`}>
       {drink ? <input type="hidden" name="id" value={drink.id} /> : null}
       <Suggestions />
       <label className={cards.field}>
-        <span>Name</span>
-        <input name="name" required defaultValue={drink?.name ?? ""} placeholder="Wine name or cuvée" autoComplete="off" />
+        <span>Name{check("name") ? <Unsure /> : null}</span>
+        <input name="name" required defaultValue={v.name ?? ""} placeholder="Wine name or cuvée" autoComplete="off" />
       </label>
       <HowWeGotIt drink={drink} />
-      <Field label="Producer (optional)" name="producer" value={drink?.producer ?? ""} />
+      <Field label="Producer (optional)" name="producer" value={v.producer ?? ""} unsure={check("producer")} />
       <div className={styles.pairFields}>
         <label className={cards.field}>
-          <span>Type (optional)</span>
+          <span>Type (optional){check("type") ? <Unsure /> : null}</span>
           <select name="type" value={type} onChange={(event) => setType(event.target.value)}>
             <option value="">Not set</option>
             {DRINK_TYPES.map((value) => (
@@ -150,12 +185,13 @@ export function DrinkForm({ drink }: { drink?: Drink }) {
         <Field
           label="Vintage (optional)"
           name="vintage"
-          value={drink ? (vintageText(drink) ?? "") : ""}
+          value={vintageText({ vintage: v.vintage ?? null, non_vintage: v.non_vintage ?? false }) ?? ""}
           placeholder="2019 or NV"
+          unsure={check("vintage")}
         />
       </div>
       <fieldset className={styles.grapes}>
-        <legend>Grapes (optional)</legend>
+        <legend>Grapes (optional){check("grapes") ? <Unsure /> : null}</legend>
         {grapes.map((grape, index) => (
           <label key={index} className={cards.field}>
             <span className={styles.hiddenLabel}>Grape {index + 1}</span>
@@ -173,28 +209,29 @@ export function DrinkForm({ drink }: { drink?: Drink }) {
         </button>
       </fieldset>
       <div className={styles.pairFields}>
-        <Field label="Region (optional)" name="region" value={drink?.region ?? ""} list="region-list" />
-        <Field label="Country (optional)" name="country" value={drink?.country ?? ""} list="country-list" />
+        <Field label="Region (optional)" name="region" value={v.region ?? ""} list="region-list" unsure={check("region")} />
+        <Field label="Country (optional)" name="country" value={v.country ?? ""} list="country-list" unsure={check("country")} />
       </div>
       <div className={styles.pairFields}>
         <Field
           label="Alcohol % (optional)"
           name="abv"
-          value={drink?.abv === null || drink?.abv === undefined ? "" : String(drink.abv)}
+          value={v.abv === null || v.abv === undefined ? "" : String(v.abv)}
           placeholder="13.5"
           inputMode="decimal"
+          unsure={check("abv")}
         />
         <label className={cards.field}>
-          <span>Bottle size (optional)</span>
-          <select name="bottle_ml" defaultValue={drink?.bottle_ml ? String(drink.bottle_ml) : ""}>
+          <span>Bottle size (optional){check("bottle_ml") ? <Unsure /> : null}</span>
+          <select name="bottle_ml" defaultValue={v.bottle_ml ? String(v.bottle_ml) : ""}>
             <option value="">Not set</option>
             {BOTTLE_SIZES.map((size) => (
               <option key={size.ml} value={size.ml}>
                 {size.name}
               </option>
             ))}
-            {drink?.bottle_ml && !BOTTLE_SIZES.some((size) => size.ml === drink.bottle_ml) ? (
-              <option value={drink.bottle_ml}>{drink.bottle_ml} ml</option>
+            {v.bottle_ml && !BOTTLE_SIZES.some((size) => size.ml === v.bottle_ml) ? (
+              <option value={v.bottle_ml}>{v.bottle_ml} ml</option>
             ) : null}
           </select>
         </label>
@@ -203,16 +240,42 @@ export function DrinkForm({ drink }: { drink?: Drink }) {
           disgorgement date. Hidden for other types, and not sent. */}
       {sparkling ? (
         <div className={styles.pairFields}>
-          <Field label="Sweetness (optional)" name="sweetness" value={drink?.sweetness ?? ""} list="sweetness-list" />
-          <Field label="Method (optional)" name="method" value={drink?.method ?? ""} list="method-list" />
-          <Field label="Disgorged (optional)" name="disgorged_on" value={drink?.disgorged_on ?? ""} type="date" />
+          <Field label="Sweetness (optional)" name="sweetness" value={v.sweetness ?? ""} list="sweetness-list" unsure={check("sweetness")} />
+          <Field label="Method (optional)" name="method" value={v.method ?? ""} list="method-list" unsure={check("method")} />
+          <Field label="Disgorged (optional)" name="disgorged_on" value={v.disgorged_on ?? ""} type="date" unsure={check("disgorged_on")} />
         </div>
       ) : null}
-      <button type="submit" className={cards.primary} disabled={pending}>
-        {pending ? "Saving…" : drink ? "Save changes" : "Add the drink"}
-      </button>
+      <div className={cards.actions}>
+        <button type="submit" className={cards.primary} disabled={pending}>
+          {pending ? "Saving…" : drink ? "Save changes" : shots ? "Save" : "Add the drink"}
+        </button>
+        {cancelHref ? (
+          <Link href={cancelHref} className={cards.quiet}>
+            Cancel
+          </Link>
+        ) : null}
+      </div>
       <Outcome state={state} />
     </form>
+  );
+}
+
+// REQ-32: photos for a drink saved without them, or new ones for a bad
+// photo; the drink's details stay as they are.
+export function PhotosForm({ drinkId, onSaved }: { drinkId: string; onSaved: () => void }) {
+  const [state, formAction, pending] = useActionState(setPhotos, initialState);
+  useOnSaved(state, onSaved);
+  const save = (shots: Shots) => {
+    const data = new FormData();
+    data.append("id", drinkId);
+    appendShots(data, shots);
+    startTransition(() => formAction(data));
+  };
+  return (
+    <div className={cards.form}>
+      {pending ? <p className={styles.unrated}>Saving the photos…</p> : <LabelPhotos onDone={save} />}
+      <Outcome state={state} />
+    </div>
   );
 }
 

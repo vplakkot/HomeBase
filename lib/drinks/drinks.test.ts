@@ -37,6 +37,8 @@ const drink = (id: string, name: string, extra: Partial<Drink> = {}): Drink => (
   price: null,
   place: null,
   gift_from: null,
+  front_label: null,
+  back_label: null,
   created_at: "2026-09-01T12:00:00Z",
   ...extra,
 });

@@ -6,7 +6,7 @@ import { BottomSheet } from "../../components/bottom-sheet";
 import { buttonClass } from "../../components/button";
 import { ChevronDownIcon } from "../../components/icons";
 import type { Drink, Rating } from "../../lib/drinks/drinks";
-import { RateForm, RemoveDrinkForm } from "./forms";
+import { PhotosForm, RateForm, RemoveDrinkForm } from "./forms";
 import styles from "./drinks.module.css";
 
 // REQ-29: Rate opens a sheet with your own stars and comment filled in if
@@ -27,10 +27,13 @@ export function RateButton({ drinkId, rating }: { drinkId: string; rating: Ratin
 }
 
 // Changing or removing a drink lives behind one menu, like Storage's.
-export function ManageDrink({ drink }: { drink: Drink }) {
+export function ManageDrink({ drink, hasPhotos }: { drink: Drink; hasPhotos: boolean }) {
   const [menu, setMenu] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [photos, setPhotos] = useState(false);
   const keep = useCallback(() => setRemoving(false), []);
+  const closePhotos = useCallback(() => setPhotos(false), []);
+  const photosTitle = hasPhotos ? "Replace label photos" : "Add label photos";
   return (
     <>
       <button
@@ -50,6 +53,18 @@ export function ManageDrink({ drink }: { drink: Drink }) {
               Edit
             </Link>
           </li>
+          <li>
+            <button
+              type="button"
+              className={styles.menuItem}
+              onClick={() => {
+                setMenu(false);
+                setPhotos(true);
+              }}
+            >
+              {photosTitle}
+            </button>
+          </li>
           <li className={styles.divider} aria-hidden="true" />
           <li>
             <button
@@ -65,6 +80,9 @@ export function ManageDrink({ drink }: { drink: Drink }) {
           </li>
         </ul>
       ) : null}
+      <BottomSheet open={photos} onClose={closePhotos} title={photosTitle}>
+        {photos ? <PhotosForm drinkId={drink.id} onSaved={closePhotos} /> : null}
+      </BottomSheet>
       <BottomSheet open={removing} onClose={keep} title={`Remove ${drink.name}`}>
         {removing ? <RemoveDrinkForm drink={drink} onKeep={keep} /> : null}
       </BottomSheet>
