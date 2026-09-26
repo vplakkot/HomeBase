@@ -1,4 +1,4 @@
-import { ratingsFor, starsText, vintageText, type Drink } from "../../lib/drinks/drinks";
+import { buyAgainText, howText, ratingsFor, starsText, vintageText, type Drink } from "../../lib/drinks/drinks";
 import { BOTTLE_SIZES, TYPE_NAMES } from "../../lib/drinks/lists";
 import { HOUSEHOLD_TIME_ZONE } from "../../lib/finances/budget-year";
 import { DrinksScreen, type DrinksViewer } from "./frame";
@@ -16,7 +16,9 @@ export function DrinkScreen({ viewer, drink }: { viewer: DrinksViewer; drink: Dr
   const size = drink.bottle_ml
     ? (BOTTLE_SIZES.find((row) => row.ml === drink.bottle_ml)?.name ?? `${drink.bottle_ml} ml`)
     : null;
+  const untried = drink.how === "want_to_try";
   const details: [string, string | null][] = [
+    ["How we got it", howText(drink)],
     ["Producer", drink.producer],
     ["Type", drink.type ? TYPE_NAMES[drink.type] : null],
     ["Vintage", vintageText(drink)],
@@ -36,7 +38,8 @@ export function DrinkScreen({ viewer, drink }: { viewer: DrinksViewer; drink: Dr
       <div className={styles.fileHead}>
         <h2 className={styles.title}>{drink.name}</h2>
         <div className={styles.fileButtons}>
-          <RateButton drinkId={drink.id} rating={mine} />
+          {/* REQ-36: rated once we've had it, not while it's only a wish. */}
+          {untried ? null : <RateButton drinkId={drink.id} rating={mine} />}
           <ManageDrink drink={drink} />
         </div>
       </div>
@@ -45,24 +48,29 @@ export function DrinkScreen({ viewer, drink }: { viewer: DrinksViewer; drink: Dr
           <h3 id="ratings" className={styles.cardLabel}>
             Ratings
           </h3>
-          <ul className={styles.lines}>
-            {ratings.map(({ person, rating }) => (
-              <li key={person.user_id} className={styles.rating}>
-                <span className={styles.who}>{person.name}</span>
-                {rating ? (
-                  <>
-                    <span className={styles.stars} aria-label={`${rating.stars} of 5 stars`}>
-                      {starsText(rating.stars)}
-                    </span>
-                    {rating.comment ? <span className={styles.comment}>{rating.comment}</span> : null}
-                    <span className={styles.changed}>Changed {changedOn.format(new Date(rating.updated_at))}</span>
-                  </>
-                ) : (
-                  <span className={styles.unrated}>Not rated yet</span>
-                )}
-              </li>
-            ))}
-          </ul>
+          {untried ? (
+            <p className={styles.unrated}>Not had yet. Once we have, Edit how we got it and rate it.</p>
+          ) : (
+            <ul className={styles.lines}>
+              {ratings.map(({ person, rating }) => (
+                <li key={person.user_id} className={styles.rating}>
+                  <span className={styles.who}>{person.name}</span>
+                  {rating ? (
+                    <>
+                      <span className={styles.stars} aria-label={`${rating.stars} of 5 stars`}>
+                        {starsText(rating.stars)}
+                      </span>
+                      {rating.buy_again !== null ? <span className={styles.buyAgain}>{buyAgainText(rating.buy_again)}</span> : null}
+                      {rating.comment ? <span className={styles.comment}>{rating.comment}</span> : null}
+                      <span className={styles.changed}>Changed {changedOn.format(new Date(rating.updated_at))}</span>
+                    </>
+                  ) : (
+                    <span className={styles.unrated}>Not rated yet</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
         <section className={styles.card} aria-labelledby="details">
           <h3 id="details" className={styles.cardLabel}>

@@ -11,9 +11,9 @@ import styles from "./drinks.module.css";
 // type and sort dropdowns sit under it and join the same form by its id.
 const FORM = "drink-list";
 
-export function SearchBox({ query }: { query: string }) {
+export function SearchBox({ query, here = "/drinks" }: { query: string; here?: string }) {
   return (
-    <form id={FORM} method="get" action="/drinks" role="search" className={styles.search}>
+    <form id={FORM} method="get" action={here} role="search" className={styles.search}>
       <SearchIcon />
       <label htmlFor="drinks-search" className={styles.hidden}>
         Search drinks
@@ -26,7 +26,7 @@ export function SearchBox({ query }: { query: string }) {
         placeholder="Search producer, name, grape, region, comments"
       />
       {query ? (
-        <Link href="/drinks" className={styles.clear}>
+        <Link href={here} className={styles.clear}>
           Clear
         </Link>
       ) : null}

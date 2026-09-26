@@ -659,3 +659,24 @@ describe("drinks migration (REQ-37, REQ-30, REQ-29)", () => {
     expect(drinks).toMatch(/new\.updated_at := now\(\)/);
   });
 });
+
+describe("drinks: how we got it and buy again (REQ-35, REQ-36, REQ-34)", () => {
+  const how = readMigration("20260926120000");
+
+  it("gives every drink one of four values, and ties each extra to its value", () => {
+    expect(how).toMatch(/add column how text not null default 'bought'\s+check \(how in \('bought', 'gift', 'had_out', 'want_to_try'\)\)/);
+    expect(how).toMatch(/alter column how drop default/);
+    expect(how).toMatch(/check \(price is null or how = 'bought'\)/);
+    expect(how).toMatch(/check \(place is null or how in \('bought', 'had_out'\)\)/);
+    expect(how).toMatch(/check \(gift_from is null or how = 'gift'\)/);
+  });
+
+  it("keeps buy again on each person's own rating row", () => {
+    expect(how).toMatch(/alter table public\.drink_ratings\s+add column buy_again boolean;/);
+  });
+
+  it("refuses a rating on a wine we only want to try", () => {
+    expect(how).toMatch(/before insert or update on public\.drink_ratings/);
+    expect(how).toMatch(/how = 'want_to_try'/);
+  });
+});

@@ -45,6 +45,16 @@ export async function updateDrink(_previous: FormState, formData: FormData): Pro
   if (!id) return { error: "Nothing to change." };
   const fields = drinkFields(formData);
   if ("error" in fields) return { error: fields.error };
+  // REQ-36: a drink someone has rated has been had; it can't go back to
+  // the want-to-try list.
+  if (fields.how === "want_to_try") {
+    const { count, error: counting } = await supabase
+      .from("drink_ratings")
+      .select("drink_id", { count: "exact", head: true })
+      .eq("drink_id", id);
+    if (counting) return { error: counting.message };
+    if ((count ?? 0) > 0) return { error: "It has ratings, so we've had it. Clear the ratings first." };
+  }
   const { error } = await supabase.from("drinks").update(fields).eq("id", id);
   if (error) return { error: error.message };
   refresh();
@@ -76,12 +86,22 @@ export async function rateDrink(_previous: FormState, formData: FormData): Promi
     .replace(/\s+/g, " ")
     .trim();
   if (comment.length > 200) return { error: "Keep the comment to one short line (200 characters)." };
+  // REQ-34: yes, no, or not said.
+  const answer = String(formData.get("buyAgain") ?? "");
+  const buy_again = answer === "yes" ? true : answer === "no" ? false : null;
+  // REQ-36: a wine we only want to try hasn't been had yet.
+  const { data: drink } = await supabase.from("drinks").select("how").eq("id", drinkId).maybeSingle();
+  if ((drink as { how?: string } | null)?.how === "want_to_try")
+    return { error: "Change how we got it from Want to try before rating." };
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
   if (!userId) redirect("/sign-in");
   const { error } = await supabase
     .from("drink_ratings")
-    .upsert({ drink_id: drinkId, user_id: userId, stars, comment: comment || null }, { onConflict: "drink_id,user_id" });
+    .upsert(
+      { drink_id: drinkId, user_id: userId, stars, comment: comment || null, buy_again },
+      { onConflict: "drink_id,user_id" },
+    );
   if (error) return { error: error.message };
   refresh();
   return { saved: true };

@@ -20,26 +20,50 @@ export type Drink = {
   sweetness: string | null;
   method: string | null;
   disgorged_on: string | null;
+  // REQ-35: how it came to us, and the extras that go with that.
+  how: How;
+  price: string | null;
+  place: string | null;
+  gift_from: string | null;
   created_at: string;
 };
+
+export const HOWS = ["bought", "gift", "had_out", "want_to_try"] as const;
+export type How = (typeof HOWS)[number];
+
+export const HOW_NAMES: Record<How, string> = {
+  bought: "Bought",
+  gift: "Gift",
+  had_out: "Had out",
+  want_to_try: "Want to try",
+};
+
+// "Bought · €18 · Corner wine shop", "Gift from Priya", "Had out · Luigi's".
+export function howText(drink: Pick<Drink, "how" | "price" | "place" | "gift_from">): string {
+  if (drink.how === "gift") return drink.gift_from ? `Gift from ${drink.gift_from}` : "Gift";
+  const extras = drink.how === "bought" ? [drink.price, drink.place] : drink.how === "had_out" ? [drink.place] : [];
+  return [HOW_NAMES[drink.how], ...extras.filter((extra): extra is string => !!extra)].join(" · ");
+}
 
 export type Rating = {
   drink_id: string;
   user_id: string;
   stars: number;
   comment: string | null;
+  // REQ-34: yes, no, or not said.
+  buy_again: boolean | null;
   updated_at: string;
 };
 
 export type Person = { user_id: string; name: string };
 
 const DRINK_COLUMNS =
-  "id, name, producer, type, vintage, non_vintage, grapes, region, country, abv, bottle_ml, sweetness, method, disgorged_on, created_at";
+  "id, name, producer, type, vintage, non_vintage, grapes, region, country, abv, bottle_ml, sweetness, method, disgorged_on, how, price, place, gift_from, created_at";
 
 export async function readDrinks(supabase: SupabaseClient): Promise<{ drinks: Drink[]; ratings: Rating[] }> {
   const [drinks, ratings] = await Promise.all([
     supabase.from("drinks").select(DRINK_COLUMNS).order("created_at", { ascending: false }),
-    supabase.from("drink_ratings").select("drink_id, user_id, stars, comment, updated_at"),
+    supabase.from("drink_ratings").select("drink_id, user_id, stars, comment, buy_again, updated_at"),
   ]);
   if (drinks.error) throw new Error(`Could not read Drinks: ${drinks.error.message}`);
   if (ratings.error) throw new Error(`Could not read ratings: ${ratings.error.message}`);
@@ -88,6 +112,10 @@ export function starsText(stars: number): string {
   return "★".repeat(stars) + "☆".repeat(5 - stars);
 }
 
+export function buyAgainText(buyAgain: boolean | null): string | null {
+  return buyAgain === null ? null : buyAgain ? "Buy again: yes" : "Buy again: no";
+}
+
 // REQ-30: a search matches producer, name, grape, region or a rating's
 // comment. Accents and case don't matter, and a grape matches under any
 // of its names: "shiraz" finds a Syrah.
@@ -125,9 +153,18 @@ export function sortValue(sort: Sort): string {
 export function listDrinks(
   drinks: readonly Drink[],
   ratings: readonly Rating[],
-  { query = "", type = "", sort = { by: "newest" } as Sort }: { query?: string; type?: string; sort?: Sort },
+  {
+    query = "",
+    type = "",
+    sort = { by: "newest" } as Sort,
+    wanted = false,
+  }: { query?: string; type?: string; sort?: Sort; wanted?: boolean },
 ): Drink[] {
-  const found = searchDrinks(drinks, ratings, query).filter((drink) => type === "" || drink.type === type);
+  // REQ-36: the wines we only want to try have their own view and stay
+  // out of the main list.
+  const found = searchDrinks(drinks, ratings, query).filter(
+    (drink) => (type === "" || drink.type === type) && (drink.how === "want_to_try") === wanted,
+  );
   const added = (drink: Drink) => Date.parse(drink.created_at);
   if (sort.by === "oldest") return found.sort((a, b) => added(a) - added(b));
   if (sort.by === "newest") return found.sort((a, b) => added(b) - added(a));
@@ -140,6 +177,10 @@ export function listDrinks(
 // is required. Grapes come one per field and are kept as written; the
 // lists only match them (REQ-27).
 export type DrinkFields = Omit<Drink, "id" | "created_at">;
+
+export function isHow(value: string): value is How {
+  return (HOWS as readonly string[]).includes(value);
+}
 
 const text = (formData: FormData, name: string) => String(formData.get(name) ?? "").trim();
 const orNull = (value: string) => (value === "" ? null : value);
@@ -175,6 +216,9 @@ export function drinkFields(formData: FormData): DrinkFields | { error: string }
     if (!Number.isInteger(bottle_ml) || bottle_ml <= 0) return { error: "Bottle size is in millilitres, like 750." };
   }
 
+  const how = text(formData, "how");
+  if (!isHow(how)) return { error: "Say how we got it." };
+
   const disgorged = text(formData, "disgorged_on");
   if (disgorged !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(disgorged)) return { error: "Disgorged is a date." };
 
@@ -201,11 +245,20 @@ export function drinkFields(formData: FormData): DrinkFields | { error: string }
     sweetness: orNull(text(formData, "sweetness")),
     method: orNull(text(formData, "method")),
     disgorged_on: orNull(disgorged),
+    // Only the extras that go with the chosen value are kept.
+    how,
+    price: how === "bought" ? orNull(text(formData, "price")) : null,
+    place: how === "bought" || how === "had_out" ? orNull(text(formData, "place")) : null,
+    gift_from: how === "gift" ? orNull(text(formData, "gift_from")) : null,
   };
 }
 
+// Home counts the drinks we've had, not the ones we only want to try.
 export async function countDrinks(supabase: SupabaseClient): Promise<number> {
-  const { count, error } = await supabase.from("drinks").select("id", { count: "exact", head: true });
+  const { count, error } = await supabase
+    .from("drinks")
+    .select("id", { count: "exact", head: true })
+    .neq("how", "want_to_try");
   if (error) throw new Error(`Could not count Drinks: ${error.message}`);
   return count ?? 0;
 }

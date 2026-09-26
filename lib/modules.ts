@@ -85,7 +85,14 @@ export const MODULES: readonly Module[] = [
   { slug: "pets", name: "Pets", tokens: "pets", href: null, sections: [] },
   // Opened in v2.0 (REQ-37, REQ-30, REQ-29). Called Wine until then; the
   // requirements call it Drinks, and it keeps the violet it had.
-  { slug: "drinks", name: "Drinks", tokens: "wine", href: "/drinks", sections: [] },
+  {
+    slug: "drinks",
+    name: "Drinks",
+    tokens: "wine",
+    href: "/drinks",
+    // REQ-36: the wines we only want to try have their own view.
+    sections: [{ name: "Want to try", description: "Wines to try next", href: "/drinks/want-to-try" }],
+  },
   { slug: "meal-plans", name: "Meal Plans", tokens: "meals", href: null, sections: [] },
   { slug: "health", name: "Health", tokens: "health", href: null, sections: [] },
   // Added in v1.0 (REQ-88, REQ-97); Vin chose slate and the last place
