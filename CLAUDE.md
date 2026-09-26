@@ -23,10 +23,12 @@ When I say "next batch" (or "next requirement"):
    In progress. If a requirement's pull request has merged and every
    acceptance criterion is now met, set it to Done. One whose remaining
    criteria wait on a later batch stays In progress.
-2. Pick the next batch. Follow the milestone's batch plan if one exists
-   (in Notion or in your memory); otherwise group the Ready requirements
-   yourself, in dependency order rather than by ID, and say which you
-   picked and why before building.
+2. Open bug issues come first: a bug is a batch of one, picked before
+   new requirements. It already has its issue, so skip steps 3 and 4.
+   With no open bugs, pick the next batch. Follow the milestone's batch
+   plan if one exists (in Notion or in your memory); otherwise group the
+   Ready requirements yourself, in dependency order rather than by ID,
+   and say which you picked and why before building.
 3. Create one GitHub issue for the batch: title = what the batch
    delivers, body = each requirement's ID, name and Notion link, and any
    criteria you already know wait for a later batch; milestone = the
