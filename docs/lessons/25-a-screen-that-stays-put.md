@@ -68,7 +68,7 @@ One trick in the shared cards is worth a look: the heading sits
 border is drawn on the blocks after the heading, not on the section
 that holds them: the first block draws the top edge, the last one
 the bottom, every one the sides (`.card > .head + *` and
-`.card > :last-child` in `cards.module.css`).
+`.card > :last-child:not(.head)` in `cards.module.css`).
 
 ## How it was checked
 
