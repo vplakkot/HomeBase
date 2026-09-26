@@ -1,0 +1,235 @@
+/* Drinks' screens use the same shapes as Paperwork and Storage (header
+   search, breadcrumb, sections, link cards, Manage menu) on the module
+   home rules (DESIGN.md §6), borrowed with `composes` rather than
+   copied. The module colour comes from the page, so they're violet. */
+.tools { composes: tools from "../paperwork/paperwork.module.css"; }
+.search { composes: search from "../paperwork/paperwork.module.css"; }
+.clear { composes: clear from "../paperwork/paperwork.module.css"; }
+.hidden { composes: hidden from "../paperwork/paperwork.module.css"; }
+.crumbs { composes: crumbs from "../paperwork/paperwork.module.css"; }
+.screen { composes: screen from "../paperwork/paperwork.module.css"; }
+.section { composes: section from "../paperwork/paperwork.module.css"; }
+.sectionHead { composes: sectionHead from "../paperwork/paperwork.module.css"; }
+.sectionTitle { composes: sectionTitle from "../paperwork/paperwork.module.css"; }
+.count { composes: count from "../paperwork/paperwork.module.css"; }
+.card { composes: card from "../paperwork/paperwork.module.css"; }
+.grid { composes: grid from "../paperwork/paperwork.module.css"; }
+.linkCard { composes: linkCard from "../paperwork/paperwork.module.css"; }
+.cardTitle { composes: cardTitle from "../paperwork/paperwork.module.css"; }
+.cardDetail { composes: cardDetail from "../paperwork/paperwork.module.css"; }
+.empty { composes: empty from "../paperwork/paperwork.module.css"; }
+.fileHead { composes: fileHead from "../paperwork/paperwork.module.css"; }
+.title { composes: title from "../paperwork/paperwork.module.css"; }
+.fileButtons { composes: fileButtons from "../paperwork/paperwork.module.css"; }
+.menu { composes: menu from "../paperwork/paperwork.module.css"; }
+.menuItem { composes: menuItem from "../paperwork/paperwork.module.css"; }
+.divider { composes: divider from "../paperwork/paperwork.module.css"; }
+.pair { composes: pair from "../storage/storage.module.css"; }
+.cardLabel { composes: cardLabel from "../storage/storage.module.css"; }
+.lines { composes: lines from "../storage/storage.module.css"; }
+
+/* Edit is a link in the menu, shaped like the menu's buttons. */
+.menuLink {
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* The type and sort dropdowns under the header: side by side, each half
+   the width on a phone, so both sit under the thumb. */
+.controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (min-width: 1024px) {
+  .controls {
+    grid-template-columns: repeat(2, 240px);
+  }
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-muted);
+  font-size: var(--text-label);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.control select {
+  min-height: var(--tap-target-min);
+  padding: 0 var(--space-3);
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.control select:focus-visible {
+  outline: 2px solid var(--module-loud);
+  outline-offset: 1px;
+}
+
+/* Every member's rating on a list card, one per line. */
+.ratings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  font-size: var(--text-body-sm);
+  list-style: none;
+}
+
+.stars {
+  color: var(--module-loud);
+  letter-spacing: 0.08em;
+}
+
+.unrated {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+/* A rating on the drink's page: who, their stars, the comment and when
+   it last changed. */
+.rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+
+.who {
+  font-weight: 700;
+}
+
+.comment {
+  flex-basis: 100%;
+}
+
+.changed {
+  flex-basis: 100%;
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+}
+
+.details {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.details > div {
+  display: contents;
+}
+
+.details dt {
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+}
+
+.details dd {
+  margin: 0;
+}
+
+/* The add and edit form sits in one module card. */
+.formCard {
+  composes: card from "../paperwork/paperwork.module.css";
+  max-width: 720px;
+}
+
+.drinkForm {
+  padding: 0;
+}
+
+.pairFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.grapes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.grapes legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.grapes > button {
+  align-self: flex-start;
+}
+
+.hiddenLabel {
+  composes: hidden from "../paperwork/paperwork.module.css";
+}
+
+.rateForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Five big stars to tap; the chosen one and those before it fill in. */
+.starPicker {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.starPicker legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.star {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-target-min);
+  height: var(--tap-target-min);
+  color: var(--color-line);
+  font-size: var(--text-display-lg);
+  cursor: pointer;
+}
+
+.star input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.star:has(input:checked),
+.star:has(~ .star input:checked) {
+  color: var(--module-loud);
+}
+
+.star:has(input:focus-visible) {
+  outline: 2px solid var(--module-loud);
+  outline-offset: 1px;
+  border-radius: var(--radius-sm);
+}

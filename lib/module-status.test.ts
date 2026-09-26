@@ -27,7 +27,7 @@ describe("the action items Home shows", () => {
   it("are the three most urgent, most urgent first, whichever module they're from", () => {
     const shown = mostUrgent([
       { module: moduleBySlug("pets"), status: { ...quiet, actionItems: [item(4), item(2)] } },
-      { module: moduleBySlug("wine"), status: quiet },
+      { module: moduleBySlug("drinks"), status: quiet },
       { module: moduleBySlug("health"), status: { ...quiet, actionItems: [item(5)] } },
       { module: moduleBySlug("finances"), status: { ...quiet, actionItems: [item(1)] } },
     ]);

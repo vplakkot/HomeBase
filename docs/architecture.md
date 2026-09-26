@@ -958,6 +958,32 @@ a file or brings it back; its files list hides archived files until
 asked. Home's Storage tile only counts entries; it raises no action
 items.
 
+## Drinks
+
+The fourth module to open (v2.0, REQ-37, REQ-30, REQ-29), violet, in
+the place Wine had on Home: the tile was called Wine until v2.0, and the
+requirements call it Drinks. It records every wine we've had and what
+each of us thought of it.
+
+| Table | One row is | Key facts |
+|---|---|---|
+| `drinks` | a wine | only `name` is required; `producer`, `type` (one of seven), `vintage` or `non_vintage` (never both), `grapes` (a list), `region`, `country`, `abv`, `bottle_ml`, and for sparkling `sweetness`, `method`, `disgorged_on`; every member reads, adds, changes and removes |
+| `drink_ratings` | one person's rating of one drink | primary key `(drink_id, user_id)`, so one each; `stars` 1–5, a one-line `comment`; `updated_at` stamped by a trigger; everyone reads, each person writes only their own row (`user_id = auth.uid()` in the policies); removed with its drink |
+
+The standard lists (types, grapes with their other names, countries,
+regions, sparkling sweetness and methods) live in the code,
+[`lib/drinks/lists.ts`](../lib/drinks/lists.ts), not the database: the
+add form offers them as suggestions and search files spellings together
+(Shiraz finds a Syrah), while the drink keeps what was typed.
+[`lib/drinks/drinks.ts`](../lib/drinks/drinks.ts) reads drinks and
+ratings, and does search, the type filter and the sort. Pages live under
+`/drinks`: the list, whose search, type and sort are one form kept in
+the address; Add a drink (`/drinks/new`) and Edit, full pages because
+the form is long; and a drink's page, with every member's rating by name
+and a Rate sheet. Home's Drinks tile only counts drinks. See
+[lesson 26](lessons/26-rows-that-belong-to-one-person.md) for how a
+rating stays its owner's.
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:

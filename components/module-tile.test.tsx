@@ -68,7 +68,7 @@ describe("a module tile's colour", () => {
   });
 
   it("uses its own module's colours, loud or quiet", () => {
-    const element = tileFor("wine", needsYou);
+    const element = tileFor("drinks", needsYou);
     expect(element.style.getPropertyValue("--module-loud")).toBe("var(--wine-loud)");
     expect(element.style.getPropertyValue("--module-on-loud")).toBe("var(--wine-on-loud)");
     expect(element.style.getPropertyValue("--module-quiet")).toBe("var(--wine-quiet)");
@@ -85,7 +85,7 @@ describe("what a module tile shows", () => {
   });
 
   it("gives a phone one status line, and a desktop a headline plus two facts", () => {
-    const element = tileFor("wine", calm);
+    const element = tileFor("drinks", calm);
     expect(part(element, styles.status)?.textContent).toBe("9 bottles");
     expect(part(element, styles.headline)?.textContent).toBe("9 bottles on the rack");
     const facts = [...element.querySelectorAll(`.${styles.fact}`)].map((fact) => fact.textContent);
@@ -99,7 +99,7 @@ describe("what a module tile shows", () => {
   });
 
   it("leaves the facts out while the module has none to report", () => {
-    const element = tileFor("wine", { ...calm, facts: [] });
+    const element = tileFor("drinks", { ...calm, facts: [] });
     expect(part(element, styles.facts)).toBeNull();
   });
 

@@ -34,7 +34,7 @@ Canvas (owner access only): https://claude.ai/artifact/1RVqqy4UV3iXLJ4ZEsfCsu
 | Finances | brick `--finances-loud` | `--finances-quiet` |
 | Calendar | cobalt `--calendar-loud` | `--calendar-quiet` |
 | Pets | rose `--pets-loud` | `--pets-quiet` |
-| Wine | violet `--wine-loud` | `--wine-quiet` |
+| Drinks (was Wine) | violet `--wine-loud` | `--wine-quiet` |
 | Meal Plans | mustard `--meals-loud` | `--meals-quiet` |
 | Health | forest `--health-loud` | `--health-quiet` |
 | Paperwork | slate `--paperwork-loud` | `--paperwork-quiet` |

@@ -623,3 +623,39 @@ describe("storage migration (REQ-87, REQ-98)", () => {
     expect(storage).toMatch(/before update of is_box on public\.storage_entries/);
   });
 });
+
+describe("drinks migration (REQ-37, REQ-30, REQ-29)", () => {
+  const drinks = readMigration("20260926100000");
+
+  it("needs only a name, and never both a vintage and NV", () => {
+    expect(drinks).toMatch(/name text not null check \(btrim\(name\) <> ''\)/);
+    expect(drinks).toMatch(/check \(not \(non_vintage and vintage is not null\)\)/);
+  });
+
+  it("lets members, and only members, see and change drinks and ratings", () => {
+    for (const table of ["drinks", "drink_ratings"]) {
+      expect(drinks).toMatch(new RegExp(`alter table public\\.${table} enable row level security`));
+      expect(drinks).toMatch(new RegExp(`revoke all on public\\.${table} from anon`));
+      for (const action of ["select", "insert", "update", "delete"]) {
+        expect(drinks).toMatch(new RegExp(`on public\\.${table} for ${action} to authenticated`));
+      }
+    }
+  });
+
+  it("keeps one rating per person per drink, whole stars 1 to 5, a one-line comment", () => {
+    expect(drinks).toMatch(/stars smallint not null check \(stars between 1 and 5\)/);
+    expect(drinks).toMatch(/primary key \(drink_id, user_id\)/);
+    expect(drinks).toMatch(/comment text check \(comment !~ '\[\\r\\n\]'/);
+  });
+
+  it("lets each person write only their own rating", () => {
+    const own = drinks.match(/create policy "members (rate for themselves|change their own rating|remove their own rating)"[\s\S]*?;/g) ?? [];
+    expect(own).toHaveLength(3);
+    for (const policy of own) expect(policy).toMatch(/user_id = \(select auth\.uid\(\)\)/);
+  });
+
+  it("stamps a rating's last change with the database's clock", () => {
+    expect(drinks).toMatch(/before insert or update on public\.drink_ratings/);
+    expect(drinks).toMatch(/new\.updated_at := now\(\)/);
+  });
+});

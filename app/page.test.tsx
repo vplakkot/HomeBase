@@ -24,6 +24,10 @@ vi.mock("../lib/storage/storage", async (original) => ({
   ...(await original<typeof import("../lib/storage/storage")>()),
   countEntries: vi.fn(async () => 0),
 }));
+vi.mock("../lib/drinks/drinks", async (original) => ({
+  ...(await original<typeof import("../lib/drinks/drinks")>()),
+  countDrinks: vi.fn(async () => 0),
+}));
 
 // Finances before setup: no split, no bills, nothing to do.
 const NOT_SET_UP: FinanceSnapshot = {
@@ -179,7 +183,7 @@ describe("HomePage", () => {
       "Finances",
       "Calendar",
       "Pets",
-      "Wine",
+      "Drinks",
       "Meal Plans",
       "Health",
       "Paperwork",
@@ -188,6 +192,7 @@ describe("HomePage", () => {
     const modules = screen.getByRole("region", { name: "Modules" });
     expect(within(modules).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/finances",
+      "/drinks",
       "/paperwork",
       "/storage",
     ]);
@@ -195,12 +200,14 @@ describe("HomePage", () => {
 
   // REQ-82, and a decision of 2026-09-21: until modules have data, Home
   // shows no invented state unless ?demo asks for it.
-  it("keeps every tile quiet: Finances not set up, Paperwork all filed, Storage empty, the rest Coming soon", async () => {
+  it("keeps every tile quiet: Finances not set up, Paperwork all filed, Storage and Drinks empty, the rest Coming soon", async () => {
     given({ email: "member@example.com" });
     render(await home());
     const [money, ...others] = tiles();
     const storage = others.pop();
     const paperwork = others.pop();
+    const drinks = others.splice(2, 1)[0];
+    expect(drinks).toMatchObject({ name: "Drinks", status: "Nothing recorded yet", loud: false });
     expect(money).toMatchObject({ status: "Not set up", loud: false });
     expect(paperwork).toMatchObject({ name: "Paperwork", status: "All filed", loud: false });
     expect(storage).toMatchObject({ name: "Storage", status: "Nothing logged yet", loud: false });
@@ -245,7 +252,7 @@ describe("HomePage", () => {
       { name: "Finances", status: "$285 due", loud: true },
       { name: "Calendar", status: "Dentist Thu", loud: false },
       { name: "Pets", status: "Pill due today", loud: true },
-      { name: "Wine", status: "9 bottles", loud: false },
+      { name: "Drinks", status: "12 drinks", loud: false },
       { name: "Meal Plans", status: "Tacos tonight", loud: false },
       { name: "Health", status: "Refill ready", loud: true },
       { name: "Paperwork", status: "All filed", loud: false },

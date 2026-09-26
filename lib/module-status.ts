@@ -67,12 +67,12 @@ const DEMO: Record<string, ModuleStatus> = {
     ],
     actionItems: [{ text: "Heartworm pill due", detail: "Both dogs, today", rank: 2 }],
   },
-  wine: {
-    status: "9 bottles",
-    headline: "9 bottles on the rack",
+  drinks: {
+    status: "12 drinks",
+    headline: "12 drinks recorded",
     facts: [
-      { label: "Opened this month", value: "3" },
-      { label: "Running low", value: "Red blends" },
+      { label: "Rated this month", value: "4" },
+      { label: "Newest", value: "Rioja 2019" },
     ],
     actionItems: [],
   },
