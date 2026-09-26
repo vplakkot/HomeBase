@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- How work is picked (CLAUDE.md): open bug issues now come before new
-  requirements when starting the next batch.
+- How work is picked (CLAUDE.md): open bug issues now join the next
+  batch, so they don't sit unnoticed behind new requirements.
 - Drinks, fifth batch: a calmer Overview and a quicker scan. The
   Overview now sums up where we stand ("12 wines · 5 had · 3 want to
   try") and shows the three most recent scans; the full list moved to a

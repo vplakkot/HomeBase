@@ -23,12 +23,12 @@ When I say "next batch" (or "next requirement"):
    In progress. If a requirement's pull request has merged and every
    acceptance criterion is now met, set it to Done. One whose remaining
    criteria wait on a later batch stays In progress.
-2. Open bug issues come first: a bug is a batch of one, picked before
-   new requirements. It already has its issue, so skip steps 3 and 4.
-   With no open bugs, pick the next batch. Follow the milestone's batch
-   plan if one exists (in Notion or in your memory); otherwise group the
-   Ready requirements yourself, in dependency order rather than by ID,
-   and say which you picked and why before building.
+2. Pick the next batch, and add any open bug issues to it: they ride
+   along in its pull request and count toward its limit of four. Follow
+   the milestone's batch plan if one exists (in Notion or in your
+   memory); otherwise group the Ready requirements yourself, in
+   dependency order rather than by ID, and say which you picked and why
+   before building.
 3. Create one GitHub issue for the batch: title = what the batch
    delivers, body = each requirement's ID, name and Notion link, and any
    criteria you already know wait for a later batch; milestone = the
@@ -48,9 +48,10 @@ When I say "next batch" (or "next requirement"):
 ## Rules
 - Never commit to main. Always a branch, then a pull request.
 - One issue per pull request, and one pull request per batch. Reference
-  the issue in the PR description. When a requirement in the batch has
-  criteria only a later batch can prove, name them in the pull request
-  and leave that requirement In progress.
+  the issue in the PR description, and any bug issue that rode along.
+  When a requirement in the batch has criteria only a later batch can
+  prove, name them in the pull request and leave that requirement In
+  progress.
 - Never commit secrets. Keys and passwords live in Vercel, never in git.
 - Database structure changes go through migration files in git, never by hand
   in the Supabase console.
