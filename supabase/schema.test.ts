@@ -682,3 +682,23 @@ describe("drinks: how we got it and buy again (REQ-35, REQ-36, REQ-34)", () => {
     expect(how).toMatch(/exists \(select 1 from public\.drink_ratings where drink_id = new\.id\)/);
   });
 });
+
+describe("drinks: label photos (REQ-32)", () => {
+  const photos = readMigration("20260926140000");
+
+  it("keeps them in a private bucket that takes only JPEGs up to 1 MB", () => {
+    expect(photos).toMatch(/values \('drink-labels', 'drink-labels', false, 1048576, array\['image\/jpeg'\]\)/);
+  });
+
+  it("lets only household members see or change them", () => {
+    for (const action of ["select", "insert", "update", "delete"]) {
+      expect(photos).toMatch(new RegExp(`on storage\\.objects for ${action} to authenticated`));
+    }
+    expect(photos.match(/bucket_id = 'drink-labels' and \(select public\.(is_member|has_permission)/g)).toHaveLength(5);
+    expect(photos).not.toMatch(/to anon/);
+  });
+
+  it("keeps a back label only with a front one", () => {
+    expect(photos).toMatch(/check \(back_label is null or front_label is not null\)/);
+  });
+});

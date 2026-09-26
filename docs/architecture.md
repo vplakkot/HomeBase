@@ -967,7 +967,7 @@ each of us thought of it.
 
 | Table | One row is | Key facts |
 |---|---|---|
-| `drinks` | a wine | only `name` is required; `producer`, `type` (one of seven), `vintage` or `non_vintage` (never both), `grapes` (a list), `region`, `country`, `abv`, `bottle_ml`, and for sparkling `sweetness`, `method`, `disgorged_on`; `how` we got it (`bought`, `gift`, `had_out`, `want_to_try`) with its optional extras `price`, `place`, `gift_from`, each allowed only with its value by a check; every member reads, adds, changes and removes |
+| `drinks` | a wine | only `name` is required; `producer`, `type` (one of seven), `vintage` or `non_vintage` (never both), `grapes` (a list), `region`, `country`, `abv`, `bottle_ml`, and for sparkling `sweetness`, `method`, `disgorged_on`; `how` we got it (`bought`, `gift`, `had_out`, `want_to_try`) with its optional extras `price`, `place`, `gift_from`, each allowed only with its value by a check; `front_label` and `back_label`, where the label photos are in Storage (a back only with a front); every member reads, adds, changes and removes |
 | `drink_ratings` | one person's rating of one drink | primary key `(drink_id, user_id)`, so one each; `stars` 1–5, a one-line `comment`, `buy_again` (yes, no or null); `updated_at` stamped by a trigger; refused on a Want to try drink (`refuse_rating_untried`), and a rated drink can't go back to Want to try (`refuse_untrying_rated`); everyone reads, each person writes only their own row (`user_id = auth.uid()` in the policies); removed with its drink |
 
 The standard lists (types, grapes with their other names, countries,
@@ -984,6 +984,37 @@ the form is long; and a drink's page, with every member's rating by name
 and a Rate sheet. Home's Drinks tile only counts drinks. See
 [lesson 26](lessons/26-rows-that-belong-to-one-person.md) for how a
 rating stays its owner's.
+
+### Label photos and scanning
+
+Drinks is the first module to keep files, so it's the first to use
+**Supabase Storage**, the file store that comes with the database (no
+new service or account). Photos go in one private bucket,
+`drink-labels`, which takes only JPEGs up to 1 MB. Policies on
+`storage.objects` let household members read and write it and nobody
+else; nothing in it has a public address. Pages show a photo through a
+signed link the server makes for the signed-in member, good for an
+hour ([`lib/drinks/photos.ts`](../lib/drinks/photos.ts)).
+
+```
+phone photo (3–12 MB)
+  → browser shrinks it: long side ≤ 1600 px, JPEG under 450 KB,
+    plus a 240 px copy for the list        (lib/drinks/shrink-photo.ts)
+  → sent with the drink's form (server actions accept up to 2 MB,
+    next.config.ts)
+  → the action uploads both under the drink's id, then saves the row
+    with their paths; if the row fails, the uploads are removed
+```
+
+Scanning (`/drinks/scan`) is the browser's file picker: `capture`
+opens the phone's camera, and without it the photo library. Front,
+Retake or Use it, then Add back label or Skip. The photos go to
+`readLabel`, which hands them to the label reader
+([`lib/drinks/label-reader.ts`](../lib/drinks/label-reader.ts)); until
+the reader is connected it finds nothing. The review screen is the Add
+form filled with what was read, next to the photos; nothing is stored
+until Save. A drink without photos gets them later from Manage. See
+[lesson 27](lessons/27-private-photos.md).
 
 ## Not yet built
 

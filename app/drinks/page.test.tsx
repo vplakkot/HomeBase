@@ -47,6 +47,8 @@ const drink = (id: string, name: string, extra: Record<string, unknown> = {}) =>
   price: null,
   place: null,
   gift_from: null,
+  front_label: null,
+  back_label: null,
   created_at: "2026-09-01T12:00:00Z",
   ...extra,
 });
@@ -119,11 +121,12 @@ describe("the Drinks list (REQ-30)", () => {
     expect(sort.value).toBe("rating:user-2");
   });
 
-  it("says so when there's nothing yet, and offers Add a drink", async () => {
+  it("says so when there's nothing yet, and offers Scan a label and Add by hand", async () => {
     given([]);
     render(await list());
-    expect(screen.getByText("Nothing recorded yet. Add a drink to start.")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Add a drink" }).getAttribute("href")).toBe("/drinks/new");
+    expect(screen.getByText("Nothing recorded yet. Scan a label or add one by hand to start.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Add by hand" }).getAttribute("href")).toBe("/drinks/new");
+    expect(screen.getByRole("link", { name: "Scan a label" }).getAttribute("href")).toBe("/drinks/scan");
   });
 
   // One-handed: every control is at least the 44px tap target, the list

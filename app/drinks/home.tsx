@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buyAgainText, drinkLine, listDrinks, parseSort, ratingsFor, sortValue, starsText } from "../../lib/drinks/drinks";
 import { TYPE_NAMES } from "../../lib/drinks/lists";
+import { thumbPath } from "../../lib/drinks/photos";
 import { DrinksScreen, type DrinksViewer } from "./frame";
 import { ListControls, SearchBox } from "./controls";
 import styles from "./drinks.module.css";
@@ -44,15 +45,20 @@ export function DrinksHome({
               ? "Nothing matches."
               : wanted
                 ? "Nothing on the list. Add a drink and choose Want to try."
-                : "Nothing recorded yet. Add a drink to start."}
+                : "Nothing recorded yet. Scan a label or add one by hand to start."}
           </p>
         ) : (
           <ul className={styles.grid}>
             {drinks.map((drink) => {
               const line = drinkLine(drink, (t) => TYPE_NAMES[t]);
+              const thumb = drink.front_label ? viewer.thumbs.get(thumbPath(drink.front_label)) : undefined;
               return (
                 <li key={drink.id}>
-                  <Link href={`/drinks/${drink.id}`} className={styles.linkCard}>
+                  <Link href={`/drinks/${drink.id}`} className={`${styles.linkCard} ${thumb ? styles.withThumb : ""}`}>
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- a private, short-lived link
+                      <img src={thumb} alt="" className={styles.thumb} />
+                    ) : null}
                     <span className={styles.cardTitle}>{drink.name}</span>
                     {line ? <span className={styles.cardDetail}>{line}</span> : null}
                     {wanted ? null : (

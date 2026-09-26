@@ -33,7 +33,19 @@ export function fakeSupabase({ signedIn = true, permissions = [], people = [], t
     }
     return query;
   });
+  // Storage (Drinks' label photos): uploads and removals are recorded,
+  // and a signed link is the path under an invented address.
+  const bucket = {
+    upload: vi.fn(async (path: string) => ({ data: { path }, error: null })),
+    remove: vi.fn(async () => ({ data: [], error: null })),
+    createSignedUrls: vi.fn(async (paths: string[]) => ({
+      data: paths.map((path) => ({ path, signedUrl: `https://signed.example/${path}`, error: null })),
+      error: null,
+    })),
+  };
+  const storage = { from: vi.fn(() => bucket), bucket };
   return {
+    storage,
     auth: {
       getClaims: vi.fn().mockResolvedValue({
         data: signedIn ? { claims: { sub: "user-1" } } : null,

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Drinks, third batch: label photos and scanning. Scan a label opens
+  the phone's camera for the front label (Retake or Use it), then
+  offers the back label or Skip; Choose a photo does the same from the
+  photo library. The review screen shows the photos next to the drink's
+  fields to check and save; Cancel keeps nothing. Reading the label
+  itself comes next, so for now the fields start empty. Photos are
+  shrunk on the phone before sending, kept privately for the household,
+  shown as a thumbnail in the list and in full on the drink's page, and
+  can be added or replaced later from Manage.
 - Drinks, second batch. Every drink says how we got it: Bought (with an
   optional price and shop), Gift (from whom), Had out (where), or Want
   to try. Wines we want to try have their own tab, stay out of the main
