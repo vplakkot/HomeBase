@@ -244,3 +244,63 @@ describe("photos on the list and the drink's page (REQ-32, REQ-30)", () => {
     expect(button("Replace label photos")).toBeTruthy();
   });
 });
+
+describe("the shop check (REQ-33)", () => {
+  const RESERVA = drink("d1", "Reserva Especial", { producer: "Bodegas Ficticias", vintage: 2019 });
+  const WISH = drink("d3", "Old Vine", { producer: "Made-up Estate", vintage: 2021, how: "want_to_try" });
+
+  async function scanReading(fields: LabelReading["fields"], drinks: unknown[], ratings: unknown[] = []) {
+    vi.mocked(noReader).mockResolvedValue({ found: true, fields, unsure: [] });
+    fake = fakeSupabase({
+      permissions: ["use_modules"],
+      people: [{ user_id: "user-1", name: "Sam", manages_budget: true }],
+      tables: { drinks, drink_ratings: ratings },
+    });
+    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+    render(await ScanPage());
+    await pick("Take the front label");
+    fireEvent.click(button("Use it"));
+    await act(async () => {
+      fireEvent.click(button("Skip"));
+    });
+    return screen.findByRole("region", { name: "Have we had it?" });
+  }
+
+  it("shows a match straight away, from the normal Scan, with stars, comments and buy again", async () => {
+    const answer = await scanReading({ producer: "Bodegas Ficticias", name: "Reserva Especial", vintage: 2019 }, [RESERVA], [
+      { drink_id: "d1", user_id: "user-1", stars: 2, comment: "thin", buy_again: false, updated_at: "2026-09-21T12:00:00Z" },
+    ]);
+    expect(within(answer).getByRole("heading").textContent).toBe("We've had this");
+    expect(answer.textContent).toContain("Reserva Especial · 2019");
+    expect(within(answer).getByRole("list", { name: "Ratings" }).textContent).toBe("Sam ★★☆☆☆ · Buy again: no “thin”");
+    expect(within(answer).getByRole("link", { name: "Open existing" }).getAttribute("href")).toBe("/drinks/d1");
+    // Nothing saved to show it.
+    expect(inserts()).toHaveLength(0);
+  });
+
+  it("offers Save as new, which opens the filled-in form", async () => {
+    await scanReading({ producer: "Bodegas Ficticias", name: "Reserva Especial", vintage: 2019 }, [RESERVA]);
+    expect(screen.queryByRole("region", { name: "Check the details" })).toBeNull();
+    fireEvent.click(button("Save as new"));
+    const form = screen.getByRole("region", { name: "Check the details" });
+    expect((within(form).getByRole("textbox", { name: /^Name/ }) as HTMLInputElement).value).toBe("Reserva Especial");
+  });
+
+  it("labels a different vintage as a near match, and still lets me save", async () => {
+    const answer = await scanReading({ producer: "Bodegas Ficticias", name: "Reserva Especial", vintage: 2022 }, [RESERVA]);
+    expect(within(answer).getByRole("heading").textContent).toBe("A different vintage of one we've had");
+    expect(screen.getByRole("region", { name: "Check the details" })).toBeTruthy();
+  });
+
+  it("calls out a wine on our want-to-try list", async () => {
+    const answer = await scanReading({ producer: "Made-up Estate", name: "Old Vine", vintage: 2021 }, [WISH]);
+    expect(within(answer).getByText("On our Want to try list")).toBeTruthy();
+  });
+
+  it("says when it's new, with the form to save it or choose Want to try", async () => {
+    const answer = await scanReading({ name: "Something Else", vintage: 2020 }, [RESERVA]);
+    expect(within(answer).getByRole("heading").textContent).toBe("New to us");
+    const form = screen.getByRole("region", { name: "Check the details" });
+    expect(within(form).getByRole("radio", { name: "Want to try" })).toBeTruthy();
+  });
+});

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Drinks, fourth batch: the label is read. Scanning now fills in the
+  producer, name, vintage (or NV), type, grapes, region, country,
+  alcohol and bottle size where the labels show them, plus sweetness,
+  method and disgorgement for sparkling wines; anything read with doubt
+  says "check this", and nothing is guessed. Right after reading, the
+  shop check says whether we've had it: everyone's stars, comments and
+  buy again, with Open existing or Save as new; a different vintage is
+  shown as a near match; a wine on the Want to try list is called out;
+  and a new one says so. Reading uses Google Cloud Vision.
 - Drinks, third batch: label photos and scanning. Scan a label opens
   the phone's camera for the front label (Retake or Use it), then
   offers the back label or Skip; Choose a photo does the same from the

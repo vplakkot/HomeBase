@@ -1009,12 +1009,42 @@ phone photo (3–12 MB)
 Scanning (`/drinks/scan`) is the browser's file picker: `capture`
 opens the phone's camera, and without it the photo library. Front,
 Retake or Use it, then Add back label or Skip. The photos go to
-`readLabel`, which hands them to the label reader
-([`lib/drinks/label-reader.ts`](../lib/drinks/label-reader.ts)); until
-the reader is connected it finds nothing. The review screen is the Add
+`readLabel`, which hands them to the label reader (below). The review screen is the Add
 form filled with what was read, next to the photos; nothing is stored
 until Save. A drink without photos gets them later from Manage. See
 [lesson 27](lessons/27-private-photos.md).
+
+### Reading the label, and the shop check
+
+Reading uses **Google Cloud Vision**, an outside service (a Notion
+decision of 2026-09-20; about 60 photos a month, inside its free 1,000).
+It's the app's first call to a paid outside API, so here is how it's
+wired:
+
+```
+review screen ──readLabel (server action)──▶ Vision images:annotate
+                                              (both photos, one request,
+                                               key from GOOGLE_VISION_API_KEY)
+                ◀── lines of text, each with its printed height and
+                    Vision's confidence            (lib/drinks/vision.ts)
+                ── parseLabel: lists and patterns → drink fields,
+                   doubtful ones marked            (lib/drinks/parse-label.ts)
+                ── shopCheck: same producer + name + vintage? (lib/drinks/match.ts)
+```
+
+- The key lives only in Vercel (Production and Preview), marked
+  Sensitive, and is read on the server; the browser never sees it. The
+  Google Cloud project `HomeBase` has billing on, a $5 budget alert,
+  and the key is restricted to the Vision API.
+- Without the key (a laptop), `noReader` finds nothing and the review
+  screen asks for the details by hand. If Vision fails or takes over 9
+  seconds, the same happens and Sentry is told.
+- The shop check runs on the server right after reading, against every
+  drink and rating, and comes back with the reading: "We've had this"
+  (with everyone's stars, comments and buy again, Open existing or Save
+  as new), a near match (a different vintage), a want-to-try call-out,
+  or "New to us". Nothing is saved to answer it. See
+  [lesson 28](lessons/28-reading-a-label.md).
 
 ## Not yet built
 

@@ -19,7 +19,6 @@ export type LabelReader = (photos: readonly Blob[]) => Promise<LabelReading>;
 
 export const NOTHING_READ: LabelReading = { found: false, fields: {}, unsure: [] };
 
-// Until the label reader is connected (batch 4, Google Cloud Vision),
-// every reading finds nothing and the review screen asks for the details
-// by hand.
+// Without a key (on a laptop, say), every reading finds nothing and the
+// review screen asks for the details by hand.
 export const noReader: LabelReader = async () => NOTHING_READ;
