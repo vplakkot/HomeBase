@@ -1,0 +1,127 @@
+/* Meal Plan borrows Drinks' and Paperwork's shapes; only what's new to
+   recipes is written here. */
+.screen { composes: screen from "../drinks/drinks.module.css"; }
+.crumbs { composes: crumbs from "../drinks/drinks.module.css"; }
+.section { composes: section from "../drinks/drinks.module.css"; }
+.sectionHead { composes: sectionHead from "../drinks/drinks.module.css"; }
+.sectionTitle { composes: sectionTitle from "../drinks/drinks.module.css"; }
+.count { composes: count from "../drinks/drinks.module.css"; }
+.card { composes: card from "../drinks/drinks.module.css"; }
+.grid { composes: grid from "../drinks/drinks.module.css"; }
+.linkCard { composes: linkCard from "../drinks/drinks.module.css"; }
+.cardTitle { composes: cardTitle from "../drinks/drinks.module.css"; }
+.cardDetail { composes: cardDetail from "../drinks/drinks.module.css"; }
+.empty { composes: empty from "../drinks/drinks.module.css"; }
+.formCard { composes: formCard from "../drinks/drinks.module.css"; }
+.pairFields { composes: pairFields from "../drinks/drinks.module.css"; }
+.details { composes: details from "../drinks/drinks.module.css"; }
+.withThumb { composes: withThumb from "../drinks/drinks.module.css"; }
+.thumb { composes: thumb from "../drinks/drinks.module.css"; }
+.progress { composes: progress from "../drinks/drinks.module.css"; }
+.notice { composes: notice from "../drinks/drinks.module.css"; }
+.linkButton { composes: linkButton from "../drinks/drinks.module.css"; }
+.unsure { composes: unsure from "../drinks/drinks.module.css"; }
+.choices { composes: choices from "../drinks/drinks.module.css"; }
+.choiceRow { composes: choiceRow from "../drinks/drinks.module.css"; }
+.choice { composes: choice from "../drinks/drinks.module.css"; }
+.fileHead { composes: fileHead from "../drinks/drinks.module.css"; }
+.title { composes: title from "../drinks/drinks.module.css"; }
+.fileButtons { composes: fileButtons from "../drinks/drinks.module.css"; }
+.tools { composes: tools from "../drinks/drinks.module.css"; }
+
+/* REQ-112: the video path is BETA, always. A small pill in the module's
+   loud colour, next to what it labels. */
+.beta {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--module-loud);
+  color: var(--module-on-loud);
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+/* The card's photo: full width on a phone, beside the details on a desktop. */
+.hero {
+  width: 100%;
+  max-height: 360px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+}
+
+.ingredients,
+.steps {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* One ingredient per block on the form: its name on a line of its own,
+   then amount, unit and note under it. */
+.ingredientList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ingredientList legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.ingredientRow {
+  display: grid;
+  grid-template-areas:
+    "item item item remove"
+    "quantity unit note note";
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) var(--tap-target-min);
+  gap: var(--space-2);
+  align-items: end;
+}
+
+.ingredientRow input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.item { grid-area: item; }
+.quantity { grid-area: quantity; }
+.unit { grid-area: unit; }
+.note { grid-area: note; }
+
+.remove {
+  grid-area: remove;
+  min-width: var(--tap-target-min);
+  min-height: var(--tap-target-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-body-lg);
+}
+
+.stepsInput {
+  min-height: 12rem;
+}
+
+.recipeInput {
+  min-height: 14rem;
+}
+
+/* A field's label with its info hint beside it, not under it. */
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}

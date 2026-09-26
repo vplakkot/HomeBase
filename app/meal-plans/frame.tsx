@@ -1,0 +1,66 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
+import { ButtonLink } from "../../components/button";
+import { ModuleFrame } from "../../components/module-frame";
+import { readAccount } from "../../lib/account";
+import { hasPermission } from "../../lib/auth/permissions";
+import { createClient } from "../../lib/supabase/server";
+import styles from "./meal-plans.module.css";
+
+// Who is looking at a Meal Plan page. Signed-out visitors go to sign-in.
+export async function mealPlansViewer() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims) redirect("/sign-in");
+  const [canManageMembers, account] = await Promise.all([
+    hasPermission(supabase, "manage_members"),
+    readAccount(data.claims),
+  ]);
+  return { canManageMembers, account, supabase };
+}
+
+export type MealPlansViewer = Awaited<ReturnType<typeof mealPlansViewer>>;
+
+// Every Meal Plan screen: the module header with Add recipe, and below
+// the top level a breadcrumb back to the recipes.
+export function MealPlansScreen({
+  viewer,
+  section,
+  crumb,
+  actions,
+  children,
+}: {
+  viewer: MealPlansViewer;
+  section?: string;
+  crumb?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <ModuleFrame
+      slug="meal-plans"
+      section={section}
+      canManageMembers={viewer.canManageMembers}
+      account={viewer.account}
+      actions={actions ?? <ButtonLink href="/meal-plans/new">Add recipe</ButtonLink>}
+    >
+      <div className={styles.screen}>
+        {crumb ? (
+          <nav aria-label="Breadcrumb">
+            <ol className={styles.crumbs}>
+              <li>
+                <Link href="/meal-plans">Meal Plans</Link>
+              </li>
+              <li>
+                <span aria-hidden="true">› </span>
+                <span aria-current="page">{crumb}</span>
+              </li>
+            </ol>
+          </nav>
+        ) : null}
+        {children}
+      </div>
+    </ModuleFrame>
+  );
+}

@@ -53,10 +53,12 @@ export async function signedPhotoLinks(
   supabase: SupabaseClient,
   paths: readonly string[],
   seconds = 60 * 60,
+  // Meal Plan's recipe photos use the same links from their own bucket.
+  bucket = LABEL_BUCKET,
 ): Promise<Map<string, string>> {
   const links = new Map<string, string>();
   if (paths.length === 0) return links;
-  const { data, error } = await supabase.storage.from(LABEL_BUCKET).createSignedUrls([...paths], seconds);
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrls([...paths], seconds);
   if (error || !data) return links;
   for (const row of data) if (row.path && row.signedUrl && !row.error) links.set(row.path, row.signedUrl);
   return links;

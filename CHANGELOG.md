@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Meal Plans opens, with recipe cards. Add a recipe by filling in the
+  card, by pasting it in any form (Gemini turns it into a card and
+  marks what it guessed), or from a downloaded video, marked BETA:
+  pick the video, carry on using HomeBase, and a "Recipe ready" note
+  appears when Gemini has read it. Every draft is reviewed before it's
+  saved. A card shows a still from the video (replaceable with your
+  own photo), the video and recipe page links, cuisine, main meat,
+  cooking method, cook time, servings, ingredients with amounts, steps
+  and notes. Home's Meal Plans tile counts recipes.
 - Drinks: Choose a photo is back in reach. Every Drinks screen's header
   now has Add by hand, Scan and a quieter Choose a photo, which opens
   the photo library and goes on to the same scan screen as the camera
