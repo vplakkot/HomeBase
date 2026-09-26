@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Drinks: Choose a photo is back in reach. Every Drinks screen's header
+  now has Add by hand, Scan and a quieter Choose a photo, which opens
+  the photo library and goes on to the same scan screen as the camera
+  (its Add back label and Retake use the library too). An empty
+  Overview offers it beside Scan, and the small link beside Recent
+  scans is gone. On a narrow desktop the header's search shrinks to
+  make room.
 - How work is picked (CLAUDE.md): open bug issues now join the next
   batch, so they don't sit unnoticed behind new requirements.
 - Drinks, fifth batch: a calmer Overview and a quicker scan. The

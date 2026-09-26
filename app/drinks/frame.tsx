@@ -8,7 +8,7 @@ import { hasPermission } from "../../lib/auth/permissions";
 import { readDrinks, readPeople } from "../../lib/drinks/drinks";
 import { signedPhotoLinks, thumbPath } from "../../lib/drinks/photos";
 import { createClient } from "../../lib/supabase/server";
-import { ScanButton } from "./scan-button";
+import { ChoosePhotoButton, ScanButton } from "./scan-button";
 import styles from "./drinks.module.css";
 
 // Who is looking at a Drinks page, every drink and rating, and the
@@ -35,7 +35,8 @@ export async function drinksViewer() {
 
 export type DrinksViewer = Awaited<ReturnType<typeof drinksViewer>>;
 
-// Every Drinks screen: the module header with Add by hand and Scan, and
+// Every Drinks screen: the module header with Add by hand, Scan and
+// Choose a photo (#206), and
 // below the top level a breadcrumb back to the list it came from
 // (REQ-121: Wines, or Want to try for a wish). The scan is a screen of
 // its own (REQ-122): its Cancel in place of the header's buttons.
@@ -53,7 +54,7 @@ export function DrinksScreen({
   crumb?: string;
   parent?: { name: string; href: string };
   tools?: ReactNode;
-  // In place of Add by hand and Scan.
+  // In place of Add by hand, Scan and Choose a photo.
   actions?: ReactNode;
   children: ReactNode;
 }) {
@@ -69,6 +70,7 @@ export function DrinksScreen({
             {tools}
             <ButtonLink href="/drinks/new">Add by hand</ButtonLink>
             <ScanButton />
+            <ChoosePhotoButton />
           </div>
         )
       }

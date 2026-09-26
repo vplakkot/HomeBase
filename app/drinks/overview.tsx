@@ -4,7 +4,7 @@ import { thumbPath } from "../../lib/drinks/photos";
 import cards from "../../components/cards.module.css";
 import { SearchBox } from "./controls";
 import { DrinksScreen, type DrinksViewer } from "./frame";
-import { ScanButton } from "./scan-button";
+import { ChoosePhotoButton, ScanButton } from "./scan-button";
 import styles from "./drinks.module.css";
 
 // Drinks' Overview (REQ-120): where we stand at a glance, and the last
@@ -19,6 +19,7 @@ export function DrinksOverview({ viewer }: { viewer: DrinksViewer }) {
           <p className={styles.empty}>Nothing recorded yet.</p>
           <div className={styles.pickers}>
             <ScanButton className={cards.primary} />
+            <ChoosePhotoButton className={cards.quiet} />
           </div>
         </section>
       ) : (
@@ -29,10 +30,6 @@ export function DrinksOverview({ viewer }: { viewer: DrinksViewer }) {
               <h2 id="recent" className={styles.sectionTitle}>
                 Recent scans
               </h2>
-              {/* REQ-122: a photo taken earlier, the second way in. */}
-              <Link href="/drinks/scan" className={styles.linkButton}>
-                Choose a photo
-              </Link>
             </div>
             <ul className={styles.grid}>
               {recent.map((drink) => {

@@ -4,6 +4,13 @@
    copied. The module colour comes from the page, so they're violet. */
 .tools { composes: tools from "../paperwork/paperwork.module.css"; }
 .search { composes: search from "../paperwork/paperwork.module.css"; }
+
+/* #206: with Choose a photo there are three header buttons, so on a
+   narrow desktop the search gives way instead of pushing one off-screen. */
+.tools .search {
+  flex-shrink: 1;
+  min-width: 200px;
+}
 .clear { composes: clear from "../paperwork/paperwork.module.css"; }
 .hidden { composes: hidden from "../paperwork/paperwork.module.css"; }
 .crumbs { composes: crumbs from "../paperwork/paperwork.module.css"; }
@@ -410,6 +417,15 @@
 
 .notice p {
   margin: 0;
+}
+
+/* The header's Choose a photo (#206): a way in, but quieter than Scan. */
+.quietAction {
+  composes: linkButton;
+  flex-shrink: 0;
+  align-self: center;
+  min-height: 44px;
+  white-space: nowrap;
 }
 
 .linkButton {
