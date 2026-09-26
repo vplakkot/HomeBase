@@ -1061,6 +1061,64 @@ review screen ──readLabel (server action)──▶ Vision images:annotate
   screen. Nothing is saved to answer it. See
   [lesson 28](lessons/28-reading-a-label.md).
 
+## Meal Plans
+
+Meal Plans (v2.0, REQ-110 to REQ-112) starts with recipe cards. A
+recipe (`recipes`) holds its name, a photo, the video and recipe page
+links, cuisine, main meat, one of four cooking methods, cook time,
+servings, ingredients as a list of `{ quantity, unit, item, note }`
+(so a later batch can scale them), steps and notes. Cuisines come from
+`cuisines`, which starts with the common ones and gains a new one the
+first time a saved recipe needs it. Photos live in a private
+`recipe-photos` bucket, with the same signed links and small copies as
+drink labels. Any member can add, change and remove any recipe.
+
+A recipe arrives three ways: typed in by hand, pasted as text in any
+form, or read from a downloaded video (always marked BETA). The last
+two go through **Gemini** (`gemini-3.8-flash`), Google's AI model, an
+outside service with its key in Vercel as `GEMINI_API_KEY`, read only
+on the server. `lib/meal-plans/gemini.ts` calls its web API directly;
+there is no Google library. Nothing is saved as a recipe until someone
+reviews the draft: a draft lives in `recipe_imports`, which only its
+starter can see, and saving it makes the recipe and removes the draft.
+
+### A video's trip
+
+A video is too big to pass through our server (Vercel takes about
+4.5 MB a request), so the phone sends it straight to Google:
+
+```
+Add recipe ──startVideoImport──▶ server: keeps name, link, a still from
+   (phone)                        the video; opens a one-time upload
+                                  link at Google; row = uploading
+phone ──8 MB pieces──▶ Google's upload link (no key; that one file only)
+phone ──videoProgress──▶ server asks Google how much arrived
+                         all of it: row = processing, answer, then
+                         after(): wait for Google → Gemini reads it
+                         → row = ready (draft) or failed → delete video
+toast (every page) ──myRecipeImports every 15 s──▶ "Recipe ready"
+```
+
+- The phone never reads Google's answer to the last piece: once a video
+  sent in pieces is complete, Google's answer lacks the header that
+  lets a browser read it (seen 2026-09-26). The server asks instead,
+  with the upload link it keeps on the row.
+- An iPhone pauses a web app soon after you switch away. A failed piece
+  waits until HomeBase is on screen again and carries on from what
+  arrived. Moving around HomeBase doesn't stop an upload; closing or
+  reloading it does. Not yet tried on an iPhone.
+- Reading happens after the server has answered, using Next.js
+  `after()`, with the admin client because no one is waiting on a
+  page. Vercel runs `after()` work until the function's time limit;
+  that hasn't been checked on Vercel yet. An import still processing
+  after 10 minutes, or uploading after 2 hours, is marked failed the
+  next time the toast asks.
+- The toast (`components/recipe-toast.tsx`, in every page's frame) only
+  asks the server while this browser has an import going (a note in
+  localStorage), and shows sending progress, "Reading…", "Recipe
+  ready" or a plain failure. See
+  [lesson 29](lessons/29-work-after-the-answer.md).
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:

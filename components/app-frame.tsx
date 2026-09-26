@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { Account } from "../lib/account";
+import { RecipeToast } from "./recipe-toast";
 import { Sidebar, type Place } from "./sidebar";
 import styles from "./app-frame.module.css";
 
@@ -34,6 +35,7 @@ export function AppFrame({
         </main>
         {phoneBar ? <div className={styles.phoneBar}>{phoneBar}</div> : null}
       </div>
+      <RecipeToast />
     </div>
   );
 }

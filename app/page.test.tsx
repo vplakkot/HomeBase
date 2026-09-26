@@ -28,6 +28,10 @@ vi.mock("../lib/drinks/drinks", async (original) => ({
   ...(await original<typeof import("../lib/drinks/drinks")>()),
   countDrinks: vi.fn(async () => 0),
 }));
+vi.mock("../lib/meal-plans/recipes", async (original) => ({
+  ...(await original<typeof import("../lib/meal-plans/recipes")>()),
+  countRecipes: vi.fn(async () => 0),
+}));
 
 // Finances before setup: no split, no bills, nothing to do.
 const NOT_SET_UP: FinanceSnapshot = {
@@ -193,6 +197,7 @@ describe("HomePage", () => {
     expect(within(modules).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/finances",
       "/drinks",
+      "/meal-plans",
       "/paperwork",
       "/storage",
     ]);
@@ -200,14 +205,15 @@ describe("HomePage", () => {
 
   // REQ-82, and a decision of 2026-09-21: until modules have data, Home
   // shows no invented state unless ?demo asks for it.
-  it("keeps every tile quiet: Finances not set up, Paperwork all filed, Storage and Drinks empty, the rest Coming soon", async () => {
+  it("keeps every tile quiet: Finances not set up, Paperwork all filed, Storage, Drinks and Meal Plans empty, the rest Coming soon", async () => {
     given({ email: "member@example.com" });
     render(await home());
     const [money, ...others] = tiles();
     const storage = others.pop();
     const paperwork = others.pop();
-    const drinks = others.splice(2, 1)[0];
+    const [drinks, meals] = others.splice(2, 2);
     expect(drinks).toMatchObject({ name: "Drinks", status: "Nothing recorded yet", loud: false });
+    expect(meals).toMatchObject({ name: "Meal Plans", status: "No recipes yet", loud: false });
     expect(money).toMatchObject({ status: "Not set up", loud: false });
     expect(paperwork).toMatchObject({ name: "Paperwork", status: "All filed", loud: false });
     expect(storage).toMatchObject({ name: "Storage", status: "Nothing logged yet", loud: false });

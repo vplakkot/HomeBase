@@ -17,6 +17,7 @@ import { paperworkTile } from "../lib/paperwork/action-items";
 import { countUnfiled } from "../lib/paperwork/paperwork";
 import { countEntries, storageTile } from "../lib/storage/storage";
 import { countDrinks, drinksTile } from "../lib/drinks/drinks";
+import { countRecipes, recipesTile } from "../lib/meal-plans/recipes";
 import { NOTHING_SWITCHED_OFF, modulesSwitchedOn } from "../lib/modules";
 import { createClient } from "../lib/supabase/server";
 import { KeepThisDevice } from "./notifications/enable-notifications";
@@ -53,17 +54,19 @@ export default async function HomePage({
   const live =
     demo === null
       ? await (async () => {
-          const [snapshot, unfiled, stored, drinks] = await Promise.all([
+          const [snapshot, unfiled, stored, drinks, recipes] = await Promise.all([
             readFinanceSnapshot(supabase, householdToday()),
             countUnfiled(supabase),
             countEntries(supabase),
             countDrinks(supabase),
+            countRecipes(supabase),
           ]);
           return {
             finances: financeTile(snapshot, financeItems(snapshot, data.claims.sub)),
             paperwork: paperworkTile(unfiled),
             storage: storageTile(stored),
             drinks: drinksTile(drinks),
+            "meal-plans": recipesTile(recipes),
           };
         })()
       : {};

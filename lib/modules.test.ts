@@ -27,10 +27,11 @@ describe("the module list", () => {
 
   // A decision of 2026-09-21: v0.2 listed all six, and only Finances
   // opened. v1.0 adds Paperwork and Storage, which open too; v2.0 Drinks.
-  it("opens Finances, Drinks, Paperwork and Storage, at their own addresses", () => {
+  it("opens Finances, Drinks, Meal Plans, Paperwork and Storage, at their own addresses", () => {
     expect(MODULES.filter((module) => module.href).map((module) => module.href)).toEqual([
       "/finances",
       "/drinks",
+      "/meal-plans",
       "/paperwork",
       "/storage",
     ]);
