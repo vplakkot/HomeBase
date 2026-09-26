@@ -22,6 +22,21 @@ export type ShopCheck =
   | { kind: "near"; drinks: Summary[] };
 
 const same = (a: string | null | undefined, b: string | null | undefined) => fold(a ?? "") === fold(b ?? "");
+const words = (...texts: (string | null | undefined)[]) => fold(texts.filter(Boolean).join(" ")).split(" ").filter(Boolean);
+
+// The same wine by name, even when the label reading split it between
+// producer and name ("LA" / "SONRIENTE" against a saved "La Sonriente"):
+// every word of one side's name is somewhere in the other's producer and
+// name. At least one of those words must be a real word (four letters or
+// more), so "La" alone never matches.
+function sameWine(drink: Drink, read: Partial<DrinkFields>): boolean {
+  if (same(drink.name, read.name)) return true;
+  const within = (name: string[], all: string[]) =>
+    name.length > 0 && name.some((word) => word.length >= 4) && name.every((word) => all.includes(word));
+  return (
+    within(words(drink.name), words(read.producer, read.name)) || within(words(read.name), words(drink.producer, drink.name))
+  );
+}
 
 function summary(drink: Drink, people: readonly Person[], ratings: readonly Rating[]): Summary {
   return {
@@ -46,10 +61,10 @@ export function shopCheck(
   ratings: readonly Rating[],
 ): ShopCheck {
   // Without a name there's nothing to match on.
-  if (!read.name || fold(read.name) === "") return { kind: "unknown" };
+  if (words(read.name).length === 0) return { kind: "unknown" };
   const wine = drinks.filter(
     (drink) =>
-      same(drink.name, read.name) &&
+      sameWine(drink, read) &&
       // A producer on only one side doesn't rule a match out; two
       // different producers do.
       (!read.producer || !drink.producer || same(drink.producer, read.producer)),

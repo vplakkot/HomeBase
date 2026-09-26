@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Label reading, tuned on our first real bottles. A name printed over
+  two lines ("La / Sonriente", "Convento / da Vila") is read as one
+  name; a seal like "Produção sustentável" is never the producer; the
+  winery is taken from "Produced and bottled by" when the front doesn't
+  name it; a producer cut short round the bottle's curve is completed
+  from the back label; grapes come in the order printed, and more
+  grapes and regions are known (Trincadeira, Castelão, Touriga Franca,
+  Alentejano, Calatayud, Delle Venezie…); "1 ℓ" bottles are read. The
+  shop check now finds a wine even when its name was split between
+  producer and name, and checks again as you correct the name,
+  producer or vintage.
 - Drinks, fourth batch: the label is read. Scanning now fills in the
   producer, name, vintage (or NV), type, grapes, region, country,
   alcohol and bottle size where the labels show them, plus sweetness,
