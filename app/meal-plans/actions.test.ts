@@ -18,7 +18,8 @@ vi.mock("../../lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/server", () => ({ after: vi.fn() }));
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
-vi.mock("../../lib/meal-plans/gemini", () => ({
+vi.mock("../../lib/meal-plans/gemini", async (original) => ({
+  isGeminiFile: (await original<typeof import("../../lib/meal-plans/gemini")>()).isGeminiFile,
   recipeFromText: vi.fn(),
   openVideoUpload: vi.fn(async () => "https://upload.example/one-time"),
   deleteVideo: vi.fn(async () => {}),
@@ -154,10 +155,34 @@ describe("adding a recipe from a video (REQ-112, BETA)", () => {
     expect(on("recipe_imports").some((query) => query.update.mock.calls.length > 0)).toBe(false);
   });
 
+  it("won't take a file name from Google that isn't a file name", async () => {
+    given({ recipe_imports: [{ id: IMPORT, upload_url: "https://generativelanguage.googleapis.com/upload/v1beta/files?upload_id=x", status: "uploading" }] });
+    vi.mocked(uploadProgress).mockResolvedValue({ final: true, file: "../../models" });
+    expect(await videoProgress(IMPORT)).toEqual({ error: "That upload isn't one of ours." });
+    expect(on("recipe_imports").some((query) => query.update.mock.calls.length > 0)).toBe(false);
+  });
+
+  it("keeps no still when the upload can't start", async () => {
+    given();
+    vi.mocked(openVideoUpload).mockRejectedValueOnce(new Error("Gemini upload did not start: 503"));
+    expect(await startVideoImport(form({ name: "Test", size: "1000", mime: "video/mp4", photo: jpeg(), photo_thumb: jpeg() }))).toEqual({
+      error: "The upload couldn't start. Try again.",
+    });
+    expect(fake.storage.bucket.upload).not.toHaveBeenCalled();
+    expect(fake.from).not.toHaveBeenCalledWith("recipe_imports");
+  });
+
   it("won't use an upload link that isn't Google's", async () => {
     given({ recipe_imports: [{ id: IMPORT, upload_url: "https://elsewhere.example/steal", status: "uploading" }] });
     expect(await videoProgress(IMPORT)).toEqual({ error: "That upload isn't one of ours." });
     expect(uploadProgress).not.toHaveBeenCalled();
+  });
+
+  it("won't ask Google to delete a file name that isn't Google's", async () => {
+    const { deleteVideo } = await import("../../lib/meal-plans/gemini");
+    given({ recipe_imports: [{ photo: null, gemini_file: "../../models/x" }] });
+    await expect(dismissImport(form({ id: IMPORT }))).rejects.toThrow("REDIRECT:/meal-plans");
+    expect(deleteVideo).not.toHaveBeenCalled();
   });
 
   it("throws a draft away with its still", async () => {

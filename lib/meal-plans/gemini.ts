@@ -48,6 +48,13 @@ export async function openVideoUpload(size: number, mime: string, displayName: s
   return link;
 }
 
+// Google's name for an uploaded file. A row's own person can change the
+// row directly in the database, so a name read back from one is checked
+// against this before it's used with our key.
+export function isGeminiFile(name: unknown): name is string {
+  return typeof name === "string" && /^files\/[a-z0-9-]+$/i.test(name);
+}
+
 export type UploadProgress = { final: true; file: string } | { final: false; received: number };
 
 // How much of a video has reached its upload link, asked from the server.

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { deleteVideo, recipeFromVideo, videoState, type VideoState } from "./gemini";
+import { deleteVideo, isGeminiFile, recipeFromVideo, videoState, type VideoState } from "./gemini";
 
 // Reading an uploaded video, after the phone has finished sending it
 // (REQ-112, BETA). It runs on the server once the request that started it
@@ -46,7 +46,7 @@ export async function processVideoImport(
     .select("id, name, gemini_file, status")
     .eq("id", importId)
     .maybeSingle();
-  if (!row || row.status !== "processing" || !row.gemini_file) return;
+  if (!row || row.status !== "processing" || !isGeminiFile(row.gemini_file)) return;
   const file: string = row.gemini_file;
   const finish = (fields: Record<string, unknown>) =>
     admin

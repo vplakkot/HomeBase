@@ -71,7 +71,7 @@ describe("the review form, as a recipe (REQ-110, REQ-111)", () => {
   });
 
   it("keeps a cuisine within the list's 40 letters", () => {
-    expect(recipeFieldsFrom(form([["name", "x"], ["cuisine", "x".repeat(41)]]))).toEqual({ error: "Keep the cuisine under 40 letters." });
+    expect(recipeFieldsFrom(form([["name", "x"], ["cuisine", "x".repeat(41)]]))).toEqual({ error: "Keep the cuisine to 40 letters or fewer." });
   });
 
   it("needs a name, and links that are web links", () => {

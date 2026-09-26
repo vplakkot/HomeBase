@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { hasPermission } from "../../lib/auth/permissions";
 import { thumbPath } from "../../lib/drinks/photos";
-import { deleteVideo, openVideoUpload, recipeFromText, uploadProgress } from "../../lib/meal-plans/gemini";
+import { deleteVideo, isGeminiFile, openVideoUpload, recipeFromText, uploadProgress } from "../../lib/meal-plans/gemini";
 import { MAX_VIDEO_BYTES, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
 import { PROCESSING_GIVES_UP_MS, UPLOAD_GIVES_UP_MS, processVideoImport } from "../../lib/meal-plans/import-job";
 import { RECIPE_PHOTOS, recipePhotoPath } from "../../lib/meal-plans/photos";
@@ -18,9 +18,8 @@ import { createClient } from "../../lib/supabase/server";
 export type FormState = { error?: string; saved?: boolean };
 
 const UUID = /^[0-9a-f-]{36}$/i;
-// A row's own person can change it directly in the database, so what the
-// server reads back from it is checked before it's used with our key.
-const GEMINI_FILE = /^files\/[a-z0-9-]+$/i;
+// A row's own person can change it directly in the database, so the
+// upload link read back from one is checked before the server calls it.
 const UPLOAD_LINK = "https://generativelanguage.googleapis.com/upload/";
 const MAX_PHOTO_UPLOAD = 1024 * 1024;
 const MAX_RECIPE_TEXT = 20_000;
@@ -153,7 +152,7 @@ export async function videoProgress(id: string): Promise<VideoProgress> {
   if (!row?.upload_url?.startsWith(UPLOAD_LINK) || row.status !== "uploading") return { error: "That upload isn't one of ours." };
   const progress = await uploadProgress(row.upload_url);
   if (!progress.final) return { received: progress.received };
-  if (!GEMINI_FILE.test(progress.file)) return { error: "That upload isn't one of ours." };
+  if (!isGeminiFile(progress.file)) return { error: "That upload isn't one of ours." };
   const { data, error } = await supabase
     .from("recipe_imports")
     .update({ status: "processing", gemini_file: progress.file, upload_url: null, updated_at: new Date().toISOString() })
@@ -224,7 +223,7 @@ export async function dismissImport(formData: FormData): Promise<void> {
   if (!importId) return;
   const { data } = await supabase.from("recipe_imports").select("photo, gemini_file").eq("id", importId).maybeSingle();
   await supabase.from("recipe_imports").delete().eq("id", importId);
-  if (data?.gemini_file && GEMINI_FILE.test(data.gemini_file)) await deleteVideo(data.gemini_file);
+  if (isGeminiFile(data?.gemini_file)) await deleteVideo(data.gemini_file);
   await removePhoto(supabase, data?.photo ?? null);
   refresh();
   if (formData.get("stay") !== "yes") redirect("/meal-plans");

@@ -61,10 +61,10 @@ export function isCookingMethod(value: unknown): value is CookingMethod {
   return COOKING_METHODS.includes(value as CookingMethod);
 }
 
-// Only http(s) links are kept: the card opens them.
 // REQ-110: the database keeps a cuisine to 40 characters.
 export const MAX_CUISINE = 40;
 
+// Only http(s) links are kept: the card opens them.
 export function linkOrNull(value: unknown): string | null {
   const link = text(value);
   if (!link) return null;
@@ -129,7 +129,7 @@ export function recipeFieldsFrom(formData: FormData): RecipeFields | { error: st
   const page_url = linkOrNull(pageText);
   if (videoText && !video_url) return { error: "The video link should start with https://." };
   if (pageText && !page_url) return { error: "The recipe page link should start with https://." };
-  if (text(formData.get("cuisine")).length > MAX_CUISINE) return { error: `Keep the cuisine under ${MAX_CUISINE} letters.` };
+  if (text(formData.get("cuisine")).length > MAX_CUISINE) return { error: `Keep the cuisine to ${MAX_CUISINE} letters or fewer.` };
   return {
     name,
     cuisine: orNull(formData.get("cuisine")),

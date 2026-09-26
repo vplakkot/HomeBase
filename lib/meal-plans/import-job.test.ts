@@ -5,8 +5,8 @@ import { processVideoImport, waitUntilReady } from "./import-job";
 const ID = "22222222-2222-4222-8222-222222222222";
 const wait = vi.fn(async () => {});
 
-function admin(status = "processing") {
-  return fakeSupabase({ tables: { recipe_imports: [{ id: ID, name: "Test pasta", gemini_file: "files/abc", status }] } });
+function admin(status = "processing", gemini_file = "files/abc") {
+  return fakeSupabase({ tables: { recipe_imports: [{ id: ID, name: "Test pasta", gemini_file, status }] } });
 }
 
 const updates = (fake: ReturnType<typeof fakeSupabase>) =>
@@ -53,6 +53,15 @@ describe("reading an uploaded video after the phone moves on (REQ-112)", () => {
     await processVideoImport(fake as never, ID, { wait, check, read: vi.fn(async () => ({ draft: DRAFT })), discard: vi.fn(async () => {}) });
     const query = fake.from.mock.results.map((r) => r.value as Record<string, ReturnType<typeof vi.fn>>).find((q) => q.update.mock.calls.length > 0)!;
     expect(query.eq).toHaveBeenCalledWith("status", "processing");
+  });
+
+  it("won't use a file name that isn't Google's, even with the row changed by hand", async () => {
+    const fake = admin("processing", "../../v1beta/models");
+    const check = vi.fn();
+    const discard = vi.fn();
+    await processVideoImport(fake as never, ID, { wait, check, read: vi.fn(), discard });
+    expect(check).not.toHaveBeenCalled();
+    expect(discard).not.toHaveBeenCalled();
   });
 
   it("leaves an import alone that isn't processing (already read, or removed)", async () => {
