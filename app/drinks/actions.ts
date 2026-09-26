@@ -1,5 +1,6 @@
 "use server";
 
+import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasPermission } from "../../lib/auth/permissions";
@@ -87,9 +88,14 @@ async function upload(
   return paths;
 }
 
+// Tidying up: the drink row is already gone or never saved, so a failure
+// here can't be shown to anyone usefully. It's reported to Sentry instead,
+// so leftover files don't pile up unseen.
 async function removePhotos(supabase: SupabaseClient, paths: readonly (string | null)[]) {
   const all = paths.filter((path): path is string => !!path).flatMap((path) => [path, thumbPath(path)]);
-  if (all.length > 0) await supabase.storage.from(LABEL_BUCKET).remove(all);
+  if (all.length === 0) return;
+  const { error } = await supabase.storage.from(LABEL_BUCKET).remove(all);
+  if (error) Sentry.captureException(new Error(`Label photos left behind: ${error.message}`), { extra: { paths: all } });
 }
 
 // REQ-37: only the name and how we got it are required. From a scan

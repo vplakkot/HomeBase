@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
@@ -5,6 +6,7 @@ import { addDrink, clearRating, rateDrink, readLabel, removeDrink, setPhotos, up
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -219,6 +221,29 @@ describe("label photos (REQ-32, REQ-25, REQ-26)", () => {
   it("hands the photos to label reading, which finds nothing until the reader is connected", async () => {
     given();
     expect(await readLabel(withPhotos({}, true))).toEqual({ found: false, fields: {}, unsure: [] });
+    expect(fake.storage.bucket.upload).not.toHaveBeenCalled();
+  });
+});
+
+describe("tidying up photos", () => {
+  it("reports photos it couldn't remove, instead of failing silently", async () => {
+    fake = fakeSupabase({
+      permissions: ["use_modules"],
+      tables: { drinks: [{ id: DRINK, front_label: `${DRINK}/1-front.jpg`, back_label: null }] },
+    });
+    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+    fake.storage.bucket.remove.mockResolvedValueOnce({ data: null, error: { message: "storage down" } } as never);
+    await expect(removeDrink({}, form({ id: DRINK }))).rejects.toThrow("REDIRECT:/drinks");
+    expect(Sentry.captureException).toHaveBeenCalledWith(expect.objectContaining({ message: "Label photos left behind: storage down" }), expect.anything());
+  });
+
+  it("refuses photos for a drink that's no longer there, uploading nothing", async () => {
+    fake = fakeSupabase({ permissions: ["use_modules"], tables: { drinks: [] } });
+    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+    const data = form({ id: DRINK });
+    data.append("front", new Blob(["x"], { type: "image/jpeg" }));
+    data.append("front_thumb", new Blob(["x"], { type: "image/jpeg" }));
+    expect(await setPhotos({}, data)).toEqual({ error: "That drink isn't there any more." });
     expect(fake.storage.bucket.upload).not.toHaveBeenCalled();
   });
 });
