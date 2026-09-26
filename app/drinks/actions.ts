@@ -5,8 +5,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasPermission } from "../../lib/auth/permissions";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { drinkFields } from "../../lib/drinks/drinks";
-import { noReader, type LabelReading } from "../../lib/drinks/label-reader";
+import { drinkFields, readDrinks, readPeople } from "../../lib/drinks/drinks";
+import { shopCheck, type ShopCheck } from "../../lib/drinks/match";
+import { NOTHING_READ, noReader, type LabelReading } from "../../lib/drinks/label-reader";
+import { visionReader } from "../../lib/drinks/vision";
 import { LABEL_BUCKET, photoPath, thumbPath, type Side } from "../../lib/drinks/photos";
 import { createClient } from "../../lib/supabase/server";
 
@@ -148,13 +150,29 @@ export async function setPhotos(_previous: FormState, formData: FormData): Promi
   return { saved: true };
 }
 
-// REQ-25, REQ-26: the photos just taken or chosen go to label reading
-// together. Nothing is saved here; the review screen saves (REQ-28).
-export async function readLabel(formData: FormData): Promise<LabelReading> {
-  await requireMember();
+export type Scan = { reading: LabelReading; check: ShopCheck };
+
+// REQ-25, REQ-26, REQ-27: the photos just taken or chosen are read
+// together, by Google Vision when its key is set, and what was read is
+// checked against the drinks we have (REQ-33). Nothing is saved here;
+// the review screen saves (REQ-28). A reading that fails or runs too long
+// opens the review screen with nothing filled in, and Sentry hears why.
+export async function readLabel(formData: FormData): Promise<Scan> {
+  const supabase = await requireMember();
   const photos = photosFrom(formData);
-  if ("error" in photos || !photos.front) return { found: false, fields: {}, unsure: [] };
-  return noReader([photos.front.full, ...(photos.back ? [photos.back.full] : [])]);
+  if ("error" in photos || !photos.front) return { reading: NOTHING_READ, check: { kind: "unknown" } };
+  const key = process.env.GOOGLE_VISION_API_KEY;
+  const reader = key ? visionReader(key) : noReader;
+  let reading: LabelReading;
+  try {
+    reading = await reader([photos.front.full, ...(photos.back ? [photos.back.full] : [])]);
+  } catch (error) {
+    Sentry.captureException(error);
+    reading = NOTHING_READ;
+  }
+  if (!reading.found) return { reading, check: { kind: "unknown" } };
+  const [{ drinks, ratings }, people] = await Promise.all([readDrinks(supabase), readPeople(supabase)]);
+  return { reading, check: shopCheck(reading.fields, drinks, people, ratings) };
 }
 
 export async function updateDrink(_previous: FormState, formData: FormData): Promise<FormState> {

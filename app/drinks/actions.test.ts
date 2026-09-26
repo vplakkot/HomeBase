@@ -218,10 +218,27 @@ describe("label photos (REQ-32, REQ-25, REQ-26)", () => {
     ]);
   });
 
-  it("hands the photos to label reading, which finds nothing until the reader is connected", async () => {
+  it("without a Vision key, reads nothing and stores nothing", async () => {
     given();
-    expect(await readLabel(withPhotos({}, true))).toEqual({ found: false, fields: {}, unsure: [] });
+    vi.stubEnv("GOOGLE_VISION_API_KEY", "");
+    expect(await readLabel(withPhotos({}, true))).toEqual({
+      reading: { found: false, fields: {}, unsure: [] },
+      check: { kind: "unknown" },
+    });
     expect(fake.storage.bucket.upload).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
+  it("with the key, asks Vision; if Vision fails, reads nothing and tells Sentry", async () => {
+    given();
+    vi.stubEnv("GOOGLE_VISION_API_KEY", "test-key");
+    const fetch = vi.fn(async () => new Response("{}", { status: 500 }));
+    vi.stubGlobal("fetch", fetch);
+    expect((await readLabel(withPhotos({}))).reading.found).toBe(false);
+    expect(String((fetch.mock.calls[0] as unknown[])[0])).toContain("key=test-key");
+    expect(Sentry.captureException).toHaveBeenCalledWith(expect.objectContaining({ message: "Vision answered 500" }));
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 });
 
