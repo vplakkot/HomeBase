@@ -41,9 +41,10 @@ const GRAPE_SPELLINGS = byLength(
   ),
   (name) => name,
 );
+// Each region under every way a label writes it, with its standard name.
 const REGION_NAMES = byLength(
-  REGIONS.map((region) => region.name),
-  (name) => name,
+  REGIONS.flatMap((region) => [region.name, ...(region.also ?? [])].map((spelling) => [spelling, region.name] as const)),
+  ([spelling]) => spelling,
 );
 const COUNTRY_SPELLINGS = byLength(
   [...COUNTRIES.map((country) => [country, country] as const), ...Object.entries(COUNTRY_SYNONYMS)].filter(
@@ -74,7 +75,18 @@ const METHOD_WORDS: [string, string[]][] = [
 const PRODUCER_WORDS = [
   "chateau", "domaine", "bodega", "bodegas", "weingut", "cantina", "cantine", "tenuta", "estate", "winery", "vineyards",
   "maison", "clos", "quinta", "castello", "fattoria", "cave", "caves", "azienda", "agricola", "vignobles", "wines",
+  "adega", "herdade", "vinhos", "cooperativa", "cellars", "vina", "vinedos", "celler", "weinhaus",
 ];
+
+// Fine print, seals and legal lines: never a producer or a wine's name
+// (a real label's "Produção sustentável" seal was once taken for the
+// producer).
+const BOILERPLATE =
+  /\b(produ(cao|ccion|ct|ced|zione|it)|sustentavel|sostenibile|sostenible|sustainable|organic|organico|biologico|denomina|indicacao|indicacion|vinho regional|vino de la tierra|vin de pays|imported|importer|importing|bottled|engarrafado|embotellado|imbottigliato|contains|contem|contiene|sulfit|sulphit|solfiti|warning|established|since|estd|www|com|net cont|agents?)\b/;
+
+// "Produced and bottled by: Adega Cooperativa de Borba, CRL" → the
+// winery. A bottler given only as a code ("IT/1207/VR") is ignored.
+const BOTTLER = /(?:produced (?:and|&) bottled by|bottled by|produzido e engarrafado por|engarrafado por|elaborado y embotellado por|embotellado por|prodotto e imbottigliato da|imbottigliato da|mis en bouteille (?:par|au)|abgefullt von)\s*:?\s*(.*)$/;
 
 const MONTHS: Record<string, number> = {
   jan: 1, janv: 1, janvier: 1, january: 1, feb: 2, fev: 2, fevrier: 2, february: 2, mar: 3, mars: 3, march: 3,
@@ -90,6 +102,9 @@ export function parseLabel(lines: readonly LabelLine[], thisYear = new Date().ge
   const unsure = new Set<ReadableField>();
   // Lines that gave a field; the rest are candidates for producer and name.
   const used = new Set<number>();
+  // Lines claimed only as a grape or region can still be part of the name
+  // ("PINOT GRIGIO"); lines claimed for anything else can't.
+  const claimedBy = new Map<number, "grapes" | "region">();
   const bestType: { at: number; line: number } = { at: TYPE_WORDS.length, line: -1 };
   const set = <K extends ReadableField>(field: K, value: Found[K], line: number) => {
     if (fields[field] !== undefined) return;
@@ -111,7 +126,8 @@ export function parseLabel(lines: readonly LabelLine[], thisYear = new Date().ge
     }
 
     // Bottle size: "750 ml", "75 cl", "1.5 L", "1,5l".
-    const size = raw.match(/\b(\d{1,4}(?:[.,]\d)?)\s*(ml|cl|l|lt|litre|liter)\b/i);
+    // "1Lℯ": labels print ℯ (estimated quantity) right after the unit.
+    const size = raw.match(/\b(\d{1,4}(?:[.,]\d)?)\s*(ml|cl|l|lt|litre|liter)(?:\s*[e\u212e])?\b/i);
     if (size) {
       const amount = Number(size[1].replace(",", "."));
       const unit = size[2].toLowerCase();
@@ -161,9 +177,10 @@ export function parseLabel(lines: readonly LabelLine[], thisYear = new Date().ge
       }
     }
 
-    for (const name of REGION_NAMES) {
-      if (hasWord(text, fold(name))) {
+    for (const [spelling, name] of REGION_NAMES) {
+      if (hasWord(text, fold(spelling))) {
         set("region", name, index);
+        claimedBy.set(index, "region");
         break;
       }
     }
@@ -175,15 +192,23 @@ export function parseLabel(lines: readonly LabelLine[], thisYear = new Date().ge
       }
     }
 
-    // Grapes: every one named, as the list spells it, once each.
+    // Grapes: every one named, as the list spells it, once each, in the
+    // order the label prints them. Longest spellings are matched first
+    // (and blanked out) so "Pinot Noir" isn't also read as "Pinot".
     let rest = ` ${text} `;
+    const found: { name: string; at: number }[] = [];
     for (const name of GRAPE_SPELLINGS) {
       const folded = ` ${fold(name)} `;
-      if (!rest.includes(folded)) continue;
-      rest = rest.replace(folded, " ");
+      const at = rest.indexOf(folded);
+      if (at < 0) continue;
+      rest = rest.slice(0, at) + " ".repeat(folded.length) + rest.slice(at + folded.length);
+      found.push({ name, at });
+    }
+    for (const { name } of found.sort((a, b) => a.at - b.at)) {
       const grapes = (fields.grapes ??= []);
       if (!grapes.includes(name)) grapes.push(name);
       used.add(index);
+      if (!claimedBy.has(index)) claimedBy.set(index, "grapes");
       if (line.confidence < SURE) unsure.add("grapes");
     }
   });
@@ -204,24 +229,84 @@ export function parseLabel(lines: readonly LabelLine[], thisYear = new Date().ge
     unsure.add("type");
   }
 
-  // Producer and name: from the front label, the biggest text that
-  // nothing else claimed.
-  const left = lines
-    .map((line, index) => ({ line, index }))
-    .filter(({ line, index }) => line.photo === 0 && !used.has(index) && /\p{L}{2}/u.test(line.text) && line.text.trim().length <= 60)
-    .sort((a, b) => b.line.height - a.line.height);
+  // Producer and name (REQ-27). Real labels (2026-09-26) taught three
+  // things: a name often runs over two lines printed the same size
+  // ("LA" / "SONRIENTE"); a grape can be the name ("PINOT GRIGIO"); and
+  // seals and fine print are never the producer.
   const tidy = (text: string) => text.trim().replace(/\s+/g, " ");
-  const producer = left.find(({ line }) => PRODUCER_WORDS.some((word) => hasWord(fold(line.text), word)));
-  const producerLine = producer ?? left[0];
-  if (producerLine) {
-    fields.producer = tidy(producerLine.line.text);
-    // A producer found by its "Château" or "Bodega" is likely right;
-    // the biggest text alone is only a guess.
-    if (!producer || producerLine.line.confidence < SURE) unsure.add("producer");
+  const boilerplate = (text: string) => BOILERPLATE.test(fold(text));
+
+  // Neighbouring front-label lines printed about the same size are one
+  // piece of text.
+  type Group = { text: string; height: number; confidence: number; lines: number[] };
+  const groups: Group[] = [];
+  lines.forEach((line, index) => {
+    if (line.photo !== 0 || !/\p{L}{2}/u.test(line.text) || boilerplate(line.text)) return;
+    if (used.has(index) && !claimedBy.has(index)) return;
+    const last = groups.at(-1);
+    const touching = last && last.lines.at(-1) === index - 1;
+    const alike = last && Math.max(last.height, line.height) / Math.max(1, Math.min(last.height, line.height)) <= 1.3;
+    const keyword = (text: string) => PRODUCER_WORDS.some((word) => hasWord(fold(text), word));
+    if (last && touching && alike && !keyword(last.text) && !keyword(line.text)) {
+      last.text = `${last.text} ${line.text}`;
+      last.height = Math.max(last.height, line.height);
+      last.confidence = Math.min(last.confidence, line.confidence);
+      last.lines.push(index);
+    } else {
+      groups.push({ text: line.text, height: line.height, confidence: line.confidence, lines: [index] });
+    }
+  });
+  const candidates = groups.filter((group) => tidy(group.text).length <= 60).sort((a, b) => b.height - a.height);
+  // Only text nothing else claimed can be the producer.
+  const unclaimed = (group: Group) => group.lines.every((index) => !used.has(index));
+
+  const byKeyword = candidates.find(
+    (group) => unclaimed(group) && PRODUCER_WORDS.some((word) => hasWord(fold(group.text), word)),
+  );
+  // The winery named after "bottled by": on the same line, or on the next
+  // when the line only says "Produced and bottled by:". Kept as printed.
+  const bottlerName = (text: string) => {
+    const part = text
+      .replace(new RegExp(BOTTLER.source.replace("(.*)$", ""), "gi"), " ")
+      .replace(/^[\s:/,.-]+/, "")
+      .split(/,| \/ | - |\bCRL\b|\bS\.?A\.?\b|\bLDA\b/i)[0];
+    return /\p{L}{4}/u.test(part) && !/\d/.test(part) ? tidy(part) : null;
+  };
+  const bottler = lines
+    .map((line, index) => {
+      if (!BOTTLER.test(fold(line.text))) return null;
+      return bottlerName(line.text) ?? (lines[index + 1] ? bottlerName(lines[index + 1].text) : null);
+    })
+    .find((name): name is string => !!name);
+
+  const nameGroup = candidates.find((group) => group !== byKeyword);
+  if (byKeyword) {
+    fields.producer = tidy(byKeyword.text);
+    if (byKeyword.confidence < SURE) unsure.add("producer");
+  } else if (bottler) {
+    fields.producer = bottler;
+  } else {
+    // Only a guess: the next biggest text nothing else claimed, if it's
+    // printed at least half as big as the name.
+    const next = candidates.find(
+      (group) => group !== nameGroup && unclaimed(group) && (!nameGroup || group.height >= nameGroup.height / 2),
+    );
+    if (next) fields.producer = tidy(next.text);
   }
-  const nameLine = left.find((candidate) => candidate !== producerLine);
-  if (nameLine) {
-    fields.name = tidy(nameLine.line.text);
+  if (fields.producer && !byKeyword) unsure.add("producer");
+  // The front label, round a bottle's curve, can cut the producer short
+  // ("Gaetano D'Aquin"); the back often prints it whole.
+  if (fields.producer) {
+    const start = fold(fields.producer);
+    const whole = lines.find((line) => {
+      const text = fold(line.text);
+      return text.startsWith(start) && text.length > start.length && text.length - start.length <= 4;
+    });
+    if (whole) fields.producer = tidy(whole.text);
+  }
+
+  if (nameGroup) {
+    fields.name = tidy(nameGroup.text);
     unsure.add("name");
   } else if (fields.producer) {
     // A label with one big line: that's what we call it.

@@ -139,12 +139,16 @@ export function DrinkForm({
   unsure = [],
   shots,
   cancelHref,
+  onIdentity,
 }: {
   drink?: Drink;
   initial?: Partial<DrinkFields>;
   unsure?: readonly string[];
   shots?: Shots;
   cancelHref?: string;
+  // Told when the name, producer or vintage is changed (REQ-33: the shop
+  // check looks again).
+  onIdentity?: (fields: { name: string; producer: string; vintage: string }) => void;
 }) {
   const [state, formAction, pending] = useActionState(drink ? updateDrink : addDrink, initialState);
   const v: Partial<DrinkFields> = drink ?? initial ?? {};
@@ -161,7 +165,18 @@ export function DrinkForm({
     startTransition(() => formAction(data));
   };
   return (
-    <form action={formAction} onSubmit={submitWithShots} className={`${cards.form} ${styles.drinkForm}`}>
+    <form
+      action={formAction}
+      onSubmit={submitWithShots}
+      onChange={(event) => {
+        const target = event.target as unknown as HTMLInputElement;
+        if (!onIdentity || !["name", "producer", "vintage"].includes(target.name)) return;
+        const data = new FormData(event.currentTarget);
+        const text = (name: string) => String(data.get(name) ?? "");
+        onIdentity({ name: text("name"), producer: text("producer"), vintage: text("vintage") });
+      }}
+      className={`${cards.form} ${styles.drinkForm}`}
+    >
       {drink ? <input type="hidden" name="id" value={drink.id} /> : null}
       <Suggestions />
       <label className={cards.field}>

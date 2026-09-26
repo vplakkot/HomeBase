@@ -304,3 +304,36 @@ describe("the shop check (REQ-33)", () => {
     expect(within(form).getByRole("radio", { name: "Want to try" })).toBeTruthy();
   });
 });
+
+describe("the shop check after a correction (REQ-33)", () => {
+  it("looks again when I fix the name, and shows the match without hiding the form", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(noReader).mockResolvedValue({ found: true, fields: { name: "Nothing like it", vintage: 2024 }, unsure: [] });
+    fake = fakeSupabase({
+      permissions: ["use_modules"],
+      people: [{ user_id: "user-1", name: "Sam", manages_budget: true }],
+      tables: { drinks: [drink("d9", "LA SONRIENTE", { vintage: 2024 })], drink_ratings: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+    render(await ScanPage());
+    await pick("Take the front label");
+    fireEvent.click(button("Use it"));
+    await act(async () => {
+      fireEvent.click(button("Skip"));
+    });
+    const answer = await screen.findByRole("region", { name: "Have we had it?" });
+    expect(within(answer).getByRole("heading").textContent).toBe("New to us");
+    const form = screen.getByRole("region", { name: "Check the details" });
+    fireEvent.change(within(form).getByRole("textbox", { name: /^Name/ }), { target: { value: "La Sonriente" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+    await waitFor(() =>
+      expect(within(screen.getByRole("region", { name: "Have we had it?" })).getByRole("heading").textContent).toBe(
+        "We've had this",
+      ),
+    );
+    expect(screen.getByRole("region", { name: "Check the details" })).toBeTruthy();
+    vi.useRealTimers();
+  });
+});

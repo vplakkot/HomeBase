@@ -33,6 +33,13 @@ Vision says "BODEGAS FICTICIAS", "Reserva Especial", "RIOJA", "2019",
   name, and a line with "Bodega", "Château" or "Domaine" the producer.
   These are guesses, so they're marked "check this".
 
+Our first real bottles sharpened the guess. Two neighbouring lines
+printed about the same size are one name ("LA" over "SONRIENTE").
+Seals and fine print ("Produção sustentável", "Product of Italy") are
+never the producer. "Produced and bottled by: …" names the winery. And
+the front label, wrapped round the bottle, can cut a name short that
+the flat back label prints whole.
+
 Two rules keep it honest. Anything Vision was unsure of gets marked.
 And nothing is inferred: "Rioja" doesn't fill in Spain unless the label
 says Spain, and a grape doesn't make a wine red.

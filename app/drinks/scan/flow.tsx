@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NOTHING_READ } from "../../../lib/drinks/label-reader";
 import type { ShopCheck, Summary } from "../../../lib/drinks/match";
 import { starsText } from "../../../lib/drinks/drinks";
 import cards from "../../../components/cards.module.css";
-import { readLabel, type Scan } from "../actions";
+import { checkDrink, readLabel, type Scan } from "../actions";
 import { DrinkForm } from "../forms";
 import { appendShots, LabelPhotos, type Shots } from "../photos";
 import styles from "../drinks.module.css";
@@ -120,7 +120,40 @@ export function ScanFlow() {
       </section>
     );
 
-  const { shots, reading, check } = step;
+  return <Review step={step} again={() => setStep({ at: "photos" })} savingNew={savingNew} setSavingNew={setSavingNew} />;
+}
+
+// The review screen (REQ-28) with the shop check above it (REQ-33).
+// Correcting the name, producer or vintage checks again, half a second
+// after the typing stops; the form stays open while that happens.
+function Review({
+  step,
+  again,
+  savingNew,
+  setSavingNew,
+}: {
+  step: { at: "review"; shots: Shots } & Scan;
+  again: () => void;
+  savingNew: boolean;
+  setSavingNew: (open: boolean) => void;
+}) {
+  const [check, setCheck] = useState<ShopCheck>(step.check);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => (timer.current ? clearTimeout(timer.current) : undefined), []);
+  const recheck = (fields: { name: string; producer: string; vintage: string }) => {
+    // Editing means the form is in use: a match found now shows above it
+    // without hiding it.
+    setSavingNew(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      try {
+        setCheck(await checkDrink(fields));
+      } catch {
+        // Keep the last answer; saving still works.
+      }
+    }, 500);
+  };
+  const { shots, reading } = step;
   const formShown = check.kind !== "same" || savingNew;
   return (
     <div className={styles.review}>
@@ -141,12 +174,18 @@ export function ScanFlow() {
           {reading.found ? null : (
             <div className={styles.notice} role="status">
               <p>Nothing could be read from the label. Fill in what it says, or try another photo.</p>
-              <button type="button" className={styles.linkButton} onClick={() => setStep({ at: "photos" })}>
+              <button type="button" className={styles.linkButton} onClick={again}>
                 Try another photo
               </button>
             </div>
           )}
-          <DrinkForm initial={reading.fields} unsure={reading.unsure} shots={shots} cancelHref="/drinks" />
+          <DrinkForm
+            initial={reading.fields}
+            unsure={reading.unsure}
+            shots={shots}
+            cancelHref="/drinks"
+            onIdentity={recheck}
+          />
         </section>
       ) : null}
     </div>

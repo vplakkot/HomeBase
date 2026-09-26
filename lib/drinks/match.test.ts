@@ -91,3 +91,21 @@ describe("the shop check (REQ-33)", () => {
     expect(check({ producer: "Bodegas Ficticias" }).kind).toBe("unknown");
   });
 });
+
+describe("the shop check on real readings (REQ-33, 2026-09-26)", () => {
+  const SONRIENTE = drink("d9", "LA SONRIENTE", { vintage: 2024 });
+
+  it("still finds a wine whose name the reading split into producer and name", () => {
+    const result = shopCheck({ producer: "SONRIENTE", name: "LA", vintage: 2024 }, [SONRIENTE], PEOPLE, []);
+    expect(result.kind).toBe("same");
+  });
+
+  it("finds it however the name is corrected: whole, or name and producer swapped", () => {
+    expect(shopCheck({ name: "La Sonriente", vintage: 2024 }, [SONRIENTE], PEOPLE, []).kind).toBe("same");
+    expect(shopCheck({ name: "Sonriente", producer: "La", vintage: 2024 }, [SONRIENTE], PEOPLE, []).kind).toBe("same");
+  });
+
+  it("never matches on a short word alone", () => {
+    expect(shopCheck({ name: "LA", vintage: 2024 }, [SONRIENTE], PEOPLE, []).kind).toBe("new");
+  });
+});

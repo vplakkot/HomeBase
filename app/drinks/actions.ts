@@ -152,6 +152,25 @@ export async function setPhotos(_previous: FormState, formData: FormData): Promi
 
 export type Scan = { reading: LabelReading; check: ShopCheck };
 
+// REQ-33: the shop check again, after a name, producer or vintage is
+// corrected on the review screen. Nothing is saved.
+export async function checkDrink(read: {
+  name?: string;
+  producer?: string;
+  vintage?: string;
+}): Promise<ShopCheck> {
+  const supabase = await requireMember();
+  const vintage = (read.vintage ?? "").trim();
+  const fields = {
+    name: read.name?.trim() || undefined,
+    producer: read.producer?.trim() || undefined,
+    vintage: /^\d{4}$/.test(vintage) ? Number(vintage) : undefined,
+    non_vintage: /^nv$/i.test(vintage),
+  };
+  const [{ drinks, ratings }, people] = await Promise.all([readDrinks(supabase), readPeople(supabase)]);
+  return shopCheck(fields, drinks, people, ratings);
+}
+
 // REQ-25, REQ-26, REQ-27: the photos just taken or chosen are read
 // together, by Google Vision when its key is set, and what was read is
 // checked against the drinks we have (REQ-33). Nothing is saved here;
