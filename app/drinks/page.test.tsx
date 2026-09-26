@@ -6,6 +6,7 @@ import { installDialogStandIn } from "../../test/dialog";
 import { fakeSupabase } from "../../test/fake-supabase";
 import DrinkPage from "./[id]/page";
 import NewDrinkPage from "./new/page";
+import WantToTryPage from "./want-to-try/page";
 import DrinksPage from "./page";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -42,6 +43,10 @@ const drink = (id: string, name: string, extra: Record<string, unknown> = {}) =>
   sweetness: null,
   method: null,
   disgorged_on: null,
+  how: "bought",
+  price: null,
+  place: null,
+  gift_from: null,
   created_at: "2026-09-01T12:00:00Z",
   ...extra,
 });
@@ -51,8 +56,8 @@ const DRINKS = [
   drink("d1", "Reserva", { producer: "Bodega Ficticia", type: "red", vintage: 2019, abv: 14, bottle_ml: 750 }),
 ];
 const RATINGS = [
-  { drink_id: "d1", user_id: "user-1", stars: 4, comment: "great with lamb", updated_at: "2026-09-21T15:00:00Z" },
-  { drink_id: "d2", user_id: "user-2", stars: 5, comment: null, updated_at: "2026-09-22T15:00:00Z" },
+  { drink_id: "d1", user_id: "user-1", stars: 4, comment: "great with lamb", buy_again: null, updated_at: "2026-09-21T15:00:00Z" },
+  { drink_id: "d2", user_id: "user-2", stars: 5, comment: null, buy_again: null, updated_at: "2026-09-22T15:00:00Z" },
 ];
 const PEOPLE = [
   { user_id: "user-1", name: "Sam", manages_budget: true },
@@ -136,7 +141,7 @@ describe("adding a drink by hand (REQ-37)", () => {
     given();
     render(await NewDrinkPage());
     const form = screen.getByRole("region", { name: "Add a drink" });
-    const inputs = [...form.querySelectorAll("input:not([type=hidden]), select")] as HTMLInputElement[];
+    const inputs = [...form.querySelectorAll("input:not([type=hidden]):not([type=radio]), select")] as HTMLInputElement[];
     expect(inputs.filter((input) => input.required).map((input) => input.name)).toEqual(["name"]);
     expect(inputs.every((input) => input.value === "")).toBe(true);
     expect(inputs.map((input) => input.name)).toEqual(
@@ -203,7 +208,7 @@ describe("a drink's page (REQ-29)", () => {
     const sheet = screen.getByRole("dialog", { name: "Change my rating" });
     expect((within(sheet).getByRole("radio", { name: "4 stars" }) as HTMLInputElement).checked).toBe(true);
     expect((within(sheet).getByRole("textbox", { name: /Comment/ }) as HTMLInputElement).value).toBe("great with lamb");
-    expect(within(sheet).getAllByRole("radio")).toHaveLength(5);
+    expect(within(within(sheet).getByRole("group", { name: "Stars" })).getAllByRole("radio")).toHaveLength(5);
     expect(within(sheet).getByRole("button", { name: "Clear my rating" })).toBeTruthy();
   });
 
@@ -212,7 +217,8 @@ describe("a drink's page (REQ-29)", () => {
     render(await open("d2"));
     fireEvent.click(screen.getByRole("button", { name: "Rate" }));
     const sheet = screen.getByRole("dialog", { name: "Rate it" });
-    expect(within(sheet).getAllByRole("radio").some((radio) => (radio as HTMLInputElement).checked)).toBe(false);
+    const stars = within(within(sheet).getByRole("group", { name: "Stars" })).getAllByRole("radio");
+    expect(stars.some((radio) => (radio as HTMLInputElement).checked)).toBe(false);
     expect(within(sheet).queryByRole("button", { name: "Clear my rating" })).toBeNull();
   });
 
@@ -229,5 +235,94 @@ describe("a drink's page (REQ-29)", () => {
   it("is not found for a drink that doesn't exist", async () => {
     given();
     await expect(open("nope")).rejects.toThrow("NOT_FOUND");
+  });
+});
+
+describe("how we got it and the want-to-try list (REQ-35, REQ-36)", () => {
+  const WISH = drink("d9", "Someday Barolo", { producer: "Imaginary Cantina", how: "want_to_try", created_at: "2026-09-25T12:00:00Z" });
+
+  it("asks how we got it, with only the extras that go with the choice", async () => {
+    given();
+    render(await NewDrinkPage());
+    const how = screen.getByRole("group", { name: "How we got it" });
+    expect(within(how).getAllByRole("radio").map((radio) => radio.parentElement?.textContent)).toEqual([
+      "Bought",
+      "Gift",
+      "Had out",
+      "Want to try",
+    ]);
+    fireEvent.click(within(how).getByRole("radio", { name: "Bought" }));
+    expect(screen.getByRole("textbox", { name: "Price (optional)" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Where we bought it (optional)" })).toBeTruthy();
+    fireEvent.click(within(how).getByRole("radio", { name: "Gift" }));
+    expect(screen.queryByRole("textbox", { name: "Price (optional)" })).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Who it was from (optional)" })).toBeTruthy();
+    fireEvent.click(within(how).getByRole("radio", { name: "Had out" }));
+    expect(screen.getByRole("textbox", { name: "Where we had it (optional)" })).toBeTruthy();
+    fireEvent.click(within(how).getByRole("radio", { name: "Want to try" }));
+    expect(within(how).queryAllByRole("textbox")).toHaveLength(0);
+  });
+
+  it("keeps wines we want to try out of the main list", async () => {
+    given([...DRINKS, WISH]);
+    render(await list());
+    expect(cards().join()).not.toContain("Someday Barolo");
+  });
+
+  it("lists them in a view of their own, without ratings, as a Drinks section", async () => {
+    given([...DRINKS, WISH]);
+    render(await WantToTryPage({ searchParams: Promise.resolve({}) }));
+    const region = screen.getByRole("region", { name: /Want to try/ });
+    const links = within(region).getAllByRole("link");
+    expect(links.map((link) => link.textContent)).toEqual(["Someday BaroloImaginary Cantina"]);
+    expect(within(region).queryByRole("list", { name: "Ratings" })).toBeNull();
+    expect(screen.getByRole("search").getAttribute("action")).toBe("/drinks/want-to-try");
+  });
+
+  it("isn't rated while it's only a wish, and says what to do once we've had it", async () => {
+    given([...DRINKS, WISH]);
+    render(await open("d9"));
+    expect(screen.queryByRole("button", { name: "Rate" })).toBeNull();
+    expect(screen.getByText("Not had yet. Once we have, Edit how we got it and rate it.")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Details" }).textContent).toContain("How we got itWant to try");
+  });
+
+  it("shows how we got it with its extras on the drink's page", async () => {
+    given([drink("d1", "Reserva", { how: "gift", gift_from: "Priya" })]);
+    render(await open("d1"));
+    expect(screen.getByRole("region", { name: "Details" }).textContent).toContain("How we got itGift from Priya");
+  });
+});
+
+describe("buy again (REQ-34)", () => {
+  const RATED = [
+    { drink_id: "d1", user_id: "user-1", stars: 3, comment: null, buy_again: true, updated_at: "2026-09-21T15:00:00Z" },
+    { drink_id: "d1", user_id: "user-2", stars: 5, comment: null, buy_again: null, updated_at: "2026-09-21T15:00:00Z" },
+  ];
+  function withRatings() {
+    const fake = fakeSupabase({ permissions: ["use_modules"], people: PEOPLE, tables: { drinks: DRINKS, drink_ratings: RATED } });
+    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+  }
+
+  it("shows each person's answer in the list and on the drink's page, and nothing when unset", async () => {
+    withRatings();
+    render(await list());
+    const reserva = within(screen.getByRole("region", { name: /Our drinks/ })).getAllByRole("link")[2];
+    expect(within(within(reserva).getByRole("list", { name: "Ratings" })).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
+      "Sam ★★★☆☆ · Buy again: yes",
+      "Alex ★★★★★",
+    ]);
+    cleanup();
+    render(await open("d1"));
+    expect(screen.getByRole("region", { name: "Ratings" }).textContent).toContain("Buy again: yes");
+  });
+
+  it("is asked in the rating sheet, filled in with your answer, and optional", async () => {
+    withRatings();
+    render(await open("d1"));
+    fireEvent.click(screen.getByRole("button", { name: "Change my rating" }));
+    const group = within(screen.getByRole("dialog")).getByRole("group", { name: "Buy again?" });
+    expect((within(group).getByRole("radio", { name: "Yes" }) as HTMLInputElement).checked).toBe(true);
+    expect(within(group).getAllByRole("radio").some((radio) => (radio as HTMLInputElement).required)).toBe(false);
   });
 });

@@ -967,8 +967,8 @@ each of us thought of it.
 
 | Table | One row is | Key facts |
 |---|---|---|
-| `drinks` | a wine | only `name` is required; `producer`, `type` (one of seven), `vintage` or `non_vintage` (never both), `grapes` (a list), `region`, `country`, `abv`, `bottle_ml`, and for sparkling `sweetness`, `method`, `disgorged_on`; every member reads, adds, changes and removes |
-| `drink_ratings` | one person's rating of one drink | primary key `(drink_id, user_id)`, so one each; `stars` 1–5, a one-line `comment`; `updated_at` stamped by a trigger; everyone reads, each person writes only their own row (`user_id = auth.uid()` in the policies); removed with its drink |
+| `drinks` | a wine | only `name` is required; `producer`, `type` (one of seven), `vintage` or `non_vintage` (never both), `grapes` (a list), `region`, `country`, `abv`, `bottle_ml`, and for sparkling `sweetness`, `method`, `disgorged_on`; `how` we got it (`bought`, `gift`, `had_out`, `want_to_try`) with its optional extras `price`, `place`, `gift_from`, each allowed only with its value by a check; every member reads, adds, changes and removes |
+| `drink_ratings` | one person's rating of one drink | primary key `(drink_id, user_id)`, so one each; `stars` 1–5, a one-line `comment`, `buy_again` (yes, no or null); `updated_at` stamped by a trigger; refused on a Want to try drink (`refuse_rating_untried`), and a rated drink can't go back to Want to try (`refuse_untrying_rated`); everyone reads, each person writes only their own row (`user_id = auth.uid()` in the policies); removed with its drink |
 
 The standard lists (types, grapes with their other names, countries,
 regions, sparkling sweetness and methods) live in the code,
@@ -978,7 +978,8 @@ add form offers them as suggestions and search files spellings together
 [`lib/drinks/drinks.ts`](../lib/drinks/drinks.ts) reads drinks and
 ratings, and does search, the type filter and the sort. Pages live under
 `/drinks`: the list, whose search, type and sort are one form kept in
-the address; Add a drink (`/drinks/new`) and Edit, full pages because
+the address, and the same list for Want to try (`/drinks/want-to-try`,
+the module's one section tab), which the main list leaves out; Add a drink (`/drinks/new`) and Edit, full pages because
 the form is long; and a drink's page, with every member's rating by name
 and a Rate sheet. Home's Drinks tile only counts drinks. See
 [lesson 26](lessons/26-rows-that-belong-to-one-person.md) for how a

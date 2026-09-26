@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Drinks, second batch. Every drink says how we got it: Bought (with an
+  optional price and shop), Gift (from whom), Had out (where), or Want
+  to try. Wines we want to try have their own tab, stay out of the main
+  list and can't be rated until we've had them; changing one to Bought
+  keeps everything else. Each person can also answer "Buy again?" yes or
+  no when rating, separate from the stars; it shows on the list and the
+  drink's page.
 - Drinks opens (v2.0, first batch). The Wine tile is now Drinks. Add a
   drink by hand, with only the name required and grapes, regions and
   countries suggested from standard lists. The list shows every drink

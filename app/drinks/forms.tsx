@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import cards from "../../components/cards.module.css";
-import { vintageText, type Drink, type Rating } from "../../lib/drinks/drinks";
+import { HOW_NAMES, HOWS, vintageText, type Drink, type How, type Rating } from "../../lib/drinks/drinks";
 import { BOTTLE_SIZES, COUNTRIES, DRINK_TYPES, GRAPES, METHODS, REGIONS, SWEETNESS, TYPE_NAMES } from "../../lib/drinks/lists";
 import { addDrink, clearRating, rateDrink, removeDrink, updateDrink, type FormState } from "./actions";
 import styles from "./drinks.module.css";
@@ -82,9 +82,44 @@ function Field({
   );
 }
 
-// REQ-37: a drink's details, every one optional except the name. The
-// same fields as the scan's review screen (REQ-28, a later batch), which
-// will reuse this form filled in. With `drink`, it changes that drink.
+// REQ-35: one "How we got it" value, and only the extras that go with
+// it. Changing the value later is normal: Want to try becomes Bought.
+function HowWeGotIt({ drink }: { drink?: Drink }) {
+  const [how, setHow] = useState<How | "">(drink?.how ?? "");
+  return (
+    <fieldset className={styles.choices}>
+      <legend>How we got it</legend>
+      <div className={styles.choiceRow}>
+        {HOWS.map((value) => (
+          <label key={value} className={styles.choice}>
+            <input
+              type="radio"
+              name="how"
+              value={value}
+              required
+              checked={how === value}
+              onChange={() => setHow(value)}
+            />
+            <span>{HOW_NAMES[value]}</span>
+          </label>
+        ))}
+      </div>
+      {how === "bought" ? (
+        <div className={styles.pairFields}>
+          <Field label="Price (optional)" name="price" value={drink?.price ?? ""} placeholder="$24.99" />
+          <Field label="Where we bought it (optional)" name="place" value={drink?.place ?? ""} />
+        </div>
+      ) : null}
+      {how === "gift" ? <Field label="Who it was from (optional)" name="gift_from" value={drink?.gift_from ?? ""} /> : null}
+      {how === "had_out" ? <Field label="Where we had it (optional)" name="place" value={drink?.place ?? ""} /> : null}
+    </fieldset>
+  );
+}
+
+// REQ-37: a drink's details, every one optional except the name and how
+// we got it. The same fields as the scan's review screen (REQ-28, a
+// later batch), which will reuse this form filled in. With `drink`, it
+// changes that drink.
 export function DrinkForm({ drink }: { drink?: Drink }) {
   const [state, formAction, pending] = useActionState(drink ? updateDrink : addDrink, initialState);
   const [grapes, setGrapes] = useState<string[]>(drink && drink.grapes.length > 0 ? drink.grapes : [""]);
@@ -98,6 +133,7 @@ export function DrinkForm({ drink }: { drink?: Drink }) {
         <span>Name</span>
         <input name="name" required defaultValue={drink?.name ?? ""} placeholder="Wine name or cuvée" autoComplete="off" />
       </label>
+      <HowWeGotIt drink={drink} />
       <Field label="Producer (optional)" name="producer" value={drink?.producer ?? ""} />
       <div className={styles.pairFields}>
         <label className={cards.field}>
@@ -205,6 +241,24 @@ export function RateForm({ drinkId, rating, onSaved }: { drinkId: string; rating
           <span>Comment (optional, one line)</span>
           <input name="comment" maxLength={200} defaultValue={rating?.comment ?? ""} autoComplete="off" />
         </label>
+        {/* REQ-34: separate from the stars, and optional. */}
+        <fieldset className={styles.choices}>
+          <legend>Buy again?</legend>
+          <div className={styles.choiceRow}>
+            {(
+              [
+                ["yes", "Yes", true],
+                ["no", "No", false],
+                ["", "Not saying", null],
+              ] as const
+            ).map(([value, label, answer]) => (
+              <label key={label} className={styles.choice}>
+                <input type="radio" name="buyAgain" value={value} defaultChecked={(rating?.buy_again ?? null) === answer} />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <button type="submit" className={cards.primary} disabled={pending}>
           {pending ? "Saving…" : "Save rating"}
         </button>

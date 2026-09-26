@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  buyAgainText,
+  countDrinks,
   drinkFields,
   drinkLine,
   drinksTile,
+  howText,
   listDrinks,
   parseSort,
   ratingsFor,
@@ -30,6 +33,10 @@ const drink = (id: string, name: string, extra: Partial<Drink> = {}): Drink => (
   sweetness: null,
   method: null,
   disgorged_on: null,
+  how: "bought",
+  price: null,
+  place: null,
+  gift_from: null,
   created_at: "2026-09-01T12:00:00Z",
   ...extra,
 });
@@ -65,6 +72,7 @@ const rating = (drink_id: string, user_id: string, stars: number, comment: strin
   user_id,
   stars,
   comment,
+  buy_again: null,
   updated_at: "2026-09-21T12:00:00Z",
 });
 const RATINGS = [rating("d1", "sam", 4, "great with lamb"), rating("d2", "sam", 5), rating("d2", "alex", 2, "too jammy")];
@@ -147,6 +155,7 @@ describe("the standard lists", () => {
 describe("a drink's fields from the form (REQ-37)", () => {
   const form = (fields: Record<string, string | string[]>) => {
     const data = new FormData();
+    if (!("how" in fields)) data.append("how", "bought");
     for (const [key, value] of Object.entries(fields)) {
       for (const one of Array.isArray(value) ? value : [value]) data.append(key, one);
     }
@@ -168,6 +177,10 @@ describe("a drink's fields from the form (REQ-37)", () => {
       sweetness: null,
       method: null,
       disgorged_on: null,
+      how: "bought",
+      price: null,
+      place: null,
+      gift_from: null,
     });
     expect(drinkFields(form({ name: " " }))).toEqual({ error: "Give the drink a name." });
   });
@@ -201,5 +214,59 @@ describe("Home's tile", () => {
   it("says NV only for a non-vintage", () => {
     expect(vintageText(CREMANT)).toBe("NV");
     expect(vintageText(drink("d9", "x"))).toBeNull();
+  });
+});
+
+describe("how we got it (REQ-35, REQ-36)", () => {
+  it("says the value and its extras", () => {
+    const base = { price: null, place: null, gift_from: null };
+    expect(howText({ ...base, how: "bought", price: "€18", place: "Corner wine shop" })).toBe("Bought · €18 · Corner wine shop");
+    expect(howText({ ...base, how: "bought" })).toBe("Bought");
+    expect(howText({ ...base, how: "gift", gift_from: "Priya" })).toBe("Gift from Priya");
+    expect(howText({ ...base, how: "had_out", place: "Luigi's" })).toBe("Had out · Luigi's");
+    expect(howText({ ...base, how: "want_to_try" })).toBe("Want to try");
+  });
+
+  it("keeps the wines we want to try out of the main list, in a view of their own", () => {
+    const wish = drink("d9", "Someday Barolo", { how: "want_to_try" });
+    expect(names(listDrinks([...DRINKS, wish], RATINGS, {}))).not.toContain("Someday Barolo");
+    expect(names(listDrinks([...DRINKS, wish], RATINGS, { wanted: true }))).toEqual(["Someday Barolo"]);
+  });
+
+  const form = (fields: Record<string, string>) => {
+    const data = new FormData();
+    for (const [key, value] of Object.entries(fields)) data.append(key, value);
+    return data;
+  };
+
+  it("needs a value, and saves with the value alone", () => {
+    expect(drinkFields(form({ name: "x" }))).toEqual({ error: "Say how we got it." });
+    expect(drinkFields(form({ name: "x", how: "gift" }))).toMatchObject({ how: "gift", gift_from: null, price: null, place: null });
+  });
+
+  it("keeps only the extras that go with the value", () => {
+    const all = { name: "x", price: "$24.99", place: "Shop", gift_from: "Priya" };
+    expect(drinkFields(form({ ...all, how: "bought" }))).toMatchObject({ price: "$24.99", place: "Shop", gift_from: null });
+    expect(drinkFields(form({ ...all, how: "gift" }))).toMatchObject({ price: null, place: null, gift_from: "Priya" });
+    expect(drinkFields(form({ ...all, how: "had_out" }))).toMatchObject({ price: null, place: "Shop", gift_from: null });
+    expect(drinkFields(form({ ...all, how: "want_to_try" }))).toMatchObject({ price: null, place: null, gift_from: null });
+  });
+});
+
+describe("Home's count (REQ-36)", () => {
+  it("counts the drinks we've had, leaving out the ones we only want to try", async () => {
+    const neq = vi.fn(async () => ({ count: 3, error: null }));
+    const select = vi.fn(() => ({ neq }));
+    const supabase = { from: vi.fn(() => ({ select })) } as unknown as Parameters<typeof countDrinks>[0];
+    expect(await countDrinks(supabase)).toBe(3);
+    expect(neq).toHaveBeenCalledWith("how", "want_to_try");
+  });
+});
+
+describe("buy again (REQ-34)", () => {
+  it("says yes, no, or nothing when it isn't set", () => {
+    expect(buyAgainText(true)).toBe("Buy again: yes");
+    expect(buyAgainText(false)).toBe("Buy again: no");
+    expect(buyAgainText(null)).toBeNull();
   });
 });

@@ -32,11 +32,13 @@ export type DrinksViewer = Awaited<ReturnType<typeof drinksViewer>>;
 // top level a breadcrumb back to the list.
 export function DrinksScreen({
   viewer,
+  section,
   crumb,
   tools,
   children,
 }: {
   viewer: DrinksViewer;
+  section?: string;
   crumb?: string;
   tools?: ReactNode;
   children: ReactNode;
@@ -44,6 +46,7 @@ export function DrinksScreen({
   return (
     <ModuleFrame
       slug="drinks"
+      section={section}
       canManageMembers={viewer.canManageMembers}
       account={viewer.account}
       actions={
