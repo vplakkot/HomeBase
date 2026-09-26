@@ -946,9 +946,14 @@ see "move them first" rather than a database error.
 
 [`lib/storage/storage.ts`](../lib/storage/storage.ts) reads the entries
 and does search (ID, name, contents, note) and the contents preview.
-Pages live under `/storage`: the list with search, Add an entry
-(pinned), and an entry's page (ID for the label, contents, archived
-files, change or remove after a confirm). Paperwork's file page archives
+Pages live under `/storage` (REQ-107, laid out like Paperwork): the
+home, with entries grouped as Boxes and Not in a box, and an entry's
+page (contents, note, archived files linking to Paperwork). Every screen
+has the header search, whose results replace the view, and Add to
+storage, a sheet whose one-time notice shows the new ID to print. Edit,
+the label and Remove (after a confirm) are behind the entry's Manage
+menu. Storage's stylesheet borrows Paperwork's shapes with `composes`
+rather than copying them. Paperwork's file page archives
 a file or brings it back; its files list hides archived files until
 asked. Home's Storage tile only counts entries; it raises no action
 items.

@@ -108,7 +108,9 @@ export const MODULES: readonly Module[] = [
     name: "Storage",
     tokens: "storage",
     href: "/storage",
-    sections: [{ name: "Add an entry", description: "Boxes and loose items", pinned: true, href: "/storage/add" }],
+    // REQ-107: one home screen; Add to storage is a sheet from the
+    // header, like Paperwork's Log document.
+    sections: [],
   },
 ];
 

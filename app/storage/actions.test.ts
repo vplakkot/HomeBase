@@ -21,7 +21,7 @@ function given(archivedFiles = 0, permissions = ["use_modules"]) {
   fake = fakeSupabase({
     permissions,
     tables: {
-      storage_entries: [{ id: ENTRY }],
+      storage_entries: [{ id: ENTRY, number: 12 }],
       paperwork_files: Array.from({ length: archivedFiles }, (_, index) => ({ id: `f-${index}` })),
     },
   });
@@ -42,11 +42,11 @@ const on = (table: string) =>
 afterEach(() => vi.clearAllMocks());
 
 describe("adding an entry (REQ-87)", () => {
-  it("saves a box with its contents one per line, and opens its page to show the new ID", async () => {
+  it("saves a box with its contents one per line, and hands back the new ID to print (REQ-107)", async () => {
     given();
-    await expect(
-      addEntry({}, form({ name: " Shoes ", isBox: "yes", contents: "Ski boots\n\n Sandals \n", note: "" })),
-    ).rejects.toThrow(`REDIRECT:/storage/entries/${ENTRY}?new=1`);
+    expect(
+      await addEntry({}, form({ name: " Shoes ", isBox: "yes", contents: "Ski boots\n\n Sandals \n", note: "" })),
+    ).toEqual({ saved: true, newEntry: "S-012" });
     expect(on("storage_entries")[0].insert).toHaveBeenCalledWith({
       name: "Shoes",
       is_box: true,
@@ -57,9 +57,7 @@ describe("adding an entry (REQ-87)", () => {
 
   it("keeps no contents for something that isn't a box", async () => {
     given();
-    await expect(
-      addEntry({}, form({ name: "Suitcases", contents: "left over", note: "Two of them" })),
-    ).rejects.toThrow("REDIRECT");
+    expect((await addEntry({}, form({ name: "Suitcases", contents: "left over", note: "Two of them" }))).saved).toBe(true);
     expect(on("storage_entries")[0].insert).toHaveBeenCalledWith({
       name: "Suitcases",
       is_box: false,

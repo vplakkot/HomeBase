@@ -169,3 +169,9 @@ Mockups: `paperwork-desktop-overview.html`, `paperwork-desktop-categories.html`,
 - **Locations:** one card per office location, then "Archived in storage" (one card per box).
 - **Categories tab:** one card per category (files · documents). A category page lists its documents by year, newest first; a year with nothing between the oldest and newest shows "Nothing logged for [year]" in the module colour so gaps stand out; undated documents last.
 
+## 12. Storage (reference for v1.0)
+
+Mockup: screens 6–7 of the Paperwork/Storage design canvas (REQ-107). Same shapes as Paperwork (§11), in teal:
+- **Header:** "Storage", the one search (names, IDs, contents, notes; results replace the view, Clear returns), and **Add to storage** (a sheet; a one-time notice shows the new ID to print).
+- **Home:** "Boxes · N" then "Not in a box · N", one card per entry: ID · name, archived paperwork files if any, a contents preview, the note in italics.
+- **Entry:** breadcrumb Storage › ID; title "ID · name" with a small "Box" superscript; **Manage** menu (Edit, Show label to reprint, Remove). Cards: Contents (one per line) and Note ("No note"), then the archived paperwork files (ID, label name or "No label", documents), each opening in Paperwork.

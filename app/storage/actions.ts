@@ -4,9 +4,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasPermission } from "../../lib/auth/permissions";
+import { entryId } from "../../lib/storage/storage";
 import { createClient } from "../../lib/supabase/server";
 
-export type FormState = { error?: string; saved?: boolean };
+// `newEntry` is the ID a new entry was given, for the one-time notice
+// that shows it to print (REQ-107).
+export type FormState = { error?: string; saved?: boolean; newEntry?: string };
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -61,16 +64,17 @@ async function filesInside(supabase: SupabaseClient, id: string): Promise<number
 const moveFirst = (count: number) =>
   `It holds ${count === 1 ? "1 archived paperwork file" : `${count} archived paperwork files`}. Bring ${count === 1 ? "it" : "them"} back or archive ${count === 1 ? "it" : "them"} to another box first.`;
 
-// REQ-87: a new entry gets the next ID, and its page shows it for the
-// label printer.
+// REQ-87, REQ-107: a new entry gets the next ID. The sheet it was added
+// from closes and a one-time notice shows the ID for the label printer,
+// leaving you on the screen you were on.
 export async function addEntry(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
   const fields = entryFields(formData);
   if ("error" in fields) return { error: fields.error };
-  const { data, error } = await supabase.from("storage_entries").insert(fields).select("id").single();
+  const { data, error } = await supabase.from("storage_entries").insert(fields).select("id, number").single();
   if (error || !data) return { error: error?.message ?? "Could not add the entry." };
   refresh();
-  redirect(`/storage/entries/${(data as { id: string }).id}?new=1`);
+  return { saved: true, newEntry: entryId({ number: Number((data as { number: number }).number) }) };
 }
 
 // REQ-87: change any field, box or not included; the ID stays. A box

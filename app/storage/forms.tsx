@@ -1,23 +1,34 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import styles from "../../components/cards.module.css";
 import type { StorageEntry } from "../../lib/storage/storage";
 import { addEntry, removeEntry, updateEntry, type FormState } from "./actions";
 
 const initialState: FormState = {};
 
-function Outcome({ state, saved }: { state: FormState; saved: string }) {
-  if (state.error) return <p role="alert" className={styles.error}>{state.error}</p>;
-  if (state.saved) return <p role="status" className={styles.saved}>{saved}</p>;
-  return null;
+function Outcome({ state }: { state: FormState }) {
+  return state.error ? (
+    <p role="alert" className={styles.error}>
+      {state.error}
+    </p>
+  ) : null;
+}
+
+// A form in a sheet tells the sheet once it has saved, so the sheet can
+// close (REQ-107).
+function useOnSaved(state: FormState, onSaved?: (state: FormState) => void) {
+  useEffect(() => {
+    if (state.saved) onSaved?.(state);
+  }, [state, onSaved]);
 }
 
 // REQ-87: add an entry, or (with `entry`) change any of its fields. Only
 // a box has contents, so the contents field shows only while it's ticked.
-export function EntryForm({ entry }: { entry?: StorageEntry }) {
+export function EntryForm({ entry, onSaved }: { entry?: StorageEntry; onSaved?: (state: FormState) => void }) {
   const [state, formAction, pending] = useActionState(entry ? updateEntry : addEntry, initialState);
   const [isBox, setIsBox] = useState(entry?.is_box ?? false);
+  useOnSaved(state, onSaved);
   return (
     <form action={formAction} className={styles.form}>
       {entry ? <input type="hidden" name="id" value={entry.id} /> : null}
@@ -46,27 +57,18 @@ export function EntryForm({ entry }: { entry?: StorageEntry }) {
         <textarea name="note" rows={2} defaultValue={entry?.note ?? ""} />
       </label>
       <button type="submit" className={styles.primary} disabled={pending}>
-        {pending ? "Saving…" : entry ? "Save changes" : "Add the entry"}
+        {pending ? "Saving…" : entry ? "Save changes" : "Add to storage"}
       </button>
-      <Outcome state={state} saved="Saved." />
+      <Outcome state={state} />
     </form>
   );
 }
 
-// REQ-87: removing asks first. The first press only asks; the second
-// removes. A box holding archived files is refused with what to do.
-export function RemoveEntryForm({ entry, label }: { entry: StorageEntry; label: string }) {
+// REQ-87: removing asks first — choosing Remove from the Manage menu opens
+// this question, and only Yes removes. A box holding archived files is
+// refused with what to do.
+export function RemoveEntryForm({ entry, label, onKeep }: { entry: StorageEntry; label: string; onKeep: () => void }) {
   const [state, formAction, pending] = useActionState(removeEntry, initialState);
-  const [asking, setAsking] = useState(false);
-  if (!asking) {
-    return (
-      <div className={`${styles.actions} ${styles.form}`}>
-        <button type="button" className={styles.quiet} onClick={() => setAsking(true)}>
-          Remove {label}
-        </button>
-      </div>
-    );
-  }
   return (
     <form action={formAction} className={styles.form}>
       <input type="hidden" name="id" value={entry.id} />
@@ -77,11 +79,11 @@ export function RemoveEntryForm({ entry, label }: { entry: StorageEntry; label: 
         <button type="submit" className={styles.primary} disabled={pending}>
           {pending ? "Removing…" : "Yes, remove it"}
         </button>
-        <button type="button" className={styles.quiet} onClick={() => setAsking(false)}>
+        <button type="button" className={styles.quiet} onClick={onKeep}>
           Keep it
         </button>
       </div>
-      <Outcome state={state} saved="Removed." />
+      <Outcome state={state} />
     </form>
   );
 }
