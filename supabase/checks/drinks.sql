@@ -50,7 +50,7 @@ begin
   select count(*), max(stars)::text into v_count, v_text from public.drink_ratings where drink_id = a_drink;
   report := report || format('3. rating again replaces it: %s row(s), %s stars (wants 1, 4)%s', v_count, v_text, E'\n');
 
-  -- 4. Half stars, six stars and two-line comments are refused.
+  -- 4. Six stars and two-line comments are refused.
   begin
     update public.drink_ratings set stars = 6 where drink_id = a_drink;
     report := report || E'4. six stars SAVED -- WRONG\n';

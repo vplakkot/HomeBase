@@ -1,8 +1,9 @@
 # 26. Rows that belong to one person
 
-Until Drinks, every row in HomeBase was the household's: any member
-could add, change or remove any bill, document or box. A star rating is
-different. It's *my* opinion. You can read it, but you mustn't be able
+Until Drinks, every row people could see in HomeBase was the
+household's: any member could add, change or remove any bill, document
+or box. (Push subscriptions were already one person's each, but nobody
+ever sees them.) A star rating is different. It's *my* opinion. You can read it, but you mustn't be able
 to change it, and I mustn't be able to rate for you.
 
 ## The analogy
