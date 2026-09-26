@@ -103,8 +103,10 @@ export function vintageText(drink: Pick<Drink, "vintage" | "non_vintage">): stri
 }
 
 // What the list says under a drink's name: type · producer · vintage.
+// A producer already in the title (a generic name) isn't said twice.
 export function drinkLine(drink: Drink, typeName: (type: DrinkType) => string): string {
-  return [drink.type ? typeName(drink.type) : null, drink.producer, vintageText(drink)]
+  const producer = displayName(drink) === drink.name ? drink.producer : null;
+  return [drink.type ? typeName(drink.type) : null, producer, vintageText(drink)]
     .filter((part): part is string => part !== null && part !== "")
     .join(" · ");
 }

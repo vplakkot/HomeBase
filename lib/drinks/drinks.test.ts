@@ -290,3 +290,11 @@ describe("generic names (Vin, 2026-09-26)", () => {
     expect(displayName({ name: "La Sonriente", producer: "Someone" })).toBe("La Sonriente");
   });
 });
+
+describe("the line under a generic name", () => {
+  it("doesn't repeat the producer that's already in the title", () => {
+    expect(drinkLine(drink("g", "Pinot Grigio", { producer: "Gaetano D'Aquino", type: "white", vintage: 2025 }), (t) => TYPE_NAMES[t])).toBe(
+      "White · 2025",
+    );
+  });
+});

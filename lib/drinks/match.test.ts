@@ -132,3 +132,15 @@ describe("wines named after their grape or region (Vin, 2026-09-26)", () => {
     expect(result.drinks[0].name).toBe("Gaetano D'Aquino · Pinot Grigio");
   });
 });
+
+describe("wines named after their grape, read messily", () => {
+  const GAETANO = drink("g1", "Pinot Grigio", { producer: "Gaetano D'Aquino", vintage: 2025 });
+
+  it("still match when the producer was read as part of the name", () => {
+    expect(shopCheck({ name: "Gaetano D'Aquino Pinot Grigio", vintage: 2025 }, [GAETANO], PEOPLE, []).kind).toBe("same");
+  });
+
+  it("don't match a different grape from the same producer", () => {
+    expect(shopCheck({ name: "Pinot Noir", producer: "Gaetano D'Aquino", vintage: 2025 }, [GAETANO], PEOPLE, []).kind).toBe("new");
+  });
+});
