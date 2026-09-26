@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import cards from "../../components/cards.module.css";
 import { shrinkPhoto } from "../../lib/drinks/shrink-photo";
 import styles from "./drinks.module.css";
@@ -93,7 +93,6 @@ export function PhotoStep({
   const [shot, setShot] = useState<Shot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => () => (shot ? URL.revokeObjectURL(shot.url) : undefined), [shot]);
   const picked = async (file: File) => {
     setBusy(true);
     setError(null);
@@ -116,7 +115,16 @@ export function PhotoStep({
             <button type="button" className={cards.primary} onClick={() => onUse(shot)}>
               Use it
             </button>
-            <button type="button" className={cards.quiet} onClick={() => setShot(null)}>
+            {/* The photo's local address is let go only on Retake: after Use it,
+                the next screens still show it. */}
+            <button
+              type="button"
+              className={cards.quiet}
+              onClick={() => {
+                URL.revokeObjectURL(shot.url);
+                setShot(null);
+              }}
+            >
               Retake
             </button>
           </div>

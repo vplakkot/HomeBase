@@ -124,6 +124,8 @@ export async function setPhotos(_previous: FormState, formData: FormData): Promi
   if ("error" in photos) return { error: photos.error };
   if (!photos.front) return { error: "Take or choose the front label." };
   const { data: before } = await supabase.from("drinks").select("front_label, back_label").eq("id", id).maybeSingle();
+  // A drink removed meanwhile gets no photos, so none are left behind.
+  if (!before) return { error: "That drink isn't there any more." };
   const paths = await upload(supabase, id, photos);
   if ("error" in paths) return { error: paths.error };
   const { error } = await supabase
