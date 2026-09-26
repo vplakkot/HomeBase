@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Drinks opens (v2.0, first batch). The Wine tile is now Drinks. Add a
+  drink by hand, with only the name required and grapes, regions and
+  countries suggested from standard lists. The list shows every drink
+  with each person's stars or "not rated"; search it by producer, name,
+  grape, region or comment (Shiraz finds a Syrah), filter by type and
+  sort by date or by one person's rating. On a drink's page, rate it 1
+  to 5 stars with a one-line comment, change it later, or clear it;
+  everyone's rating shows by name, with when it last changed.
 - Lessons caught up. Lesson 19 now covers the rule shared by Paperwork
   and Storage (an archived file sits in a box), lesson 21 the month that
   opens itself on the 1st, and a new lesson 25 explains screens that

@@ -111,14 +111,14 @@ describe("the module switcher", () => {
       "Finances",
       "CalendarComing soon",
       "PetsComing soon",
-      "WineComing soon",
+      "Drinks",
       "Meal PlansComing soon",
       "HealthComing soon",
       "Paperwork",
       "Storage",
     ]);
     const links = within(sheet).getAllByRole("link");
-    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/finances", "/paperwork", "/storage"]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/finances", "/drinks", "/paperwork", "/storage"]);
     expect(links[0].getAttribute("aria-current")).toBe("page");
   });
 });

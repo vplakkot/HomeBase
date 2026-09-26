@@ -182,7 +182,7 @@ export const MODULE_ICONS: Record<string, (props: IconProps) => ReactNode> = {
       <path d="M12 12c-3 0-5 3-5 5 0 1.5 1.3 2 2.3 2h5.4c1 0 2.3-.5 2.3-2 0-2-2-5-5-5z" />
     </Icon>
   ),
-  wine: ({ size = 18 }) => (
+  drinks: ({ size = 18 }) => (
     <Icon size={size}>
       <path d="M8 3h8l-1 7a3 3 0 01-6 0z" />
       <path d="M12 13v7M9 21h6" />

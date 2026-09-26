@@ -30,7 +30,7 @@ describe("the desktop sidebar", () => {
       "Finances",
       "Calendar, coming soon",
       "Pets, coming soon",
-      "Wine, coming soon",
+      "Drinks",
       "Meal Plans, coming soon",
       "Health, coming soon",
       "Paperwork",
@@ -39,10 +39,10 @@ describe("the desktop sidebar", () => {
   });
 
   // A decision of 2026-09-21: the other five are shown but can't be opened.
-  it("links only the modules that open: Finances and Paperwork", () => {
+  it("links only the modules that open", () => {
     render(<Sidebar current="home" canAdminister={false} account={TEST_ACCOUNT} />);
     const links = within(sidebar()).getAllByRole("link").map((link) => link.getAttribute("href"));
-    expect(links).toEqual(["/", "/finances", "/paperwork", "/storage"]);
+    expect(links).toEqual(["/", "/finances", "/drinks", "/paperwork", "/storage"]);
   });
 
   it("offers the admin console to admins, at the bottom", () => {
