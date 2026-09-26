@@ -354,7 +354,9 @@ describe("the Overview (REQ-120)", () => {
     given([...DRINKS, WISH]);
     render(await overview());
     const region = within(screen.getByRole("region", { name: "Recent scans" }));
-    const links = region.getAllByRole("link").filter((link) => link.textContent !== "Choose a photo");
+    // #206: Choose a photo lives in the header now, not beside Recent scans.
+    expect(region.queryByText("Choose a photo")).toBeNull();
+    const links = region.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual(["/drinks/d9", "/drinks/d3", "/drinks/d2"]);
     expect(links[2].textContent).toContain("Old Vine2021");
     expect(within(links[2]).getByRole("list", { name: "Ratings" }).textContent).toBe("Alex ★★★★★");
@@ -370,11 +372,13 @@ describe("the Overview (REQ-120)", () => {
     expect(screen.getByRole("search").getAttribute("action")).toBe("/drinks/wines");
   });
 
-  it("says when nothing is recorded yet, and offers Scan", async () => {
+  it("says when nothing is recorded yet, and offers Scan and Choose a photo", async () => {
     given([]);
     render(await overview());
     expect(screen.getByText("Nothing recorded yet.")).toBeTruthy();
-    expect(within(screen.getByRole("region", { name: "Nothing yet" })).getByRole("button", { name: "Scan" })).toBeTruthy();
+    const empty = within(screen.getByRole("region", { name: "Nothing yet" }));
+    expect(empty.getByRole("button", { name: "Scan" })).toBeTruthy();
+    expect(empty.getByRole("button", { name: "Choose a photo" })).toBeTruthy();
   });
 
   it("sends a link kept from when the list lived here on to Wines", async () => {

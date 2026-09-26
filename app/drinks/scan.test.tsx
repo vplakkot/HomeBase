@@ -205,6 +205,42 @@ describe("scanning in fewer taps (REQ-122)", () => {
   });
 });
 
+describe("Choose a photo from any Drinks screen (#206)", () => {
+  it("sits in the header beside Scan, on the Overview and Wines, and opens the library", async () => {
+    for (const page of [() => DrinksPage({ searchParams: Promise.resolve({}) }), () => WinesPage({ searchParams: Promise.resolve({}) })]) {
+      given();
+      render(await page());
+      const library = screen.getAllByLabelText("Choose a photo from the library")[0] as HTMLInputElement;
+      expect(library.hasAttribute("capture")).toBe(false);
+      const opened = clicks();
+      fireEvent.click(screen.getAllByRole("button", { name: "Choose a photo" })[0]);
+      expect(opened()).toEqual(["Choose a photo from the library"]);
+      cleanup();
+    }
+  });
+
+  it("goes to the same scan screen, where the back label comes from the library too", async () => {
+    given();
+    render(await DrinksPage({ searchParams: Promise.resolve({}) }));
+    await act(async () => {
+      fireEvent.change(screen.getAllByLabelText("Choose a photo from the library")[0], { target: { files: [photo()] } });
+    });
+    expect(push).toHaveBeenCalledWith("/drinks/scan");
+    cleanup();
+    render(await ScanPage());
+    expect(await screen.findByRole("img", { name: "Front label, as taken" })).toBeTruthy();
+    const opened = clicks();
+    fireEvent.click(button("Add back label"));
+    expect(opened()).toEqual(["Choose the back label"]);
+  });
+
+  it("isn't in the scan screen's header", async () => {
+    given();
+    render(await ScanPage());
+    expect(screen.queryByLabelText("Choose a photo from the library")).toBeNull();
+  });
+});
+
 describe("the review screen (REQ-28)", () => {
   async function review(reading?: LabelReading) {
     if (reading) vi.mocked(noReader).mockResolvedValue(reading);
