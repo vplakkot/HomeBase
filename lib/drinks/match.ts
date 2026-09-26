@@ -1,5 +1,5 @@
-import { buyAgainText, ratingsFor, vintageText, type Drink, type DrinkFields, type Person, type Rating } from "./drinks";
-import { fold } from "./lists";
+import { buyAgainText, displayName, ratingsFor, vintageText, type Drink, type DrinkFields, type Person, type Rating } from "./drinks";
+import { fold, isGenericName } from "./lists";
 
 // The shop check (REQ-33): have we had the wine just scanned? It matches
 // on producer, wine name and vintage. The same producer and name with a
@@ -30,6 +30,21 @@ const words = (...texts: (string | null | undefined)[]) => fold(texts.filter(Boo
 // name. At least one of those words must be a real word (four letters or
 // more), so "La" alone never matches.
 function sameWine(drink: Drink, read: Partial<DrinkFields>): boolean {
+  // A generic name ("Pinot Grigio") is only the same wine from the same
+  // producer: the saved wine must have one, and the reading must show it,
+  // as its producer or inside its name ("Gaetano D'Aquino Pinot Grigio").
+  // What's left of the read name must then be the same grape or region.
+  if (isGenericName(drink.name) || isGenericName(read.name ?? "")) {
+    if (!drink.producer) return false;
+    const producer = words(drink.producer);
+    const readProducer = words(read.producer);
+    const shown =
+      (producer.some((word) => word.length >= 4) && producer.every((word) => words(read.producer, read.name).includes(word))) ||
+      (readProducer.some((word) => word.length >= 4) && readProducer.every((word) => producer.includes(word)));
+    if (!shown) return false;
+    const rest = words(read.name).filter((word) => !producer.includes(word));
+    return rest.join(" ") === words(drink.name).join(" ");
+  }
   if (same(drink.name, read.name)) return true;
   const within = (name: string[], all: string[]) =>
     name.length > 0 && name.some((word) => word.length >= 4) && name.every((word) => all.includes(word));
@@ -41,7 +56,7 @@ function sameWine(drink: Drink, read: Partial<DrinkFields>): boolean {
 function summary(drink: Drink, people: readonly Person[], ratings: readonly Rating[]): Summary {
   return {
     id: drink.id,
-    name: drink.name,
+    name: displayName(drink),
     producer: drink.producer,
     vintage: vintageText(drink),
     wanted: drink.how === "want_to_try",

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ModuleStatus } from "../module-status";
-import { DRINK_TYPES, fold, grapeSpellings, standardGrape, type DrinkType } from "./lists";
+import { DRINK_TYPES, fold, grapeSpellings, isGenericName, standardGrape, type DrinkType } from "./lists";
 
 // Drinks (REQ-37, REQ-30, REQ-29): every wine we've had and what each of
 // us thought of it.
@@ -89,6 +89,13 @@ export async function readPeople(supabase: SupabaseClient): Promise<Person[]> {
   return ((data ?? []) as Person[]).map(({ user_id, name }) => ({ user_id, name }));
 }
 
+// What a drink is called on screen. A generic name ("Pinot Grigio") comes
+// after its producer, so five Pinot Grigios are five different titles:
+// "Gaetano D'Aquino · Pinot Grigio".
+export function displayName(drink: Pick<Drink, "name" | "producer">): string {
+  return drink.producer && isGenericName(drink.name) ? `${drink.producer} · ${drink.name}` : drink.name;
+}
+
 // "2019", "NV", or nothing.
 export function vintageText(drink: Pick<Drink, "vintage" | "non_vintage">): string | null {
   if (drink.non_vintage) return "NV";
@@ -96,8 +103,10 @@ export function vintageText(drink: Pick<Drink, "vintage" | "non_vintage">): stri
 }
 
 // What the list says under a drink's name: type · producer · vintage.
+// A producer already in the title (a generic name) isn't said twice.
 export function drinkLine(drink: Drink, typeName: (type: DrinkType) => string): string {
-  return [drink.type ? typeName(drink.type) : null, drink.producer, vintageText(drink)]
+  const producer = displayName(drink) === drink.name ? drink.producer : null;
+  return [drink.type ? typeName(drink.type) : null, producer, vintageText(drink)]
     .filter((part): part is string => part !== null && part !== "")
     .join(" · ");
 }

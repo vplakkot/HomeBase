@@ -329,3 +329,11 @@ describe("buy again (REQ-34)", () => {
     expect(within(group).getAllByRole("radio").some((radio) => (radio as HTMLInputElement).required)).toBe(false);
   });
 });
+
+describe("generic names in the list (Vin, 2026-09-26)", () => {
+  it("titles a wine named after its grape with its producer", async () => {
+    given([drink("g1", "Pinot Grigio", { producer: "Gaetano D'Aquino", type: "white", vintage: 2025 })]);
+    render(await list());
+    expect(cards()[0]).toContain("Gaetano D'Aquino · Pinot Grigio");
+  });
+});

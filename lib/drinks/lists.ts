@@ -405,3 +405,33 @@ export function grapeSpellings(written: string): string[] {
 }
 
 export { fold };
+
+// Words that say what kind of wine it is, not which one.
+const KIND_WORDS = ["red", "white", "rose", "wine", "vino", "vinho", "vin", "rosso", "bianco", "tinto", "blanco", "branco", "rouge", "blanc", "dry", "secco", "seco", "sec", "doc", "docg", "igt", "aoc"];
+// Little joining words that don't name anything.
+const JOINING_WORDS = ["di", "de", "del", "della", "delle", "dei", "da", "do", "dos", "das", "du", "des", "la", "le", "les", "el", "los", "the", "of", "and", "e", "y", "et", "und"];
+
+// A name that's only a grape, a region or a kind of wine ("Pinot Grigio",
+// "Pinot Grigio delle Venezie", "Rioja", "Red Blend") says nothing about
+// which wine it is: many wineries make one. Such a wine is told apart by
+// its producer (Vin, 2026-09-26).
+export function isGenericName(name: string): boolean {
+  let rest = ` ${fold(name)} `;
+  const phrases = [
+    ...GRAPES.flatMap((grape) => [grape.name, ...(grape.also ?? [])]),
+    ...REGIONS.flatMap((region) => [region.name, ...(region.also ?? [])]),
+    "blend",
+  ]
+    .map(fold)
+    .sort((a, b) => b.length - a.length);
+  let named = false;
+  for (const phrase of phrases) {
+    const parts = rest.split(` ${phrase} `);
+    if (parts.length > 1) named = true;
+    rest = parts.join("  ");
+  }
+  const words = rest.split(" ").filter((word) => word !== "" && !JOINING_WORDS.includes(word));
+  if (words.some((word) => KIND_WORDS.includes(word))) named = true;
+  // Generic only if it names a grape, region or kind, and nothing else.
+  return named && words.every((word) => KIND_WORDS.includes(word));
+}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { buyAgainText, drinkLine, listDrinks, parseSort, ratingsFor, sortValue, starsText } from "../../lib/drinks/drinks";
+import { buyAgainText, displayName, drinkLine, listDrinks, parseSort, ratingsFor, sortValue, starsText } from "../../lib/drinks/drinks";
 import { TYPE_NAMES } from "../../lib/drinks/lists";
 import { thumbPath } from "../../lib/drinks/photos";
 import { DrinksScreen, type DrinksViewer } from "./frame";
@@ -59,7 +59,7 @@ export function DrinksHome({
                       // eslint-disable-next-line @next/next/no-img-element -- a private, short-lived link
                       <img src={thumb} alt="" className={styles.thumb} />
                     ) : null}
-                    <span className={styles.cardTitle}>{drink.name}</span>
+                    <span className={styles.cardTitle}>{displayName(drink)}</span>
                     {line ? <span className={styles.cardDetail}>{line}</span> : null}
                     {wanted ? null : (
                       <ul className={styles.ratings} aria-label="Ratings">

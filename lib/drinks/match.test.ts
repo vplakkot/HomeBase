@@ -109,3 +109,38 @@ describe("the shop check on real readings (REQ-33, 2026-09-26)", () => {
     expect(shopCheck({ name: "LA", vintage: 2024 }, [SONRIENTE], PEOPLE, []).kind).toBe("new");
   });
 });
+
+describe("wines named after their grape or region (Vin, 2026-09-26)", () => {
+  const GAETANO = drink("g1", "Pinot Grigio", { producer: "Gaetano D'Aquino", vintage: 2025 });
+  const OTHER = drink("g2", "Pinot Grigio", { producer: "Invented Cantina", vintage: 2025 });
+  const NO_PRODUCER = drink("g3", "Pinot Grigio", { vintage: 2025 });
+
+  it("match only the same producer's wine", () => {
+    const result = shopCheck({ name: "PINOT GRIGIO", producer: "Gaetano D'Aquino", vintage: 2025 }, [GAETANO, OTHER], PEOPLE, []);
+    if (result.kind !== "same") throw new Error(result.kind);
+    expect(result.drinks.map((row) => row.id)).toEqual(["g1"]);
+  });
+
+  it("aren't matched when either side has no producer", () => {
+    expect(shopCheck({ name: "Pinot Grigio", vintage: 2025 }, [GAETANO], PEOPLE, []).kind).toBe("new");
+    expect(shopCheck({ name: "Pinot Grigio", producer: "Gaetano D'Aquino", vintage: 2025 }, [NO_PRODUCER], PEOPLE, []).kind).toBe("new");
+  });
+
+  it("are shown with their producer first, so they can be told apart", () => {
+    const result = shopCheck({ name: "Pinot Grigio", producer: "Gaetano D'Aquino", vintage: 2025 }, [GAETANO], PEOPLE, []);
+    if (result.kind !== "same") throw new Error(result.kind);
+    expect(result.drinks[0].name).toBe("Gaetano D'Aquino · Pinot Grigio");
+  });
+});
+
+describe("wines named after their grape, read messily", () => {
+  const GAETANO = drink("g1", "Pinot Grigio", { producer: "Gaetano D'Aquino", vintage: 2025 });
+
+  it("still match when the producer was read as part of the name", () => {
+    expect(shopCheck({ name: "Gaetano D'Aquino Pinot Grigio", vintage: 2025 }, [GAETANO], PEOPLE, []).kind).toBe("same");
+  });
+
+  it("don't match a different grape from the same producer", () => {
+    expect(shopCheck({ name: "Pinot Noir", producer: "Gaetano D'Aquino", vintage: 2025 }, [GAETANO], PEOPLE, []).kind).toBe("new");
+  });
+});

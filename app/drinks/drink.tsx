@@ -1,4 +1,4 @@
-import { buyAgainText, howText, ratingsFor, starsText, vintageText, type Drink } from "../../lib/drinks/drinks";
+import { buyAgainText, displayName, howText, ratingsFor, starsText, vintageText, type Drink } from "../../lib/drinks/drinks";
 import { BOTTLE_SIZES, TYPE_NAMES } from "../../lib/drinks/lists";
 import { HOUSEHOLD_TIME_ZONE } from "../../lib/finances/budget-year";
 import { DrinksScreen, type DrinksViewer } from "./frame";
@@ -44,9 +44,9 @@ export function DrinkScreen({
   const shown = details.filter((row): row is [string, string] => row[1] !== null);
 
   return (
-    <DrinksScreen viewer={viewer} crumb={drink.name}>
+    <DrinksScreen viewer={viewer} crumb={displayName(drink)}>
       <div className={styles.fileHead}>
-        <h2 className={styles.title}>{drink.name}</h2>
+        <h2 className={styles.title}>{displayName(drink)}</h2>
         <div className={styles.fileButtons}>
           {/* REQ-36: rated once we've had it, not while it's only a wish. */}
           {untried ? null : <RateButton drinkId={drink.id} rating={mine} />}

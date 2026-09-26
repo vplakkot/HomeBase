@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Wines named after their grape or region ("Pinot Grigio", "Rioja")
+  are shown with their producer first ("Gaetano D'Aquino · Pinot
+  Grigio") in the list, on the drink's page and in the shop check, so
+  several of them can be told apart. The shop check only calls one "the
+  same wine" when the producer matches too.
 - Label reading, tuned on our first real bottles. A name printed over
   two lines ("La / Sonriente", "Convento / da Vila") is read as one
   name; a seal like "Produção sustentável" is never the producer; the

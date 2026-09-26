@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buyAgainText,
   countDrinks,
+  displayName,
   drinkFields,
   drinkLine,
   drinksTile,
@@ -15,7 +16,7 @@ import {
   type Drink,
   type Rating,
 } from "./drinks";
-import { TYPE_NAMES, standardCountry, standardGrape } from "./lists";
+import { TYPE_NAMES, isGenericName, standardCountry, standardGrape } from "./lists";
 
 // An invented cellar and household; nothing here is real.
 const drink = (id: string, name: string, extra: Partial<Drink> = {}): Drink => ({
@@ -270,5 +271,30 @@ describe("buy again (REQ-34)", () => {
     expect(buyAgainText(true)).toBe("Buy again: yes");
     expect(buyAgainText(false)).toBe("Buy again: no");
     expect(buyAgainText(null)).toBeNull();
+  });
+});
+
+describe("generic names (Vin, 2026-09-26)", () => {
+  it("knows a name that's only a grape, region or kind of wine", () => {
+    for (const name of ["Pinot Grigio", "PINOT GRIGIO DELLE VENEZIE", "Rioja", "Red Blend", "Vinho Tinto"]) {
+      expect(isGenericName(name), name).toBe(true);
+    }
+    for (const name of ["La Sonriente", "Convento da Vila", "LA", "Old Vine", "Reserva Especial", ""]) {
+      expect(isGenericName(name), name).toBe(false);
+    }
+  });
+
+  it("puts the producer first on a generic name, and only there", () => {
+    expect(displayName({ name: "Pinot Grigio", producer: "Gaetano D'Aquino" })).toBe("Gaetano D'Aquino · Pinot Grigio");
+    expect(displayName({ name: "Pinot Grigio", producer: null })).toBe("Pinot Grigio");
+    expect(displayName({ name: "La Sonriente", producer: "Someone" })).toBe("La Sonriente");
+  });
+});
+
+describe("the line under a generic name", () => {
+  it("doesn't repeat the producer that's already in the title", () => {
+    expect(drinkLine(drink("g", "Pinot Grigio", { producer: "Gaetano D'Aquino", type: "white", vintage: 2025 }), (t) => TYPE_NAMES[t])).toBe(
+      "White · 2025",
+    );
   });
 });
