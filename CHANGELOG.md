@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 - 2026-09-25
+
+HomeBase does real work. Finances runs the household's month end to
+end: the split and bills, monthly entry, who owes what, closing a month,
+balances, the March review, and reminders on Home and by push.
+Paperwork and Storage open as modules of their own, and an archived
+paperwork file lives in a Storage box. All three follow one design:
+white cards with a thin border in the module's colour, plain-text
+status, one button style. Entries below run newest first.
 
 - Storage, redesigned like Paperwork. Every screen has one search for
   names, IDs, contents and notes (results take the screen's place; Clear
