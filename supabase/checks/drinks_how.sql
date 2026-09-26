@@ -57,6 +57,14 @@ begin
   select stars || ' ' || buy_again into v_text from public.drink_ratings where drink_id = a_drink;
   report := report || format('5. rated 3 stars, buy again yes: %s (wants 3 true)%s', v_text, E'\n');
 
+  -- 6. Rated now, it can't go back to Want to try.
+  begin
+    update public.drinks set how = 'want_to_try', price = null, place = null where id = a_drink;
+    report := report || E'6. a rated drink went back to want-to-try -- WRONG\n';
+  exception when others then
+    report := report || format('6. a rated drink going back to want-to-try is refused (wants this): %s%s', sqlerrm, E'\n');
+  end;
+
   raise exception 'Results (everything above was undone):%', report;
 end;
 $$;

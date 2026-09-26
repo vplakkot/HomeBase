@@ -675,8 +675,10 @@ describe("drinks: how we got it and buy again (REQ-35, REQ-36, REQ-34)", () => {
     expect(how).toMatch(/alter table public\.drink_ratings\s+add column buy_again boolean;/);
   });
 
-  it("refuses a rating on a wine we only want to try", () => {
+  it("refuses a rating on a wine we only want to try, and a rated drink going back to it", () => {
     expect(how).toMatch(/before insert or update on public\.drink_ratings/);
     expect(how).toMatch(/how = 'want_to_try'/);
+    expect(how).toMatch(/before update of how on public\.drinks/);
+    expect(how).toMatch(/exists \(select 1 from public\.drink_ratings where drink_id = new\.id\)/);
   });
 });

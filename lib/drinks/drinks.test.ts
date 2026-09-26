@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buyAgainText,
+  countDrinks,
   drinkFields,
   drinkLine,
   drinksTile,
@@ -249,6 +250,16 @@ describe("how we got it (REQ-35, REQ-36)", () => {
     expect(drinkFields(form({ ...all, how: "gift" }))).toMatchObject({ price: null, place: null, gift_from: "Priya" });
     expect(drinkFields(form({ ...all, how: "had_out" }))).toMatchObject({ price: null, place: "Shop", gift_from: null });
     expect(drinkFields(form({ ...all, how: "want_to_try" }))).toMatchObject({ price: null, place: null, gift_from: null });
+  });
+});
+
+describe("Home's count (REQ-36)", () => {
+  it("counts the drinks we've had, leaving out the ones we only want to try", async () => {
+    const neq = vi.fn(async () => ({ count: 3, error: null }));
+    const select = vi.fn(() => ({ neq }));
+    const supabase = { from: vi.fn(() => ({ select })) } as unknown as Parameters<typeof countDrinks>[0];
+    expect(await countDrinks(supabase)).toBe(3);
+    expect(neq).toHaveBeenCalledWith("how", "want_to_try");
   });
 });
 

@@ -49,3 +49,23 @@ $$;
 create trigger refuse_rating_untried
   before insert or update on public.drink_ratings
   for each row execute function public.refuse_rating_untried();
+
+-- And the other way round: a drink someone has rated has been had, so it
+-- can't go back to Want to try.
+create function public.refuse_untrying_rated()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.how = 'want_to_try' and old.how <> 'want_to_try'
+     and exists (select 1 from public.drink_ratings where drink_id = new.id) then
+    raise exception 'It has ratings, so we''ve had it';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger refuse_untrying_rated
+  before update of how on public.drinks
+  for each row execute function public.refuse_untrying_rated();

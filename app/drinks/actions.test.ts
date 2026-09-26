@@ -35,7 +35,7 @@ const on = (table: string) =>
 afterEach(() => vi.clearAllMocks());
 
 describe("adding a drink by hand (REQ-37)", () => {
-  it("saves one with only a name and opens it", async () => {
+  it("saves one with only a name and how we got it, and opens it", async () => {
     given();
     await expect(addDrink({}, form({ name: "House red", how: "had_out" }))).rejects.toThrow(`REDIRECT:/drinks/${DRINK}`);
     expect(on("drinks")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ name: "House red", producer: null }));

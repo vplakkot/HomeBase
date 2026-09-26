@@ -968,7 +968,7 @@ each of us thought of it.
 | Table | One row is | Key facts |
 |---|---|---|
 | `drinks` | a wine | only `name` is required; `producer`, `type` (one of seven), `vintage` or `non_vintage` (never both), `grapes` (a list), `region`, `country`, `abv`, `bottle_ml`, and for sparkling `sweetness`, `method`, `disgorged_on`; `how` we got it (`bought`, `gift`, `had_out`, `want_to_try`) with its optional extras `price`, `place`, `gift_from`, each allowed only with its value by a check; every member reads, adds, changes and removes |
-| `drink_ratings` | one person's rating of one drink | primary key `(drink_id, user_id)`, so one each; `stars` 1–5, a one-line `comment`, `buy_again` (yes, no or null); `updated_at` stamped by a trigger; refused on a Want to try drink (`refuse_rating_untried`); everyone reads, each person writes only their own row (`user_id = auth.uid()` in the policies); removed with its drink |
+| `drink_ratings` | one person's rating of one drink | primary key `(drink_id, user_id)`, so one each; `stars` 1–5, a one-line `comment`, `buy_again` (yes, no or null); `updated_at` stamped by a trigger; refused on a Want to try drink (`refuse_rating_untried`), and a rated drink can't go back to Want to try (`refuse_untrying_rated`); everyone reads, each person writes only their own row (`user_id = auth.uid()` in the policies); removed with its drink |
 
 The standard lists (types, grapes with their other names, countries,
 regions, sparkling sweetness and methods) live in the code,
