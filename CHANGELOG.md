@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Storage, redesigned like Paperwork. Every screen has one search for
+  names, IDs, contents and notes (results take the screen's place; Clear
+  brings it back) and an Add to storage button, which opens over the
+  screen you're on and shows the new ID to print once. The home groups
+  entries under Boxes and Not in a box, each card showing its contents,
+  its note and any archived paperwork files. An entry's page lists what's
+  in it one per line, its note, and its archived files, each opening in
+  Paperwork; editing, the label and removing sit behind one Manage menu.
+  The separate Add an entry page is gone.
+
 - Monthly entry, Income, Balances and Budget year now look like Finances
   home. Each section's heading sits above its card; every card is white
   with a thin brick border; saved things are plain rows split by grey

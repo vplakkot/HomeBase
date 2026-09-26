@@ -85,6 +85,15 @@ export function ChevronDownIcon({ size = 16 }: IconProps) {
   );
 }
 
+export function SearchIcon({ size = 18 }: IconProps) {
+  return (
+    <Icon size={size}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </Icon>
+  );
+}
+
 export function LockIcon({ size = 13 }: IconProps) {
   return (
     <Icon size={size}>

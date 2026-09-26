@@ -205,8 +205,8 @@ export function ManageFile({
         ) : boxes.length === 0 ? (
           <div className={styles.sheetBody}>
             <p className={styles.empty}>There are no storage boxes yet.</p>
-            <Link href="/storage/add" className={buttonClass}>
-              Add a box in Storage
+            <Link href="/storage" className={buttonClass}>
+              Go to Storage to add a box
             </Link>
           </div>
         ) : (

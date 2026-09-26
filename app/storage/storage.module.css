@@ -1,0 +1,117 @@
+/* Storage's screens (REQ-107) match Paperwork's (REQ-100): the same
+   header search, breadcrumb, sections, link cards, menu and label, on
+   the module home rules (DESIGN.md §6). Rather than copy those shapes,
+   each class here borrows Paperwork's with `composes`; the module
+   colour comes from the page, so the borders and buttons are teal. */
+.tools { composes: tools from "../paperwork/paperwork.module.css"; }
+.search { composes: search from "../paperwork/paperwork.module.css"; }
+.clear { composes: clear from "../paperwork/paperwork.module.css"; }
+.hidden { composes: hidden from "../paperwork/paperwork.module.css"; }
+.crumbs { composes: crumbs from "../paperwork/paperwork.module.css"; }
+.screen { composes: screen from "../paperwork/paperwork.module.css"; }
+.section { composes: section from "../paperwork/paperwork.module.css"; }
+.sectionHead { composes: sectionHead from "../paperwork/paperwork.module.css"; }
+.sectionTitle { composes: sectionTitle from "../paperwork/paperwork.module.css"; }
+.count { composes: count from "../paperwork/paperwork.module.css"; }
+.card { composes: card from "../paperwork/paperwork.module.css"; }
+.grid { composes: grid from "../paperwork/paperwork.module.css"; }
+.linkCard { composes: linkCard from "../paperwork/paperwork.module.css"; }
+.cardTitle { composes: cardTitle from "../paperwork/paperwork.module.css"; }
+.cardDetail { composes: cardDetail from "../paperwork/paperwork.module.css"; }
+.noLabel { composes: noLabel from "../paperwork/paperwork.module.css"; }
+.empty { composes: empty from "../paperwork/paperwork.module.css"; }
+.fileHead { composes: fileHead from "../paperwork/paperwork.module.css"; }
+.title { composes: title from "../paperwork/paperwork.module.css"; }
+.fileButtons { composes: fileButtons from "../paperwork/paperwork.module.css"; }
+.menu { composes: menu from "../paperwork/paperwork.module.css"; }
+.menuItem { composes: menuItem from "../paperwork/paperwork.module.css"; }
+.divider { composes: divider from "../paperwork/paperwork.module.css"; }
+.label { composes: label from "../paperwork/paperwork.module.css"; }
+.sheetBody { composes: sheetBody from "../paperwork/paperwork.module.css"; }
+.rows { composes: rows from "../paperwork/paperwork.module.css"; }
+
+/* "Box" after an entry's title: a small plain superscript, never a chip. */
+.mark {
+  margin-left: var(--space-2);
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+/* The note under a card's preview, set apart in italics. */
+.note {
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+  font-style: italic;
+}
+
+.strong {
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+/* A box's two cards side by side on a desktop: what's in it, and the
+   paperwork files archived in it. */
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+
+@media (min-width: 1024px) {
+  .pair {
+    grid-template-columns: 1fr 1.4fr;
+  }
+}
+
+.cardLabel {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-label);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+/* One line per item, a hairline between them. */
+.lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lines > li {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+/* An archived file: ID and label name, its documents, a chevron. */
+.fileRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--tap-target-min);
+  padding: var(--space-3) var(--space-6);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.fileRow:hover .fileName {
+  text-decoration: underline;
+}
+
+.fileId {
+  margin-right: var(--space-2);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cardHead {
+  padding: var(--space-4) var(--space-6) var(--space-2);
+}
+
+.fileName {
+  min-width: 0;
+}
