@@ -15,8 +15,9 @@ learning a maintainable process as much as shipping.
 A **batch** is the unit of work: 3-4 Ready requirements from the current
 milestone that belong together — they touch the same screen, the same
 tables, or one can't be tested without another. Smaller is fine when
-nothing else fits; more than four is too much to review in one go. A bug
-or a chore is a batch of one.
+nothing else fits; more than four is too much to review in one go. A
+chore is a batch of one. A bug rides along in the next batch (step 2);
+with no batch to join, it is a batch of one.
 
 When I say "next batch" (or "next requirement"):
 1. In Notion (HomeBase HQ → Requirements), check requirements that are
@@ -47,8 +48,8 @@ When I say "next batch" (or "next requirement"):
 
 ## Rules
 - Never commit to main. Always a branch, then a pull request.
-- One issue per pull request, and one pull request per batch. Reference
-  the issue in the PR description, and any bug issue that rode along.
+- One pull request per batch, closing the batch's issue and any bug
+  issue that rode along ("Closes #N" for each).
   When a requirement in the batch has criteria only a later batch can
   prove, name them in the pull request and leave that requirement In
   progress.
