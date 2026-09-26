@@ -86,10 +86,13 @@ export default async function BalancesPage({
             <h2 id="enter" className={styles.name}>
               {monthLabel(startsOn)} balances
             </h2>
-            <MonthPicker current={startsOn} options={pickableMonths(known, todayIso)} />
             <Hint text="Last month's figures fill in as a starting point. A blank box isn't saved, and shows as not entered." />
           </header>
           <div className={styles.entries}>
+            {/* The month picker lives in the card; headers carry none (REQ-102, REQ-106). */}
+            <div className={local.picker}>
+              <MonthPicker current={startsOn} options={pickableMonths(known, todayIso)} />
+            </div>
             {people.map((person) => {
               const starting: Partial<Record<Account, number>> = {};
               for (const account of ACCOUNT_ORDER) {

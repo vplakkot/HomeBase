@@ -52,9 +52,9 @@ function monthOptions(today: string): { value: string; label: string }[] {
   });
 }
 
-// Every card on this page is the same shape: a tinted head with its name
-// and a line of plain English, the form for adding on the module's quiet
-// tint, then what's already saved as rounded boxes below (#132).
+// Every card on this page is the same shape: its heading above, with the
+// explanation on an info icon, then inside the card the form for adding
+// and what's already saved as rows below it (#132, REQ-106).
 function Card({
   name,
   hint,
@@ -86,8 +86,8 @@ function Card({
   );
 }
 
-// One saved thing: a rounded box with a name, a figure or chip, one line
-// of detail, and the two ways to change it.
+// One saved thing: a row with a name, a figure or plain-text status, one
+// line of detail, and the two ways to change it.
 function Entry({
   name,
   aside,
@@ -133,7 +133,7 @@ export default async function BudgetYearPage() {
 
   if (!canManageBudget) {
     return (
-      <FinancesFrame canManageMembers={canManageMembers} canManageBudget={canManageBudget} account={account} section={SECTION}>
+      <FinancesFrame canManageMembers={canManageMembers} canManageBudget={canManageBudget} account={account} section={SECTION} context="Settings">
         <div className={styles.cards}>
           <section className={styles.card} aria-labelledby="locked">
             <header className={styles.head}>
@@ -199,7 +199,7 @@ export default async function BudgetYearPage() {
     : null;
 
   return (
-    <FinancesFrame canManageMembers={canManageMembers} canManageBudget={canManageBudget} account={account} section={SECTION}>
+    <FinancesFrame canManageMembers={canManageMembers} canManageBudget={canManageBudget} account={account} section={SECTION} context="Settings">
       <div className={styles.cards}>
         {review ? (
           <section className={styles.card} aria-labelledby="march-review">
@@ -302,7 +302,7 @@ export default async function BudgetYearPage() {
                 <Entry
                   key={bill.id}
                   name={bill.name}
-                  aside={<span className={styles.chip}>{BILL_KINDS[bill.kind]}</span>}
+                  aside={<span className={styles.status}>{BILL_KINDS[bill.kind]}</span>}
                   detail={
                     bill.kind === "rent" && bill.amount !== null
                       ? `${formatMoney(bill.amount)} · ${dueLabel(bill.due_day)} of each month`
@@ -355,7 +355,7 @@ export default async function BudgetYearPage() {
                     key={split.id}
                     name={`From ${monthLabel(split.effective_from)}`}
                     aside={
-                      split.id === current?.id ? <span className={styles.chip}>In force</span> : null
+                      split.id === current?.id ? <span className={styles.status}>In force</span> : null
                     }
                     detail={
                       <ul className={styles.shares}>

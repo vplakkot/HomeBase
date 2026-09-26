@@ -1,37 +1,61 @@
-/* The cards every module page is made of, first drawn for Finances'
-   Budget year. Every card is the same three parts — a tinted head, the
-   form for adding, then what's saved as rounded boxes — and they take the
-   module's own colours, the ones Home's tiles use (docs/design/DESIGN.md
-   §3), so Finances looks like Finances and Paperwork like Paperwork. */
+/* The cards every module page is made of, on the module home rules
+   (DESIGN.md §6, REQ-103, REQ-106): every module uses them, so Finances,
+   Paperwork and Storage look the same.
+   - a section's heading sits above its card, like Finances home;
+   - the card is the shell background with a 1.5px border in the module
+     colour, --radius-lg corners and no shadow — never a tinted, pale or
+     dark fill;
+   - what's inside are plain rows split by a grey line; status is plain
+     text; every button is the one module button;
+   - the module colour is only for borders, buttons and urgent text.
+
+   A card's markup is a <section class="card"> holding its .head, then
+   one or more blocks (an .addBlock, the .entries, a chart). The border
+   is drawn around those blocks together, not around the heading: each
+   block draws its sides, the first one the top, the last one the
+   bottom. */
 .cards {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: var(--space-4);
+  gap: var(--space-6) var(--space-4);
 }
 
 .card {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--module-quiet-line);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
+  color: var(--color-ink);
 }
 
-/* The head carries the module's loud colour, as a tile does when it's
-   loud. It is one line in every card — the name, and the explanation on
-   the icon beside it — so the three cards line up (#133). */
+.card > :not(.head) {
+  border: 1.5px solid var(--module-loud);
+  border-top: 0;
+  border-bottom: 0;
+  background: var(--color-ground);
+}
+
+.card > .head + * {
+  border-top: 1.5px solid var(--module-loud);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.card > :last-child:not(.head) {
+  border-bottom: 1.5px solid var(--module-loud);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.card > .head + :last-child {
+  border-radius: var(--radius-lg);
+}
+
+/* The heading above the card: its name, and the explanation on the icon
+   beside it (#133). */
 .head {
   display: flex;
-  flex-direction: row;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
-  min-height: 64px;
-  padding: var(--space-4);
-  background: var(--module-loud);
-  color: var(--module-on-loud);
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .info {
@@ -44,8 +68,7 @@
   height: var(--tap-target-min);
   margin: calc(var(--space-2) * -1);
   border-radius: var(--radius-pill);
-  color: var(--module-on-loud);
-  opacity: 0.85;
+  color: var(--color-muted);
   cursor: help;
 }
 
@@ -55,7 +78,7 @@
   content: attr(data-hint);
   position: absolute;
   top: calc(100% - var(--space-2));
-  right: 0;
+  left: 0;
   z-index: 1;
   display: none;
   width: max-content;
@@ -75,29 +98,16 @@
   display: block;
 }
 
-/* On a pale tile the icon takes the tile's ink; white would vanish. */
-.todo .info {
-  color: var(--module-quiet-ink);
-}
-
-/* Beside a question it sits in the line of text, and its hint opens to
-   the right, inside the tile. */
+/* Beside a question it sits in the line of text. */
 legend .info {
   display: inline-flex;
   vertical-align: middle;
 }
 
-legend .info::after {
-  right: auto;
-  left: 0;
-}
-
 .name {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-display-md);
-  font-weight: 800;
-  letter-spacing: var(--tracking-display);
+  font-size: var(--text-display-sm);
+  font-weight: 700;
 }
 
 .note {
@@ -105,23 +115,21 @@ legend .info::after {
   align-items: center;
   gap: var(--space-2);
   margin: 0;
-  color: var(--module-on-loud);
+  color: var(--color-muted);
   font-size: var(--text-body-sm);
   font-weight: 500;
-  opacity: 0.85;
 }
 
-/* Adding sits under the head on the module's quiet tint, so it reads as
-   one block and never moves when something is added. */
+/* Adding sits at the top of the card, a grey line under it, so it never
+   moves when something is added. */
 .addBlock {
-  background: var(--module-quiet);
-  border-bottom: 1px solid var(--module-quiet-line);
+  box-shadow: inset 0 -1px 0 var(--color-line-soft);
 }
 
 .addTitle {
   margin: 0;
   padding: var(--space-4) var(--space-4) 0;
-  color: var(--module-quiet-title);
+  color: var(--color-muted);
   font-size: var(--text-label);
   font-weight: 800;
   letter-spacing: var(--tracking-label);
@@ -133,39 +141,42 @@ legend .info::after {
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4) var(--space-4);
+  accent-color: var(--module-loud);
 }
 
 .entries {
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  padding: var(--space-1) var(--space-4) var(--space-4);
 }
 
 .list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.list > li + li {
+  border-top: 1px solid var(--color-line-soft);
+}
+
 .empty {
   margin: 0;
+  padding-top: var(--space-3);
   color: var(--color-muted);
   font-size: var(--text-body-sm);
   font-weight: 500;
 }
 
-/* One saved split, income source or bill: a loud tile in the module's
-   own colour, like Home's (docs/design/DESIGN.md §3). */
-.entry {
+/* One saved thing (a split, an income, an entered bill) or one still to
+   do (a bill not entered, a paycheck to confirm): the same plain row.
+   What differs is its words — an amount, or "Not entered". */
+.entry,
+.todo {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--module-loud);
-  border-radius: var(--radius-lg);
-  background: var(--module-loud);
-  color: var(--module-on-loud);
+  padding: var(--space-3) 0;
 }
 
 .entryHead {
@@ -176,26 +187,22 @@ legend .info::after {
 }
 
 .entryName {
-  font-size: var(--text-body-lg);
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 600;
 }
 
 .amount {
   flex-shrink: 0;
-  font-weight: 800;
+  font-weight: 700;
 }
 
-/* A chip on a loud tile is solid, not see-through: white at 22% over
-   brick leaves 12px bold text at about 3.9 to 1, under the 4.5 the
-   design asks for (DESIGN.md §10). Brick on white is 5.9 to 1. */
-.chip {
+/* A status ("Not entered", "In force", a bill's type): plain text,
+   never a chip. */
+.status {
   flex-shrink: 0;
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  color: var(--module-loud);
-  font-size: var(--text-caption);
-  font-weight: 700;
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
 }
 
 .shares {
@@ -208,15 +215,15 @@ legend .info::after {
 }
 
 .person {
-  font-size: var(--text-body-lg);
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 600;
 }
 
 .detail {
   margin: 0;
-  color: var(--module-on-loud);
+  color: var(--color-muted);
   font-size: var(--text-body-sm);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Editing is folded away, so a list of things reads as a list. An
@@ -227,7 +234,7 @@ legend .info::after {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3) var(--space-4);
 }
 
 .change {
@@ -243,57 +250,16 @@ legend .info::after {
   display: flex;
   align-items: center;
   min-height: var(--tap-target-min);
-  color: var(--module-on-loud);
+  color: var(--color-ink);
   font-size: var(--text-body-sm);
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
 }
 
-.change .form {
+.change .form,
+.todo .form {
   padding: var(--space-2) 0 0;
-}
-
-.quiet {
-  flex-shrink: 0;
-  min-height: var(--tap-target-min);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--module-on-loud);
-  font: inherit;
-  font-size: var(--text-body-sm);
-  font-weight: 700;
-  text-decoration: underline;
-  opacity: 0.85;
-  cursor: pointer;
-}
-
-.quiet:hover {
-  opacity: 1;
-}
-
-/* On the quiet tint of an add block, a quiet button or a hint takes the
-   tint's ink; white would vanish. */
-.addBlock .quiet,
-.addBlock .info {
-  color: var(--module-quiet-ink);
-}
-
-/* A form opened inside a loud tile: its own labels and messages are on
-   the loud colour, and its button flips so it can still be seen. */
-.entry .field,
-.entry .total,
-.entry .hint,
-.entry .error,
-.entry .saved {
-  color: var(--module-on-loud);
-}
-
-.entry .primary {
-  border-color: var(--color-surface);
-  background: var(--color-surface);
-  color: var(--module-loud);
 }
 
 .field {
@@ -301,9 +267,11 @@ legend .info::after {
   flex-direction: column;
   gap: var(--space-1);
   font-size: var(--text-body-sm);
-  font-weight: 700;
+  font-weight: 600;
 }
 
+/* Inputs sit on the shell background with a grey line, not a tinted
+   box. */
 .field input,
 .field select,
 .field textarea {
@@ -311,7 +279,7 @@ legend .info::after {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: var(--color-ground);
   color: var(--color-ink);
   font: inherit;
   font-size: var(--text-body);
@@ -327,7 +295,7 @@ legend .info::after {
   padding: 0 var(--space-3);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: var(--color-ground);
   color: var(--color-muted);
   font-weight: 700;
 }
@@ -349,10 +317,6 @@ legend .info::after {
   outline: none;
 }
 
-.form {
-  accent-color: var(--module-loud);
-}
-
 .withPrefix input,
 .withSuffix input {
   flex: 1;
@@ -370,34 +334,43 @@ legend .info::after {
 
 .total {
   margin: 0;
-  color: var(--module-quiet-title);
   font-size: var(--text-body-sm);
-  font-weight: 800;
+  font-weight: 700;
 }
 
-.primary {
-  min-height: var(--tap-target-min);
-  padding: 0 var(--space-4);
-  border: 1px solid var(--module-loud);
+/* The one module button (components/button.module.css, DESIGN.md §6):
+   solid module colour, white text, 44px tall, 16px corners. Save, Add
+   and Remove alike — .quiet is the same button, kept as a name for the
+   ones that undo something. */
+.primary,
+.quiet {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: 0;
   border-radius: var(--radius-md);
   background: var(--module-loud);
   color: var(--module-on-loud);
   font: inherit;
-  font-weight: 700;
+  font-size: var(--text-body);
+  font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
 }
 
-/* A link that does a button's job, alone in the add block ("Log income",
-   "Go to Monthly entry"): laid out like the buttons in a form there. */
+/* A link that does a button's job, alone in a block ("Go to Monthly
+   entry"). */
 .addBlock > a.primary {
   display: flex;
-  align-items: center;
-  justify-content: center;
   margin: var(--space-3) var(--space-4) var(--space-4);
-  text-decoration: none;
 }
 
-.primary:disabled {
+.primary:disabled,
+.quiet:disabled {
   cursor: default;
   opacity: 0.5;
 }
@@ -441,28 +414,7 @@ legend .info::after {
   gap: var(--space-2);
 }
 
-/* Monthly entry: a bill still to enter is a pale tile holding its form,
-   the way an add form sits in the pale block; once entered it becomes a
-   brick tile like any saved thing (Vin, 2026-09-23). */
-.todo {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--module-quiet-line);
-  border-radius: var(--radius-lg);
-  background: var(--module-quiet);
-  color: var(--color-ink);
-}
-
-.todo .detail {
-  color: var(--module-quiet-ink);
-}
-
-.todo .form {
-  padding: var(--space-2) 0 0;
-}
-
+/* Monthly entry: the personal charges declared inside a card bill. */
 .charges {
   display: flex;
   flex-direction: column;
@@ -472,34 +424,19 @@ legend .info::after {
 
 .chargesTitle {
   margin: 0;
+  color: var(--color-muted);
   font-size: var(--text-label);
   font-weight: 800;
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
-/* One declared charge: a saved thing, so brick on the pale tile, and a
-   thin outline on the brick one. */
 .charge {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-md);
+  padding: var(--space-2) 0;
   font-size: var(--text-body-sm);
-  font-weight: 600;
-}
-
-.todo .charge {
-  background: var(--module-loud);
-  color: var(--module-on-loud);
-}
-
-.entry .charge {
-  border: 1px solid color-mix(in srgb, var(--module-on-loud) 45%, transparent);
-}
-
-.todo .charges .form {
-  padding: var(--space-2) 0 0;
+  font-weight: 500;
 }

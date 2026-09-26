@@ -113,9 +113,9 @@ export default async function MonthlyEntryPage({
             ) : (
               <ul className={styles.list}>
                 {month.bills.map((bill) => {
-                  // Pale while still to do, brick once entered, as in the
-                  // Budget year (Vin, 2026-09-23). An entered bill folds its
-                  // form away under Change.
+                  // Still to enter: "Not entered" in plain text, its form
+                  // open. Entered: its amount, the form folded under Change
+                  // (REQ-106).
                   const gap = missing(bill);
                   const charges =
                     bill.personal_answer === "some" ? (
@@ -151,7 +151,7 @@ export default async function MonthlyEntryPage({
                       <div className={styles.entryHead}>
                         <span className={styles.entryName}>{bill.name}</span>
                         {gap ? (
-                          <span className={styles.chip}>{gap}</span>
+                          <span className={styles.status}>{gap}</span>
                         ) : (
                           <span className={styles.amount}>{formatMoney(bill.amount ?? 0)}</span>
                         )}
@@ -189,8 +189,6 @@ export default async function MonthlyEntryPage({
             />
           </header>
           <div className={styles.entries}>
-            {/* Same shapes as Bills: the form is a pale tile (still to do),
-                each logged payment a brick one (done). */}
             <ul className={styles.list}>
               {closed ? null : (
                 <li className={styles.todo}>

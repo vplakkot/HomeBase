@@ -73,6 +73,15 @@ async function page(balances: unknown[], months: unknown[] = [SEPTEMBER], acks: 
 }
 
 describe("Balances", () => {
+  // REQ-106: headers carry no month picker (REQ-102); it sits in the card.
+  it("keeps the month picker inside the balances card, not in its heading", async () => {
+    await page([]);
+    const card = screen.getByRole("region", { name: /balances$/ });
+    const picker = within(card).getByRole("combobox");
+    expect(picker.closest("header")).toBeNull();
+    for (const header of document.querySelectorAll("header")) expect(header.querySelector("select")).toBeNull();
+  });
+
   it("offers 401k, ESPP, RSU, investments and cash for each of us, last month's as a starting point (REQ-67)", async () => {
     await page([bal("2026-08-01", "u-alex", "401k", "12000.00"), bal("2026-08-01", "u-sam", "cash", "300.00")]);
     const enter = screen.getByRole("region", { name: "September 2026 balances" });

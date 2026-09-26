@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../../lib/supabase/server";
-import { REPO_ROOT } from "../../../test/css";
 import { installDialogStandIn } from "../../../test/dialog";
 import { fakeSupabase } from "../../../test/fake-supabase";
 import MonthlyEntryPage from "./page";
@@ -72,17 +69,21 @@ describe("Monthly entry before the month is opened", () => {
 });
 
 describe("Monthly entry in an opened month", () => {
-  // Vin, 2026-09-23: pale while still to do, brick once entered, as in
-  // the Budget year. An entered bill folds its form away under Change.
-  it("shows a bill still to enter as a pale tile with its form, and an entered one as a brick tile", async () => {
+  // REQ-106: a bill still to enter reads "Not entered" in plain text with
+  // its form open; an entered one shows its amount, its form folded.
+  it("shows a bill still to enter as Not entered, and an entered one with its amount and Change folded", async () => {
     given({ months: [SEPTEMBER] });
     await page();
     const bills = screen.getByRole("region", { name: "Bills" });
     const rent = within(bills).getByText("Rent").closest("li") as HTMLElement;
     const card = within(bills).getByText("Joint card").closest("li") as HTMLElement;
-    expect(rent.className).toContain("todo");
+    const status = within(rent).getByText("Not entered");
+    expect(status.tagName).toBe("SPAN");
+    expect(status.className).toContain("status");
     expect(rent.querySelector("details")).toBeNull();
-    expect(card.className).toContain("entry");
+    expect(within(rent).getByRole("textbox", { name: "Amount of Rent" })).toBeDefined();
+    expect(within(card).queryByText("Not entered")).toBeNull();
+    expect(card.textContent).toContain("$");
     expect(card.querySelector("p")?.textContent).toBe("Due 22 Sep");
     expect(card.querySelector(":scope > details > summary")?.textContent).toBe("Change");
   });
@@ -119,12 +120,6 @@ describe("Monthly entry in an opened month", () => {
     expect(within(cardForm).getAllByRole("radio")).toHaveLength(2);
     expect((within(cardForm).getByRole("radio", { name: /No/ }) as HTMLInputElement).required).toBe(true);
     expect(within(rentForm).queryAllByRole("radio")).toHaveLength(0);
-  });
-
-  // The hint icon is white on brick; on a pale tile it takes the tile's ink.
-  it("keeps the hint icon visible on a pale tile", () => {
-    const css = readFileSync(join(REPO_ROOT, "components/cards.module.css"), "utf-8");
-    expect(css).toMatch(/\.todo \.info \{\s*color: var\(--module-quiet-ink\);/);
   });
 
   // REQ-54: only charges still inside the balance are declared.

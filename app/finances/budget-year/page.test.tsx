@@ -51,18 +51,6 @@ async function renderAs(permissions: string[], tables: FakeData["tables"] = {}, 
 }
 
 describe("the Budget year section", () => {
-  // DESIGN.md §10: text on a loud tile has to clear 4.5 to 1, so a chip
-  // sitting on one is solid rather than see-through white.
-  it("keeps chips on a loud tile solid, for contrast", () => {
-    const css = readFileSync(join(REPO_ROOT, "components/cards.module.css"), "utf-8");
-    const chip = styleOf(css, "chip", false);
-    expect(chip.get("background")).toBe("var(--color-surface)");
-    expect(chip.get("color")).toBe("var(--module-loud)");
-    const entry = styleOf(css, "entry", false);
-    expect(entry.get("background")).toBe("var(--module-loud)");
-    expect(entry.get("color")).toBe("var(--module-on-loud)");
-  });
-
   // A hint only a mouse can reach isn't a hint (#133).
   it("shows a card's hint on keyboard focus, not only on hover", () => {
     const css = readFileSync(join(REPO_ROOT, "components/cards.module.css"), "utf-8");
@@ -126,6 +114,15 @@ describe("the Budget year section", () => {
     const tabs = screen.getByRole("navigation", { name: "Finances sections" });
     expect(within(tabs).queryByRole("link", { name: /Budget year/ })).toBeNull();
     expect(screen.getByRole("link", { name: "Finances settings" }).getAttribute("href")).toBe("/finances/budget-year");
+  });
+
+  // REQ-106: the settings page names itself in the title, and no tab is
+  // highlighted, since it isn't one.
+  it("reads Finances — Settings, with no tab highlighted", async () => {
+    await renderAs(ADMIN);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Finances — Settings");
+    const tabs = screen.getByRole("navigation", { name: "Finances sections" });
+    expect(tabs.querySelector('[aria-current="page"]')).toBeNull();
   });
 
   // #132: the three cards are the same shape — a head, the add form, then
@@ -267,8 +264,8 @@ describe("the Budget year section", () => {
     const saved = within(bills).getByRole("listitem");
     expect(saved.textContent).toContain("Chase Visa");
     expect(saved.textContent).toContain("Due the 28th of each month");
-    // The type reads as a chip beside the name, not as raw data.
-    expect(within(saved).getAllByText("Card")[0].className).toContain("chip");
+    // The type reads as a plain-text status beside the name (REQ-106).
+    expect(within(saved).getAllByText("Card")[0].className).toContain("status");
     const days = within(bills).getByLabelText("Due day of new bill") as HTMLSelectElement;
     expect(days.options.length).toBe(31);
     expect([days.options[0].textContent, days.options[21].textContent]).toEqual(["1st", "22nd"]);
