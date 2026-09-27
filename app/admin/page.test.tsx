@@ -7,6 +7,7 @@ import { MODULES } from "../../lib/modules";
 import { createClient } from "../../lib/supabase/server";
 import { REPO_ROOT, styleOf } from "../../test/css";
 import { installDialogStandIn } from "../../test/dialog";
+import { version } from "../../package.json";
 import AdminPage from "./page";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -106,6 +107,15 @@ describe("AdminPage", () => {
   it("refuses a member who types the URL", async () => {
     given({ signedIn: true, permissions: ["use_modules"] });
     await expect(AdminPage()).rejects.toThrow("REDIRECT:/");
+  });
+
+  it("says which release and commit this device is running (REQ-127)", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF", "main");
+    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "abcdef1234567890");
+    render(await AdminPage());
+    expect(screen.getByTestId("admin-build").textContent).toBe(`Running v${version} · main · abcdef1`);
+    vi.unstubAllEnvs();
   });
 
   // DESIGN.md §8: on a phone the console is reached from Home's Admin pill

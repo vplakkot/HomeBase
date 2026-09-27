@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { version } from "../package.json";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { cookies } from "next/headers";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -451,7 +452,7 @@ describe("HomePage", () => {
     vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "");
     render(await home());
     expect(within(openMenu("Settings")).getByTestId("build-info").textContent).toBe(
-      "dev · local",
+      `v${version} · dev · local`,
     );
   });
 
@@ -461,7 +462,7 @@ describe("HomePage", () => {
     vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "abcdef1234567890");
     render(await home());
     expect(within(openMenu("Settings")).getByTestId("build-info").textContent).toBe(
-      "main · abcdef1",
+      `v${version} · main · abcdef1`,
     );
   });
 });

@@ -26,12 +26,21 @@ export type VisionResponse = {
   error?: { message?: string };
 };
 
-// A word's printed height: the distance between its box's top and bottom
-// edges. For text on a slant that's a little more than the letters' true
-// height, which is fine for telling big text from small.
+// A word's printed height: how far its box's top edge is from its bottom
+// edge, measured across the text rather than up the photo. Vision lists
+// a box's corners in reading order (top-left, top-right, bottom-right,
+// bottom-left) whichever way the word runs, so a word curving up the
+// side of a round seal isn't measured by its length (2026-09-27: a seal's
+// "sustentável", standing on end, came out taller than the wine's name).
 function wordHeight(word: VisionWord): number {
-  const ys = (word.boundingBox?.vertices ?? []).map((vertex) => vertex.y ?? 0);
-  return ys.length === 0 ? 0 : Math.max(...ys) - Math.min(...ys);
+  const corners = (word.boundingBox?.vertices ?? []).map((vertex) => ({ x: vertex.x ?? 0, y: vertex.y ?? 0 }));
+  if (corners.length !== 4) {
+    const ys = corners.map((corner) => corner.y);
+    return ys.length === 0 ? 0 : Math.max(...ys) - Math.min(...ys);
+  }
+  const [topLeft, topRight, bottomRight, bottomLeft] = corners;
+  const apart = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
+  return (apart(topLeft, bottomLeft) + apart(topRight, bottomRight)) / 2;
 }
 
 // Vision's text, split into printed lines. A line ends where Vision saw a

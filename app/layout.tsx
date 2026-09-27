@@ -5,6 +5,9 @@ import type { ReactNode } from "react";
 // the base styles every page starts from, which are built out of them.
 import "../docs/design/tokens.css";
 import "./globals.css";
+import { NewVersionToast } from "../components/new-version-toast";
+import { PullToRefresh } from "../components/pull-to-refresh";
+import { buildId } from "../lib/account";
 import { bodyFont, displayFont } from "./fonts";
 
 export const metadata: Metadata = {
@@ -50,7 +53,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     // in tokens.css and lose the resized stand-in that stops text jumping
     // while the fonts load.
     <html lang="en" className={`${displayFont.variable} ${bodyFont.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* REQ-127 and REQ-128: getting the newest release onto a phone. */}
+        <PullToRefresh />
+        <NewVersionToast loaded={buildId()} />
+      </body>
     </html>
   );
 }

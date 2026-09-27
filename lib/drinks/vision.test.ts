@@ -39,6 +39,18 @@ describe("reading Vision's answer (REQ-27)", () => {
     ]);
   });
 
+  it("measures a word's height across the text, so a word running up a seal isn't taken for big print", () => {
+    // "SUSTENTAVEL" read bottom to top up a seal's edge: 200 pixels long
+    // up the photo, but its letters only 20 across. Vision gives its
+    // corners in reading order, turned with the word.
+    const upright = {
+      ...word("SUSTENTAVEL", 0, 0, 0.9, "LINE_BREAK"),
+      boundingBox: { vertices: [{ x: 0, y: 300 }, { x: 0, y: 100 }, { x: 20, y: 100 }, { x: 20, y: 300 }] },
+    };
+    const response = { fullTextAnnotation: { pages: [{ blocks: [{ paragraphs: [{ words: [upright] }] }] }] } };
+    expect(visionLines(response as VisionResponse, 0)[0].height).toBe(20);
+  });
+
   it("finds nothing in a photo with no text", () => {
     expect(visionLines({}, 0)).toEqual([]);
   });

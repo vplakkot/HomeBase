@@ -40,6 +40,24 @@ never the producer. "Produced and bottled by: …" names the winery. And
 the front label, wrapped round the bottle, can cut a name short that
 the flat back label prints whole.
 
+### How tall is a word that's lying on its side?
+
+A later scan named Convento da Vila "PROSUSTENTÁVE". That's the round
+"Produção sustentável" seal, read round its curve with both ends cut
+off. It won because of how we measured size. We took the gap between
+the highest and lowest corner of each word's box on the photo. That's
+right for a word lying flat. A word running up the side of a circle
+stands on end, though, so that gap is the word's *length*. It's like
+measuring a pencil standing upright and calling it tall.
+
+Vision gives each box's corners in reading order (top-left, top-right,
+bottom-right, bottom-left), turned with the word. So the letters'
+real height is the distance from top-left to bottom-left, whichever
+way the word runs. Measured that way, the seal is small print again.
+As a second guard, a cut-off "sustent" anywhere in a word still counts
+as seal text. And "ADEGA" over "DE BORBA" is now one producer: a line
+that is only a winery word runs on into the next.
+
 Two rules keep it honest. Anything Vision was unsure of gets marked.
 And nothing is inferred: "Rioja" doesn't fill in Spain unless the label
 says Spain, and a grape doesn't make a wine red.

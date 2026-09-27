@@ -118,3 +118,42 @@ screen, signed in, and notifications enabled and arriving. That phone
 installed the placeholder house. Not yet checked on a phone: whether an
 app already on the home screen shows the design's icon without being
 removed and added again.
+
+## Getting a new release onto the installed app
+
+An installed app isn't a website you revisit; it's one page left open
+for days. Moving between screens swaps content inside that page, so
+the code it opened with keeps running, however many releases go out.
+Safari has a reload button for this; an installed iPhone app has none.
+Before REQ-127, the only way to get a new release was to delete the
+app and add it again.
+
+It's like a printed newspaper on the kitchen table. The newsroom
+publishes a new edition, but the one on the table doesn't change. You
+have to fetch a new copy.
+
+Two things now fetch that copy:
+
+- **Pull down to refresh** (REQ-127, `components/pull-to-refresh.tsx`).
+  At the very top of a screen, pull down and let go. The phone first
+  asks for a newer service worker and gives it up to three seconds to
+  take over (`lib/app-refresh.ts`), then reloads the page. Our service
+  worker keeps no copies of pages, so a reload always gets fresh ones.
+  It only works in the installed app, never with a sheet open, and
+  never once something's been typed on that screen or a scan is
+  waiting to be saved, because a reload would lose it.
+- **"New version ready"** (REQ-128, `components/new-version-toast.tsx`).
+  Every page is built knowing its commit. The app asks `/api/version`
+  which commit the server runs now: on opening, on coming back to the
+  front, and every five minutes. If the two differ, a note with
+  Refresh stays at the bottom until it's pressed. It never refreshes
+  by itself, so a half-filled form can't be lost.
+
+The admin console and Settings show which build is running, e.g.
+"v1.0.0 · main · d37b62c", so after a refresh you can see whether the
+new one arrived. The version comes from `package.json`, which is why a
+release bumps it (lesson 03).
+
+What only a phone can prove: that iOS lets our pull start at the top
+without its own bounce getting in the way, and that the check gets
+the newest commit from Vercel and not a stored copy.

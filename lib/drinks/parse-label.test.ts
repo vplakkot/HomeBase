@@ -170,6 +170,24 @@ describe("real labels (REQ-27, 2026-09-26)", () => {
     });
   });
 
+  it("Convento da Vila as read on 2026-09-27: a seal cut short round its curve isn't the name; ADEGA / DE BORBA is one producer", () => {
+    const { fields } = parseLabel(
+      [
+        line("CONVENTO", 44),
+        line("DA VILA", 50),
+        line("VINHO REGIONAL", 12),
+        line("ALENTEJANO", 14),
+        line("PORTUGAL", 10),
+        line("2023", 14),
+        line("PROSUSTENTÁVE", 60),
+        line("ADEGA", 12),
+        line("DE BORBA", 11),
+      ],
+      2026,
+    );
+    expect(fields).toMatchObject({ name: "CONVENTO DA VILA", producer: "ADEGA DE BORBA" });
+  });
+
   it("Pinot Grigio: the grape can be the name, and the back label finishes a cut-off producer", () => {
     const { fields } = parseLabel(
       [

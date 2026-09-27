@@ -80,7 +80,8 @@ const PRODUCER_WORDS = [
 
 // Fine print, seals and legal lines: never a producer or a wine's name
 // (a real label's "Produção sustentável" seal was once taken for the
-// producer).
+// producer, and once, read round its curve as "PROSUSTENTÁVE", for the
+// name: so "sustent" anywhere in a word counts).
 const BOILERPLATE =
   /\b(produ(cao|ccion|ct|ced|zione|it)|sustentavel|sostenibile|sostenible|sustainable|organic|organico|biologico|denomina|indicacao|indicacion|vinho regional|vino de la tierra|vin de pays|imported|importer|importing|bottled|engarrafado|embotellado|imbottigliato|contains|contem|contiene|sulfit|sulphit|solfiti|warning|established|since|estd|www|com|net cont|agents?)\b/;
 
@@ -234,7 +235,7 @@ export function parseLabel(lines: readonly LabelLine[], thisYear = new Date().ge
   // ("LA" / "SONRIENTE"); a grape can be the name ("PINOT GRIGIO"); and
   // seals and fine print are never the producer.
   const tidy = (text: string) => text.trim().replace(/\s+/g, " ");
-  const boilerplate = (text: string) => BOILERPLATE.test(fold(text));
+  const boilerplate = (text: string) => BOILERPLATE.test(fold(text)) || fold(text).includes("sustent");
 
   // Neighbouring front-label lines printed about the same size are one
   // piece of text.
@@ -247,7 +248,9 @@ export function parseLabel(lines: readonly LabelLine[], thisYear = new Date().ge
     const touching = last && last.lines.at(-1) === index - 1;
     const alike = last && Math.max(last.height, line.height) / Math.max(1, Math.min(last.height, line.height)) <= 1.3;
     const keyword = (text: string) => PRODUCER_WORDS.some((word) => hasWord(fold(text), word));
-    if (last && touching && alike && !keyword(last.text) && !keyword(line.text)) {
+    // A line that is only the winery word ("ADEGA" over "DE BORBA") runs on.
+    const bare = (text: string) => PRODUCER_WORDS.includes(fold(text));
+    if (last && touching && alike && (!keyword(last.text) || bare(last.text)) && !keyword(line.text)) {
       last.text = `${last.text} ${line.text}`;
       last.height = Math.max(last.height, line.height);
       last.confidence = Math.min(last.confidence, line.confidence);
