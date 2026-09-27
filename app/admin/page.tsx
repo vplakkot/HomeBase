@@ -13,6 +13,8 @@ import { createClient } from "../../lib/supabase/server";
 import { AddPerson } from "./add-person";
 import { NotificationLog } from "./notification-log";
 import { NotificationsForm } from "./notifications-form";
+import { NameForm } from "../../components/name-form";
+import { renameMember } from "./actions";
 import { ResetPasswordForm } from "./reset-password-form";
 import { SendTestForm } from "./send-test-form";
 import { RoleForm } from "./role-form";
@@ -106,7 +108,13 @@ export default async function AdminPage() {
                     <span className={styles.chip}>{member.role_name}</span>
                   </div>
                   <details className={styles.manage}>
-                    <summary>Change role or reset password</summary>
+                    <summary>Change name, role or password</summary>
+                    <NameForm
+                      action={renameMember}
+                      name={member.name}
+                      label={`Name for ${who}`}
+                      userId={member.user_id}
+                    />
                     <RoleForm
                       userId={member.user_id}
                       roleId={member.role_id}

@@ -7,6 +7,7 @@ import { createClient } from "../../lib/supabase/server";
 import {
   changeRole,
   createMember,
+  renameMember,
   resetPassword,
   sendTestNow,
   setNotifications,
@@ -251,6 +252,59 @@ describe("resetPassword", () => {
     given({ adminUpdateError: { message: "User not found" } });
     const state = await resetPassword({}, form({ userId: "u1", temporaryPassword: "Temp-Pass-1!" }));
     expect(state.error).toBe("User not found");
+  });
+});
+
+describe("renameMember (REQ-124)", () => {
+  // The admin's own client: whether they may manage members, which ids are
+  // in the household, and who they are.
+  function asAdmin({ permission = true, inHousehold = true, self = "admin-1" } = {}) {
+    const { admin } = given({ permission });
+    const auth = {
+      getClaims: vi.fn().mockResolvedValue({ data: { claims: { sub: self } } }),
+      refreshSession: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    };
+    vi.mocked(createClient).mockResolvedValue({
+      rpc: vi.fn().mockResolvedValue({ data: permission, error: null }),
+      from: vi.fn(() => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: vi.fn().mockResolvedValue({ data: inHousehold ? { user_id: "u2" } : null, error: null }),
+          }),
+        }),
+      })),
+      auth,
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+    return { admin, auth };
+  }
+
+  it("saves a member's name on their account, where every screen reads it", async () => {
+    const { admin, auth } = asAdmin();
+    expect(await renameMember({}, form({ userId: "u2", name: " Blair " }))).toEqual({ saved: true });
+    expect(admin.auth.admin.updateUserById).toHaveBeenCalledWith("u2", { user_metadata: { name: "Blair" } });
+    // Someone else's name: the admin's own sign-in needn't change.
+    expect(auth.refreshSession).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  });
+
+  it("refreshes the admin's own sign-in when they rename themselves", async () => {
+    const { auth } = asAdmin({ self: "u2" });
+    await renameMember({}, form({ userId: "u2", name: "Blair" }));
+    expect(auth.refreshSession).toHaveBeenCalledOnce();
+  });
+
+  it("renames no one outside the household, and nothing blank", async () => {
+    const { admin } = asAdmin({ inHousehold: false });
+    expect(await renameMember({}, form({ userId: "stranger", name: "X" }))).toEqual({
+      error: "That person isn't in this household.",
+    });
+    expect((await renameMember({}, form({ userId: "u2", name: "  " }))).error).toMatch(/Type a name/);
+    expect(admin.auth.admin.updateUserById).not.toHaveBeenCalled();
+  });
+
+  it("is only for someone who can manage members", async () => {
+    asAdmin({ permission: false });
+    await expect(renameMember({}, form({ userId: "u2", name: "Blair" }))).rejects.toThrow("REDIRECT:/");
   });
 });
 

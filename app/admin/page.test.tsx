@@ -152,9 +152,14 @@ describe("AdminPage", () => {
     expect(within(samRole).getAllByRole("option").map((o) => o.textContent)).toEqual(["Chief", "Helper"]);
   });
 
-  it("offers a role change and a password reset for each member", async () => {
+  it("offers a name, a role change and a password reset for each member", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());
+    // REQ-124: each member's name, starting from the saved one; blank
+    // when they have none.
+    expect((screen.getByRole("textbox", { name: "Name for Sam" }) as HTMLInputElement).value).toBe("Sam");
+    expect((screen.getByRole("textbox", { name: "Name for first@example.com" }) as HTMLInputElement).value).toBe("");
+    expect(screen.getAllByRole("button", { name: "Save name" })).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: "Save role" })).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: "Reset password" })).toHaveLength(2);
     expect(screen.getByRole("textbox", { name: "Temporary password for Sam" })).toBeDefined();

@@ -16,6 +16,7 @@ beforeAll(installDialogStandIn);
 
 vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
+vi.mock("./profile/actions", () => ({ saveMyName: vi.fn() }));
 vi.mock("../lib/finances/snapshot", () => ({ readFinanceSnapshot: vi.fn() }));
 vi.mock("../lib/paperwork/paperwork", async (original) => ({
   ...(await original<typeof import("../lib/paperwork/paperwork")>()),
@@ -336,6 +337,21 @@ describe("HomePage", () => {
     given({ email: "member@example.com" });
     render(await home());
     expect(openMenu("Profile").textContent).toContain("Signed in as member@example.com");
+  });
+
+  // REQ-124: your own name is edited right there.
+  it("lets you type your own name in Profile, starting from the one saved", async () => {
+    given({ email: "member@example.com" });
+    render(await home());
+    const profile = openMenu("Profile");
+    expect(within(profile).getByText("No name yet")).toBeTruthy();
+    expect((within(profile).getByRole("textbox", { name: "Your name" }) as HTMLInputElement).value).toBe("");
+    expect(within(profile).getByRole("button", { name: "Save name" })).toBeTruthy();
+    cleanup();
+    given({ email: "member@example.com", name: "Sam Lee" });
+    render(await home());
+    const named = openMenu("Profile");
+    expect((within(named).getByRole("textbox", { name: "Your name" }) as HTMLInputElement).value).toBe("Sam Lee");
   });
 
   it("keeps nothing about the account at the bottom of Home any more", async () => {
