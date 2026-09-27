@@ -62,6 +62,7 @@ const RECIPE = {
   steps: ["Brown 2 lb chicken, then add 1 1/2 cups rice and cook 20 minutes."],
   notes: null,
   hidden: false,
+  ai_generated: false,
   created_at: "2026-09-26T12:00:00Z",
 };
 const SECOND = { ...RECIPE, id: OTHER, name: "Test lentil soup", photo: null, main_meat: "Vegetarian", ingredients: [], steps: [] };

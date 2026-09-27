@@ -9,6 +9,7 @@ function recipe(id: string, name: string, extra: Partial<Recipe> = {}): Recipe {
     name,
     photo: null,
     hidden: false,
+    ai_generated: false,
     created_at: "2026-09-26T12:00:00Z",
     cuisine: null,
     main_meat: null,

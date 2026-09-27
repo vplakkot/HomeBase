@@ -5,9 +5,10 @@ import { signedPhotoLinks } from "../../../lib/drinks/photos";
 import { RECIPE_PHOTOS } from "../../../lib/meal-plans/photos";
 import { dayLabel, readOpenPlan, readPlanStats } from "../../../lib/meal-plans/plan";
 import { readRatings, starsText } from "../../../lib/meal-plans/ratings";
-import { cookTimeText, readRecipe } from "../../../lib/meal-plans/recipes";
+import { cookTimeText, readRecipe, recipeMissing } from "../../../lib/meal-plans/recipes";
 import { mainMeatIndex } from "../../../lib/meal-plans/scale";
 import { removeRecipe } from "../actions";
+import { AiGenerated, GenericRecipeForm } from "../forms";
 import { MealPlansScreen, mealPlansViewer } from "../frame";
 import { clearRecipeRating, setHidden } from "../plan-actions";
 import { AddToWeekButton, RateRecipeForm } from "../plan-forms";
@@ -50,7 +51,10 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
     <MealPlansScreen viewer={viewer} section="Recipes" crumb={recipe.name}>
       <article className={styles.formCard} aria-label={recipe.name}>
         <div className={styles.fileHead}>
-          <h2 className={styles.title}>{recipe.name}</h2>
+          <h2 className={styles.title}>
+            {recipe.name}
+            {recipe.ai_generated ? <AiGenerated /> : null}
+          </h2>
           <div className={styles.fileButtons}>
             {plan && !inPlan && !recipe.hidden ? <AddToWeekButton planId={plan.id} recipeId={recipe.id} /> : null}
             {inPlan ? <Link href="/meal-plans/week" className={styles.textLink}>
@@ -60,6 +64,15 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
           </div>
         </div>
         {photo ? <img src={photo} alt={recipe.name} className={styles.hero} /> : null}
+        {/* REQ-110, REQ-112: no recipe yet. Type it in, or have Gemini
+            write a generic one to review. */}
+        {recipeMissing(recipe) ? (
+          <section className={styles.missing} aria-label="Recipe missing">
+            <p>Recipe missing</p>
+            <Link href={`/meal-plans/${recipe.id}/edit`}>Type it in</Link>
+            <GenericRecipeForm recipeId={recipe.id} />
+          </section>
+        ) : null}
         {recipe.video_url || recipe.page_url ? (
           <p>
             {recipe.video_url ? (

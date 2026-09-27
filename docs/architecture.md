@@ -1089,6 +1089,20 @@ there is no Google library. Nothing is saved as a recipe until someone
 reviews the draft: a draft lives in `recipe_imports`, which only its
 starter can see, and saving it makes the recipe and removes the draft.
 
+A fourth way has no video (REQ-112, flows 2 and 3). The server asks
+Gemini to search the web with its **Google Search** tool, the same key
+and account (Vin, 2026-09-27); Google's redirect links are followed to
+the real pages, and Google's "search suggestions" are shown with them,
+as its terms ask. The page someone picks is **downloaded by our
+server** (`lib/meal-plans/recipe-search.ts`), which only fetches public
+https addresses and checks every redirect, and Gemini drafts the card
+from that page alone; `recipe_imports.page_url` keeps the link. With no
+page picked, the card is saved as "Recipe missing" (no ingredients and
+no steps, nothing stored for it). Gemini's generic version of such a
+card is a draft with `recipe_id` and `ai_generated`; saving it fills
+that card and sets `recipes.ai_generated`, which any edit clears. See
+[lesson 31](lessons/31-searching-and-fetching-the-web.md).
+
 ### The week's plan and the library (REQ-113 to REQ-115)
 
 `meal_plans` holds one plan per week, started on any day. A partial

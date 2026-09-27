@@ -1,3 +1,4 @@
+import { pagesFrom, searchPrompt, suggestionsFrom, type SearchResult } from "./recipe-search";
 import { COOKING_METHODS, MAIN_MEATS, draftFrom, type RecipeDraft } from "./recipes";
 
 // Reading recipes with Google's Gemini (REQ-111, REQ-112). Plain web
@@ -154,6 +155,23 @@ ${recipe}
 """`;
 }
 
+// REQ-112: a card from the one recipe page we picked, and nothing else.
+export function pagePrompt(name: string, page: string): string {
+  return `${CARD_RULES}
+Read the recipe for "${name}" from this web page only. Don't add anything the page doesn't say. If the page has no recipe, say so as above.
+"""
+${page}
+"""`;
+}
+
+// REQ-112: the one time Gemini may write a recipe of its own, when asked
+// to for a card saved as "Recipe missing". The card is then marked
+// "AI-generated" until either of us edits it.
+export function genericPrompt(name: string): string {
+  return `${CARD_RULES.replace(/\n- If there is no recipe to read[^\n]*/, "")}
+Write a typical home version of "${name}", as a well-known cookbook would give it, with real quantities. Keep it simple enough for a weeknight.`;
+}
+
 type Part = { text: string } | { file_data: { mime_type: string; file_uri: string } };
 
 export type Reading = { draft: RecipeDraft } | { error: string };
@@ -204,4 +222,29 @@ export async function recipeFromVideo(name: string, file: { uri: string; mimeTyp
 
 export async function recipeFromText(name: string, recipe: string): Promise<Reading> {
   return generate([{ text: textPrompt(name, recipe) }], 90_000);
+}
+
+export async function recipeFromPage(name: string, page: string): Promise<Reading> {
+  return generate([{ text: pagePrompt(name, page) }], 90_000);
+}
+
+export async function genericRecipe(name: string): Promise<Reading> {
+  return generate([{ text: genericPrompt(name) }], 90_000);
+}
+
+// REQ-112: recipe pages for a dish, from Gemini's Google Search. Only the
+// pages Google found count; what Gemini writes about them is ignored.
+export async function searchRecipePages(name: string, fetchImpl: typeof fetch = fetch): Promise<SearchResult | { error: string }> {
+  const response = await call(
+    `/v1beta/models/${MODEL}:generateContent`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ text: searchPrompt(name) }] }], tools: [{ google_search: {} }] }),
+    },
+    60_000,
+  );
+  if (!response.ok) return { error: `Gemini answered ${response.status}.` };
+  const reply = await response.json();
+  return { pages: await pagesFrom(reply, fetchImpl), suggestions: suggestionsFrom(reply) };
 }

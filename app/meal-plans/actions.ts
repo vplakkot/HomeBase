@@ -7,11 +7,21 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { hasPermission } from "../../lib/auth/permissions";
 import { thumbPath } from "../../lib/drinks/photos";
-import { deleteVideo, isGeminiFile, openVideoUpload, recipeFromText, uploadProgress } from "../../lib/meal-plans/gemini";
+import {
+  deleteVideo,
+  genericRecipe,
+  isGeminiFile,
+  openVideoUpload,
+  recipeFromPage,
+  recipeFromText,
+  searchRecipePages,
+  uploadProgress,
+} from "../../lib/meal-plans/gemini";
+import { isPublicPage, readPage, type SearchResult } from "../../lib/meal-plans/recipe-search";
 import { MAX_VIDEO_BYTES, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
 import { PROCESSING_GIVES_UP_MS, UPLOAD_GIVES_UP_MS, processVideoImport } from "../../lib/meal-plans/import-job";
 import { RECIPE_PHOTOS, recipePhotoPath } from "../../lib/meal-plans/photos";
-import { linkOrNull, readImports, recipeFieldsFrom, type RecipeImport } from "../../lib/meal-plans/recipes";
+import { linkOrNull, readImports, recipeFieldsFrom, recipeMissing, type RecipeImport } from "../../lib/meal-plans/recipes";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { createClient } from "../../lib/supabase/server";
 
@@ -237,12 +247,28 @@ export async function saveDraft(_prev: FormState, formData: FormData): Promise<F
   if (!importId) return { error: "That draft is gone." };
   const fields = recipeFieldsFrom(formData);
   if ("error" in fields) return fields;
-  const { data: draft } = await supabase.from("recipe_imports").select("photo").eq("id", importId).maybeSingle();
+  const { data: draft } = await supabase
+    .from("recipe_imports")
+    .select("photo, recipe_id, ai_generated")
+    .eq("id", importId)
+    .maybeSingle();
   if (!draft) return { error: "That draft is gone." };
-  const id = crypto.randomUUID();
+  // REQ-112: Gemini's generic version fills in the "Recipe missing" card
+  // it was asked for; any other draft becomes a new card.
+  const id = idFrom(draft.recipe_id) ?? crypto.randomUUID();
+  const ai_generated = draft.ai_generated === true;
+  // The card must still be waiting for its recipe: if either of us typed
+  // one in meanwhile, the generic version doesn't overwrite it.
+  if (draft.recipe_id) {
+    const { data: card } = await supabase.from("recipes").select("ingredients, steps").eq("id", id).maybeSingle();
+    if (!card) return { error: "That recipe is gone. Remove this draft." };
+    if (!recipeMissing(card)) return { error: "That card has a recipe now. Remove this draft, or edit the card instead." };
+  }
   try {
     await keepCuisine(supabase, fields.cuisine);
-    const { error } = await supabase.from("recipes").insert({ id, ...fields, photo: draft.photo ?? null });
+    const { error } = draft.recipe_id
+      ? await supabase.from("recipes").update({ ...fields, ai_generated }).eq("id", id)
+      : await supabase.from("recipes").insert({ id, ...fields, ai_generated, photo: draft.photo ?? null });
     if (error) throw new Error(error.message);
   } catch (error) {
     Sentry.captureException(error);
@@ -279,7 +305,8 @@ export async function updateRecipe(_prev: FormState, formData: FormData): Promis
   if ("error" in fields) return fields;
   try {
     await keepCuisine(supabase, fields.cuisine);
-    const { error } = await supabase.from("recipes").update(fields).eq("id", id);
+    // REQ-110: "AI-generated" lasts until either of us edits the card.
+    const { error } = await supabase.from("recipes").update({ ...fields, ai_generated: false }).eq("id", id);
     if (error) throw new Error(error.message);
   } catch (error) {
     Sentry.captureException(error);
@@ -322,4 +349,100 @@ export async function removeRecipe(formData: FormData): Promise<void> {
   if (!error) await removePhoto(supabase, data?.photo ?? null);
   refresh();
   redirect("/meal-plans");
+}
+
+export type PageSearch = SearchResult | { error: string };
+
+// REQ-112, flow 2: recipe pages for a dish, found by Gemini's Google
+// Search. Nothing is picked for us; the pages are offered to choose from.
+export async function findRecipePages(name: string): Promise<PageSearch> {
+  await requireMember();
+  const dish = name.trim();
+  if (!dish) return { error: "Give the recipe a name." };
+  const found = await searchRecipePages(dish.slice(0, 200)).catch((error: unknown) => {
+    Sentry.captureException(error);
+    return { error: "Gemini didn't answer." };
+  });
+  if ("error" in found) return { error: `${found.error} Try again, or add it without a recipe.` };
+  return found;
+}
+
+// REQ-112, flow 2: the page we picked becomes a draft card, read from
+// that page only, with its link kept. A page that can't be read, or has
+// no recipe, is said so plainly; Gemini never makes one up instead.
+export async function draftFromPage(_prev: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const name = String(formData.get("name") ?? "").trim();
+  const page = String(formData.get("page_url") ?? "");
+  const videoText = String(formData.get("video_url") ?? "").trim();
+  const video_url = linkOrNull(videoText);
+  if (!name) return { error: "Give the recipe a name." };
+  if (videoText && !video_url) return { error: "The video link should start with https://." };
+  if (!isPublicPage(page)) return { error: "Pick one of the pages, or choose None of these." };
+  let text: string;
+  try {
+    text = await readPage(page);
+  } catch {
+    return { error: "That page couldn't be opened. Pick another, or choose None of these." };
+  }
+  if (!text) return { error: "That page has nothing to read. Pick another, or choose None of these." };
+  const reading = await recipeFromPage(name, text).catch((error: unknown) => {
+    Sentry.captureException(error);
+    return { error: "Gemini didn't answer." };
+  });
+  if ("error" in reading) return { error: `${reading.error} Pick another page, or choose None of these.` };
+  const id = crypto.randomUUID();
+  const { error } = await supabase
+    .from("recipe_imports")
+    .insert({ id, name, status: "ready", draft: reading.draft, seen: true, video_url, page_url: page });
+  if (error) return { error: "The draft couldn't be kept. Try again." };
+  redirect(`/meal-plans/drafts/${id}`);
+}
+
+// REQ-112, flow 3: none of the pages will do, so the card is kept with
+// its name and video link, and shows "Recipe missing" until it has one.
+export async function saveRecipeMissing(_prev: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const name = String(formData.get("name") ?? "").trim();
+  const videoText = String(formData.get("video_url") ?? "").trim();
+  const video_url = linkOrNull(videoText);
+  if (!name) return { error: "Give the recipe a name." };
+  if (videoText && !video_url) return { error: "The video link should start with https://." };
+  const id = crypto.randomUUID();
+  const { error } = await supabase.from("recipes").insert({ id, name, video_url });
+  if (error) {
+    Sentry.captureException(new Error(error.message));
+    return { error: "The card couldn't be saved. Try again." };
+  }
+  refresh();
+  redirect(`/meal-plans/${id}`);
+}
+
+// REQ-112, flow 3: for a "Recipe missing" card, Gemini writes a generic
+// version from the name. It's a draft to review like any other, and the
+// card shows "AI-generated" until either of us edits it.
+export async function draftGeneric(_prev: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const recipeId = idFrom(formData.get("id"));
+  if (!recipeId) return { error: "That recipe is gone." };
+  const { data: recipe } = await supabase.from("recipes").select("name, video_url").eq("id", recipeId).maybeSingle();
+  if (!recipe) return { error: "That recipe is gone." };
+  const reading = await genericRecipe(recipe.name).catch((error: unknown) => {
+    Sentry.captureException(error);
+    return { error: "Gemini didn't answer." };
+  });
+  if ("error" in reading) return { error: `${reading.error} Try again, or type the recipe in.` };
+  const id = crypto.randomUUID();
+  const { error } = await supabase.from("recipe_imports").insert({
+    id,
+    name: recipe.name,
+    status: "ready",
+    draft: reading.draft,
+    seen: true,
+    video_url: recipe.video_url,
+    recipe_id: recipeId,
+    ai_generated: true,
+  });
+  if (error) return { error: "The draft couldn't be kept. Try again." };
+  redirect(`/meal-plans/drafts/${id}`);
 }
