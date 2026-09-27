@@ -10,6 +10,7 @@ function recipe(id: string, extra: Partial<Recipe> = {}): Recipe {
     name: `Test ${id}`,
     photo: null,
     hidden: false,
+    ai_generated: false,
     created_at: "2026-09-01T12:00:00Z",
     cuisine: "Italian",
     main_meat: null,

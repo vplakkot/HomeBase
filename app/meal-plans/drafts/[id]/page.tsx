@@ -4,7 +4,7 @@ import { RECIPE_PHOTOS } from "../../../../lib/meal-plans/photos";
 import { readCuisines, readImport } from "../../../../lib/meal-plans/recipes";
 import { dismissImport } from "../../actions";
 import { MealPlansScreen, mealPlansViewer } from "../../frame";
-import { Beta, RecipeForm } from "../../forms";
+import { AiGenerated, Beta, RecipeForm } from "../../forms";
 import styles from "../../meal-plans.module.css";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -20,13 +20,16 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
   if (!draft) notFound();
   const cuisines = await readCuisines(viewer.supabase);
   const photo = draft.photo ? (await signedPhotoLinks(viewer.supabase, [draft.photo], 60 * 60, RECIPE_PHOTOS)).get(draft.photo) : undefined;
-  const fromVideo = draft.video_url !== null || draft.photo !== null || draft.status !== "ready";
+  // BETA marks only the video path (REQ-112): a draft read from a page,
+  // or Gemini's generic version, may carry a video link without being one.
+  const fromVideo = !draft.page_url && !draft.ai_generated && (draft.video_url !== null || draft.photo !== null || draft.status !== "ready");
   return (
     <MealPlansScreen viewer={viewer} section="Recipes" crumb={draft.name}>
       <section className={styles.formCard} aria-label="Review the recipe">
         <h2 className={styles.title}>
           {draft.name}
           {fromVideo ? <Beta /> : null}
+          {draft.ai_generated ? <AiGenerated /> : null}
         </h2>
         {photo ? <img src={photo} alt="" className={styles.hero} /> : null}
         {draft.status === "uploading" || draft.status === "processing" ? (
@@ -47,6 +50,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
             draft={draft.draft ?? undefined}
             name={draft.name}
             videoUrl={draft.video_url}
+            pageUrl={draft.page_url}
             cuisines={cuisines}
           />
         ) : null}

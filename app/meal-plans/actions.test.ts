@@ -1,10 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { recipeFromText, openVideoUpload, uploadProgress } from "../../lib/meal-plans/gemini";
+import {
+  genericRecipe,
+  openVideoUpload,
+  recipeFromPage,
+  recipeFromText,
+  searchRecipePages,
+  uploadProgress,
+} from "../../lib/meal-plans/gemini";
+import { readPage } from "../../lib/meal-plans/recipe-search";
 import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
 import {
   dismissImport,
+  draftFromPage,
   draftFromText,
+  draftGeneric,
+  findRecipePages,
+  saveRecipeMissing,
+  updateRecipe,
   myRecipeImports,
   removeRecipe,
   saveDraft,
@@ -21,9 +34,16 @@ vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 vi.mock("../../lib/meal-plans/gemini", async (original) => ({
   isGeminiFile: (await original<typeof import("../../lib/meal-plans/gemini")>()).isGeminiFile,
   recipeFromText: vi.fn(),
+  recipeFromPage: vi.fn(),
+  genericRecipe: vi.fn(),
+  searchRecipePages: vi.fn(),
   openVideoUpload: vi.fn(async () => "https://upload.example/one-time"),
   deleteVideo: vi.fn(async () => {}),
   uploadProgress: vi.fn(),
+}));
+vi.mock("../../lib/meal-plans/recipe-search", async (original) => ({
+  ...(await original<typeof import("../../lib/meal-plans/recipe-search")>()),
+  readPage: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
@@ -233,5 +253,98 @@ describe("saving the reviewed card (REQ-110)", () => {
     await expect(removeRecipe(form({ id: RECIPE }))).rejects.toThrow("REDIRECT:/meal-plans");
     expect(on("recipes")[1].delete).toHaveBeenCalled();
     expect(fake.storage.bucket.remove).toHaveBeenCalled();
+  });
+});
+
+describe("finding the recipe on the web (REQ-112, flows 2 and 3)", () => {
+  const PAGE = "https://recipes.example.com/test-curry/";
+
+  it("searches by the dish's name and offers what it found, picking nothing", async () => {
+    given();
+    const pages = [{ url: PAGE, site: "recipes.example.com", title: "Test curry" }];
+    vi.mocked(searchRecipePages).mockResolvedValue({ pages, suggestions: "<div>chips</div>" });
+    expect(await findRecipePages("  Test curry ")).toEqual({ pages, suggestions: "<div>chips</div>" });
+    expect(searchRecipePages).toHaveBeenCalledWith("Test curry");
+    expect(fake.from).not.toHaveBeenCalledWith("recipes");
+  });
+
+  it("says so when the search fails, and offers to add it without a recipe", async () => {
+    given();
+    vi.mocked(searchRecipePages).mockRejectedValue(new Error("down"));
+    expect(await findRecipePages("Test curry")).toEqual({ error: "Gemini didn't answer. Try again, or add it without a recipe." });
+  });
+
+  it("drafts the card from the picked page only, keeping the page and video links", async () => {
+    given();
+    vi.mocked(readPage).mockResolvedValue("Test curry: 200 g chicken. Fry it.");
+    vi.mocked(recipeFromPage).mockResolvedValue({ draft: DRAFT as never });
+    await expect(
+      draftFromPage({}, form({ name: "Test curry", page_url: PAGE, video_url: "https://www.instagram.com/reel/x" })),
+    ).rejects.toThrow(/^REDIRECT:\/meal-plans\/drafts\/[0-9a-f-]{36}$/);
+    expect(recipeFromPage).toHaveBeenCalledWith("Test curry", "Test curry: 200 g chicken. Fry it.");
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(
+      expect.objectContaining({ page_url: PAGE, video_url: "https://www.instagram.com/reel/x", draft: DRAFT, status: "ready" }),
+    );
+  });
+
+  it("never reads an address that isn't a public web page", async () => {
+    given();
+    for (const page_url of ["http://recipes.example.com/x", "https://localhost/x", "https://10.0.0.1/x", ""]) {
+      expect(await draftFromPage({}, form({ name: "Test curry", page_url }))).toEqual({
+        error: "Pick one of the pages, or choose None of these.",
+      });
+    }
+    expect(readPage).not.toHaveBeenCalled();
+  });
+
+  it("says plainly when the page can't be read or has no recipe, and keeps nothing", async () => {
+    given();
+    vi.mocked(readPage).mockRejectedValue(new Error("404"));
+    expect((await draftFromPage({}, form({ name: "Test curry", page_url: PAGE }))).error).toMatch(/couldn't be opened/);
+    vi.mocked(readPage).mockResolvedValue("A page about something else.");
+    vi.mocked(recipeFromPage).mockResolvedValue({ error: "Gemini found no recipe in it." });
+    expect(await draftFromPage({}, form({ name: "Test curry", page_url: PAGE }))).toEqual({
+      error: "Gemini found no recipe in it. Pick another page, or choose None of these.",
+    });
+    expect(fake.from).not.toHaveBeenCalledWith("recipe_imports");
+  });
+
+  it("with no page picked, saves the card with its name and video link only", async () => {
+    given();
+    await expect(
+      saveRecipeMissing({}, form({ name: "Test curry", video_url: "https://www.tiktok.com/@x/video/1" })),
+    ).rejects.toThrow(/^REDIRECT:\/meal-plans\/[0-9a-f-]{36}$/);
+    const inserted = on("recipes")[0].insert.mock.calls[0][0];
+    expect(inserted).toMatchObject({ name: "Test curry", video_url: "https://www.tiktok.com/@x/video/1" });
+    expect(Object.keys(inserted).sort()).toEqual(["id", "name", "video_url"]);
+  });
+
+  it("asks Gemini for a generic version of a Recipe missing card, as a draft marked AI-generated", async () => {
+    given({ recipes: [{ name: "Test curry", video_url: null }] });
+    vi.mocked(genericRecipe).mockResolvedValue({ draft: DRAFT as never });
+    await expect(draftGeneric({}, form({ id: RECIPE }))).rejects.toThrow(/^REDIRECT:\/meal-plans\/drafts\//);
+    expect(genericRecipe).toHaveBeenCalledWith("Test curry");
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(
+      expect.objectContaining({ recipe_id: RECIPE, ai_generated: true, draft: DRAFT }),
+    );
+  });
+
+  it("saving that draft fills in the same card and keeps it marked AI-generated", async () => {
+    given({ recipe_imports: [{ photo: null, recipe_id: RECIPE, ai_generated: true }] });
+    await expect(saveDraft({}, form({ import_id: IMPORT, name: "Test curry", item: "chicken", steps: "Fry it." }))).rejects.toThrow(
+      `REDIRECT:/meal-plans/${RECIPE}`,
+    );
+    const recipes = on("recipes")[0];
+    expect(recipes.insert).not.toHaveBeenCalled();
+    expect(recipes.update).toHaveBeenCalledWith(expect.objectContaining({ name: "Test curry", ai_generated: true }));
+    expect(recipes.eq).toHaveBeenCalledWith("id", RECIPE);
+  });
+
+  it("any edit clears AI-generated", async () => {
+    given();
+    await expect(updateRecipe({}, form({ id: RECIPE, name: "Test curry", item: "chicken", steps: "Fry it." }))).rejects.toThrow(
+      `REDIRECT:/meal-plans/${RECIPE}`,
+    );
+    expect(on("recipes")[0].update).toHaveBeenCalledWith(expect.objectContaining({ ai_generated: false }));
   });
 });

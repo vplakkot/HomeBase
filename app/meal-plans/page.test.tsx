@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { searchRecipePages } from "../../lib/meal-plans/gemini";
 import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
 import EditRecipePage from "./[id]/edit/page";
@@ -10,6 +11,10 @@ import NewRecipePage from "./new/page";
 import MealPlansPage from "./page";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("../../lib/meal-plans/gemini", async (original) => ({
+  ...(await original<typeof import("../../lib/meal-plans/gemini")>()),
+  searchRecipePages: vi.fn(),
+}));
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/server", () => ({ after: vi.fn() }));
@@ -120,6 +125,17 @@ describe("reviewing a draft before it's saved (REQ-111, REQ-112)", () => {
     ...extra,
   });
 
+  it("keeps the page link on a draft read from a page, and marks only video drafts BETA", async () => {
+    given({ recipe_imports: [draftRow({ page_url: "https://curry.example.com/test-curry/", ai_generated: false })], cuisines: [] });
+    render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
+    expect(screen.getByRole("heading", { name: /Test curry/ }).textContent).toBe("Test curry");
+    expect((screen.getByRole("textbox", { name: /Recipe page/ }) as HTMLInputElement).value).toBe("https://curry.example.com/test-curry/");
+    cleanup();
+    given({ recipe_imports: [draftRow({ ai_generated: true, recipe_id: ID })], cuisines: [] });
+    render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
+    expect(screen.getByRole("heading", { name: /Test curry/ }).textContent).toBe("Test curryAI-generated");
+  });
+
   it("fills the form with the draft, marks what Gemini guessed, and keeps the video link (BETA)", async () => {
     given({ recipe_imports: [draftRow({})], cuisines: [{ name: "Thai" }] });
     render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
@@ -147,5 +163,59 @@ describe("reviewing a draft before it's saved (REQ-111, REQ-112)", () => {
     render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
     expect(screen.getByText("Gemini is reading the video.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Save recipe" })).toBeNull();
+  });
+});
+
+describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
+  it("searches by name, offers the pages it found with their sites and Google's suggestions, and picks none itself", async () => {
+    given({});
+    vi.mocked(searchRecipePages).mockResolvedValue({
+      pages: [
+        { url: "https://curry.example.com/test-curry/", site: "curry.example.com", title: "Test curry" },
+        { url: "https://stews.example.org/curry.html", site: "stews.example.org", title: "Curry" },
+      ],
+      suggestions: "<div>chips</div>",
+    });
+    render(await NewRecipePage());
+    fireEvent.click(screen.getByRole("radio", { name: "Find it on the web" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Test curry" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search the web" }));
+    const pages = await screen.findByRole("group", { name: "Recipe pages for “Test curry”" });
+    const choices = within(pages).getAllByRole("radio") as HTMLInputElement[];
+    expect(choices.map((choice) => choice.closest("label")?.textContent)).toEqual([
+      "Test currycurry.example.com",
+      "Currystews.example.org",
+    ]);
+    expect(choices.some((choice) => choice.checked)).toBe(false);
+    expect(screen.getByTitle("Google search suggestions").getAttribute("srcdoc")).toBe("<div>chips</div>");
+    expect(screen.getByRole("button", { name: "Use this page" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "None of these: save it as Recipe missing" })).toBeTruthy();
+  });
+
+  it("says so when nothing came up, and still offers to save it as Recipe missing", async () => {
+    given({});
+    vi.mocked(searchRecipePages).mockResolvedValue({ pages: [], suggestions: null });
+    render(await NewRecipePage());
+    fireEvent.click(screen.getByRole("radio", { name: "Find it on the web" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Test curry" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search the web" }));
+    await waitFor(() => expect(screen.getByText("No recipe pages came up for “Test curry”.")).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "Use this page" })).toBeNull();
+    expect(screen.getByRole("button", { name: "None of these: save it as Recipe missing" })).toBeTruthy();
+  });
+
+  it("shows Recipe missing on a card with no recipe, with Type it in and Have Gemini write one", async () => {
+    given({ recipes: [{ ...RECIPE, ingredients: [], steps: [], ai_generated: false }] });
+    render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
+    const missing = within(screen.getByRole("region", { name: "Recipe missing" }));
+    expect(missing.getByRole("link", { name: "Type it in" }).getAttribute("href")).toBe(`/meal-plans/${ID}/edit`);
+    expect(missing.getByRole("button", { name: "Have Gemini write one" })).toBeTruthy();
+  });
+
+  it("marks a card Gemini wrote as AI-generated, and a full card is never Recipe missing", async () => {
+    given({ recipes: [{ ...RECIPE, ai_generated: true }] });
+    render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
+    expect(screen.getByRole("heading", { name: /Test pasta/ }).textContent).toBe("Test pastaAI-generated");
+    expect(screen.queryByRole("region", { name: "Recipe missing" })).toBeNull();
   });
 });

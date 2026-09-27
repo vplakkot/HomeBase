@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Meal Plans can find a recipe on the web. Add recipe → Find it on the
+  web: give the dish's name (and the video link, if you have one), and
+  Gemini searches Google and offers a few recipe pages. Pick one and
+  Gemini drafts the card from that page, keeping its link; or pick none
+  and the card is saved as "Recipe missing". A Recipe missing card can
+  be typed in, or Gemini can write a generic version, marked
+  "AI-generated" until either of you edits it.
+
 ## 2.0.0 - 2026-09-27
 
 Two new modules. Drinks records every wine we've had or want to try,

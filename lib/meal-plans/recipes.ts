@@ -29,7 +29,19 @@ export type RecipeFields = {
 };
 
 // REQ-114: a hidden recipe leaves the library but is kept.
-export type Recipe = RecipeFields & { id: string; photo: string | null; hidden: boolean; created_at: string };
+export type Recipe = RecipeFields & {
+  id: string;
+  photo: string | null;
+  hidden: boolean;
+  // REQ-110: Gemini wrote it from the name alone; cleared by any edit.
+  ai_generated: boolean;
+  created_at: string;
+};
+
+// REQ-110: a card with no ingredients and no steps has no recipe yet.
+export function recipeMissing(recipe: Pick<Recipe, "ingredients" | "steps">): boolean {
+  return recipe.ingredients.length === 0 && recipe.steps.length === 0;
+}
 
 // What Gemini hands back, before anyone has reviewed it. `guessed` names
 // the fields it filled without being told (REQ-111: marked for review).
@@ -41,6 +53,11 @@ export type RecipeImport = {
   id: string;
   name: string;
   video_url: string | null;
+  // REQ-112: the recipe page it was read from, the "Recipe missing" card
+  // it fills in, and whether Gemini wrote it from the name alone.
+  page_url: string | null;
+  recipe_id: string | null;
+  ai_generated: boolean;
   status: ImportStatus;
   draft: RecipeDraft | null;
   error: string | null;
@@ -164,7 +181,7 @@ export function cookTimeText(minutes: number | null): string | null {
 }
 
 const RECIPE_COLUMNS =
-  "id, name, photo, video_url, page_url, cuisine, main_meat, cooking_method, cook_minutes, servings, ingredients, steps, notes, hidden, created_at";
+  "id, name, photo, video_url, page_url, cuisine, main_meat, cooking_method, cook_minutes, servings, ingredients, steps, notes, hidden, ai_generated, created_at";
 
 export async function readRecipes(supabase: SupabaseClient): Promise<Recipe[]> {
   const { data, error } = await supabase.from("recipes").select(RECIPE_COLUMNS).order("name");
@@ -184,7 +201,7 @@ export async function readCuisines(supabase: SupabaseClient): Promise<string[]> 
   return (data ?? []).map((row: { name: string }) => row.name);
 }
 
-const IMPORT_COLUMNS = "id, name, video_url, status, draft, error, photo, seen, created_at, updated_at";
+const IMPORT_COLUMNS = "id, name, video_url, page_url, recipe_id, ai_generated, status, draft, error, photo, seen, created_at, updated_at";
 
 // The signed-in person's imports (the table only shows each person theirs).
 export async function readImports(supabase: SupabaseClient): Promise<RecipeImport[]> {

@@ -1,5 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CARD_RULES, MODEL, openVideoUpload, readingFrom, recipeFromText, recipeFromVideo, videoState } from "./gemini";
+import {
+  CARD_RULES,
+  MODEL,
+  genericPrompt,
+  openVideoUpload,
+  pagePrompt,
+  readingFrom,
+  recipeFromText,
+  recipeFromVideo,
+  searchRecipePages,
+  videoState,
+} from "./gemini";
 
 const fetchMock = vi.fn();
 
@@ -102,5 +113,56 @@ describe("asking how much of a video arrived (REQ-112)", () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { headers: { "x-goog-upload-status": "active", "x-goog-upload-size-received": "8388608" } }));
     expect(await uploadProgress("https://upload.example/x")).toEqual({ final: false, received: 8388608 });
     expect(fetchMock.mock.calls[0][1].headers).toEqual({ "X-Goog-Upload-Command": "query" });
+  });
+});
+
+describe("the web flows (REQ-112, flows 2 and 3)", () => {
+  it("reads a picked page for that page's recipe only, never inventing one", () => {
+    const prompt = pagePrompt("Test curry", "Fry 200 g chicken.");
+    expect(prompt).toContain("from this web page only");
+    expect(prompt).toContain("Fry 200 g chicken.");
+    expect(prompt).toContain("Never invent a recipe in its place.");
+  });
+
+  it("only the generic version, asked for on a Recipe missing card, may write a recipe of its own", () => {
+    const prompt = genericPrompt("Test curry");
+    expect(prompt).not.toContain("Never invent a recipe");
+    expect(prompt).toContain('Write a typical home version of "Test curry"');
+    expect(prompt).toContain('"Add 1 tsp cumin"');
+  });
+
+  it("searches with Gemini's Google Search tool and keeps only the pages Google found", async () => {
+    const REDIRECT = "https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc";
+    fetchMock.mockImplementation(async (url: string) =>
+      url === REDIRECT
+        ? new Response(null, { status: 302, headers: { location: "https://curry.example.com/test-curry/" } })
+        : new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: { parts: [{ text: "See https://made-up.example/recipe" }] },
+                  groundingMetadata: {
+                    groundingChunks: [{ web: { uri: REDIRECT, title: "curry.example.com" } }],
+                    searchEntryPoint: { renderedContent: "<div>chips</div>" },
+                  },
+                },
+              ],
+            }),
+          ),
+    );
+    expect(await searchRecipePages("Test curry")).toEqual({
+      pages: [{ url: "https://curry.example.com/test-curry/", site: "curry.example.com", title: "Test curry" }],
+      suggestions: "<div>chips</div>",
+    });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain(`/models/${MODEL}:generateContent`);
+    const body = JSON.parse(init.body);
+    expect(body.tools).toEqual([{ google_search: {} }]);
+    expect(body.contents[0].parts[0].text).toContain('"Test curry"');
+  });
+
+  it("says so when the search fails", async () => {
+    fetchMock.mockResolvedValue(new Response("{}", { status: 503 }));
+    expect(await searchRecipePages("Test curry")).toEqual({ error: "Gemini answered 503." });
   });
 });
