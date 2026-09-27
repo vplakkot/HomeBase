@@ -138,10 +138,12 @@ sequenceDiagram
 2. Asks the Vercel API for production-target deployments (the "production
    target" is Vercel's own label for `main`-branch builds, separate from
    whether the domain has been assigned to one yet), and picks out the one
-   whose commit SHA matches the commit the tag points to. If none matches,
-   the workflow fails and production is left as it was — see "The promote
-   step must target the tagged commit" below for why this isn't just "the
-   latest one."
+   whose commit SHA matches the commit the tag points to. It keeps asking
+   every 15 seconds until that build is finished (see "Pushing the tag
+   too soon" below), stops early if the build failed, and gives up after
+   10 minutes. Whichever way it fails, production is left as it was — see
+   "The promote step must target the tagged commit" below for why this
+   isn't just "the latest one."
 3. Runs `vercel promote <that deployment> --yes`, using the Vercel CLI, to
    assign the production domain to it.
 
@@ -263,3 +265,43 @@ This is also why the lookup step now asks for `limit=100` instead of
 `limit=1`: it needs enough recent history to have a real chance of
 containing the tagged commit's build, since that commit is no longer
 guaranteed to be the newest one.
+
+## Pushing the tag too soon
+
+Releasing v2.0.0 on 2026-09-27, the tag went up ten seconds after the
+release pull request merged. The workflow found the build for the tagged
+commit, but Vercel was still building it:
+
+```
+Error: The provided deploymentId (dpl_98vMd67Sm9MgQbFAHHHtjGUqg3n2) is not ready and cannot be promoted. (422)
+```
+
+Think of it as a cake still in the oven: the lookup found the right cake,
+and promote tried to put it on display before it was baked. Re-running
+the job a few minutes later worked, because by then the build had
+finished.
+
+This is a **race**: two things (Vercel's build and our tag push) start
+from the same merge and nobody decided which finishes first. It only
+went unnoticed before because earlier tags happened to be pushed later.
+
+The fix is to wait instead of hoping. The lookup step now checks the
+build's state every 15 seconds:
+
+- **READY** — promote it.
+- **ERROR or CANCELED** (every build of the commit) — stop now with a
+  message saying the build failed; there is nothing to promote.
+- **Anything else, not listed yet, or no usable answer from Vercel** —
+  check again, for up to 10 minutes, then fail and leave production
+  alone.
+
+If more than one build exists for the commit (someone pressed Redeploy),
+any finished one will do: they are built from the same code.
+
+This is not the same as the 409 in issue #90, which is about pushing a
+tag that already exists a second time.
+
+**Not yet proven.** The failure above is real, but the wait has only been
+tested against made-up Vercel answers, not Vercel itself. The first real
+proof is the next release: its promote run's log should show "checking
+again" lines if the tag beats the build, then promote.

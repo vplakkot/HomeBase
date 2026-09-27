@@ -59,6 +59,10 @@ describe("reading a Google Maps link (REQ-90)", () => {
 
   it("says a link from anywhere else isn't a maps link", () => {
     expect(readLink("https://example.com/maps/place/Nowhere")).toEqual({ kind: "not_a_maps_link" });
+    expect(readLink("https://google.evil.example/maps/place/X/@1,2,3z")).toEqual({ kind: "not_a_maps_link" });
+    expect(readLink("http://maps.app.goo.gl/AbCdEf123")).toEqual({ kind: "not_a_maps_link" });
+    expect(readLink("https://maps.app.goo.gl:8443/AbCdEf123")).toEqual({ kind: "not_a_maps_link" });
+    expect(readLink("https://www.google.co.uk/maps/place/Somewhere/@51.5,-0.1,17z")).toMatchObject({ kind: "named" });
     expect(readLink("just some words")).toEqual({ kind: "not_a_maps_link" });
   });
 });

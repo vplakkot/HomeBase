@@ -17,7 +17,9 @@ export type LinkReading =
 
 const PLACE_ID = /^[A-Za-z0-9_-]{10,255}$/;
 
-const GOOGLE_HOSTS = /^(www\.)?(google\.[a-z.]+|maps\.google\.[a-z.]+)$/;
+// google.com and Google's country domains (google.co.uk, google.com.au…),
+// with www. or maps. in front, and nothing that merely starts with google.
+const GOOGLE_HOSTS = /^(www\.|maps\.)?google\.(com|[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})$/;
 const APPLE_HOSTS = /^(maps\.apple\.com|maps\.apple)$/;
 const SHORT_HOSTS = new Set(["maps.app.goo.gl", "goo.gl", "maps.apple"]);
 
@@ -123,6 +125,9 @@ export function readLink(pasted: string): LinkReading {
   } catch {
     return { kind: "not_a_maps_link" };
   }
+  // Only plain https on the usual port, so a pasted link can't point the
+  // server at anything unusual even on a maps host.
+  if (url.protocol !== "https:" || url.port !== "") return { kind: "not_a_maps_link" };
   const host = url.hostname.toLowerCase();
   if (host === "maps.app.goo.gl" || (host === "goo.gl" && url.pathname.startsWith("/maps"))) return { kind: "short", url };
   if (host === "maps.apple" && url.pathname.startsWith("/p/")) return { kind: "short", url };
@@ -140,7 +145,7 @@ export async function followShortLink(url: URL, fetchImpl: typeof fetch = fetch)
     const location = reply.headers.get("location");
     if (reply.status < 300 || reply.status >= 400 || !location) return { kind: "not_a_place" };
     const next = new URL(location, at);
-    if (next.protocol !== "https:" || !isMapsHost(next.hostname.toLowerCase())) return { kind: "not_a_place" };
+    if (next.protocol !== "https:" || next.port !== "" || !isMapsHost(next.hostname.toLowerCase())) return { kind: "not_a_place" };
     const reading = readLink(next.href);
     if (reading.kind !== "short") return reading;
     at = next;

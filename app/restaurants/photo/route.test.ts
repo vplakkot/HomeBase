@@ -15,8 +15,8 @@ vi.mock("../../../lib/restaurants/places", async (original) => ({
 const PHOTO = "places/ChIJInventedNoodles01/photos/P1";
 let places: Places;
 
-function given(signedIn = true) {
-  const fake = fakeSupabase({ signedIn });
+function given(signedIn = true, permissions = ["use_modules"]) {
+  const fake = fakeSupabase({ signedIn, permissions });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
 }
 
@@ -40,6 +40,12 @@ describe("a place's photo (REQ-129)", () => {
   it("asks Google nothing for someone signed out", async () => {
     given(false);
     expect((await ask(`name=${encodeURIComponent(PHOTO)}`)).status).toBe(401);
+    expect(places.photoLink).not.toHaveBeenCalled();
+  });
+
+  it("asks Google nothing for someone signed in who isn't a household member", async () => {
+    given(true, []);
+    expect((await ask(`name=${encodeURIComponent(PHOTO)}`)).status).toBe(403);
     expect(places.photoLink).not.toHaveBeenCalled();
   });
 

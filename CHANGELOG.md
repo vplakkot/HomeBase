@@ -11,6 +11,10 @@
   its cuisine and neighbourhood; tap one for its address, hours, website,
   and Remove. Everything about a place except which one it is comes
   fresh from Google each time.
+- Releasing no longer fails when the version tag is pushed straight
+  after the release merges. The promote workflow now waits (up to 10
+  minutes) for Vercel to finish building the tagged commit, and says
+  so plainly if that build failed.
 - Meal Plans can find a recipe on the web. Add recipe → Find it on the
   web: give the dish's name (and the video link, if you have one), and
   Gemini searches Google and offers a few recipe pages. Pick one and
