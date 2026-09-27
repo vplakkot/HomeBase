@@ -27,8 +27,7 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
     RECIPE_PHOTOS,
   );
   return (
-    <MealPlansScreen viewer={viewer} section="Recipes">
-      <LibrarySearch query={query} />
+    <MealPlansScreen viewer={viewer} section="Recipes" tools={<LibrarySearch query={query} />}>
       <LibraryFilters query={query} cuisines={cuisines} />
       <section className={styles.section} aria-label={showingHidden ? "Hidden recipes" : "Recipes"}>
         <div className={styles.sectionHead}>
@@ -56,9 +55,13 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
           </ul>
         )}
         {showingHidden ? (
-          <Link href="/meal-plans/recipes">Back to the library</Link>
+          <Link href="/meal-plans/recipes" className={styles.textLink}>
+            Back to the library
+          </Link>
         ) : hiddenCount > 0 ? (
-          <Link href="/meal-plans/recipes?hidden=yes">Hidden recipes ({hiddenCount})</Link>
+          <Link href="/meal-plans/recipes?hidden=yes" className={styles.textLink}>
+            Hidden recipes ({hiddenCount})
+          </Link>
         ) : null}
       </section>
     </MealPlansScreen>

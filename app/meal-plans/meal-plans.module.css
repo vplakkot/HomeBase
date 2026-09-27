@@ -214,3 +214,10 @@
   align-items: flex-end;
   gap: var(--space-3);
 }
+
+/* A link inside text, in ink like the rest of the app, not browser blue. */
+.textLink {
+  color: var(--color-ink);
+  font-weight: 600;
+  text-decoration: underline;
+}

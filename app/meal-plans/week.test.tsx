@@ -235,6 +235,6 @@ describe("the week's plan (REQ-115)", () => {
     const card = screen.getByRole("link", { name: /Covers you through at least Mon, Sep 28/ });
     expect(card.getAttribute("href")).toBe("/meal-plans/week");
     expect(card.textContent).toContain("Test chicken rice · Test lentil soup");
-    expect(screen.getByRole("link", { name: "2 recipes in the library" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /2 recipes/ }).getAttribute("href")).toBe("/meal-plans/recipes");
   });
 });

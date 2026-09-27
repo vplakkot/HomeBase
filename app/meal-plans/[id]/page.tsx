@@ -46,7 +46,9 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
           <h2 className={styles.title}>{recipe.name}</h2>
           <div className={styles.fileButtons}>
             {plan && !inPlan && !recipe.hidden ? <AddToWeekButton planId={plan.id} recipeId={recipe.id} /> : null}
-            {inPlan ? <Link href="/meal-plans/week">In this week&apos;s plan</Link> : null}
+            {inPlan ? <Link href="/meal-plans/week" className={styles.textLink}>
+                In this week&apos;s plan
+              </Link> : null}
             <Link href={`/meal-plans/${recipe.id}/edit`}>Edit</Link>
           </div>
         </div>

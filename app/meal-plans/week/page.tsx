@@ -64,7 +64,11 @@ export default async function WeekPage() {
         ) : null}
         {recipes.length === 0 ? (
           <p className={styles.empty}>
-            No recipes yet. <Link href="/meal-plans/new">Add one</Link> first.
+            No recipes yet.{" "}
+            <Link href="/meal-plans/new" className={styles.textLink}>
+              Add one
+            </Link>{" "}
+            first.
           </p>
         ) : (
           <AddToPlanForm planId={plan.id} recipes={addable} />

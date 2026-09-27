@@ -65,14 +65,21 @@ export default async function MealPlansPage() {
             </span>
           </Link>
         ) : (
-          <p className={styles.empty}>
-            No plan yet. <Link href="/meal-plans/week">Start one</Link>
-          </p>
+          <Link href="/meal-plans/week" className={styles.linkCard}>
+            <span className={styles.cardTitle}>No plan yet</span>
+            <span className={styles.cardDetail}>Start one</span>
+          </Link>
         )}
       </section>
-      <p>
-        <Link href="/meal-plans/recipes">{recipes.length === 1 ? "1 recipe" : `${recipes.length} recipes`} in the library</Link>
-      </p>
+      <section className={styles.section} aria-label="Recipes">
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}>Recipes</h2>
+        </div>
+        <Link href="/meal-plans/recipes" className={styles.linkCard}>
+          <span className={styles.cardTitle}>{recipes.length === 1 ? "1 recipe" : `${recipes.length} recipes`}</span>
+          <span className={styles.cardDetail}>Search, filter and sort the library</span>
+        </Link>
+      </section>
     </MealPlansScreen>
   );
 }
