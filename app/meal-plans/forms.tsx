@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useActionState, useState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import cards from "../../components/cards.module.css";
 import { buttonClass } from "../../components/button";
 import { Hint } from "../../components/hint";
@@ -92,6 +92,9 @@ function upload(id: string, name: string, url: string, file: File) {
 
 function VideoForm() {
   const router = useRouter();
+  const picker = useRef<HTMLInputElement>(null);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const picked = () => setChosen(picker.current?.files?.[0]?.name ?? null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -141,10 +144,15 @@ function VideoForm() {
         <span>Link to the video (optional)</span>
         <input name="video_url" type="url" inputMode="url" placeholder="https://www.instagram.com/reel/…" autoComplete="off" />
       </label>
-      <label className={cards.field}>
+      {/* #212: shaped like Drinks' Choose a photo, which opens the photo
+          library on an iPhone: a hidden picker opened by a button. */}
+      <div className={cards.field}>
         <span>The downloaded video</span>
-        <input name="video" type="file" accept="video/*" required />
-      </label>
+        <input ref={picker} name="video" type="file" accept="video/*" className={styles.hidden} aria-label="The downloaded video" onChange={picked} />
+        <button type="button" className={styles.linkButton} onClick={() => picker.current?.click()}>
+          {chosen ?? "Choose the video"}
+        </button>
+      </div>
       {error ? (
         <p role="alert" className={cards.error}>
           {error}

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Meal Plans, second batch: a week's plan, a recipe library, and
+  scaling. This week starts a plan on any day. Either of you adds
+  recipes at 4 servings (dinner and the next day's lunch) or 2, ticks
+  them cooked if you like, and sees "Covers you through at least
+  <day>". Recipes has every recipe as a photo card, with search by
+  name, filters for cuisine, main meat, method and cook time, and sorts
+  by last planned or times planned. A recipe can be hidden from the
+  library and brought back. A recipe card now shows times planned and
+  last planned, offers Add to this week, and has a Scale box: change
+  the servings or the main meat and every amount follows, including
+  those in the steps; Save these amounts makes them the card's own.
+  On iPhone, the video picker is now shaped like Drinks' Choose a
+  photo, to try to open the photo library (#212, still to be tried on
+  a phone).
 - Meal Plans opens, with recipe cards. Add a recipe by filling in the
   card, by pasting it in any form (Gemini turns it into a card and
   marks what it guessed), or from a downloaded video, marked BETA:

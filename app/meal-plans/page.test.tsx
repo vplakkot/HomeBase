@@ -68,14 +68,6 @@ describe("a recipe card (REQ-110)", () => {
     expect(within(card).getByRole("region", { name: "Notes" }).textContent).toContain("Good cold too.");
     expect(within(card).getByRole("button", { name: "Remove this recipe" })).toBeTruthy();
   });
-
-  it("lists recipes on Meal Plans' home with their thumbnail", async () => {
-    given({ recipes: [RECIPE], recipe_imports: [] });
-    render(await MealPlansPage());
-    const link = screen.getByRole("link", { name: /Test pasta/ });
-    expect(link.getAttribute("href")).toBe(`/meal-plans/${ID}`);
-    expect(link.querySelector("img")?.getAttribute("src")).toBe(`https://signed.example/${ID}/1-thumb.jpg`);
-  });
 });
 
 describe("adding a recipe (REQ-111, REQ-112)", () => {

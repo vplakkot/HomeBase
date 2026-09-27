@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { signedPhotoLinks, thumbPath } from "../../lib/drinks/photos";
-import { RECIPE_PHOTOS } from "../../lib/meal-plans/photos";
-import { cookTimeText, readImports, readRecipes } from "../../lib/meal-plans/recipes";
+import { coversThrough, dayLabel, readOpenPlan } from "../../lib/meal-plans/plan";
+import { readImports, readRecipes } from "../../lib/meal-plans/recipes";
 import { dismissImport } from "./actions";
 import { MealPlansScreen, mealPlansViewer } from "./frame";
 import styles from "./meal-plans.module.css";
@@ -13,17 +12,19 @@ const STATUS: Record<string, string> = {
   failed: "Couldn't be read",
 };
 
-// Meal Plan's home for now: recipes on their way in, then every recipe.
-// The library (REQ-114) and the weekly plan come in later batches.
+// Meal Plan's home for now: recipes on their way in, this week's plan and
+// the way to the library. The module's real home is a later batch.
 export default async function MealPlansPage() {
   const viewer = await mealPlansViewer();
-  const [recipes, imports] = await Promise.all([readRecipes(viewer.supabase), readImports(viewer.supabase)]);
-  const thumbs = await signedPhotoLinks(
-    viewer.supabase,
-    recipes.flatMap((recipe) => (recipe.photo ? [thumbPath(recipe.photo)] : [])),
-    60 * 60,
-    RECIPE_PHOTOS,
-  );
+  const [all, imports, plan] = await Promise.all([
+    readRecipes(viewer.supabase),
+    readImports(viewer.supabase),
+    readOpenPlan(viewer.supabase),
+  ]);
+  const recipes = all.filter((recipe) => !recipe.hidden);
+  const names = new Map(all.map((recipe) => [recipe.id, recipe.name]));
+  const planned = plan?.recipes.filter((entry) => names.has(entry.recipe_id)) ?? [];
+  const through = plan ? coversThrough(plan.starts_on, planned) : null;
   return (
     <MealPlansScreen viewer={viewer}>
       {imports.length > 0 ? (
@@ -50,31 +51,34 @@ export default async function MealPlansPage() {
           </ul>
         </section>
       ) : null}
+      <section className={styles.section} aria-label="This week">
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}>This week</h2>
+        </div>
+        {plan ? (
+          <Link href="/meal-plans/week" className={styles.linkCard}>
+            <span className={styles.cardTitle}>
+              {through ? `Covers you through at least ${dayLabel(through)}` : `From ${dayLabel(plan.starts_on)}`}
+            </span>
+            <span className={styles.cardDetail}>
+              {planned.length === 0 ? "No recipes yet" : planned.map((entry) => names.get(entry.recipe_id)).join(" · ")}
+            </span>
+          </Link>
+        ) : (
+          <Link href="/meal-plans/week" className={styles.linkCard}>
+            <span className={styles.cardTitle}>No plan yet</span>
+            <span className={styles.cardDetail}>Start one</span>
+          </Link>
+        )}
+      </section>
       <section className={styles.section} aria-label="Recipes">
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Recipes</h2>
-          <span className={styles.count}>{recipes.length}</span>
         </div>
-        {recipes.length === 0 ? (
-          <p className={styles.empty}>No recipes yet.</p>
-        ) : (
-          <ul className={styles.grid}>
-            {recipes.map((recipe) => {
-              const thumb = recipe.photo ? thumbs.get(thumbPath(recipe.photo)) : undefined;
-              return (
-                <li key={recipe.id}>
-                  <Link href={`/meal-plans/${recipe.id}`} className={`${styles.linkCard} ${thumb ? styles.withThumb : ""}`}>
-                    {thumb ? <img src={thumb} alt="" className={styles.thumb} /> : null}
-                    <span className={styles.cardTitle}>{recipe.name}</span>
-                    <span className={styles.cardDetail}>
-                      {[recipe.cuisine, recipe.main_meat, recipe.cooking_method, cookTimeText(recipe.cook_minutes)].filter(Boolean).join(" · ")}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <Link href="/meal-plans/recipes" className={styles.linkCard}>
+          <span className={styles.cardTitle}>{recipes.length === 1 ? "1 recipe" : `${recipes.length} recipes`}</span>
+          <span className={styles.cardDetail}>Search, filter and sort the library</span>
+        </Link>
       </section>
     </MealPlansScreen>
   );

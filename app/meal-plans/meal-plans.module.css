@@ -28,6 +28,10 @@
 .title { composes: title from "../drinks/drinks.module.css"; }
 .fileButtons { composes: fileButtons from "../drinks/drinks.module.css"; }
 .tools { composes: tools from "../drinks/drinks.module.css"; }
+.search { composes: search from "../drinks/drinks.module.css"; }
+.clear { composes: clear from "../drinks/drinks.module.css"; }
+.hidden { composes: hidden from "../drinks/drinks.module.css"; }
+.control { composes: control from "../drinks/drinks.module.css"; }
 
 /* REQ-112: the video path is BETA, always. A small pill in the module's
    loud colour, next to what it labels. */
@@ -124,4 +128,96 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* REQ-114: the library's filters and sort, two to a row on a phone. */
+.controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (min-width: 1024px) {
+  .controls {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.control select,
+.control input {
+  min-height: var(--tap-target-min);
+  padding: 0 var(--space-3);
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-body);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* REQ-113: the Scale box on a card: servings and the main meat side by side. */
+.scale {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--module-quiet);
+}
+
+.scale .control {
+  width: 140px;
+}
+
+/* REQ-115: the week's plan, one row per recipe. */
+.planList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--module-quiet);
+}
+
+.planRow > a {
+  flex: 1 1 160px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.cooked {
+  text-decoration: line-through;
+  color: var(--color-muted);
+}
+
+.covers {
+  font-size: var(--text-brand);
+  font-weight: 700;
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+/* A link inside text, in ink like the rest of the app, not browser blue. */
+.textLink {
+  color: var(--color-ink);
+  font-weight: 600;
+  text-decoration: underline;
 }

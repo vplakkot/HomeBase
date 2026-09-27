@@ -22,18 +22,21 @@ export async function mealPlansViewer() {
 
 export type MealPlansViewer = Awaited<ReturnType<typeof mealPlansViewer>>;
 
-// Every Meal Plan screen: the module header with Add recipe, and below
-// the top level a breadcrumb back to the recipes.
+// Every Meal Plan screen: the module header with Add recipe (so the tab
+// row doesn't repeat it) and any tools such as the library's search, and
+// below the top level a breadcrumb back to the recipes.
 export function MealPlansScreen({
   viewer,
   section,
   crumb,
+  tools,
   actions,
   children,
 }: {
   viewer: MealPlansViewer;
   section?: string;
   crumb?: string;
+  tools?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
 }) {
@@ -43,7 +46,15 @@ export function MealPlansScreen({
       section={section}
       canManageMembers={viewer.canManageMembers}
       account={viewer.account}
-      actions={actions ?? <ButtonLink href="/meal-plans/new">Add recipe</ButtonLink>}
+      pinnedInHeader
+      actions={
+        actions ?? (
+          <div className={styles.tools}>
+            {tools}
+            <ButtonLink href="/meal-plans/new">Add recipe</ButtonLink>
+          </div>
+        )
+      }
     >
       <div className={styles.screen}>
         {crumb ? (
