@@ -215,6 +215,12 @@ export default async function AdminPage() {
           <NotificationLog rows={log} names={names} now={Date.now()} />
         </div>
       </section>
+
+      {/* REQ-127: which build this device is running, to tell after a
+          pull to refresh whether the newest one arrived. */}
+      <p data-testid="admin-build" className={styles.cardNote}>
+        Running {account.build}
+      </p>
     </AppFrame>
   );
 }

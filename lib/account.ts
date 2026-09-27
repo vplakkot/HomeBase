@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { version } from "../package.json";
 import { DEVICE_COOKIE } from "./notifications/device";
 
 // What the account menu needs about whoever is signed in: who they are for
@@ -15,11 +16,20 @@ export type Account = {
   build: string;
 };
 
-// The branch and short commit Vercel built, or "dev · local" off Vercel.
+// Which build this is, to tell two apart (REQ-128): the full commit, or
+// "local" off Vercel.
+export function buildId(): string {
+  return process.env.VERCEL_GIT_COMMIT_SHA || "local";
+}
+
+// The release package.json states, then the branch and short commit
+// Vercel built ("v1.0.0 · main · d37b62c"), or "dev · local" in place of
+// those two off Vercel. REQ-127: after a refresh, this shows which build
+// the phone is now running.
 export function buildInfo(): string {
   const ref = process.env.VERCEL_GIT_COMMIT_REF || "dev";
   const sha = process.env.VERCEL_GIT_COMMIT_SHA;
-  return `${ref} · ${sha ? sha.slice(0, 7) : "local"}`;
+  return `v${version} · ${ref} · ${sha ? sha.slice(0, 7) : "local"}`;
 }
 
 export async function readAccount(claims: {

@@ -378,6 +378,13 @@ re-checks it in the background, and it refuses a service worker that
 answers with a redirect, which is what a lapsed sign-in would otherwise
 produce. See [lesson 14](lessons/14-turning-notifications-on.md).
 
+An open page also asks `/api/version` which commit the server is
+running (REQ-128). That answer is only the commit, and it sits behind
+sign-in like the pages. When it differs from the commit the page was
+built with, the page offers a refresh. Pull to refresh (REQ-127) asks
+the service worker to update, then reloads. See
+[lesson 13](lessons/13-installing-on-the-iphone.md).
+
 ## Sending the test notification
 
 [`lib/notifications/send.ts`](../lib/notifications/send.ts) is the only

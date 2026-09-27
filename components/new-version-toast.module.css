@@ -1,0 +1,42 @@
+/* REQ-128: above the phone's module bar, like the recipe toasts; on a
+   desktop, bottom right. Dark, so it reads over any module's colours. */
+.toast {
+  position: fixed;
+  z-index: 25;
+  right: var(--space-4);
+  bottom: calc(var(--space-9) + var(--space-8) + env(safe-area-inset-bottom));
+  left: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-panel);
+  color: var(--color-on-panel);
+  font-weight: 600;
+}
+
+.toast > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.action {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  .toast {
+    bottom: var(--space-6);
+    left: auto;
+    max-width: 420px;
+  }
+}

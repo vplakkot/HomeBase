@@ -164,8 +164,10 @@ function Review({
   };
   const { shots, reading } = step;
   const formShown = check.kind !== "same" || savingNew;
+  // A scan read but not saved yet: pulling down mustn't reload it away
+  // (REQ-127).
   return (
-    <div className={styles.review}>
+    <div className={styles.review} data-unsaved>
       <section className={styles.reviewPhotos} aria-label="Label photos">
         {/* eslint-disable-next-line @next/next/no-img-element -- local photos not yet saved */}
         <img src={shots.front.url} alt="Front label" className={styles.preview} />

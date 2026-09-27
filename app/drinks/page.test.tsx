@@ -372,13 +372,13 @@ describe("the Overview (REQ-120)", () => {
     expect(screen.getByRole("search").getAttribute("action")).toBe("/drinks/wines");
   });
 
-  it("says when nothing is recorded yet, and offers Scan and Choose a photo", async () => {
+  it("keeps Recent scans when nothing is recorded yet, empty, with Scan only in the header", async () => {
     given([]);
     render(await overview());
-    expect(screen.getByText("Nothing recorded yet.")).toBeTruthy();
-    const empty = within(screen.getByRole("region", { name: "Nothing yet" }));
-    expect(empty.getByRole("button", { name: "Scan" })).toBeTruthy();
-    expect(empty.getByRole("button", { name: "Choose a photo" })).toBeTruthy();
+    const recent = within(screen.getByRole("region", { name: "Recent scans" }));
+    expect(recent.getByText("Nothing recorded yet.")).toBeTruthy();
+    expect(recent.queryByRole("button")).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Scan" })).toHaveLength(1);
   });
 
   it("sends a link kept from when the list lived here on to Wines", async () => {

@@ -1,0 +1,35 @@
+/* REQ-127: the spinner that comes down from the top of the screen with a
+   pull, and keeps turning while the app reloads. */
+.holder {
+  position: fixed;
+  z-index: 30;
+  top: calc(env(safe-area-inset-top) - var(--space-8));
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  margin-left: calc(var(--space-8) / -2);
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: 0 2px 8px var(--color-scrim);
+  pointer-events: none;
+}
+
+.spinner {
+  width: 50%;
+  height: 50%;
+  border: 3px solid var(--color-line);
+  border-top-color: var(--color-ink);
+  border-radius: 50%;
+}
+
+.turning {
+  animation: turn 0.8s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
