@@ -83,6 +83,16 @@ begin
   get diagnostics v_count = row_count;
   report := report || format('3d. changing a closed plan''s recipes changed %s (wants 0)%s', v_count, E'\n');
 
+  update public.meal_plans set closed_at = null where id = plan_one;
+  get diagnostics v_count = row_count;
+  report := report || format('3e. reopening a plan by hand, not through reopen, changed %s (wants 0)%s', v_count, E'\n');
+  begin
+    update public.meal_plans set closed_at = now() where id = plan_three;
+    report := report || E'3f. closing a plan by hand SAVED -- WRONG\n';
+  exception when insufficient_privilege then
+    report := report || E'3f. closing a plan by hand is refused (wants this)\n';
+  end;
+
   -- 4. Rating answers the question; rating for someone else is refused.
   insert into public.recipe_ratings (recipe_id, user_id, stars) values (first_time, member_id, 4);
   select count(*) into v_count from public.recipe_rating_prompts where recipe_id = first_time;
@@ -116,7 +126,10 @@ begin
   end;
   delete from public.meal_plans where id = plan_three;
   -- Inside one transaction every close has the same time; set plan one's apart.
+  -- (as the database owner: members can't change a closed plan).
+  reset role;
   update public.meal_plans set closed_at = closed_at - interval '1 hour' where id = plan_one;
+  set local role authenticated;
   perform public.reopen_meal_plan(plan_two);
   select count(*) into v_count from public.meal_plans where id = plan_two and closed_at is null;
   report := report || format('6b. the last plan reopened: %s (wants 1)%s', v_count, E'\n');

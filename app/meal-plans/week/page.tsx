@@ -58,7 +58,7 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
     recipes,
     stats: planStats(rows),
     averages: averageRatings(ratings),
-    carried: carriedOver(rows),
+    carried: carriedOver(rows, lastClosed),
     inPlan,
     dismissed: new Set(skipped),
     today,

@@ -752,6 +752,11 @@ describe("meal plan: closing a week and rating (REQ-116)", () => {
     expect(close).not.toMatch(/on public\.recipe_rating_prompts for insert/);
   });
 
+  it("changes a plan directly only while it's open, so closing and reopening go through the functions", () => {
+    expect(close).toMatch(/drop policy "members change plans" on public\.meal_plans;/);
+    expect(close).toMatch(/on public\.meal_plans for update to authenticated\s+using \(\(select public\.has_permission\('use_modules'\)\) and closed_at is null\)\s+with check \(\(select public\.has_permission\('use_modules'\)\) and closed_at is null\)/);
+  });
+
   it("closes, starts and reopens plans only for household members, never signed-out visitors", () => {
     for (const fn of ["close_meal_plan(uuid)", "start_meal_plan(date)", "reopen_meal_plan(uuid)"]) {
       const escaped = fn.replace(/[()]/g, "\\$&");

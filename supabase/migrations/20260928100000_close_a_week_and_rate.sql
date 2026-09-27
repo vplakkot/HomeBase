@@ -14,6 +14,16 @@ alter table public.meal_plan_recipes
 -- A closed plan is a record: its recipes can't be added, changed or taken
 -- off, even from a screen left open since before the other person closed
 -- it. Reopening the plan (below) makes it changeable again.
+-- Only an open plan's start day can be changed directly, and closing or
+-- reopening goes through the functions below, so the rating questions
+-- and cooked ticks always go with it.
+drop policy "members change plans" on public.meal_plans;
+
+create policy "members change open plans"
+  on public.meal_plans for update to authenticated
+  using ((select public.has_permission('use_modules')) and closed_at is null)
+  with check ((select public.has_permission('use_modules')) and closed_at is null);
+
 drop policy "members plan recipes" on public.meal_plan_recipes;
 drop policy "members change planned recipes" on public.meal_plan_recipes;
 drop policy "members unplan recipes" on public.meal_plan_recipes;

@@ -45,19 +45,22 @@ const ids = (list: ReturnType<typeof suggestions>) => list.map((item) => item.re
 
 describe("closing a week: what carries over (REQ-116)", () => {
   const row = (recipe_id: string, carry_over: boolean, starts_on: string, closed_at: string | null): PlanRow => ({
+    plan_id: `plan-${starts_on}`,
     recipe_id,
     carry_over,
     meal_plans: { starts_on, closed_at },
   });
 
-  it("proposes what the last plan closed carried over, not older plans' carry-overs", () => {
+  it("proposes what the last plan closed carried over, not older plans' carry-overs, even when the last one was empty", () => {
     const rows = [
       row("old", true, "2026-09-13", "2026-09-19T20:00:00Z"),
       row("a", true, "2026-09-20", "2026-09-26T20:00:00Z"),
       row("b", false, "2026-09-20", "2026-09-26T20:00:00Z"),
       row("c", false, "2026-09-27", null),
     ];
-    expect(carriedOver(rows)).toEqual(["a"]);
+    expect(carriedOver(rows, "plan-2026-09-20")).toEqual(["a"]);
+    // The last plan closed had no recipes at all: nothing is carried over.
+    expect(carriedOver(rows, "plan-2026-09-25")).toEqual([]);
   });
 
   it("doesn't count a carried-over recipe as planned that week", () => {
