@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 2.0.0 - 2026-09-27
+
+Two new modules. Drinks records every wine we've had or want to try,
+reads a label from a photo, and tells us in the shop whether we've had
+it. Meal Plans keeps our recipes (typed in, or read from a video, BETA),
+plans the week, and suggests what to cook. Finances now warns ahead of
+three-paycheck months and over-budget months. The installed app can be
+refreshed by pulling down, and says when a newer version is out. Names
+can be edited in Profile.
+
 - Names can be edited. Set your own in Profile (the pill on Home, or
   the sidebar); an admin can set anyone's from the People card in the
   admin console. A blank name isn't saved, and names are up to 50
