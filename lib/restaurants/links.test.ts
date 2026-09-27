@@ -116,3 +116,44 @@ describe("opening a share link", () => {
     expect(await followShortLink(new URL("https://maps.app.goo.gl/Nothing"), fetchImpl)).toEqual({ kind: "not_a_place" });
   });
 });
+
+describe("reading an OpenTable link (REQ-131)", () => {
+  it("reads the restaurant's name and city from the link, and keeps it without its tracking", () => {
+    expect(readLink("https://www.opentable.com/r/corner-noodle-bar-new-york?corrid=abc&avt=xyz#photos")).toEqual({
+      kind: "opentable",
+      name: "corner noodle bar new york",
+      bookingUrl: "https://www.opentable.com/r/corner-noodle-bar-new-york",
+    });
+  });
+
+  it("reads a country's OpenTable, a language in front, and the older one-word address", () => {
+    expect(readLink("https://www.opentable.co.uk/r/pretend-bistro-london")).toMatchObject({ name: "pretend bistro london" });
+    expect(readLink("https://www.opentable.ca/fr-CA/r/pretend-bistro-montreal")).toMatchObject({ name: "pretend bistro montreal" });
+    expect(readLink("https://opentable.com/pretendbistro")).toMatchObject({ kind: "opentable", name: "pretendbistro" });
+  });
+
+  it("drops a number OpenTable adds at the end of the name", () => {
+    expect(readLink("https://www.opentable.com/r/pretend-bistro-chicago-2")).toMatchObject({ name: "pretend bistro chicago" });
+  });
+
+  it("finds the link inside a shared message", () => {
+    expect(readLink("Book with me! https://www.opentable.com/r/pretend-bistro-boston")).toMatchObject({ kind: "opentable" });
+  });
+
+  it("says a numbered page, a search or OpenTable's own pages don't name a restaurant", () => {
+    for (const link of [
+      "https://www.opentable.com/restaurant/profile/123456",
+      "https://www.opentable.com/s?term=noodles",
+      "https://www.opentable.com/metro/new-york-restaurants",
+      "https://www.opentable.com/",
+    ]) {
+      expect(readLink(link), link).toEqual({ kind: "opentable_unnamed" });
+    }
+  });
+
+  it("isn't fooled by a look-alike address", () => {
+    expect(readLink("https://opentable.com.evil.example/r/pretend")).toEqual({ kind: "not_a_maps_link" });
+    expect(readLink("https://myopentable.com/r/pretend")).toEqual({ kind: "not_a_maps_link" });
+    expect(readLink("http://www.opentable.com/r/pretend")).toEqual({ kind: "not_a_maps_link" });
+  });
+});

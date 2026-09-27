@@ -6,23 +6,25 @@ import { ModuleFrame } from "../../components/module-frame";
 import { readAccount } from "../../lib/account";
 import { hasPermission } from "../../lib/auth/permissions";
 import { readPeople } from "../../lib/drinks/drinks";
-import { readRestaurants } from "../../lib/restaurants/restaurants";
+import { readAnswers, readRestaurants } from "../../lib/restaurants/restaurants";
 import { createClient } from "../../lib/supabase/server";
 import styles from "./restaurants.module.css";
 
-// Who is looking at a Restaurants page, every saved place, and the
-// household by name. Signed-out visitors go to sign-in.
+// Who is looking at a Restaurants page, every saved place, everyone's
+// go-again answers, and the household by name. Signed-out visitors go to
+// sign-in.
 export async function restaurantsViewer() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) redirect("/sign-in");
-  const [canManageMembers, account, restaurants, people] = await Promise.all([
+  const [canManageMembers, account, restaurants, answers, people] = await Promise.all([
     hasPermission(supabase, "manage_members"),
     readAccount(data.claims),
     readRestaurants(supabase),
+    readAnswers(supabase),
     readPeople(supabase),
   ]);
-  return { canManageMembers, account, restaurants, people };
+  return { userId: data.claims.sub, canManageMembers, account, restaurants, answers, people };
 }
 
 export type RestaurantsViewer = Awaited<ReturnType<typeof restaurantsViewer>>;

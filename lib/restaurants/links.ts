@@ -1,8 +1,10 @@
-// Reading a pasted maps link (REQ-90, REQ-130). A link says which place
-// it is in one of two ways: Google's own place ID, which needs no further
-// guessing, or a name and a spot on the map, which Google is then asked
-// to find. Anything else (directions, a search, a dropped pin) isn't one
-// restaurant.
+// Reading a pasted maps link (REQ-90, REQ-130) or OpenTable link
+// (REQ-131). A maps link says which place it is in one of two ways:
+// Google's own place ID, which needs no further guessing, or a name and a
+// spot on the map, which Google is then asked to find. Anything else
+// (directions, a search, a dropped pin) isn't one restaurant. An OpenTable
+// link names the restaurant (and usually its city) in its address, and is
+// kept as the place's booking link.
 
 export type Spot = { latitude: number; longitude: number };
 
@@ -12,6 +14,10 @@ export type LinkReading =
   // A share link (maps.app.goo.gl, maps.apple/p/…) that has to be opened
   // to see where it leads.
   | { kind: "short"; url: URL }
+  // "carbone new york" from opentable.com/r/carbone-new-york, and the link
+  // itself without its tracking to book with.
+  | { kind: "opentable"; name: string; bookingUrl: string }
+  | { kind: "opentable_unnamed" }
   | { kind: "not_a_place" }
   | { kind: "not_a_maps_link" };
 
@@ -21,6 +27,13 @@ const PLACE_ID = /^[A-Za-z0-9_-]{10,255}$/;
 // with www. or maps. in front, and nothing that merely starts with google.
 const GOOGLE_HOSTS = /^(www\.|maps\.)?google\.(com|[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})$/;
 const APPLE_HOSTS = /^(maps\.apple\.com|maps\.apple)$/;
+const OPENTABLE_HOSTS = /^(www\.)?opentable\.(com|[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})$/;
+// OpenTable's own pages, which share the one-word address a restaurant's
+// old-style link uses (opentable.com/carbone).
+const OPENTABLE_PAGES = new Set([
+  "s", "r", "restaurant", "restaurants", "restref", "start", "user", "my", "landmark", "metro", "region",
+  "neighborhood", "cuisine", "gift-cards", "about", "promo", "blog", "info", "c", "lists", "booking",
+]);
 const SHORT_HOSTS = new Set(["maps.app.goo.gl", "goo.gl", "maps.apple"]);
 
 // Every host a link, or a share link's redirect, may lead to. Nothing else
@@ -114,6 +127,21 @@ function readApple(url: URL): LinkReading {
   return { kind: "named", source: "apple", name, near };
 }
 
+// opentable.com/r/carbone-new-york, opentable.co.uk/r/…, a language in
+// front (/fr-CA/r/…) or the older opentable.com/carbone. A numbered page
+// (/restaurant/profile/12345) doesn't say the restaurant's name.
+function readOpenTable(url: URL): LinkReading {
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (segments.length > 0 && /^[a-z]{2}(-[a-z]{2})?$/i.test(segments[0]) && segments.length > 1) segments.shift();
+  let slug: string | undefined;
+  if (segments.length === 2 && segments[0] === "r") slug = segments[1];
+  else if (segments.length === 1 && !OPENTABLE_PAGES.has(segments[0].toLowerCase())) slug = segments[0];
+  // The name's words, without a number OpenTable sometimes adds at the end.
+  const name = slug ? pathName(slug.replace(/-/g, " ")).replace(/(\s+\d+)+$/, "").trim() : "";
+  if (name === "" || /^\d+$/.test(name)) return { kind: "opentable_unnamed" };
+  return { kind: "opentable", name, bookingUrl: `https://${url.hostname.toLowerCase()}${url.pathname}` };
+}
+
 export function readLink(pasted: string): LinkReading {
   // A share often arrives as "Katz's Delicatessen https://maps.app.goo.gl/…":
   // the link is the part that starts with https.
@@ -133,6 +161,7 @@ export function readLink(pasted: string): LinkReading {
   if (host === "maps.apple" && url.pathname.startsWith("/p/")) return { kind: "short", url };
   if (GOOGLE_HOSTS.test(host) && (url.pathname.startsWith("/maps") || host.startsWith("maps."))) return readGoogle(url);
   if (APPLE_HOSTS.test(host)) return readApple(url);
+  if (OPENTABLE_HOSTS.test(host)) return readOpenTable(url);
   return { kind: "not_a_maps_link" };
 }
 

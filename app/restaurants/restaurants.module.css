@@ -182,3 +182,63 @@
 .foundText p {
   margin: 0;
 }
+
+/* One place's own actions: Book, Open in Google Maps, Mark as tried. */
+.placeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.placeActions form {
+  display: contents;
+}
+
+/* Tried: each of us and our go-again, on the module's quiet tint. */
+.tried {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--module-quiet-line);
+  border-radius: var(--radius-lg);
+  background: var(--module-quiet);
+}
+
+.answers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.answers li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px;
+}
+
+.goAgain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Once answered, the answer not given is an outline, so yours stands out. */
+.goAgain button[aria-pressed="false"] {
+  background: transparent;
+  border-color: var(--module-loud);
+  color: var(--module-quiet-ink);
+}
+
+.booking {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}

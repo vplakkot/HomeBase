@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { placesFromEnv, type Place, type Places } from "../../lib/restaurants/places";
-import { ALREADY_SAVED, NOT_A_RESTAURANT, NOTHING_FOUND } from "../../lib/restaurants/restaurants";
+import { ALREADY_SAVED, NOT_A_RESTAURANT, NOTHING_FOUND, OPENTABLE_UNNAMED } from "../../lib/restaurants/restaurants";
 import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
-import { addPlace, lookUpPlace, removePlace } from "./actions";
+import { addBookingLink, addPlace, answerGoAgain, lookUpPlace, markTried, removePlace, setBookingLink, undoTried } from "./actions";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("../../lib/restaurants/places", async (original) => ({
@@ -46,7 +46,8 @@ function form(fields: Record<string, string>): FormData {
   return data;
 }
 
-const table = () => fake.from.mock.results.find((_, index) => fake.from.mock.calls[index][0] === "restaurants")!.value;
+const tableNamed = (name: string) => fake.from.mock.results.find((_, index) => fake.from.mock.calls[index][0] === name)!.value;
+const table = () => tableNamed("restaurants");
 
 describe("looking up a Google Maps link (REQ-90)", () => {
   it("finds the place and shows it to confirm", async () => {
@@ -145,7 +146,7 @@ describe("adding and removing (REQ-90, REQ-129)", () => {
     given();
     await expect(addPlace({}, form({ placeId: "ChIJInventedNoodles01" }))).rejects.toThrow("REDIRECT:/restaurants");
     // Who added it and when are filled in by the database (auth.uid(), now()).
-    expect(table().insert).toHaveBeenCalledWith({ google_place_id: "ChIJInventedNoodles01" });
+    expect(table().insert).toHaveBeenCalledWith({ google_place_id: "ChIJInventedNoodles01", booking_url: null });
   });
 
   it("refuses a duplicate the database catches", async () => {
@@ -173,5 +174,127 @@ describe("adding and removing (REQ-90, REQ-129)", () => {
     await expect(removePlace({}, form({ id: ROW }))).rejects.toThrow("REDIRECT:/restaurants");
     expect(table().delete).toHaveBeenCalled();
     expect(table().eq).toHaveBeenCalledWith("id", ROW);
+  });
+});
+
+describe("adding from an OpenTable link (REQ-131)", () => {
+  const OPENTABLE = "https://www.opentable.com/r/corner-noodle-bar-new-york?corrid=abc123&p=2";
+  const BOOKING = "https://www.opentable.com/r/corner-noodle-bar-new-york";
+
+  it("reads the name and city from the link, finds it in Google and asks to confirm, with the booking link", async () => {
+    given();
+    vi.mocked(places.search).mockResolvedValue([place("ChIJInventedNoodles01", "Corner Noodle Bar")]);
+    const state = await lookUpPlace({}, form({ link: OPENTABLE }));
+    expect(places.search).toHaveBeenCalledWith("corner noodle bar new york", null);
+    expect(state).toEqual({
+      places: [expect.objectContaining({ name: "Corner Noodle Bar", savedId: null })],
+      choose: false,
+      bookingUrl: BOOKING,
+    });
+  });
+
+  it("saves the confirmed place with the OpenTable link as its booking link", async () => {
+    given();
+    await expect(addPlace({}, form({ placeId: "ChIJInventedNoodles01", bookingUrl: BOOKING }))).rejects.toThrow("REDIRECT:/restaurants");
+    expect(table().insert).toHaveBeenCalledWith({ google_place_id: "ChIJInventedNoodles01", booking_url: BOOKING });
+  });
+
+  it("offers the link to a place already saved without one, instead of a duplicate", async () => {
+    given({ saved: [{ id: ROW, google_place_id: "ChIJInventedNoodles01", booking_url: null, tried_on: null }] });
+    vi.mocked(places.search).mockResolvedValue([place("ChIJInventedNoodles01", "Corner Noodle Bar")]);
+    const state = await lookUpPlace({}, form({ link: OPENTABLE }));
+    expect(state.places?.[0]).toMatchObject({ savedId: ROW, savedBooking: false, savedTried: false });
+    expect(state.bookingUrl).toBe(BOOKING);
+  });
+
+  it("adds the link to the saved place only while it has none", async () => {
+    given({ saved: [{ id: ROW }] });
+    await expect(addBookingLink({}, form({ id: ROW, bookingUrl: BOOKING }))).rejects.toThrow(`REDIRECT:/restaurants/${ROW}`);
+    expect(table().update).toHaveBeenCalledWith({ booking_url: BOOKING });
+    expect(table().eq).toHaveBeenCalledWith("id", ROW);
+    expect(table().is).toHaveBeenCalledWith("booking_url", null);
+    expect(table().insert).not.toHaveBeenCalled();
+  });
+
+  it("says so when the saved place got a booking link in the meantime", async () => {
+    given({ saved: [] });
+    expect(await addBookingLink({}, form({ id: ROW, bookingUrl: BOOKING }))).toEqual({
+      error: "It already has a booking link. Change it on its page.",
+    });
+  });
+
+  it("says nothing was found when Google has no match", async () => {
+    given();
+    vi.mocked(places.search).mockResolvedValue([]);
+    expect(await lookUpPlace({}, form({ link: OPENTABLE }))).toEqual({ error: NOTHING_FOUND });
+  });
+
+  it("says a numbered OpenTable page doesn't give a name, without asking Google", async () => {
+    given();
+    expect(await lookUpPlace({}, form({ link: "https://www.opentable.com/restaurant/profile/123456" }))).toEqual({ error: OPENTABLE_UNNAMED });
+    expect(places.search).not.toHaveBeenCalled();
+  });
+});
+
+describe("the booking link (REQ-132)", () => {
+  it("adds or changes it by pasting any web address", async () => {
+    given();
+    await expect(setBookingLink({}, form({ id: ROW, bookingUrl: "https://resy.com/cities/ny/pretend-place" }))).rejects.toThrow(
+      `REDIRECT:/restaurants/${ROW}`,
+    );
+    expect(table().update).toHaveBeenCalledWith({ booking_url: "https://resy.com/cities/ny/pretend-place" });
+    expect(table().eq).toHaveBeenCalledWith("id", ROW);
+  });
+
+  it("clears it when left empty", async () => {
+    given();
+    await expect(setBookingLink({}, form({ id: ROW, bookingUrl: "" }))).rejects.toThrow("REDIRECT");
+    expect(table().update).toHaveBeenCalledWith({ booking_url: null });
+  });
+
+  it("refuses anything that isn't a web address", async () => {
+    given();
+    for (const bookingUrl of ["javascript:alert(1)", "resy dot com", `https://example.com/${"x".repeat(2000)}`]) {
+      expect(await setBookingLink({}, form({ id: ROW, bookingUrl }))).toEqual({ error: "Paste a web address that starts with https://" });
+    }
+    expect(fake.from).not.toHaveBeenCalled();
+  });
+});
+
+describe("mark as tried and go again (REQ-133)", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("records today's household date, once, and opens the place", async () => {
+    given();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-28T16:00:00Z"));
+    await expect(markTried({}, form({ id: ROW }))).rejects.toThrow(`REDIRECT:/restaurants/${ROW}`);
+    expect(table().update).toHaveBeenCalledWith({ tried_on: "2026-09-28" });
+    expect(table().is).toHaveBeenCalledWith("tried_on", null);
+  });
+
+  it("undoes it back to Want to try (the database clears the answers)", async () => {
+    given();
+    await expect(undoTried({}, form({ id: ROW }))).rejects.toThrow(`REDIRECT:/restaurants/${ROW}`);
+    expect(table().update).toHaveBeenCalledWith({ tried_on: null });
+  });
+
+  it("saves the viewer's own answer, and changes it on a second answer", async () => {
+    given();
+    expect(await answerGoAgain({}, form({ id: ROW, goAgain: "no" }))).toEqual({});
+    const answers = tableNamed("restaurant_answers");
+    expect(answers.upsert).toHaveBeenCalledWith(
+      { restaurant_id: ROW, user_id: "user-1", go_again: false, answered_at: expect.any(String) },
+      { onConflict: "restaurant_id,user_id" },
+    );
+  });
+
+  it("answers only yes or no, and only with module access", async () => {
+    given();
+    expect(await answerGoAgain({}, form({ id: ROW, goAgain: "maybe" }))).toEqual({ error: "Nothing to answer." });
+    given({ permissions: [] });
+    await expect(answerGoAgain({}, form({ id: ROW, goAgain: "yes" }))).rejects.toThrow("REDIRECT:/restaurants");
+    await expect(markTried({}, form({ id: ROW }))).rejects.toThrow("REDIRECT:/restaurants");
+    expect(fake.from).not.toHaveBeenCalled();
   });
 });

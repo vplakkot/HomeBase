@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Restaurants: paste an OpenTable link to add a place; its booking link
+  comes with it, or is added to the place if it's already saved. A
+  place's page has Book (any booking site; paste or change the link
+  there) and Open in Google Maps. Mark as tried takes it off Want to
+  try with today's date; each of you is then asked "Go again?" (on
+  Restaurants and on Home) until you answer, and can change your own
+  answer later. Undo puts it back with both answers cleared. The Been
+  to page itself comes next.
 - A new module, Restaurants, for places we want to try. Add place: paste
   a Google Maps or Apple Maps link (a share link works), check it's the
   right place, and it's saved to Want to try with who added it and when.

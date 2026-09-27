@@ -55,6 +55,19 @@ that fetches any address a user pastes can be steered at places it
 shouldn't reach (the attack is called **SSRF**, server-side request
 forgery). Ours only ever talks to maps hosts, five hops at most.
 
+## A name isn't an identity
+
+An OpenTable link (REQ-131) has no place ID and no map spot, only a
+name and usually a city: `opentable.com/r/carbone-new-york`. So Google
+is asked for "carbone new york" and the answer shown to confirm, with
+its address. That confirm step is not a formality. Checked for real while
+building it: that link is OpenTable's Carbone on W 38th St, while Google's
+only answer is the better-known Carbone on Thompson St. Same name, same
+city, different restaurant. Look at the address before adding.
+
+The OpenTable link itself is ours, not Google's, so it is kept as the
+place's booking link.
+
 ## Try it
 
 - `lib/restaurants/links.test.ts` lists every link shape we read, and
