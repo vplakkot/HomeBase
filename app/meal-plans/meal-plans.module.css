@@ -32,6 +32,10 @@
 .clear { composes: clear from "../drinks/drinks.module.css"; }
 .hidden { composes: hidden from "../drinks/drinks.module.css"; }
 .control { composes: control from "../drinks/drinks.module.css"; }
+.starPicker { composes: starPicker from "../drinks/drinks.module.css"; }
+.star { composes: star from "../drinks/drinks.module.css"; }
+.stars { composes: stars from "../drinks/drinks.module.css"; }
+.unrated { composes: unrated from "../drinks/drinks.module.css"; }
 
 /* REQ-112: the video path is BETA, always. A small pill in the module's
    loud colour, next to what it labels. */
@@ -220,4 +224,14 @@
   color: var(--color-ink);
   font-weight: 600;
   text-decoration: underline;
+}
+
+/* REQ-117: why a recipe is suggested, as a small pill. */
+.tag {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--module-loud);
+  color: var(--color-ink);
+  font-size: var(--text-body-sm);
+  font-weight: 700;
 }

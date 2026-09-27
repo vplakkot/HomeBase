@@ -31,8 +31,8 @@ const RECIPES = [
   recipe("d", "Test soup", { hidden: true }),
 ];
 const STATS = new Map([
-  ["a", { times: 1, last: "2026-09-20" }],
-  ["c", { times: 3, last: "2026-09-13" }],
+  ["a", { times: 1, last: "2026-09-20", first: "2026-09-20" }],
+  ["c", { times: 3, last: "2026-09-13", first: "2026-08-30" }],
 ]);
 const names = (query: Parameters<typeof libraryRecipes>[2]) => libraryRecipes(RECIPES, STATS, query).map((row) => row.name);
 
@@ -54,6 +54,11 @@ describe("the recipe library (REQ-114)", () => {
   it("sorts by last planned and times planned, never-planned last", () => {
     expect(names({ sort: "last" })).toEqual(["Test tacos", "Test stew", "Test tikka"]);
     expect(names({ sort: "times" })).toEqual(["Test stew", "Test tacos", "Test tikka"]);
+  });
+
+  it("sorts by our average rating, unrated last", () => {
+    const averages = new Map([["b", 4.5], ["c", 3]]);
+    expect(libraryRecipes(RECIPES, STATS, { sort: "rating" }, averages).map((row) => row.name)).toEqual(["Test tikka", "Test stew", "Test tacos"]);
   });
 
   it("leaves hidden recipes out, and lists them on their own", () => {
