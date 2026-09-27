@@ -23,7 +23,7 @@ describe("the desktop sidebar", () => {
     expect(within(nav).getByRole("link", { name: "Home" }).getAttribute("href")).toBe("/");
   });
 
-  it("lists all eight modules, from the module list, in order", () => {
+  it("lists all nine modules, from the module list, in order", () => {
     render(<Sidebar current="home" canAdminister={false} account={TEST_ACCOUNT} />);
     const items = within(sidebar()).getAllByRole("listitem").map((item) => item.textContent);
     expect(items).toEqual([
@@ -35,6 +35,7 @@ describe("the desktop sidebar", () => {
       "Health, coming soon",
       "Paperwork",
       "Storage",
+      "Restaurants",
     ]);
   });
 
@@ -42,7 +43,7 @@ describe("the desktop sidebar", () => {
   it("links only the modules that open", () => {
     render(<Sidebar current="home" canAdminister={false} account={TEST_ACCOUNT} />);
     const links = within(sidebar()).getAllByRole("link").map((link) => link.getAttribute("href"));
-    expect(links).toEqual(["/", "/finances", "/drinks", "/meal-plans", "/paperwork", "/storage"]);
+    expect(links).toEqual(["/", "/finances", "/drinks", "/meal-plans", "/paperwork", "/storage", "/restaurants"]);
   });
 
   it("offers the admin console to admins, at the bottom", () => {

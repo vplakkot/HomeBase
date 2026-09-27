@@ -137,6 +137,17 @@ export const MODULES: readonly Module[] = [
     // header, like Paperwork's Log document.
     sections: [],
   },
+  // v2.1 (REQ-90, REQ-129, REQ-130): places we want to try, saved from a
+  // maps link. Tangerine, and the last place, until Vin says otherwise.
+  {
+    slug: "restaurants",
+    name: "Restaurants",
+    tokens: "restaurants",
+    href: "/restaurants",
+    // The module's home is Want to try (REQ-129); Been to joins it as a
+    // tab in a later batch. Add place is a button in the header.
+    sections: [{ name: "Add place", description: "Paste a Google or Apple Maps link", pinned: true, href: "/restaurants/new" }],
+  },
 ];
 
 // A module switched off in the admin console disappears from Home, and

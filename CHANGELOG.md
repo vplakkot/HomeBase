@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- A new module, Restaurants, for places we want to try. Add place: paste
+  a Google Maps or Apple Maps link (a share link works), check it's the
+  right place, and it's saved to Want to try with who added it and when.
+  An Apple link is matched to Google's place nearby; if the match isn't
+  clear, pick from up to three. A place already saved says so instead of
+  being added twice. Want to try shows each place as a photo tile with
+  its cuisine and neighbourhood; tap one for its address, hours, website,
+  and Remove. Everything about a place except which one it is comes
+  fresh from Google each time.
 - Releasing no longer fails when the version tag is pushed straight
   after the release merges. The promote workflow now waits (up to 10
   minutes) for Vercel to finish building the tagged commit, and says

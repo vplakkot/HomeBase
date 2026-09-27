@@ -30,6 +30,10 @@ vi.mock("../lib/drinks/drinks", async (original) => ({
   ...(await original<typeof import("../lib/drinks/drinks")>()),
   countDrinks: vi.fn(async () => 0),
 }));
+vi.mock("../lib/restaurants/restaurants", async (original) => ({
+  ...(await original<typeof import("../lib/restaurants/restaurants")>()),
+  countRestaurants: vi.fn(async () => 0),
+}));
 vi.mock("../lib/meal-plans/recipes", async (original) => ({
   ...(await original<typeof import("../lib/meal-plans/recipes")>()),
   countRecipes: vi.fn(async () => 0),
@@ -182,8 +186,8 @@ describe("HomePage", () => {
 
   // A decision of 2026-09-21: all six show, only Finances opens. v1.0
   // adds Paperwork and then Storage, last (Vin, 2026-09-24), and they
-  // open too.
-  it("shows a tile for all eight modules, Finances, Paperwork and Storage links", async () => {
+  // open too. v2.1 adds Restaurants, last.
+  it("shows a tile for all nine modules, linking the ones that open", async () => {
     given({ email: "member@example.com" });
     render(await home());
     expect(tiles().map((tile) => tile.name)).toEqual([
@@ -195,6 +199,7 @@ describe("HomePage", () => {
       "Health",
       "Paperwork",
       "Storage",
+      "Restaurants",
     ]);
     const modules = screen.getByRole("region", { name: "Modules" });
     expect(within(modules).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
@@ -203,15 +208,17 @@ describe("HomePage", () => {
       "/meal-plans",
       "/paperwork",
       "/storage",
+      "/restaurants",
     ]);
   });
 
   // REQ-82, and a decision of 2026-09-21: until modules have data, Home
   // shows no invented state unless ?demo asks for it.
-  it("keeps every tile quiet: Finances not set up, Paperwork all filed, Storage, Drinks and Meal Plans empty, the rest Coming soon", async () => {
+  it("keeps every tile quiet: Finances not set up, Paperwork all filed, Storage, Drinks, Meal Plans and Restaurants empty, the rest Coming soon", async () => {
     given({ email: "member@example.com" });
     render(await home());
     const [money, ...others] = tiles();
+    const restaurants = others.pop();
     const storage = others.pop();
     const paperwork = others.pop();
     const [drinks, meals] = others.splice(2, 2);
@@ -220,6 +227,7 @@ describe("HomePage", () => {
     expect(money).toMatchObject({ status: "Not set up", loud: false });
     expect(paperwork).toMatchObject({ name: "Paperwork", status: "All filed", loud: false });
     expect(storage).toMatchObject({ name: "Storage", status: "Nothing logged yet", loud: false });
+    expect(restaurants).toMatchObject({ name: "Restaurants", status: "Nothing saved yet", loud: false });
     for (const tile of others) {
       expect(tile, tile.name!).toMatchObject({ status: "Coming soon", loud: false });
     }
@@ -251,7 +259,7 @@ describe("HomePage", () => {
     const link = within(section).getByRole("link");
     expect(link.textContent).toContain("3 documents unfiled");
     expect(link.getAttribute("href")).toBe("/paperwork/unfiled");
-    expect(tiles().at(-2)).toMatchObject({ name: "Paperwork", status: "3 documents unfiled", loud: true });
+    expect(tiles().at(-3)).toMatchObject({ name: "Paperwork", status: "3 documents unfiled", loud: true });
   });
 
   it("with ?demo, shows the design's example, loud and quiet tiles side by side", async () => {
@@ -266,6 +274,7 @@ describe("HomePage", () => {
       { name: "Health", status: "Refill ready", loud: true },
       { name: "Paperwork", status: "All filed", loud: false },
       { name: "Storage", status: "24 entries", loud: false },
+      { name: "Restaurants", status: "9 to try", loud: false },
     ]);
   });
 

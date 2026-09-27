@@ -1185,6 +1185,55 @@ toast (every page) ──myRecipeImports every 15 s──▶ "Recipe ready"
   ready" or a plain failure. See
   [lesson 29](lessons/29-work-after-the-answer.md).
 
+## Restaurants
+
+Places we want to try (REQ-90, REQ-129, REQ-130), saved by pasting a
+Google Maps or Apple Maps link. Module home `/restaurants` is Want to
+try; `/restaurants/new` adds a place; `/restaurants/[id]` is one place.
+
+| Table | One row is | Key facts |
+|---|---|---|
+| `restaurants` | a place on our lists | `google_place_id` (unique), `added_by`, `created_at` |
+
+That is the whole table. Google's terms let us keep a place's ID and
+nothing else from Google, so the name, photo, cuisine, neighbourhood,
+address, hours and website are asked of **Google Places** (the "new"
+Places API, a second outside Google service) every time a place is
+shown. Think of it as keeping a library card number, not a photocopy
+of the book.
+
+```
+paste a link ──lookUpPlace──▶ readLink (lib/restaurants/links.ts)
+                               ├─ share link? follow its redirects
+                               │  (maps hosts only, 5 hops at most)
+                               ├─ place ID in the link → Place Details
+                               └─ name + spot → Text Search near it
+                                  → pickMatch: same name within 150 m?
+                                    one to confirm, else up to 3 within 1 km
+confirm ──addPlace──▶ insert { google_place_id } (database adds who, when)
+
+list / place page ──▶ Place Details per place, asking only for the
+                      fields that screen shows (Google bills by field)
+<img src="/restaurants/photo?name=…"> ──▶ photo/route.ts: signed-in only,
+                      asks Google for the photo's key-free image link,
+                      302 there, phone keeps it a day
+```
+
+- The key is `GOOGLE_PLACES_KEY` in Vercel (Production and Preview),
+  marked Sensitive, sent to Google in a request header from the server.
+  The browser never sees it: photos go through our own route, which
+  hands back Google's own image link, and that link carries no key.
+- Without the key (a laptop without it), Add place says lookup isn't set
+  up, and tiles say "Couldn't load from Google". Tiles stay tappable so
+  a place can always be removed.
+- Duplicates: the lookup marks a place that's already saved, and the
+  unique `google_place_id` refuses a second copy if both of us add the
+  same place at once.
+- Google asks for photo credits and a Google Maps attribution; the
+  photographer's name sits on the photo and the place page says "From
+  Google Maps".
+- See [lesson 32](lessons/32-a-reference-not-a-copy.md).
+
 ## Not yet built
 
 These are deliberately absent at this stage, not overlooked:

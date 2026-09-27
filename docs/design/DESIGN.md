@@ -39,10 +39,11 @@ Canvas (owner access only): https://claude.ai/artifact/1RVqqy4UV3iXLJ4ZEsfCsu
 | Health | forest `--health-loud` | `--health-quiet` |
 | Paperwork | slate `--paperwork-loud` | `--paperwork-quiet` |
 | Storage | teal `--storage-loud` | `--storage-quiet` |
+| Restaurants | tangerine `--restaurants-loud` | `--restaurants-quiet` |
 
 - Modules are defined in **one list** (name, slug, icon, token prefix, sections). Home, the sidebar, the module switcher and the admin console all read from it. Adding a module = adding an entry.
 - A module switched off in the admin console disappears from Home, the sidebar and the switcher. Its data is kept.
-- Text on loud tiles uses `--<module>-on-loud`. Some modules use dark ink on their loud colour (Pets, Meal Plans) because white would fail contrast; always use the token.
+- Text on loud tiles uses `--<module>-on-loud`. Some modules use dark ink on their loud colour (Pets, Meal Plans, Restaurants) because white would fail contrast; always use the token.
 
 ## 4. Home
 

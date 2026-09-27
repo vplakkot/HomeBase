@@ -209,4 +209,10 @@ export const MODULE_ICONS: Record<string, (props: IconProps) => ReactNode> = {
       <path d="M3 4h18v4H3zM5 8v11a1 1 0 001 1h12a1 1 0 001-1V8M10 12h4" />
     </Icon>
   ),
+  restaurants: ({ size = 18 }) => (
+    <Icon size={size}>
+      <path d="M12 21s-6-5.5-6-11a6 6 0 0112 0c0 5.5-6 11-6 11z" />
+      <circle cx="12" cy="10" r="2.2" />
+    </Icon>
+  ),
 };
