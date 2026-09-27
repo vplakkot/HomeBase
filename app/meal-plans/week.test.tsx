@@ -64,6 +64,12 @@ function sent(fake: ReturnType<typeof fakeSupabase>, table: string, method: stri
   return index === -1 ? undefined : vi.mocked(fake.from.mock.results[index].value[method]).mock.calls[0][0];
 }
 
+// A write the database refuses as a duplicate (Postgres' 23505).
+function refusedAsDuplicate(fake: ReturnType<typeof fakeSupabase>) {
+  const duplicate = { data: null, error: { code: "23505", message: "duplicate key value" } };
+  fake.from.mockImplementation(() => ({ insert: vi.fn(() => Promise.resolve(duplicate)) }) as never);
+}
+
 function form(fields: Record<string, string>) {
   const data = new FormData();
   for (const [key, value] of Object.entries(fields)) data.set(key, value);
@@ -156,6 +162,8 @@ describe("the week's plan (REQ-115)", () => {
     expect(await startPlan({}, form({ starts_on: "2026-09-29" }))).toEqual({});
     expect(sent(fake, "meal_plans", "insert")).toEqual({ starts_on: "2026-09-29" });
     expect(await startPlan({}, form({ starts_on: "next week" }))).toHaveProperty("error");
+    refusedAsDuplicate(fake);
+    expect(await startPlan({}, form({ starts_on: "2026-09-29" }))).toEqual({ error: "A plan is already open. Refresh to see it." });
   });
 
   it("shows the shared plan's recipes, their servings and cooked ticks, and how far they carry us", async () => {
@@ -177,6 +185,8 @@ describe("the week's plan (REQ-115)", () => {
     expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, servings: "4" }))).toEqual({});
     expect(sent(fake, "meal_plan_recipes", "insert")).toEqual({ plan_id: PLAN, recipe_id: ID, servings: 4 });
     expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, servings: "3" }))).toHaveProperty("error");
+    refusedAsDuplicate(fake);
+    expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, servings: "4" }))).toEqual({ error: "That recipe is already in the plan." });
     given({ meal_plans: [openPlan([])], recipes: [RECIPE, { ...SECOND, hidden: true }] });
     render(await WeekPage());
     const picker = screen.getByRole("combobox", { name: "Recipe" });
