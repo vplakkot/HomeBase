@@ -22,7 +22,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
   const photo = draft.photo ? (await signedPhotoLinks(viewer.supabase, [draft.photo], 60 * 60, RECIPE_PHOTOS)).get(draft.photo) : undefined;
   const fromVideo = draft.video_url !== null || draft.photo !== null || draft.status !== "ready";
   return (
-    <MealPlansScreen viewer={viewer} crumb={draft.name}>
+    <MealPlansScreen viewer={viewer} section="Recipes" crumb={draft.name}>
       <section className={styles.formCard} aria-label="Review the recipe">
         <h2 className={styles.title}>
           {draft.name}

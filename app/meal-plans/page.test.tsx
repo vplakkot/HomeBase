@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
+import EditRecipePage from "./[id]/edit/page";
 import RecipePage from "./[id]/page";
 import DraftPage from "./drafts/[id]/page";
 import NewRecipePage from "./new/page";
@@ -56,6 +57,8 @@ describe("a recipe card (REQ-110)", () => {
   it("shows the photo, links, facts, ingredients with quantities, steps and notes", async () => {
     given({ recipes: [RECIPE] });
     render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
+    // Under "Meal Plans", where you are: Recipes, not Overview.
+    expect(screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent).toBe("Recipes");
     const card = screen.getByRole("article", { name: "Test pasta" });
     expect(within(card).getByRole("img", { name: "Test pasta" }).getAttribute("src")).toBe(`https://signed.example/${ID}/1.jpg`);
     expect(within(card).getByRole("link", { name: "Watch the video" }).getAttribute("href")).toBe(RECIPE.video_url);
@@ -70,10 +73,19 @@ describe("a recipe card (REQ-110)", () => {
   });
 });
 
+describe("where you are, under the module's name", () => {
+  it("says Recipes on a recipe's Edit page, not Overview", async () => {
+    given({ recipes: [RECIPE] });
+    render(await EditRecipePage({ params: Promise.resolve({ id: ID }) }));
+    expect(screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent).toBe("Recipes");
+  });
+});
+
 describe("adding a recipe (REQ-111, REQ-112)", () => {
   it("offers a video (marked BETA), text in any form, or an empty card", async () => {
     given({});
     render(await NewRecipePage());
+    expect(screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent).toBe("Recipes");
     const video = screen.getByRole("radio", { name: /From a video/ });
     expect(video.closest("label")?.textContent).toContain("BETA");
     fireEvent.click(screen.getByRole("radio", { name: "Paste or type it" }));
@@ -112,6 +124,7 @@ describe("reviewing a draft before it's saved (REQ-111, REQ-112)", () => {
     given({ recipe_imports: [draftRow({})], cuisines: [{ name: "Thai" }] });
     render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
     expect(screen.getByRole("heading", { name: /Test curry/ }).textContent).toContain("BETA");
+    expect(screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent).toBe("Recipes");
     expect((screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement).value).toBe("Test curry");
     expect(screen.getByText(/^Cuisine/).textContent).toContain("check this");
     expect(screen.getByText(/^Cook time/).textContent).toContain("check this");

@@ -12,6 +12,7 @@ export default async function EditDrinkPage({ params }: { params: Promise<{ id: 
   return (
     <DrinksScreen
       viewer={viewer}
+      section={drink.how === "want_to_try" ? "Want to try" : "Wines"}
       crumb={`Edit ${drink.name}`}
       parent={{ name: drink.name, href: `/drinks/${drink.id}` }}
     >

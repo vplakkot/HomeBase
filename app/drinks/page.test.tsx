@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../lib/supabase/server";
 import { installDialogStandIn } from "../../test/dialog";
 import { fakeSupabase } from "../../test/fake-supabase";
+import EditDrinkPage from "./[id]/edit/page";
 import DrinkPage from "./[id]/page";
 import NewDrinkPage from "./new/page";
 import WantToTryPage from "./want-to-try/page";
@@ -337,6 +338,34 @@ describe("generic names in the list (Vin, 2026-09-26)", () => {
     given([drink("g1", "Pinot Grigio", { producer: "Gaetano D'Aquino", type: "white", vintage: 2025 })]);
     render(await list());
     expect(cards()[0]).toContain("Gaetano D'Aquino · Pinot Grigio");
+  });
+});
+
+// The label under "Drinks" names where you are; only the Overview says
+// "Overview" (Vin, 2026-09-27: it showed on every screen below the lists).
+describe("where you are, under the module's name", () => {
+  const where = () => screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent;
+  const WISH = drink("d9", "Someday Barolo", { how: "want_to_try" });
+
+  it("says Wines on a wine we've had and on Add by hand, and Want to try on a wish", async () => {
+    given([...DRINKS, WISH]);
+    render(await overview());
+    expect(where()).toBe("Overview");
+    cleanup();
+    render(await open("d1"));
+    expect(where()).toBe("Wines");
+    cleanup();
+    render(await open("d9"));
+    expect(where()).toBe("Want to try");
+    cleanup();
+    render(await EditDrinkPage({ params: Promise.resolve({ id: "d1" }) }));
+    expect(where()).toBe("Wines");
+    cleanup();
+    render(await EditDrinkPage({ params: Promise.resolve({ id: "d9" }) }));
+    expect(where()).toBe("Want to try");
+    cleanup();
+    render(await NewDrinkPage());
+    expect(where()).toBe("Wines");
   });
 });
 

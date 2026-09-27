@@ -47,7 +47,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
     ["Last planned", planned.last ? dayLabel(planned.last) : "Never"],
   ] as const;
   return (
-    <MealPlansScreen viewer={viewer} crumb={recipe.name}>
+    <MealPlansScreen viewer={viewer} section="Recipes" crumb={recipe.name}>
       <article className={styles.formCard} aria-label={recipe.name}>
         <div className={styles.fileHead}>
           <h2 className={styles.title}>{recipe.name}</h2>

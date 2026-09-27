@@ -14,7 +14,7 @@ export default async function EditRecipePage({ params }: { params: Promise<{ id:
   const [recipe, cuisines] = await Promise.all([readRecipe(viewer.supabase, id), readCuisines(viewer.supabase)]);
   if (!recipe) notFound();
   return (
-    <MealPlansScreen viewer={viewer} crumb={`Edit ${recipe.name}`}>
+    <MealPlansScreen viewer={viewer} section="Recipes" crumb={`Edit ${recipe.name}`}>
       <section className={styles.formCard} aria-label={`Edit ${recipe.name}`}>
         <PhotoForm recipeId={recipe.id} />
         <RecipeForm recipe={recipe} cuisines={cuisines} />
