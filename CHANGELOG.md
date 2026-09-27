@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Finances warns ahead. In the last week of a month, anyone paid every
+  two weeks whose next month holds three paydays sees "Three-paycheck
+  month next", linking to Income; it goes when that month starts.
+  "You'll be over budget" shows when someone's share of the running
+  month is more than their income, and "Household over budget" when
+  the bills are more than both incomes together. Paychecks still to
+  come count as income. Each of you acknowledges these for yourself.
 - Meal Plans' home is about food now: this week's dishes as big
   photos with "Covers you through at least <day>", or "What are we
   eating this week?" and a way to start a plan when none is open. Our

@@ -22,6 +22,7 @@ const SNAPSHOT: FinanceSnapshot = {
   months: [],
   balances: [],
   acks: [],
+  income: [],
 };
 
 // The secret-key client: what finance_pushes already holds, and which

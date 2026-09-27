@@ -8,7 +8,8 @@ import {
   type FinanceItem,
   type FinanceSnapshot,
 } from "./action-items";
-import type { Month, MonthBill } from "./month";
+import { threePaycheckMonths, type IncomeSource } from "./income";
+import type { Month, MonthBill, MonthIncome } from "./month";
 
 // Two invented people: Alex runs the budget, Blair is a member.
 const ALEX = "user-alex";
@@ -86,9 +87,36 @@ function snapshot(over: Partial<FinanceSnapshot> = {}): FinanceSnapshot {
     months: [],
     balances: [],
     acks: [],
+    income: [],
     ...over,
   };
 }
+
+// Invented pay schedules. Alex's anchor gives three paydays in October
+// 2026 (2, 16, 30), Blair's in January 2027 (1, 15, 29).
+const source = (owner: string, anchor: string, over: Partial<IncomeSource> = {}) => ({
+  id: `src-${owner}`,
+  name: "",
+  owner_id: owner,
+  net_amount: 600,
+  cadence: "biweekly" as const,
+  anchor_date: anchor,
+  ended_on: null,
+  effective_from: "2026-01-01",
+  ...over,
+});
+const ALEX_PAY = source(ALEX, "2026-08-07");
+const BLAIR_PAY = source(BLAIR, "2026-09-11");
+
+const logged = (owner: string, amount: number): MonthIncome => ({
+  id: `i-${owner}`,
+  owner_id: owner,
+  kind: "paycheck",
+  amount,
+  received_on: "2026-09-05",
+  income_source_id: null,
+  note: "",
+});
 
 const keys = (items: FinanceItem[]) => items.map((item) => item.key);
 const find = (items: FinanceItem[], prefix: string) => items.find((item) => item.key.startsWith(prefix));
@@ -228,6 +256,77 @@ describe("Finances action items (REQ-93)", () => {
     expect(find(financeItems(saved, ALEX), "recalibrate:")).toBeUndefined();
   });
 
+  it("warns both when someone's share is more than their income, until each acknowledges it", () => {
+    // Rent 2000 split 50/50: 1000 each. Alex has 500 in, Blair 3000.
+    const september = month("2026-09-01", [rent()], { income: [logged(ALEX, 500), logged(BLAIR, 3000)] });
+    const s = snapshot({ months: [september] });
+    expect(find(financeItems(s, ALEX), "over:")).toMatchObject({
+      key: `over:2026-09-01:${ALEX}`,
+      text: "You'll be over budget",
+      detail: "September's share is $500.00 more than income",
+      href: "/finances/balances?month=2026-09",
+      button: "Acknowledge",
+      push: null,
+    });
+    expect(find(financeItems(s, BLAIR), "over:")?.text).toBe("Alex will be over budget");
+    expect(find(financeItems(s, ALEX), "household-over:")).toBeUndefined();
+    // Blair acknowledging clears it for Blair only.
+    const acked = snapshot({ months: [september], acks: [{ user_id: BLAIR, key: `over:2026-09-01:${ALEX}` }] });
+    expect(find(financeItems(acked, BLAIR), "over:")).toBeUndefined();
+    expect(find(financeItems(acked, ALEX), "over:")).toBeDefined();
+  });
+
+  it("counts the paychecks the month still expects, so nobody looks over budget early", () => {
+    // Alex's schedule pays 600 on 4 and 18 September: 500 + 1200 covers 1000.
+    const september = month("2026-09-01", [rent()], { income: [logged(ALEX, 500), logged(BLAIR, 3000)] });
+    const s = snapshot({ months: [september], income: [source(ALEX, "2026-09-04")] });
+    expect(find(financeItems(s, ALEX), "over:")).toBeUndefined();
+    // And no income at all set up or logged is no warning either.
+    expect(find(financeItems(snapshot({ months: [month("2026-09-01", [rent()])] }), ALEX), "over:")).toBeUndefined();
+  });
+
+  it("warns both of a household loss month alongside each person over, each item acknowledged separately", () => {
+    const september = month("2026-09-01", [rent()], { income: [logged(ALEX, 500), logged(BLAIR, 500)] });
+    const s = snapshot({ months: [september] });
+    for (const person of [ALEX, BLAIR]) {
+      const items = financeItems(s, person);
+      expect(find(items, "household-over:")).toMatchObject({
+        text: "Household over budget",
+        detail: "September's bills are $1,000.00 more than our income",
+        button: "Acknowledge",
+        push: null,
+      });
+      expect(items.filter((item) => item.key.startsWith("over:"))).toHaveLength(2);
+    }
+    const acked = snapshot({ months: [september], acks: [{ user_id: ALEX, key: "household-over:2026-09-01" }] });
+    expect(find(financeItems(acked, ALEX), "household-over:")).toBeUndefined();
+    expect(find(financeItems(acked, BLAIR), "household-over:")).toBeDefined();
+  });
+
+  it("tells only the earner, in the last week of the month before, that a three-paycheck month is next", () => {
+    const income = [ALEX_PAY, BLAIR_PAY];
+    const item = (today: string, viewer: string) =>
+      find(financeItems(snapshot({ today, income }), viewer), "three-pay:");
+    expect(item("2026-09-24", ALEX)).toMatchObject({
+      key: `three-pay:2026-10-01:${ALEX_PAY.id}`,
+      text: "Three-paycheck month next",
+      detail: "October brings three paychecks",
+      href: "/finances/income",
+      push: null,
+    });
+    expect(item("2026-09-30", ALEX)).toBeDefined();
+    // Not before the last week, and gone once October starts.
+    expect(item("2026-09-23", ALEX)).toBeUndefined();
+    expect(item("2026-10-01", ALEX)).toBeUndefined();
+    // Blair's three-paycheck month is January, and it's not Alex's.
+    expect(item("2026-09-24", BLAIR)).toBeUndefined();
+    expect(item("2026-12-27", BLAIR)).toBeDefined();
+    expect(item("2026-12-27", ALEX)).toBeUndefined();
+    // An ended source says nothing.
+    const ended = snapshot({ today: "2026-09-24", income: [{ ...ALEX_PAY, ended_on: "2026-09-20" }] });
+    expect(find(financeItems(ended, ALEX), "three-pay:")).toBeUndefined();
+  });
+
   it("ranks month-ended and due-soon above everything else", () => {
     const august = month("2026-08-01", [rent({ payments: [pay(ALEX, 1000, "2026-08-03")] })]);
     const september = month("2026-09-01", [rent(), card({ amount: null, entered_by: null })]);
@@ -242,6 +341,20 @@ describe("Finances action items (REQ-93)", () => {
   it("gives nothing before Finances is set up", () => {
     expect(financeItems(snapshot({ splits: [] }), ALEX)).toEqual([]);
     expect(financeTile(snapshot({ splits: [] }), []).status).toBe("Not set up");
+  });
+});
+
+describe("Three-paycheck months (REQ-62)", () => {
+  it("finds the months a biweekly source pays three times, from its anchor", () => {
+    expect(threePaycheckMonths(ALEX_PAY, "2026-09-01", 12)).toEqual(["2026-10-01", "2027-04-01"]);
+    expect(threePaycheckMonths(BLAIR_PAY, "2026-09-01", 12)).toEqual(["2027-01-01", "2027-07-01"]);
+    // A different anchor moves them: nothing is fixed to a month.
+    expect(threePaycheckMonths(source(ALEX, "2026-08-14"), "2026-09-01", 3)).toEqual([]);
+  });
+
+  it("only counts sources paid every two weeks", () => {
+    expect(threePaycheckMonths(source(ALEX, "2026-08-07", { cadence: "weekly" }), "2026-09-01", 12)).toEqual([]);
+    expect(threePaycheckMonths(source(ALEX, "2026-08-07", { cadence: "monthly" }), "2026-09-01", 12)).toEqual([]);
   });
 });
 

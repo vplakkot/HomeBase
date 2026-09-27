@@ -3,6 +3,7 @@ import type { FinanceSnapshot } from "./action-items";
 import { listBalances } from "./balances";
 import { listBills } from "./bills";
 import { listPeople, listSplits, type Person } from "./budget-year";
+import { listIncomeHistory } from "./income";
 import { readMonthsSince } from "./month";
 
 // Everything Finances' action items are worked out from (REQ-93), read in
@@ -16,13 +17,14 @@ export async function readFinanceSnapshot(
 ): Promise<FinanceSnapshot> {
   const [year, month] = today.split("-").map(Number);
   const yearAgo = `${year - 1}-${String(month).padStart(2, "0")}-01`;
-  const [who, splits, bills, months, balances, acks] = await Promise.all([
+  const [who, splits, bills, months, balances, acks, income] = await Promise.all([
     people ?? listPeople(supabase),
     listSplits(supabase),
     listBills(supabase),
     readMonthsSince(supabase, yearAgo),
     listBalances(supabase),
     supabase.from("action_item_acks").select("user_id, key"),
+    listIncomeHistory(supabase),
   ]);
   if (acks.error) throw new Error(`Could not read the acknowledgements: ${acks.error.message}`);
   return {
@@ -33,6 +35,7 @@ export async function readFinanceSnapshot(
     months,
     balances,
     acks: (acks.data ?? []) as { user_id: string; key: string }[],
+    income,
   };
 }
 

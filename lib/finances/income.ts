@@ -79,6 +79,28 @@ export function payDates(
   return dates;
 }
 
+// REQ-62: the paydays a source has in the month starting `startsOn`.
+export function paydaysIn(source: Pick<IncomeSource, "cadence" | "anchor_date">, startsOn: string): string[] {
+  const [year, month] = startsOn.split("-").map(Number);
+  const nextMonth = toIso(new Date(Date.UTC(year, month, 1)));
+  return payDates(source, startsOn, 6).filter((day) => day < nextMonth);
+}
+
+// REQ-62: the months, among the `count` starting with `startsOn`, in which
+// a pay-every-two-weeks source pays three times. Worked out from the
+// anchor every time, so a new anchor moves them.
+export function threePaycheckMonths(
+  source: Pick<IncomeSource, "cadence" | "anchor_date">,
+  startsOn: string,
+  count: number,
+): string[] {
+  if (source.cadence !== "biweekly") return [];
+  const [year, month] = startsOn.split("-").map(Number);
+  return Array.from({ length: count }, (_, i) => toIso(new Date(Date.UTC(year, month - 1 + i, 1)))).filter(
+    (first) => paydaysIn(source, first).length === 3,
+  );
+}
+
 export async function listIncomeSources(supabase: SupabaseClient): Promise<IncomeSource[]> {
   const { data, error } = await supabase
     .from("income_sources")

@@ -22,11 +22,11 @@ export async function closeMonthWithBalance(formData: FormData): Promise<void> {
 }
 
 // REQ-93 on Finances home: an item that's only news is cleared from its
-// own Acknowledge button, for the person who pressed it. Only the cash
-// gap is that kind; any other key is ignored.
+// own Acknowledge button, for the person who pressed it: the cash gap and
+// the two over-budget items. Any other key is ignored.
 export async function acknowledgeItem(formData: FormData): Promise<void> {
   const key = String(formData.get("key") ?? "");
-  if (!/^cash-gap:\d{4}-\d{2}-01$/.test(key)) return;
+  if (!/^(cash-gap|household-over):\d{4}-\d{2}-01$|^over:\d{4}-\d{2}-01:[0-9a-f-]{36}$/.test(key)) return;
   const supabase = await createClient();
   await acknowledge(supabase, key);
   revalidatePath("/", "layout");
