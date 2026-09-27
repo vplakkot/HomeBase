@@ -109,8 +109,6 @@ describe("AdminPage", () => {
     await expect(AdminPage()).rejects.toThrow("REDIRECT:/");
   });
 
-  // DESIGN.md §8: on a phone the console is reached from Home's Admin pill
-  // and has a way back at the top; a desktop has the sidebar instead.
   it("says which release and commit this device is running (REQ-127)", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     vi.stubEnv("VERCEL_GIT_COMMIT_REF", "main");
@@ -120,6 +118,8 @@ describe("AdminPage", () => {
     vi.unstubAllEnvs();
   });
 
+  // DESIGN.md §8: on a phone the console is reached from Home's Admin pill
+  // and has a way back at the top; a desktop has the sidebar instead.
   it("starts with the way back Home, for phones", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());
