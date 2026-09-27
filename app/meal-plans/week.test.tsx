@@ -255,15 +255,6 @@ describe("the week's plan (REQ-115)", () => {
     await takeOffPlan(form({ plan_id: PLAN, recipe_id: ID }));
     expect(fake.from.mock.results.some((result) => vi.mocked(result.value.delete).mock.calls.length > 0)).toBe(true);
   });
-
-  it("sums the plan up on Meal Plans' overview", async () => {
-    given({ recipes: [RECIPE, SECOND], recipe_imports: [], meal_plans: [openPlan([planned(ID, 4), planned(OTHER, 4)])] });
-    render(await MealPlansPage());
-    const card = screen.getByRole("link", { name: /Covers you through at least Mon, Sep 28/ });
-    expect(card.getAttribute("href")).toBe("/meal-plans/week");
-    expect(card.textContent).toContain("Test chicken rice · Test lentil soup");
-    expect(screen.getByRole("link", { name: /2 recipes/ }).getAttribute("href")).toBe("/meal-plans/recipes");
-  });
 });
 
 describe("closing a week and rating (REQ-116)", () => {
@@ -383,5 +374,46 @@ describe("suggestions while planning (REQ-117)", () => {
     given({ meal_plans: [openPlan([planned(ID, 4)])], recipes: [RECIPE, SECOND], meal_plan_recipes: [] });
     render(await WeekPage({ searchParams: Promise.resolve({ skip: OTHER }) }));
     expect(screen.queryByRole("region", { name: "Suggestions" })).toBeNull();
+  });
+});
+
+describe("Meal Plans' home (REQ-118)", () => {
+  it("shows the open plan's recipes as photos, and how far they carry us", async () => {
+    given({ recipes: [RECIPE, SECOND], recipe_imports: [], meal_plans: [openPlan([planned(ID, 4), planned(OTHER, 4)])] });
+    render(await MealPlansPage());
+    const week = screen.getByRole("region", { name: "This week" });
+    expect(within(week).getByText("Covers you through at least Mon, Sep 28")).toBeTruthy();
+    const dishes = within(within(week).getByRole("list", { name: "Recipes in the plan" })).getAllByRole("link");
+    expect(dishes.map((link) => link.textContent)).toEqual(["Test chicken rice", "Test lentil soup"]);
+    expect(dishes[0].querySelector("img")?.getAttribute("src")).toBe(`https://signed.example/${ID}/1.jpg`);
+    expect(within(week).getByRole("link", { name: "Open the plan" }).getAttribute("href")).toBe("/meal-plans/week");
+  });
+
+  it("prompts us to start a plan when none is open", async () => {
+    given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [] });
+    render(await MealPlansPage());
+    const week = screen.getByRole("region", { name: "This week" });
+    expect(within(week).getByText("What are we eating this week?")).toBeTruthy();
+    expect(within(week).getByRole("button", { name: "Start a plan" })).toBeTruthy();
+  });
+
+  it("shows the most planned and top rated recipes, total recipes and number of cuisines", async () => {
+    given({
+      recipes: [RECIPE, SECOND, { ...SECOND, id: "88888888-8888-4888-8888-888888888888", name: "Test pho", cuisine: "Vietnamese" }],
+      recipe_imports: [],
+      meal_plans: [],
+      meal_plan_recipes: [
+        { plan_id: PLAN, recipe_id: ID, carry_over: false, meal_plans: { starts_on: "2026-09-13", closed_at: "2026-09-19T20:00:00Z" } },
+        { plan_id: PLAN, recipe_id: ID, carry_over: false, meal_plans: { starts_on: "2026-09-20", closed_at: "2026-09-26T20:00:00Z" } },
+      ],
+      recipe_ratings: [{ recipe_id: OTHER, user_id: "user-1", stars: 5 }],
+    });
+    render(await MealPlansPage());
+    const kitchen = screen.getByRole("region", { name: "Our kitchen" });
+    const value = (label: string) => within(kitchen).getByText(label).nextElementSibling?.textContent;
+    expect(value("Most planned")).toBe("Test chicken rice × 2");
+    expect(value("Top rated")).toBe("Test lentil soup ★★★★★");
+    expect(value("Recipes")).toBe("3");
+    expect(value("Cuisines")).toBe("2");
   });
 });

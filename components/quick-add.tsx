@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import { StartPlanForm } from "../app/meal-plans/plan-forms";
 import { moduleBySlug, moduleColours } from "../lib/modules";
 import { BottomSheet } from "./bottom-sheet";
 import { PlusIcon } from "./icons";
@@ -8,15 +9,16 @@ import styles from "./quick-add.module.css";
 
 // Adding the day's most common things without leaving Home
 // (docs/design/DESIGN.md §4). A phone gets a bar fixed to the bottom of
-// the screen; a desktop gets buttons at the top right. Each opens a sheet,
-// and in v0.2 every sheet says the feature is coming.
+// the screen; a desktop gets buttons at the top right. Each opens a sheet.
+// New meal plan starts a plan there (REQ-118); the others say the
+// feature is coming.
 const ACTIONS = [
   { label: "Expense", title: "Add an expense", module: "finances" },
   { label: "Event", title: "Add an event", module: "calendar" },
-  { label: "Meal", title: "Add a meal", module: "meal-plans" },
+  { label: "New meal plan", title: "Start a meal plan", module: "meal-plans" },
 ] as const;
 
-export function QuickAdd({ variant }: { variant: "bar" | "buttons" }) {
+export function QuickAdd({ variant, today }: { variant: "bar" | "buttons"; today: string }) {
   const [openLabel, setOpenLabel] = useState<string | null>(null);
 
   return (
@@ -48,9 +50,14 @@ export function QuickAdd({ variant }: { variant: "bar" | "buttons" }) {
           onClose={() => setOpenLabel(null)}
           title={action.title}
         >
-          <p className={styles.soon}>
-            Coming soon. Adding from Home arrives with the {moduleBySlug(action.module).name} module.
-          </p>
+          {action.module === "meal-plans" ? (
+            // Starting a plan closes any open one (REQ-116).
+            <StartPlanForm today={today} thenWeek />
+          ) : (
+            <p className={styles.soon}>
+              Coming soon. Adding from Home arrives with the {moduleBySlug(action.module).name} module.
+            </p>
+          )}
         </BottomSheet>
       ))}
     </>

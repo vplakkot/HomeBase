@@ -235,3 +235,74 @@
   font-size: var(--text-body-sm);
   font-weight: 700;
 }
+
+/* REQ-118: the home is about food. A big, friendly line first. */
+.summary { composes: summary from "../drinks/drinks.module.css"; }
+
+/* This week's dishes as big photos on the mustard tint. */
+.foodGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.foodCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--module-quiet);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.foodPhoto {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--module-loud);
+}
+
+/* The fun numbers: four solid tiles in the module colour. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.stats > div {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--module-loud);
+  color: var(--color-ink);
+}
+
+.stats dt {
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+}
+
+.stats dd {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-display-sm);
+  font-weight: 700;
+}
+
+.stats a {
+  color: inherit;
+}
+
+.statNote {
+  font-size: var(--text-body-sm);
+}
+
+.stats .stars {
+  color: var(--color-ink);
+}

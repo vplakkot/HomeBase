@@ -1116,6 +1116,11 @@ ratings, the plan rows and each recipe's cook time. Carried-over recipes
 come first. "Not now" is kept in the page's address (`?skip=`), so it
 lasts for this visit and nothing is written.
 
+Meal Plans' home (REQ-118) reads the same rows: this week's recipes and
+their photos, and the fun numbers from `lib/meal-plans/home.ts`. Home's
+Quick add "New meal plan" sheet uses the same start-a-plan form and
+function, so starting from Home also closes an open plan.
+
 Scaling (`lib/meal-plans/scale.ts`) is plain arithmetic shared by the
 screen and the server: the browser shows the scaled card and sends only
 the ratio when saving, and the server scales the stored card itself.
