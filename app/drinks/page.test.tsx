@@ -340,6 +340,28 @@ describe("generic names in the list (Vin, 2026-09-26)", () => {
   });
 });
 
+// The label under "Drinks" names where you are; only the Overview says
+// "Overview" (Vin, 2026-09-27: it showed on every screen below the lists).
+describe("where you are, under the module's name", () => {
+  const where = () => screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent;
+  const WISH = drink("d9", "Someday Barolo", { how: "want_to_try" });
+
+  it("says Wines on a wine we've had and on Add by hand, and Want to try on a wish", async () => {
+    given([...DRINKS, WISH]);
+    render(await overview());
+    expect(where()).toBe("Overview");
+    cleanup();
+    render(await open("d1"));
+    expect(where()).toBe("Wines");
+    cleanup();
+    render(await open("d9"));
+    expect(where()).toBe("Want to try");
+    cleanup();
+    render(await NewDrinkPage());
+    expect(where()).toBe("Wines");
+  });
+});
+
 describe("the Overview (REQ-120)", () => {
   const WISH = drink("d9", "Someday Barolo", { how: "want_to_try", created_at: "2026-09-25T12:00:00Z" });
 

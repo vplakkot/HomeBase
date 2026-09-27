@@ -7,7 +7,7 @@ import styles from "../meal-plans.module.css";
 export default async function NewRecipePage() {
   const viewer = await mealPlansViewer();
   return (
-    <MealPlansScreen viewer={viewer} crumb="Add recipe" actions={<span />}>
+    <MealPlansScreen viewer={viewer} section="Recipes" crumb="Add recipe" actions={<span />}>
       <section className={styles.formCard} aria-label="Add recipe">
         <AddRecipe />
       </section>

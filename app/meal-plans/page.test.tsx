@@ -56,6 +56,8 @@ describe("a recipe card (REQ-110)", () => {
   it("shows the photo, links, facts, ingredients with quantities, steps and notes", async () => {
     given({ recipes: [RECIPE] });
     render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
+    // Under "Meal Plans", where you are: Recipes, not Overview.
+    expect(screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent).toBe("Recipes");
     const card = screen.getByRole("article", { name: "Test pasta" });
     expect(within(card).getByRole("img", { name: "Test pasta" }).getAttribute("src")).toBe(`https://signed.example/${ID}/1.jpg`);
     expect(within(card).getByRole("link", { name: "Watch the video" }).getAttribute("href")).toBe(RECIPE.video_url);
