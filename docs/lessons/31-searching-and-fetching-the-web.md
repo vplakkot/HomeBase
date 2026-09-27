@@ -37,10 +37,17 @@ for that attack is **server-side request forgery**.
 
 So `isPublicPage` lets through only an ordinary public web address:
 https, a real domain name, no numbers-only address, no `localhost` or
-`.local`, no password in the address, no unusual port. And a redirect
-isn't followed blindly: each hop is checked the same way before it's
-fetched, three hops at most. A page that redirects to `127.0.0.1` is
-refused, and a test proves it.
+`.local` (even written with a dot on the end, `localhost.`), no
+password in the address, no unusual port. A name is only a label,
+though: `anything.example.com` can point at `10.0.0.5`. So the server
+also looks the name up (`node:dns`) and refuses it unless every address
+it has is public. And a redirect isn't followed blindly: each hop is
+checked the same way before it's fetched, three hops at most. A page
+that redirects inside a network is refused, and a test proves it. The
+review of this pull request found the dot and the look-up gaps.
+
+A page is read to 3 MB at most, even from a site that never says how
+big it is: reading stops there instead of downloading the lot.
 
 Most recipe sites describe the recipe in a block written for search
 engines (JSON-LD, `"@type": "Recipe"`). When it's there, Gemini gets

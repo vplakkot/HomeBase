@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   MAX_PAGES,
+  isPrivateAddress,
   isPublicPage,
+  pointsOutside,
   isRecipePage,
   linksFrom,
   pagesFrom,
@@ -85,6 +87,9 @@ describe("reading a search's answer (REQ-112)", () => {
   });
 });
 
+// Every name resolves to an ordinary public address.
+const PUBLIC = (async () => [{ address: "93.184.216.34", family: 4 }]) as never;
+
 describe("reading the page we picked (REQ-112)", () => {
   it("fetches only ordinary public https pages", () => {
     expect(isPublicPage("https://curry.example.com/x")).toBe(true);
@@ -97,6 +102,8 @@ describe("reading the page we picked (REQ-112)", () => {
       "https://intranet/x",
       "https://user:pw@curry.example.com/x",
       "https://curry.example.com:8443/x",
+      "https://localhost./x",
+      "https://metadata.google.internal./x",
       "not a link",
       42,
     ]) {
@@ -111,6 +118,24 @@ describe("reading the page we picked (REQ-112)", () => {
     expect(recipeTextFrom(plain)).toBe("200 g chicken & rice");
   });
 
+  it("knows the addresses inside a network or on the machine itself", () => {
+    for (const inside of ["127.0.0.1", "10.1.2.3", "172.16.0.1", "192.168.1.1", "169.254.169.254", "100.64.0.1", "0.0.0.0", "::1", "fd00::1", "fe80::1", "::ffff:127.0.0.1"]) {
+      expect(isPrivateAddress(inside)).toBe(true);
+    }
+    for (const outside of ["93.184.216.34", "172.32.0.1", "2606:4700::1111"]) {
+      expect(isPrivateAddress(outside)).toBe(false);
+    }
+  });
+
+  it("refuses a public-looking name that points inside a network, or doesn't resolve", async () => {
+    const points = (...addresses: string[]) =>
+      (async () => addresses.map((address) => ({ address, family: address.includes(":") ? 6 : 4 }))) as never;
+    expect(await pointsOutside("https://curry.example.com/x", points("93.184.216.34"))).toBe(true);
+    expect(await pointsOutside("https://127.0.0.1.nip.example/x", points("127.0.0.1"))).toBe(false);
+    expect(await pointsOutside("https://mixed.example.com/x", points("93.184.216.34", "10.0.0.5"))).toBe(false);
+    expect(await pointsOutside("https://nowhere.example/x", points())).toBe(false);
+  });
+
   it("follows a redirect to another public page, but never to a private one", async () => {
     const pages: Record<string, Response> = {
       "https://curry.example.com/old": new Response(null, { status: 301, headers: { location: "/new" } }),
@@ -118,13 +143,33 @@ describe("reading the page we picked (REQ-112)", () => {
       "https://sneaky.example.com/x": new Response(null, { status: 302, headers: { location: "https://127.0.0.1/admin" } }),
     };
     const fetchImpl = vi.fn(async (url: string | URL | Request) => pages[String(url)]) as unknown as typeof fetch;
-    expect(await readPage("https://curry.example.com/old", fetchImpl)).toBe("Fry 200 g chicken.");
-    await expect(readPage("https://sneaky.example.com/x", fetchImpl)).rejects.toThrow("Not a public web page");
+    expect(await readPage("https://curry.example.com/old", fetchImpl, PUBLIC)).toBe("Fry 200 g chicken.");
+    await expect(readPage("https://sneaky.example.com/x", fetchImpl, PUBLIC)).rejects.toThrow("Not a public web page");
+    // A redirect to a name that points inside is refused before it's fetched.
+    const inside = (async (host: string) =>
+      [{ address: host === "curry.example.com" ? "93.184.216.34" : "10.0.0.5", family: 4 }]) as never;
+    pages["https://curry.example.com/hop"] = new Response(null, { status: 302, headers: { location: "https://lan.example.com/admin" } });
+    await expect(readPage("https://curry.example.com/hop", fetchImpl, inside)).rejects.toThrow("Not a public web page");
+    expect(fetchImpl).not.toHaveBeenCalledWith("https://lan.example.com/admin", expect.anything());
     expect(fetchImpl).not.toHaveBeenCalledWith("https://127.0.0.1/admin", expect.anything());
   });
 
   it("fails plainly on a page that won't open", async () => {
     const fetchImpl = vi.fn(async () => new Response("gone", { status: 404 })) as unknown as typeof fetch;
-    await expect(readPage("https://curry.example.com/x", fetchImpl)).rejects.toThrow("The page answered 404");
+    await expect(readPage("https://curry.example.com/x", fetchImpl, PUBLIC)).rejects.toThrow("The page answered 404");
+  });
+
+  it("stops reading a page at 3 MB, however much the site sends", async () => {
+    let sent = 0;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        sent += 1024 * 1024;
+        controller.enqueue(new TextEncoder().encode("a".repeat(1024 * 1024)));
+      },
+    });
+    const fetchImpl = vi.fn(async () => new Response(endless, { status: 200 })) as unknown as typeof fetch;
+    const text = await readPage("https://curry.example.com/x", fetchImpl, PUBLIC);
+    expect(text.length).toBeLessThanOrEqual(30_000);
+    expect(sent).toBeLessThanOrEqual(4 * 1024 * 1024);
   });
 });

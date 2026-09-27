@@ -21,7 +21,7 @@ import { isPublicPage, readPage, type SearchResult } from "../../lib/meal-plans/
 import { MAX_VIDEO_BYTES, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
 import { PROCESSING_GIVES_UP_MS, UPLOAD_GIVES_UP_MS, processVideoImport } from "../../lib/meal-plans/import-job";
 import { RECIPE_PHOTOS, recipePhotoPath } from "../../lib/meal-plans/photos";
-import { linkOrNull, readImports, recipeFieldsFrom, type RecipeImport } from "../../lib/meal-plans/recipes";
+import { linkOrNull, readImports, recipeFieldsFrom, recipeMissing, type RecipeImport } from "../../lib/meal-plans/recipes";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { createClient } from "../../lib/supabase/server";
 
@@ -257,6 +257,13 @@ export async function saveDraft(_prev: FormState, formData: FormData): Promise<F
   // it was asked for; any other draft becomes a new card.
   const id = idFrom(draft.recipe_id) ?? crypto.randomUUID();
   const ai_generated = draft.ai_generated === true;
+  // The card must still be waiting for its recipe: if either of us typed
+  // one in meanwhile, the generic version doesn't overwrite it.
+  if (draft.recipe_id) {
+    const { data: card } = await supabase.from("recipes").select("ingredients, steps").eq("id", id).maybeSingle();
+    if (!card) return { error: "That recipe is gone. Remove this draft." };
+    if (!recipeMissing(card)) return { error: "That card has a recipe now. Remove this draft, or edit the card instead." };
+  }
   try {
     await keepCuisine(supabase, fields.cuisine);
     const { error } = draft.recipe_id

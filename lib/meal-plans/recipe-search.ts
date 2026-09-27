@@ -1,3 +1,6 @@
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
+
 // REQ-112's web flows: finding recipe pages for a dish by name, and
 // reading the one we pick. The search is Gemini's own Google Search (Vin,
 // 2026-09-27), with the same key as everything else Gemini does.
@@ -56,11 +59,36 @@ export function isPublicPage(value: unknown): value is string {
   } catch {
     return false;
   }
-  const host = url.hostname.toLowerCase();
+  // "localhost." is localhost: a name may end in a dot.
+  const host = url.hostname.toLowerCase().replace(/\.+$/, "");
   if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443")) return false;
   if (!host.includes(".") || host.endsWith(".local") || host.endsWith(".internal") || host === "localhost") return false;
   if (/^[\d.]+$/.test(host) || host.startsWith("[")) return false;
   return true;
+}
+
+// An address inside a network or on the machine itself: loopback,
+// private ranges, link-local (where cloud servers answer questions about
+// themselves), the carrier range, and their IPv6 counterparts.
+export function isPrivateAddress(address: string): boolean {
+  const mapped = address.toLowerCase().replace(/^::ffff:/, "");
+  if (isIP(mapped) === 4) {
+    const [a, b] = mapped.split(".").map(Number);
+    return (
+      a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224
+    );
+  }
+  return mapped === "::" || mapped === "::1" || /^f[cd]/.test(mapped) || /^fe[89ab]/.test(mapped);
+}
+
+// The name's actual addresses, looked up the way the download will: a
+// public-looking name can still point inside a network, so every address
+// it has must be public.
+export async function pointsOutside(url: string, resolve: typeof lookup = lookup): Promise<boolean> {
+  const host = new URL(url).hostname.replace(/\.+$/, "");
+  const addresses = await resolve(host, { all: true }).catch(() => []);
+  return addresses.length > 0 && addresses.every(({ address }) => !isPrivateAddress(address));
 }
 
 export function isRecipePage(url: string): boolean {
@@ -133,12 +161,44 @@ export function recipeTextFrom(html: string): string {
     .slice(0, MAX_PAGE_TEXT);
 }
 
+// A page's text, but no more than `limit` bytes of it, however much the
+// site sends: reading stops there rather than downloading it all.
+async function firstBytes(response: Response, limit: number): Promise<string> {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (size < limit) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    size += value.byteLength;
+  }
+  await reader.cancel().catch(() => undefined);
+  const bytes = new Uint8Array(Math.min(size, limit));
+  let at = 0;
+  for (const chunk of chunks) {
+    const part = chunk.subarray(0, bytes.length - at);
+    bytes.set(part, at);
+    at += part.byteLength;
+    if (at >= bytes.length) break;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 // Downloads the page we picked. A redirect is followed only to another
-// public address, three at most.
-export async function readPage(url: string, fetchImpl: typeof fetch = fetch): Promise<string> {
+// public address, three at most, and every hop's name is looked up first.
+// (A name could still change what it points to between that look-up and
+// the download; https to a real certificate, port 443 only, makes that
+// hard to use.)
+export async function readPage(
+  url: string,
+  fetchImpl: typeof fetch = fetch,
+  resolve: typeof lookup = lookup,
+): Promise<string> {
   let at = url;
   for (let hop = 0; hop < 4; hop += 1) {
-    if (!isPublicPage(at)) throw new Error("Not a public web page");
+    if (!isPublicPage(at) || !(await pointsOutside(at, resolve))) throw new Error("Not a public web page");
     const response = await fetchImpl(at, {
       redirect: "manual",
       headers: { "User-Agent": "Mozilla/5.0 (compatible; HomeBase recipe reader)", Accept: "text/html" },
@@ -152,8 +212,7 @@ export async function readPage(url: string, fetchImpl: typeof fetch = fetch): Pr
     if (!response.ok) throw new Error(`The page answered ${response.status}`);
     const size = Number(response.headers.get("content-length") ?? 0);
     if (size > MAX_PAGE_BYTES) throw new Error("The page is too big");
-    const html = (await response.text()).slice(0, MAX_PAGE_BYTES);
-    return recipeTextFrom(html);
+    return recipeTextFrom(await firstBytes(response, MAX_PAGE_BYTES));
   }
   throw new Error("Too many redirects");
 }

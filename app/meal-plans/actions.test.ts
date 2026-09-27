@@ -330,14 +330,24 @@ describe("finding the recipe on the web (REQ-112, flows 2 and 3)", () => {
   });
 
   it("saving that draft fills in the same card and keeps it marked AI-generated", async () => {
-    given({ recipe_imports: [{ photo: null, recipe_id: RECIPE, ai_generated: true }] });
+    given({ recipe_imports: [{ photo: null, recipe_id: RECIPE, ai_generated: true }], recipes: [{ ingredients: [], steps: [] }] });
     await expect(saveDraft({}, form({ import_id: IMPORT, name: "Test curry", item: "chicken", steps: "Fry it." }))).rejects.toThrow(
       `REDIRECT:/meal-plans/${RECIPE}`,
     );
-    const recipes = on("recipes")[0];
+    const recipes = on("recipes").at(-1)!;
     expect(recipes.insert).not.toHaveBeenCalled();
     expect(recipes.update).toHaveBeenCalledWith(expect.objectContaining({ name: "Test curry", ai_generated: true }));
     expect(recipes.eq).toHaveBeenCalledWith("id", RECIPE);
+  });
+
+  it("won't overwrite a card that was typed in meanwhile, or one that's gone, and keeps the draft", async () => {
+    const save = () => saveDraft({}, form({ import_id: IMPORT, name: "Test curry", item: "chicken", steps: "Fry it." }));
+    given({ recipe_imports: [{ photo: null, recipe_id: RECIPE, ai_generated: true }], recipes: [{ ingredients: [], steps: ["Typed in."] }] });
+    expect(await save()).toEqual({ error: "That card has a recipe now. Remove this draft, or edit the card instead." });
+    given({ recipe_imports: [{ photo: null, recipe_id: RECIPE, ai_generated: true }], recipes: [] });
+    expect(await save()).toEqual({ error: "That recipe is gone. Remove this draft." });
+    expect(on("recipes").some((query) => query.update.mock.calls.length > 0)).toBe(false);
+    expect(on("recipe_imports").some((query) => query.delete.mock.calls.length > 0)).toBe(false);
   });
 
   it("any edit clears AI-generated", async () => {
