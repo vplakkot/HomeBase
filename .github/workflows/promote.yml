@@ -39,11 +39,18 @@ jobs:
           # minutes), and stop early if it errored or was cancelled.
           deadline=$((SECONDS + 600))
           while true; do
-            response=$(curl -s \
+            # A failed request or a non-JSON answer (say, a 502 page) is
+            # treated as "nothing listed yet" and retried, not fatal.
+            response=$(curl -s --max-time 30 \
               -H "Authorization: Bearer $VERCEL_TOKEN" \
-              "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&target=production&limit=100")
+              "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&target=production&limit=100" \
+              || true)
+            if ! echo "$response" | jq -e . > /dev/null 2>&1; then
+              echo "::warning::No usable answer from Vercel. Retrying."
+              response='{}'
+            fi
 
-            api_error=$(echo "$response" | jq -r '.error.message // empty')
+            api_error=$(echo "$response" | jq -r '.error.message? // empty')
             if [ -n "$api_error" ]; then
               echo "::warning::Vercel API said: $api_error. Retrying."
             fi
@@ -60,14 +67,14 @@ jobs:
             fi
 
             state=$(echo "$builds" | jq -r '.[0] | (.readyState // .state) // empty')
-            case "$state" in
-              ERROR|CANCELED)
-                echo "::error::Vercel's build of $GITHUB_SHA (the commit tag" \
-                  "${{ github.ref_name }} points to) ended in $state, so there" \
-                  "is nothing to promote. Production is unchanged." >&2
-                exit 1
-                ;;
-            esac
+            unfinished=$(echo "$builds" | jq \
+              '[.[] | select((.readyState // .state) | IN("ERROR", "CANCELED") | not)] | length')
+            if [ -n "$state" ] && [ "$unfinished" -eq 0 ]; then
+              echo "::error::Vercel's build of $GITHUB_SHA (the commit tag" \
+                "${{ github.ref_name }} points to) ended in $state, so there" \
+                "is nothing to promote. Production is unchanged." >&2
+              exit 1
+            fi
 
             if [ "$SECONDS" -ge "$deadline" ]; then
               if [ -z "$state" ]; then

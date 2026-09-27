@@ -141,7 +141,7 @@ sequenceDiagram
    whose commit SHA matches the commit the tag points to. It keeps asking
    every 15 seconds until that build is finished (see "Pushing the tag
    too soon" below), stops early if the build failed, and gives up after
-   10 minutes. Either way it fails, production is left as it was — see
+   10 minutes. Whichever way it fails, production is left as it was — see
    "The promote step must target the tagged commit" below for why this
    isn't just "the latest one."
 3. Runs `vercel promote <that deployment> --yes`, using the Vercel CLI, to
@@ -289,10 +289,11 @@ The fix is to wait instead of hoping. The lookup step now checks the
 build's state every 15 seconds:
 
 - **READY** — promote it.
-- **ERROR or CANCELED** — stop now with a message saying the build
-  failed; there is nothing to promote.
-- **Anything else, or not listed yet** — check again, for up to 10
-  minutes, then fail and leave production alone.
+- **ERROR or CANCELED** (every build of the commit) — stop now with a
+  message saying the build failed; there is nothing to promote.
+- **Anything else, not listed yet, or no usable answer from Vercel** —
+  check again, for up to 10 minutes, then fail and leave production
+  alone.
 
 If more than one build exists for the commit (someone pressed Redeploy),
 any finished one will do: they are built from the same code.
