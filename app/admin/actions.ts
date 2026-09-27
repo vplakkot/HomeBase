@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { sendTestNotification } from "../../lib/notifications/send";
+import { cleanName, NAME_MAX } from "../../lib/auth/names";
 import { hasPermission } from "../../lib/auth/permissions";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { createClient } from "../../lib/supabase/server";
 
 export type CreateMemberState = { error?: string; created?: string };
 export type ChangeRoleState = { error?: string; saved?: boolean };
+export type RenameState = { error?: string; saved?: boolean };
 export type ResetPasswordState = { error?: string; reset?: boolean };
 export type NotificationsState = { error?: string; enabled?: boolean };
 export type SendTestState = {
@@ -171,6 +173,36 @@ export async function resetPassword(
   }
 
   return { reset: true };
+}
+
+// REQ-124: an admin setting any member's name from the People card. Only
+// someone in this household can be renamed: the id posted is checked
+// against the member list first, since the secret key could rename any
+// account. Renaming yourself here refreshes your own token, as Profile
+// does, so the new name shows at once.
+export async function renameMember(_previous: RenameState, formData: FormData): Promise<RenameState> {
+  const userId = String(formData.get("userId") ?? "");
+  const name = cleanName(formData.get("name"));
+  if (!userId) return { error: "Which member?" };
+  if (!name) return { error: `Type a name, up to ${NAME_MAX} characters.` };
+
+  const supabase = await requireManageMembers();
+  const { data: member, error: lookup } = await supabase
+    .from("household_members")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (lookup) return { error: lookup.message };
+  if (!member) return { error: "That person isn't in this household." };
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, { user_metadata: { name } });
+  if (error) return { error: error.message };
+
+  const { data } = await supabase.auth.getClaims();
+  if (data?.claims?.sub === userId) await supabase.auth.refreshSession();
+  revalidatePath("/", "layout");
+  return { saved: true };
 }
 
 // "Send test now": a test notification, started by an admin. The hourly

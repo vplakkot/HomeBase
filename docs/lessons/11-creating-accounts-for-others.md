@@ -135,6 +135,23 @@ forget: `refreshSession()`. The token in the cookie still says
 refresh the person would be bounced straight back to the page they just
 finished.
 
+## Changing a name is the same trick
+
+REQ-124 lets you set your own name in Profile, and an admin set anyone's
+from the People card. The name lives in `user_metadata`, and the token
+carries a copy of it, the way a name badge copies what's on file. Pages
+read the badge, not the file. So after saving, the server asks for a new
+token with `refreshSession()`, and the next page shows the new name. When
+an admin renames someone else, that person's badge updates the next time
+their token renews on its own, which should be within the hour (a
+token's usual life; not yet checked against Supabase). Screens that read names
+straight from the database, like the People card and Finances, show the
+change at once.
+
+Renaming someone else needs the secret key (`updateUserById`), which can
+rename *any* account. So `renameMember` first checks that the id it was
+sent belongs to this household.
+
 ## The temporary password is data, not a secret
 
 The admin types it, reads it out, and it is replaced on first use. It

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Names can be edited. Set your own in Profile (the pill on Home, or
+  the sidebar); an admin can set anyone's from the People card in the
+  admin console. A blank name isn't saved, and names are up to 50
+  characters. Someone without a name is still shown by their email.
 - On the installed app, pull down at the top of any screen to refresh
   and load the newest release. When a newer one is out, a "New version
   ready" note with Refresh stays at the bottom until pressed. The admin
