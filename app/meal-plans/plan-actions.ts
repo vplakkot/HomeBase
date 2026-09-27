@@ -10,7 +10,8 @@ import { isFactor, scaleRecipe } from "../../lib/meal-plans/scale";
 import { createClient } from "../../lib/supabase/server";
 
 // Meal Plan batch 2: saving a scaled card (REQ-113), hiding a recipe
-// (REQ-114), and the week's plan (REQ-115).
+// (REQ-114), and the week's plan (REQ-115). Batch 3: closing a week,
+// carrying a recipe over and rating (REQ-116).
 
 export type PlanFormState = { error?: string };
 
@@ -69,14 +70,15 @@ export async function setHidden(formData: FormData): Promise<void> {
   refresh();
 }
 
-// REQ-115: either of us starts a plan on any day, when none is open.
+// REQ-115: either of us starts a plan on any day. REQ-116: starting one
+// closes the open plan first, in the same step on the database.
 export async function startPlan(_prev: PlanFormState, formData: FormData): Promise<PlanFormState> {
   const supabase = await requireMember();
   const startsOn = dayFrom(formData.get("starts_on"));
   if (!startsOn) return { error: "Choose the day the plan starts." };
-  const { error } = await supabase.from("meal_plans").insert({ starts_on: startsOn });
+  const { error } = await supabase.rpc("start_meal_plan", { p_starts_on: startsOn });
   // The database allows one open plan; the other person may have just started it.
-  if (error?.code === "23505") return { error: "A plan is already open. Refresh to see it." };
+  if (error?.code === "23505") return { error: "A plan was just started. Refresh to see it." };
   if (error) {
     Sentry.captureException(new Error(error.message));
     return { error: "The plan couldn't be started. Try again." };
@@ -91,7 +93,7 @@ export async function changePlanStart(_prev: PlanFormState, formData: FormData):
   const startsOn = dayFrom(formData.get("starts_on"));
   if (!id) return { error: "That plan is gone." };
   if (!startsOn) return { error: "Choose the day the plan starts." };
-  const { error } = await supabase.from("meal_plans").update({ starts_on: startsOn }).eq("id", id);
+  const { error } = await supabase.from("meal_plans").update({ starts_on: startsOn }).eq("id", id).is("closed_at", null);
   if (error) {
     Sentry.captureException(new Error(error.message));
     return { error: "The start day couldn't be changed. Try again." };
@@ -106,6 +108,27 @@ export async function removePlan(formData: FormData): Promise<void> {
   const id = idFrom(formData.get("plan_id"));
   if (!id) return;
   const { error } = await supabase.from("meal_plans").delete().eq("id", id);
+  if (error) Sentry.captureException(new Error(error.message));
+  refresh();
+}
+
+// REQ-116: closing counts everything cooked except what's carried over,
+// and asks each of us to rate the dishes cooked for the first time.
+export async function closePlan(formData: FormData): Promise<void> {
+  const supabase = await requireMember();
+  const id = idFrom(formData.get("plan_id"));
+  if (!id) return;
+  const { error } = await supabase.rpc("close_meal_plan", { p_plan: id });
+  if (error) Sentry.captureException(new Error(error.message));
+  refresh();
+}
+
+// Nothing is stuck: the plan just closed can open again.
+export async function reopenPlan(formData: FormData): Promise<void> {
+  const supabase = await requireMember();
+  const id = idFrom(formData.get("plan_id"));
+  if (!id) return;
+  const { error } = await supabase.rpc("reopen_meal_plan", { p_plan: id });
   if (error) Sentry.captureException(new Error(error.message));
   refresh();
 }
@@ -136,7 +159,7 @@ function plannedFrom(formData: FormData) {
   return planId && recipeId ? { planId, recipeId } : null;
 }
 
-async function changePlanned(formData: FormData, change: { servings?: number; cooked?: boolean } | "remove") {
+async function changePlanned(formData: FormData, change: { servings?: number; cooked?: boolean; carry_over?: boolean } | "remove") {
   const supabase = await requireMember();
   const row = plannedFrom(formData);
   if (!row) return;
@@ -152,11 +175,68 @@ export async function setPlanServings(formData: FormData): Promise<void> {
   if (isPlanServings(servings)) await changePlanned(formData, { servings });
 }
 
-// REQ-115: ticking a recipe cooked is optional.
+// REQ-115: ticking a recipe cooked is optional. Cooked and carried over
+// rule each other out.
 export async function setCooked(formData: FormData): Promise<void> {
-  await changePlanned(formData, { cooked: formData.get("cooked") === "yes" });
+  const cooked = formData.get("cooked") === "yes";
+  await changePlanned(formData, cooked ? { cooked, carry_over: false } : { cooked });
+}
+
+// REQ-116: a recipe we didn't get to moves to the next plan.
+export async function setCarryOver(formData: FormData): Promise<void> {
+  const carry = formData.get("carry_over") === "yes";
+  await changePlanned(formData, carry ? { carry_over: true, cooked: false } : { carry_over: false });
 }
 
 export async function takeOffPlan(formData: FormData): Promise<void> {
   await changePlanned(formData, "remove");
+}
+
+async function signedInId(supabase: Awaited<ReturnType<typeof createClient>>): Promise<string> {
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) redirect("/sign-in");
+  return userId;
+}
+
+// REQ-116: 1 to 5 stars, your own only. Rating again replaces it, and
+// rating answers the question asked when the plan closed.
+export async function rateRecipe(_prev: PlanFormState, formData: FormData): Promise<PlanFormState> {
+  const supabase = await requireMember();
+  const recipeId = idFrom(formData.get("recipe_id"));
+  const stars = Number(formData.get("stars"));
+  if (!recipeId) return { error: "That recipe is gone." };
+  if (!Number.isInteger(stars) || stars < 1 || stars > 5) return { error: "Choose 1 to 5 stars." };
+  const userId = await signedInId(supabase);
+  const { error } = await supabase
+    .from("recipe_ratings")
+    .upsert({ recipe_id: recipeId, user_id: userId, stars }, { onConflict: "recipe_id,user_id" });
+  if (error) {
+    Sentry.captureException(new Error(error.message));
+    return { error: "The rating couldn't be saved. Try again." };
+  }
+  refresh();
+  return {};
+}
+
+// A rating given by mistake can be taken back (never locked).
+export async function clearRecipeRating(formData: FormData): Promise<void> {
+  const supabase = await requireMember();
+  const recipeId = idFrom(formData.get("recipe_id"));
+  if (!recipeId) return;
+  const userId = await signedInId(supabase);
+  const { error } = await supabase.from("recipe_ratings").delete().eq("recipe_id", recipeId).eq("user_id", userId);
+  if (error) Sentry.captureException(new Error(error.message));
+  refresh();
+}
+
+// Skipping takes the question away; the card can still be rated later.
+export async function skipRating(formData: FormData): Promise<void> {
+  const supabase = await requireMember();
+  const recipeId = idFrom(formData.get("recipe_id"));
+  if (!recipeId) return;
+  const userId = await signedInId(supabase);
+  const { error } = await supabase.from("recipe_rating_prompts").delete().eq("recipe_id", recipeId).eq("user_id", userId);
+  if (error) Sentry.captureException(new Error(error.message));
+  refresh();
 }

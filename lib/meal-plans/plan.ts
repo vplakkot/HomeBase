@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const PLAN_SERVINGS = [4, 2] as const;
 export type PlanServings = (typeof PLAN_SERVINGS)[number];
 
-export type PlannedRecipe = { recipe_id: string; servings: PlanServings; cooked: boolean; added_at: string };
+export type PlannedRecipe = { recipe_id: string; servings: PlanServings; cooked: boolean; carry_over: boolean; added_at: string };
 export type MealPlan = { id: string; starts_on: string; recipes: PlannedRecipe[] };
 
 export function isPlanServings(value: number): value is PlanServings {
@@ -17,7 +17,7 @@ export function isPlanServings(value: number): value is PlanServings {
 export async function readOpenPlan(supabase: SupabaseClient): Promise<MealPlan | null> {
   const { data, error } = await supabase
     .from("meal_plans")
-    .select("id, starts_on, meal_plan_recipes(recipe_id, servings, cooked, added_at)")
+    .select("id, starts_on, meal_plan_recipes(recipe_id, servings, cooked, carry_over, added_at)")
     .is("closed_at", null)
     .maybeSingle();
   if (error) throw new Error(`Could not read the plan: ${error.message}`);
@@ -27,23 +27,58 @@ export async function readOpenPlan(supabase: SupabaseClient): Promise<MealPlan |
   return { id: row.id, starts_on: row.starts_on, recipes };
 }
 
+// The plan closed last, which can be reopened while no other is open.
+export async function readLastClosedPlan(supabase: SupabaseClient): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("meal_plans")
+    .select("id")
+    .not("closed_at", "is", null)
+    .order("closed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Could not read the last plan: ${error.message}`);
+  return (data as { id: string } | null)?.id ?? null;
+}
+
 // A recipe's times planned and date last planned (REQ-115, shown on the
 // card and sorted by in the library), counted from every plan it's in.
-export type PlanStats = { times: number; last: string | null };
+// A recipe carried over (REQ-116) wasn't really planned that week, so it
+// counts once it's in a plan again. `first` is the day it was first
+// planned, for "Try something new" (REQ-117).
+export type PlanStats = { times: number; last: string | null; first: string | null };
+export type PlanRow = { plan_id: string; recipe_id: string; carry_over: boolean; meal_plans: { starts_on: string; closed_at: string | null } | null };
 
-export async function readPlanStats(supabase: SupabaseClient): Promise<Map<string, PlanStats>> {
-  const { data, error } = await supabase.from("meal_plan_recipes").select("recipe_id, meal_plans(starts_on)");
+export async function readPlanRows(supabase: SupabaseClient): Promise<PlanRow[]> {
+  const { data, error } = await supabase.from("meal_plan_recipes").select("plan_id, recipe_id, carry_over, meal_plans(starts_on, closed_at)");
   if (error) throw new Error(`Could not read planned recipes: ${error.message}`);
+  return (data ?? []) as unknown as PlanRow[];
+}
+
+export function planStats(rows: readonly PlanRow[]): Map<string, PlanStats> {
   const stats = new Map<string, PlanStats>();
-  for (const row of (data ?? []) as unknown as { recipe_id: string; meal_plans: { starts_on: string } | null }[]) {
+  for (const row of rows) {
+    if (row.carry_over) continue;
     const day = row.meal_plans?.starts_on ?? null;
-    const now = stats.get(row.recipe_id) ?? { times: 0, last: null };
-    stats.set(row.recipe_id, { times: now.times + 1, last: day && (!now.last || day > now.last) ? day : now.last });
+    const now = stats.get(row.recipe_id) ?? { times: 0, last: null, first: null };
+    stats.set(row.recipe_id, {
+      times: now.times + 1,
+      last: day && (!now.last || day > now.last) ? day : now.last,
+      first: day && (!now.first || day < now.first) ? day : now.first,
+    });
   }
   return stats;
 }
 
-function addDays(day: string, days: number): string {
+export async function readPlanStats(supabase: SupabaseClient): Promise<Map<string, PlanStats>> {
+  return planStats(await readPlanRows(supabase));
+}
+
+// REQ-116: what the last plan closed carried over, to propose first.
+export function carriedOver(rows: readonly PlanRow[], lastClosed: string | null): string[] {
+  return rows.filter((row) => row.carry_over && row.plan_id === lastClosed).map((row) => row.recipe_id);
+}
+
+export function addDays(day: string, days: number): string {
   const date = new Date(`${day}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);

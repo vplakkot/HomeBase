@@ -3,6 +3,7 @@ import { signedPhotoLinks, thumbPath } from "../../../lib/drinks/photos";
 import { libraryRecipes, type LibraryQuery } from "../../../lib/meal-plans/library";
 import { RECIPE_PHOTOS } from "../../../lib/meal-plans/photos";
 import { readPlanStats } from "../../../lib/meal-plans/plan";
+import { averageRatings, readRatings } from "../../../lib/meal-plans/ratings";
 import { cookTimeText, readCuisines, readRecipes } from "../../../lib/meal-plans/recipes";
 import { MealPlansScreen, mealPlansViewer } from "../frame";
 import { LibraryFilters, LibrarySearch } from "../library-controls";
@@ -12,12 +13,13 @@ import styles from "../meal-plans.module.css";
 // Hidden recipes have a list of their own, where they can come back.
 export default async function RecipesPage({ searchParams }: { searchParams: Promise<LibraryQuery> }) {
   const [viewer, query] = await Promise.all([mealPlansViewer(), searchParams]);
-  const [all, stats, cuisines] = await Promise.all([
+  const [all, stats, cuisines, ratings] = await Promise.all([
     readRecipes(viewer.supabase),
     readPlanStats(viewer.supabase),
     readCuisines(viewer.supabase),
+    readRatings(viewer.supabase),
   ]);
-  const recipes = libraryRecipes(all, stats, query);
+  const recipes = libraryRecipes(all, stats, query, averageRatings(ratings));
   const hiddenCount = all.filter((recipe) => recipe.hidden).length;
   const showingHidden = query.hidden === "yes";
   const thumbs = await signedPhotoLinks(

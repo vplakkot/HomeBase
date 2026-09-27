@@ -1085,14 +1085,36 @@ starter can see, and saving it makes the recipe and removes the draft.
 ### The week's plan and the library (REQ-113 to REQ-115)
 
 `meal_plans` holds one plan per week, started on any day. A partial
-unique index allows only one with no `closed_at` (a later batch closes
-a week), so two people starting a plan at once can't make two.
+unique index allows only one with no `closed_at`, so two people
+starting a plan at once can't make two.
 `meal_plan_recipes` puts a recipe in a plan once, at 4 servings or 2,
 with an optional cooked tick; removing a plan removes its rows. A
 recipe's "times planned" and "last planned" aren't stored: they're
 counted from these rows each time (`lib/meal-plans/plan.ts`), so taking
 a recipe off a plan can't leave a stale count. `recipes.hidden` keeps a
 recipe out of the library without deleting it.
+
+### Closing a week, rating and suggestions (REQ-116, REQ-117)
+
+Closing and starting plans happen in three database functions, so each
+is one step no matter who else is using the app: `close_meal_plan`
+marks every recipe cooked except those with `carry_over`, writes a
+rating question into `recipe_rating_prompts` for every household member
+for each dish cooked for the first time, and sets `closed_at`.
+`start_meal_plan` closes the open plan first, then starts the new one.
+`reopen_meal_plan` opens the last plan closed again, while no other is
+open, and takes back its unanswered questions. `recipe_ratings` holds
+one 1–5 rating per person per recipe; a trigger removes the matching
+question when someone rates. Each person sees only their own
+questions; everyone sees every rating. A closed plan's recipes can't be
+added, changed or taken off (the row-level rules check
+`plan_is_open`), so a screen left open can't change a finished week.
+
+Suggestions (`lib/meal-plans/suggest.ts`) aren't stored: they're worked
+out on the server from the whole library on every visit, from the
+ratings, the plan rows and each recipe's cook time. Carried-over recipes
+come first. "Not now" is kept in the page's address (`?skip=`), so it
+lasts for this visit and nothing is written.
 
 Scaling (`lib/meal-plans/scale.ts`) is plain arithmetic shared by the
 screen and the server: the browser shows the scaled card and sends only

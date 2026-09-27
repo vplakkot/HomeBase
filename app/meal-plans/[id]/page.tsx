@@ -1,32 +1,39 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { readPeople } from "../../../lib/drinks/drinks";
 import { signedPhotoLinks } from "../../../lib/drinks/photos";
 import { RECIPE_PHOTOS } from "../../../lib/meal-plans/photos";
 import { dayLabel, readOpenPlan, readPlanStats } from "../../../lib/meal-plans/plan";
+import { readRatings, starsText } from "../../../lib/meal-plans/ratings";
 import { cookTimeText, readRecipe } from "../../../lib/meal-plans/recipes";
 import { mainMeatIndex } from "../../../lib/meal-plans/scale";
 import { removeRecipe } from "../actions";
 import { MealPlansScreen, mealPlansViewer } from "../frame";
-import { setHidden } from "../plan-actions";
-import { AddToWeekButton } from "../plan-forms";
+import { clearRecipeRating, setHidden } from "../plan-actions";
+import { AddToWeekButton, RateRecipeForm } from "../plan-forms";
 import { ScaledRecipe } from "../scale-box";
 import styles from "../meal-plans.module.css";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
 // REQ-110: one recipe as one card: photo, links, the facts, ingredients
-// with quantities, steps and notes, and how often we've planned it
-// (REQ-115). Ratings arrive with closing a week.
+// with quantities, steps and notes, how often we've planned it (REQ-115)
+// and each person's rating, which its owner changes here (REQ-116).
 export default async function RecipePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const viewer = await mealPlansViewer();
-  const [recipe, stats, plan] = await Promise.all([
+  const [recipe, stats, plan, ratings, people] = await Promise.all([
     readRecipe(viewer.supabase, id),
     readPlanStats(viewer.supabase),
     readOpenPlan(viewer.supabase),
+    readRatings(viewer.supabase),
+    readPeople(viewer.supabase),
   ]);
   if (!recipe) notFound();
+  const starsBy = new Map(ratings.filter((rating) => rating.recipe_id === recipe.id).map((rating) => [rating.user_id, rating.stars]));
+  const mine = starsBy.get(viewer.userId) ?? null;
+  const others = people.filter((person) => person.user_id !== viewer.userId);
   const planned = stats.get(recipe.id) ?? { times: 0, last: null };
   const inPlan = plan?.recipes.some((entry) => entry.recipe_id === recipe.id) ?? false;
   const photo = recipe.photo ? (await signedPhotoLinks(viewer.supabase, [recipe.photo], 60 * 60, RECIPE_PHOTOS)).get(recipe.photo) : undefined;
@@ -86,6 +93,34 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
           servings={recipe.servings}
           meatIndex={mainMeatIndex(recipe)}
         />
+        <section aria-label="Ratings">
+          <h3>Ratings</h3>
+          <dl className={styles.details}>
+            {others.map((person) => {
+              const stars = starsBy.get(person.user_id);
+              return (
+                <div key={person.user_id}>
+                  <dt>{person.name}</dt>
+                  <dd>{stars ? <span className={styles.stars} aria-label={`${stars} of 5 stars`}>{starsText(stars)}</span> : <span className={styles.unrated}>Not rated</span>}</dd>
+                </div>
+              );
+            })}
+            <div>
+              <dt>You</dt>
+              <dd>
+                <RateRecipeForm recipeId={recipe.id} name={recipe.name} stars={mine} />
+                {mine ? (
+                  <form action={clearRecipeRating}>
+                    <input type="hidden" name="recipe_id" value={recipe.id} />
+                    <button type="submit" className={styles.linkButton}>
+                      Clear my rating
+                    </button>
+                  </form>
+                ) : null}
+              </dd>
+            </div>
+          </dl>
+        </section>
         {recipe.notes ? (
           <section aria-label="Notes">
             <h3>Notes</h3>

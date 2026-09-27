@@ -5,7 +5,21 @@ import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
 import RecipePage from "./[id]/page";
 import MealPlansPage from "./page";
-import { addToPlan, saveScaled, setCooked, setHidden, setPlanServings, startPlan, takeOffPlan } from "./plan-actions";
+import {
+  addToPlan,
+  clearRecipeRating,
+  closePlan,
+  rateRecipe,
+  reopenPlan,
+  saveScaled,
+  setCarryOver,
+  setCooked,
+  setHidden,
+  setPlanServings,
+  skipRating,
+  startPlan,
+  takeOffPlan,
+} from "./plan-actions";
 import RecipesPage from "./recipes/page";
 import WeekPage from "./week/page";
 
@@ -52,8 +66,13 @@ const RECIPE = {
 };
 const SECOND = { ...RECIPE, id: OTHER, name: "Test lentil soup", photo: null, main_meat: "Vegetarian", ingredients: [], steps: [] };
 
+const PEOPLE = [
+  { user_id: "user-1", name: "Test Alex", manages_budget: true },
+  { user_id: "user-2", name: "Test Sam", manages_budget: false },
+];
+
 function given(tables: Record<string, unknown[]>) {
-  const fake = fakeSupabase({ permissions: ["use_modules"], tables });
+  const fake = fakeSupabase({ permissions: ["use_modules"], tables, people: PEOPLE });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
   return fake;
 }
@@ -77,7 +96,13 @@ function form(fields: Record<string, string>) {
 }
 
 const openPlan = (recipes: unknown[]) => ({ id: PLAN, starts_on: "2026-09-27", meal_plan_recipes: recipes });
-const planned = (recipe_id: string, servings: number, cooked = false) => ({ recipe_id, servings, cooked, added_at: `2026-09-27T1${servings}:00:00Z` });
+const planned = (recipe_id: string, servings: number, cooked = false, carry_over = false) => ({
+  recipe_id,
+  servings,
+  cooked,
+  carry_over,
+  added_at: `2026-09-27T1${servings}:00:00Z`,
+});
 
 describe("scaling a recipe (REQ-113)", () => {
   it("scales every ingredient and the amounts in the steps when the servings change", async () => {
@@ -157,13 +182,15 @@ describe("the week's plan (REQ-115)", () => {
     expect(screen.getByRole("button", { name: "Start a plan" })).toBeTruthy();
   });
 
-  it("starts a plan on the chosen day, and says so when the other person already did", async () => {
+  it("starts a plan on the chosen day, and says so when the other person just did", async () => {
     const fake = given({});
     expect(await startPlan({}, form({ starts_on: "2026-09-29" }))).toEqual({});
-    expect(sent(fake, "meal_plans", "insert")).toEqual({ starts_on: "2026-09-29" });
+    expect(fake.rpc).toHaveBeenCalledWith("start_meal_plan", { p_starts_on: "2026-09-29" });
     expect(await startPlan({}, form({ starts_on: "next week" }))).toHaveProperty("error");
-    refusedAsDuplicate(fake);
-    expect(await startPlan({}, form({ starts_on: "2026-09-29" }))).toEqual({ error: "A plan is already open. Refresh to see it." });
+    fake.rpc.mockImplementation(async (fn: string) =>
+      fn === "has_permission" ? { data: true, error: null } : ({ data: null, error: { code: "23505", message: "duplicate key value" } } as never),
+    );
+    expect(await startPlan({}, form({ starts_on: "2026-09-29" }))).toEqual({ error: "A plan was just started. Refresh to see it." });
   });
 
   it("shows the shared plan's recipes, their servings and cooked ticks, and how far they carry us", async () => {
@@ -223,7 +250,7 @@ describe("the week's plan (REQ-115)", () => {
     expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ servings: 2 });
     fake = given({});
     await setCooked(form({ plan_id: PLAN, recipe_id: ID, cooked: "yes" }));
-    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ cooked: true });
+    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ cooked: true, carry_over: false });
     fake = given({});
     await takeOffPlan(form({ plan_id: PLAN, recipe_id: ID }));
     expect(fake.from.mock.results.some((result) => vi.mocked(result.value.delete).mock.calls.length > 0)).toBe(true);
@@ -236,5 +263,125 @@ describe("the week's plan (REQ-115)", () => {
     expect(card.getAttribute("href")).toBe("/meal-plans/week");
     expect(card.textContent).toContain("Test chicken rice · Test lentil soup");
     expect(screen.getByRole("link", { name: /2 recipes/ }).getAttribute("href")).toBe("/meal-plans/recipes");
+  });
+});
+
+describe("closing a week and rating (REQ-116)", () => {
+  it("closes the plan in one step, on the database, which counts it cooked except what's carried over", async () => {
+    const fake = given({});
+    await closePlan(form({ plan_id: PLAN }));
+    expect(fake.rpc).toHaveBeenCalledWith("close_meal_plan", { p_plan: PLAN });
+  });
+
+  it("marks a recipe carry over, which un-ticks cooked, and ticking cooked un-marks it", async () => {
+    let fake = given({});
+    await setCarryOver(form({ plan_id: PLAN, recipe_id: ID, carry_over: "yes" }));
+    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ carry_over: true, cooked: false });
+    fake = given({});
+    await setCarryOver(form({ plan_id: PLAN, recipe_id: ID, carry_over: "no" }));
+    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ carry_over: false });
+    given({ meal_plans: [openPlan([planned(ID, 4, false, true)])], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect((screen.getByRole("checkbox", { name: "Carry Test chicken rice over" }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByRole("button", { name: "Close this plan" })).toBeTruthy();
+  });
+
+  it("offers to start the next plan while one is open (the database closes the open one first)", async () => {
+    given({ meal_plans: [openPlan([])], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.getByLabelText("Next plan starts on").getAttribute("type")).toBe("date");
+    expect(screen.getByRole("button", { name: "Start the next plan" })).toBeTruthy();
+  });
+
+  it("can reopen the last plan closed, so a mistaken close isn't stuck", async () => {
+    const fake = given({ meal_plans: [], recipes: [RECIPE] });
+    await reopenPlan(form({ plan_id: PLAN }));
+    expect(fake.rpc).toHaveBeenCalledWith("reopen_meal_plan", { p_plan: PLAN });
+    given({ meal_plans: [], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.queryByRole("button", { name: "Reopen the last plan" })).toBeNull();
+  });
+
+  it("asks the signed-in person to rate first-time dishes until they answer or skip", async () => {
+    given({
+      meal_plans: [],
+      recipes: [RECIPE, SECOND],
+      recipe_rating_prompts: [{ recipe_id: ID, created_at: "2026-09-27T20:00:00Z" }],
+      recipe_imports: [],
+    });
+    render(await MealPlansPage());
+    const prompts = screen.getByRole("region", { name: "Rate what we cooked" });
+    expect(within(prompts).getByRole("link", { name: "Test chicken rice" })).toBeTruthy();
+    expect(within(prompts).getAllByRole("radio")).toHaveLength(5);
+    expect(within(prompts).getByRole("button", { name: "Skip rating Test chicken rice" })).toBeTruthy();
+    cleanup();
+    given({ meal_plans: [], recipes: [RECIPE], recipe_rating_prompts: [] });
+    render(await WeekPage());
+    expect(screen.queryByRole("region", { name: "Rate what we cooked" })).toBeNull();
+  });
+
+  it("saves a rating of 1 to 5 as the signed-in person's own, and skipping removes only their question", async () => {
+    let fake = given({});
+    expect(await rateRecipe({}, form({ recipe_id: ID, stars: "4" }))).toEqual({});
+    expect(sent(fake, "recipe_ratings", "upsert")).toEqual({ recipe_id: ID, user_id: "user-1", stars: 4 });
+    expect(await rateRecipe({}, form({ recipe_id: ID, stars: "6" }))).toHaveProperty("error");
+    fake = given({});
+    await skipRating(form({ recipe_id: ID }));
+    const skipped = fake.from.mock.results[fake.from.mock.calls.findIndex(([name]) => name === "recipe_rating_prompts")].value;
+    expect(skipped.delete).toHaveBeenCalled();
+    expect(skipped.eq).toHaveBeenCalledWith("user_id", "user-1");
+  });
+
+  it("shows each person's rating on the card, and its owner changes or clears it there", async () => {
+    given({
+      recipes: [RECIPE],
+      meal_plans: [],
+      meal_plan_recipes: [],
+      recipe_ratings: [
+        { recipe_id: ID, user_id: "user-1", stars: 4 },
+        { recipe_id: ID, user_id: "user-2", stars: 5 },
+      ],
+    });
+    render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
+    const ratings = screen.getByRole("region", { name: "Ratings" });
+    expect(within(ratings).getByText("Test Sam").nextElementSibling?.textContent).toBe("★★★★★");
+    expect((within(ratings).getByRole("radio", { name: "4 stars" }) as HTMLInputElement).checked).toBe(true);
+    expect(within(ratings).getByRole("button", { name: "Clear my rating" })).toBeTruthy();
+    const fake = given({});
+    await clearRecipeRating(form({ recipe_id: ID }));
+    const cleared = fake.from.mock.results[fake.from.mock.calls.findIndex(([name]) => name === "recipe_ratings")].value;
+    expect(cleared.delete).toHaveBeenCalled();
+    expect(cleared.eq).toHaveBeenCalledWith("user_id", "user-1");
+  });
+
+  it("sorts the library by rating (REQ-114)", async () => {
+    given({
+      recipes: [RECIPE, SECOND],
+      meal_plan_recipes: [],
+      cuisines: [],
+      recipe_ratings: [{ recipe_id: OTHER, user_id: "user-1", stars: 5 }],
+    });
+    render(await RecipesPage({ searchParams: Promise.resolve({ sort: "rating" }) }));
+    const titles = screen.getAllByRole("link").filter((link) => link.getAttribute("href")?.startsWith("/meal-plans/") && link.textContent?.startsWith("Test"));
+    expect(titles.map((link) => link.textContent?.split("Turkish")[0])).toEqual(["Test lentil soup", "Test chicken rice"]);
+  });
+});
+
+describe("suggestions while planning (REQ-117)", () => {
+  it("suggests recipes to add, labelled, without adding them, and Not now drops one for this visit", async () => {
+    given({ meal_plans: [openPlan([planned(ID, 4)])], recipes: [RECIPE, SECOND], meal_plan_recipes: [] });
+    render(await WeekPage({ searchParams: Promise.resolve({}) }));
+    const list = screen.getByRole("region", { name: "Suggestions" });
+    // The chicken rice is already in the plan, so only the soup is suggested.
+    expect(within(list).queryByRole("link", { name: "Test chicken rice" })).toBeNull();
+    expect(within(list).getByRole("link", { name: "Test lentil soup" })).toBeTruthy();
+    // Nothing new to us planned lately, and no Turkish dish: it is the one to try.
+    expect(within(list).getByText("Try something new")).toBeTruthy();
+    expect(within(list).getByRole("button", { name: "Add" })).toBeTruthy();
+    expect(within(list).getByRole("link", { name: "Not now: Test lentil soup" }).getAttribute("href")).toBe(`/meal-plans/week?skip=${OTHER}`);
+    cleanup();
+    given({ meal_plans: [openPlan([planned(ID, 4)])], recipes: [RECIPE, SECOND], meal_plan_recipes: [] });
+    render(await WeekPage({ searchParams: Promise.resolve({ skip: OTHER }) }));
+    expect(screen.queryByRole("region", { name: "Suggestions" })).toBeNull();
   });
 });

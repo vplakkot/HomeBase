@@ -1,8 +1,7 @@
 import type { PlanStats } from "./plan";
 import type { Recipe } from "./recipes";
 
-// REQ-114: the recipe library's search, filters and sort. Sorting by
-// rating comes with ratings (close a week and rate).
+// REQ-114: the recipe library's search, filters and sort.
 
 export const COOK_TIMES = [
   { value: "30", label: "30 min or less", fits: (minutes: number) => minutes <= 30 },
@@ -12,13 +11,19 @@ export const COOK_TIMES = [
 
 export const SORTS = [
   { value: "name", label: "Name" },
+  { value: "rating", label: "Rating" },
   { value: "last", label: "Last planned" },
   { value: "times", label: "Times planned" },
 ] as const;
 
 export type LibraryQuery = { q?: string; cuisine?: string; meat?: string; method?: string; time?: string; sort?: string; hidden?: string };
 
-export function libraryRecipes(recipes: readonly Recipe[], stats: ReadonlyMap<string, PlanStats>, query: LibraryQuery): Recipe[] {
+export function libraryRecipes(
+  recipes: readonly Recipe[],
+  stats: ReadonlyMap<string, PlanStats>,
+  query: LibraryQuery,
+  averages: ReadonlyMap<string, number> = new Map(),
+): Recipe[] {
   const search = query.q?.trim().toLowerCase() ?? "";
   const time = COOK_TIMES.find((option) => option.value === query.time);
   const showHidden = query.hidden === "yes";
@@ -33,7 +38,9 @@ export function libraryRecipes(recipes: readonly Recipe[], stats: ReadonlyMap<st
   );
   const byName = (a: Recipe, b: Recipe) => a.name.localeCompare(b.name);
   const stat = (recipe: Recipe) => stats.get(recipe.id) ?? { times: 0, last: null };
-  // Most recent or most planned first; never-planned recipes last, by name.
+  // Best rated, most recent or most planned first; unrated or never-planned
+  // recipes last, by name.
+  if (query.sort === "rating") return kept.sort((a, b) => (averages.get(b.id) ?? 0) - (averages.get(a.id) ?? 0) || byName(a, b));
   if (query.sort === "last") return kept.sort((a, b) => (stat(b).last ?? "").localeCompare(stat(a).last ?? "") || byName(a, b));
   if (query.sort === "times") return kept.sort((a, b) => stat(b).times - stat(a).times || byName(a, b));
   return kept.sort(byName);

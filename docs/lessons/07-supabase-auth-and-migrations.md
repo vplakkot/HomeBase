@@ -196,6 +196,43 @@ Expect them to conflict each other on `CHANGELOG.md` and
 `supabase/schema.test.ts` as they go, since both append to the top of one
 and the bottom of the other.
 
+### Trying a migration without keeping it
+
+The two sections above say a migration applied during verification
+reaches the live project before `main`, and that this is what makes two
+open migration pull requests trouble. There is a way to try one against
+the real project that leaves nothing behind: run it inside a transaction
+that is always undone.
+
+Think of it like a dress rehearsal on the real stage: every prop gets
+moved, then everything is put back before the audience arrives.
+
+```
+begin;
+<the migration file>
+<a check that ends by raising an error with its results>
+rollback;
+```
+
+`npx supabase db query --linked -f that-file.sql` sends the whole file
+in one session. Postgres can undo table changes as well as row changes,
+so when the check raises its error the migration goes too, and the CLI's
+list of applied migrations never hears of it. Afterwards,
+`select to_regclass('public.<new table>')` should say `null`: the table
+isn't there.
+
+Checked first, 2026-09-27: a file of `begin; set local
+statement_timeout = '7s'; show statement_timeout; rollback;` answered
+`7s`, which proves the statements share one transaction. Then the Meal
+Plan close-a-week migration ran with its live check this way, before
+its pull request was opened. It found a real mistake in the check, and
+the new table was still absent afterwards.
+
+One catch: inside a single transaction, `now()` is the same moment for
+every statement. A check that closes three plans gets three identical
+closing times, so "the last one closed" becomes a tie. Set the times
+apart by hand in the check.
+
 ## The data model
 
 ```mermaid

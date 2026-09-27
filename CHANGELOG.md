@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Meal Plans, third batch: closing a week, rating, and suggestions.
+  Close this plan counts everything in it as cooked, except recipes
+  ticked Carry over, which come back first when the next plan starts.
+  Starting the next plan closes the open one on its own, and the last
+  plan closed can be reopened. A dish cooked for the first time asks
+  each of you, on your own device, to rate it 1 to 5 stars ("Rate what
+  we cooked"), until you rate or skip. A recipe card shows each
+  person's rating, and yours can be changed or cleared there. The
+  library sorts by rating. This week suggests recipes while you plan,
+  ranked by rating, how long since you last had it and how long it
+  takes (a slow favourite comes back about monthly, a quick one
+  sooner), with "Forgotten gem", "New to try" and "Try something new"
+  picks; Not now drops one for this visit. It never adds anything for
+  you.
 - Meal Plans, second batch: a week's plan, a recipe library, and
   scaling. This week starts a plan on any day. Either of you adds
   recipes at 4 servings (dinner and the next day's lunch) or 2, ticks

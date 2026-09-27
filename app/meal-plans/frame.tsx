@@ -17,7 +17,7 @@ export async function mealPlansViewer() {
     hasPermission(supabase, "manage_members"),
     readAccount(data.claims),
   ]);
-  return { canManageMembers, account, supabase };
+  return { canManageMembers, account, supabase, userId: String(data.claims.sub) };
 }
 
 export type MealPlansViewer = Awaited<ReturnType<typeof mealPlansViewer>>;

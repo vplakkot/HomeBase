@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { coversThrough, dayLabel, readOpenPlan } from "../../lib/meal-plans/plan";
+import { readRatingPrompts } from "../../lib/meal-plans/ratings";
 import { readImports, readRecipes } from "../../lib/meal-plans/recipes";
 import { dismissImport } from "./actions";
 import { MealPlansScreen, mealPlansViewer } from "./frame";
+import { RatePrompts } from "./rate-prompts";
 import styles from "./meal-plans.module.css";
 
 const STATUS: Record<string, string> = {
@@ -16,10 +18,11 @@ const STATUS: Record<string, string> = {
 // the way to the library. The module's real home is a later batch.
 export default async function MealPlansPage() {
   const viewer = await mealPlansViewer();
-  const [all, imports, plan] = await Promise.all([
+  const [all, imports, plan, prompts] = await Promise.all([
     readRecipes(viewer.supabase),
     readImports(viewer.supabase),
     readOpenPlan(viewer.supabase),
+    readRatingPrompts(viewer.supabase, viewer.userId),
   ]);
   const recipes = all.filter((recipe) => !recipe.hidden);
   const names = new Map(all.map((recipe) => [recipe.id, recipe.name]));
@@ -27,6 +30,7 @@ export default async function MealPlansPage() {
   const through = plan ? coversThrough(plan.starts_on, planned) : null;
   return (
     <MealPlansScreen viewer={viewer}>
+      <RatePrompts recipes={prompts.flatMap((id) => (names.has(id) ? [{ id, name: names.get(id) ?? "" }] : []))} />
       {imports.length > 0 ? (
         <section className={styles.section} aria-label="On their way">
           <div className={styles.sectionHead}>

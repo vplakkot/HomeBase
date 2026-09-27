@@ -730,3 +730,39 @@ describe("meal plan: hidden recipes and the week's plan (REQ-114, REQ-115)", () 
     expect(plan).not.toMatch(/to anon/);
   });
 });
+
+describe("meal plan: closing a week and rating (REQ-116)", () => {
+  const close = readMigration("20260928100000");
+
+  it("never lets a carried-over recipe count as cooked", () => {
+    expect(close).toMatch(/add column carry_over boolean not null default false/);
+    expect(close).toMatch(/check \(not \(carry_over and cooked\)\)/);
+  });
+
+  it("keeps one rating per person per recipe, 1 to 5, written only by its owner", () => {
+    expect(close).toMatch(/stars smallint not null check \(stars between 1 and 5\)/);
+    expect(close).toMatch(/primary key \(recipe_id, user_id\)/);
+    for (const action of ["insert", "update", "delete"]) {
+      expect(close).toMatch(new RegExp(`on public\\.recipe_ratings for ${action} to authenticated\\s+(using|with check) \\(user_id = \\(select auth\\.uid\\(\\)\\)`));
+    }
+  });
+
+  it("shows each person only their own rating questions, which only closing a plan writes", () => {
+    expect(close).toMatch(/on public\.recipe_rating_prompts for select to authenticated\s+using \(user_id = \(select auth\.uid\(\)\)/);
+    expect(close).not.toMatch(/on public\.recipe_rating_prompts for insert/);
+  });
+
+  it("changes a plan directly only while it's open, so closing and reopening go through the functions", () => {
+    expect(close).toMatch(/drop policy "members change plans" on public\.meal_plans;/);
+    expect(close).toMatch(/on public\.meal_plans for update to authenticated\s+using \(\(select public\.has_permission\('use_modules'\)\) and closed_at is null\)\s+with check \(\(select public\.has_permission\('use_modules'\)\) and closed_at is null\)/);
+  });
+
+  it("closes, starts and reopens plans only for household members, never signed-out visitors", () => {
+    for (const fn of ["close_meal_plan(uuid)", "start_meal_plan(date)", "reopen_meal_plan(uuid)"]) {
+      const escaped = fn.replace(/[()]/g, "\\$&");
+      expect(close).toMatch(new RegExp(`revoke all on function public\\.${escaped} from public, anon;`));
+      expect(close).toMatch(new RegExp(`grant execute on function public\\.${escaped} to authenticated;`));
+    }
+    expect(close.match(/if not public\.has_permission\('use_modules'\) then/g)).toHaveLength(3);
+  });
+});
