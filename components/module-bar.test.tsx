@@ -103,7 +103,7 @@ describe("the pinned action", () => {
 });
 
 describe("the module switcher", () => {
-  it("lists all eight modules, opening Finances, the one you're in, Drinks, Meal Plans, Paperwork and Storage", () => {
+  it("lists all nine modules, opening Finances, the one you're in, Drinks, Meal Plans, Paperwork, Storage and Restaurants", () => {
     render(<ModuleBar module={finances} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Other modules" }));
     const sheet = openSheet();
@@ -116,9 +116,10 @@ describe("the module switcher", () => {
       "HealthComing soon",
       "Paperwork",
       "Storage",
+      "Restaurants",
     ]);
     const links = within(sheet).getAllByRole("link");
-    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/finances", "/drinks", "/meal-plans", "/paperwork", "/storage"]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/finances", "/drinks", "/meal-plans", "/paperwork", "/storage", "/restaurants"]);
     expect(links[0].getAttribute("aria-current")).toBe("page");
   });
 });

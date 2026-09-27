@@ -15,6 +15,7 @@ import { readFinanceSnapshot } from "../lib/finances/snapshot";
 import { demoFrom, moduleStatus, mostUrgent } from "../lib/module-status";
 import { paperworkTile } from "../lib/paperwork/action-items";
 import { countUnfiled } from "../lib/paperwork/paperwork";
+import { countRestaurants, restaurantsTile } from "../lib/restaurants/restaurants";
 import { countEntries, storageTile } from "../lib/storage/storage";
 import { countDrinks, drinksTile } from "../lib/drinks/drinks";
 import { countRecipes, recipesTile } from "../lib/meal-plans/recipes";
@@ -48,18 +49,19 @@ export default async function HomePage({
   const account = await readAccount(data.claims);
   const demo = demoFrom((await searchParams).demo);
   // The modules with real items: Finances (REQ-91, REQ-93) and Paperwork
-  // (REQ-97); Storage (REQ-87) and Drinks (REQ-30) only say how much is
-  // logged. The example
+  // (REQ-97); Storage (REQ-87), Drinks (REQ-30) and Restaurants (REQ-129)
+  // only say how much is logged. The example
   // needs none of it read.
   const live =
     demo === null
       ? await (async () => {
-          const [snapshot, unfiled, stored, drinks, recipes] = await Promise.all([
+          const [snapshot, unfiled, stored, drinks, recipes, restaurants] = await Promise.all([
             readFinanceSnapshot(supabase, householdToday()),
             countUnfiled(supabase),
             countEntries(supabase),
             countDrinks(supabase),
             countRecipes(supabase),
+            countRestaurants(supabase),
           ]);
           return {
             finances: financeTile(snapshot, financeItems(snapshot, data.claims.sub)),
@@ -67,6 +69,7 @@ export default async function HomePage({
             storage: storageTile(stored),
             drinks: drinksTile(drinks),
             "meal-plans": recipesTile(recipes),
+            restaurants: restaurantsTile(restaurants),
           };
         })()
       : {};

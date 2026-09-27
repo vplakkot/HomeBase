@@ -228,6 +228,12 @@ Plan close-a-week migration ran with its live check this way, before
 its pull request was opened. It found a real mistake in the check, and
 the new table was still absent afterwards.
 
+The Restaurants migration (2026-09-29) found a mistake in the migration
+itself this way: its check that a place ID looks right said "10 to 300
+characters", and Postgres refuses to count higher than 255 in a pattern.
+The app's tests couldn't have caught it, because they never run the SQL;
+only the real database knew.
+
 One catch: inside a single transaction, `now()` is the same moment for
 every statement. A check that closes three plans gets three identical
 closing times, so "the last one closed" becomes a tie. Set the times

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- A new module, Restaurants, for places we want to try. Add place: paste
+  a Google Maps or Apple Maps link (a share link works), check it's the
+  right place, and it's saved to Want to try with who added it and when.
+  An Apple link is matched to Google's place nearby; if the match isn't
+  clear, pick from up to three. A place already saved says so instead of
+  being added twice. Want to try shows each place as a photo tile with
+  its cuisine and neighbourhood; tap one for its address, hours, website,
+  and Remove. Everything about a place except which one it is comes
+  fresh from Google each time.
 - Meal Plans can find a recipe on the web. Add recipe → Find it on the
   web: give the dish's name (and the video link, if you have one), and
   Gemini searches Google and offers a few recipe pages. Pick one and

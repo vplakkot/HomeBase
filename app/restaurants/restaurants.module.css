@@ -1,0 +1,184 @@
+/* Restaurants borrows Paperwork's and Drinks' shapes on the module home
+   rules (DESIGN.md §6); only what's new to places is written here. The
+   module colour comes from the page, so they're tangerine. */
+.screen { composes: screen from "../paperwork/paperwork.module.css"; }
+.crumbs { composes: crumbs from "../paperwork/paperwork.module.css"; }
+.section { composes: section from "../paperwork/paperwork.module.css"; }
+.sectionHead { composes: sectionHead from "../paperwork/paperwork.module.css"; }
+.sectionTitle { composes: sectionTitle from "../paperwork/paperwork.module.css"; }
+.count { composes: count from "../paperwork/paperwork.module.css"; }
+.cardTitle { composes: cardTitle from "../paperwork/paperwork.module.css"; }
+.cardDetail { composes: cardDetail from "../paperwork/paperwork.module.css"; }
+.empty { composes: empty from "../paperwork/paperwork.module.css"; }
+.title { composes: title from "../paperwork/paperwork.module.css"; }
+.details { composes: details from "../drinks/drinks.module.css"; }
+.notice { composes: notice from "../drinks/drinks.module.css"; }
+.textLink { composes: textLink from "../meal-plans/meal-plans.module.css"; }
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+/* REQ-129: Want to try as photo tiles, two across on a phone. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 1024px) {
+  .tiles {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--space-4);
+  }
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: 1.5px solid var(--module-loud);
+  border-radius: var(--radius-lg);
+  background: var(--color-ground);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.tile:hover .cardTitle,
+.tile:focus-visible .cardTitle {
+  text-decoration: underline;
+}
+
+.tileText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+/* The photo fills the top of its card; a place Google has no photo for
+   gets a plain block in the module colour instead (REQ-129). */
+.photoFrame {
+  position: relative;
+  display: block;
+}
+
+.photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.noPhoto {
+  background: var(--module-quiet);
+}
+
+/* The photographer's name, which Google asks to be shown with the photo. */
+.credit {
+  position: absolute;
+  right: var(--space-1);
+  bottom: var(--space-1);
+  max-width: calc(100% - var(--space-2));
+  overflow: hidden;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+  color: var(--color-on-panel);
+  font-size: var(--text-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+/* One place: the photo beside the details on a desktop, above on a phone. */
+.detail {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 960px;
+}
+
+@media (min-width: 1024px) {
+  .detail {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.hero {
+  overflow: hidden;
+  border: 1.5px solid var(--module-loud);
+  border-radius: var(--radius-lg);
+}
+
+.detailText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.detailText p {
+  margin: 0;
+}
+
+.hours {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.source {
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+}
+
+/* Add place: the link field, then what Google found. */
+.addCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 720px;
+}
+
+.foundList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.found {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: var(--space-4);
+  overflow: hidden;
+  padding: var(--space-3);
+  border: 1.5px solid var(--module-loud);
+  border-radius: var(--radius-lg);
+  background: var(--color-ground);
+}
+
+.foundPhoto {
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+}
+
+.foundText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.foundText p {
+  margin: 0;
+}

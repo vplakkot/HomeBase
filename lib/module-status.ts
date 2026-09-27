@@ -104,6 +104,15 @@ const DEMO: Record<string, ModuleStatus> = {
     ],
     actionItems: [],
   },
+  restaurants: {
+    status: "9 to try",
+    headline: "9 places to try",
+    facts: [
+      { label: "Newest", value: "Corner Noodle Bar" },
+      { label: "Added this month", value: "3" },
+    ],
+    actionItems: [],
+  },
   storage: {
     status: "24 entries",
     headline: "24 entries",

@@ -766,3 +766,26 @@ describe("meal plan: closing a week and rating (REQ-116)", () => {
     expect(close.match(/if not public\.has_permission\('use_modules'\) then/g)).toHaveLength(3);
   });
 });
+
+describe("restaurants migration (REQ-90, REQ-129)", () => {
+  const restaurants = readMigration("20260929100000");
+
+  // Google's terms: the place ID is the one thing from Google we may keep.
+  it("keeps only Google's place ID for a place, once, with who added it and when", () => {
+    expect(restaurants).toMatch(/google_place_id text not null unique check/);
+    expect(restaurants).toMatch(/added_by uuid references auth\.users \(id\) on delete set null default auth\.uid\(\)/);
+    expect(restaurants).toMatch(/created_at timestamptz not null default now\(\)/);
+    const columns = /create table public\.restaurants \(([\s\S]*?)\n\);/.exec(restaurants)![1];
+    expect(columns.match(/^\s+[a-z_]+ (uuid|text|timestamptz)/gm)).toHaveLength(4);
+  });
+
+  it("lets either member see, add in their own name, and remove; nobody signed out", () => {
+    expect(restaurants).toMatch(/enable row level security/);
+    expect(restaurants).toMatch(/revoke all on public\.restaurants from anon/);
+    for (const action of ["select", "insert", "delete"]) {
+      expect(restaurants).toMatch(new RegExp(`on public\\.restaurants for ${action} to authenticated`));
+    }
+    expect(restaurants).toMatch(/with check \(\(select public\.has_permission\('use_modules'\)\) and added_by = \(select auth\.uid\(\)\)\)/);
+    expect(restaurants).not.toMatch(/for update/);
+  });
+});
