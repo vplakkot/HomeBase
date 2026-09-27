@@ -46,6 +46,7 @@ export function DrinkScreen({
   return (
     <DrinksScreen
       viewer={viewer}
+      section={untried ? "Want to try" : "Wines"}
       crumb={displayName(drink)}
       parent={untried ? { name: "Want to try", href: "/drinks/want-to-try" } : { name: "Wines", href: "/drinks/wines" }}
     >

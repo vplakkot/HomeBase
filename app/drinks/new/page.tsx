@@ -8,7 +8,7 @@ import styles from "../drinks.module.css";
 export default async function NewDrinkPage() {
   const viewer = await drinksViewer();
   return (
-    <DrinksScreen viewer={viewer} crumb="Add a drink">
+    <DrinksScreen viewer={viewer} section="Wines" crumb="Add a drink">
       <section className={styles.formCard} aria-label="Add a drink">
         <DrinkForm />
       </section>
