@@ -229,6 +229,24 @@ describe("adding from an OpenTable link (REQ-131)", () => {
     expect(await lookUpPlace({}, form({ link: OPENTABLE }))).toEqual({ error: NOTHING_FOUND });
   });
 
+  it("counts only places whose name agrees, so unrelated results are nothing found", async () => {
+    given();
+    vi.mocked(places.search).mockResolvedValue([place("ChIJInventedOther001", "Harbor Steakhouse"), place("ChIJInventedOther002", "Big Apple Bagels")]);
+    expect(await lookUpPlace({}, form({ link: OPENTABLE }))).toEqual({ error: NOTHING_FOUND });
+  });
+
+  it("offers a choice when more than one place's name agrees", async () => {
+    given();
+    vi.mocked(places.search).mockResolvedValue([
+      place("ChIJInventedNoodles01", "Corner Noodle Bar"),
+      place("ChIJInventedOther001", "Harbor Steakhouse"),
+      place("ChIJInventedNoodles02", "Corner Noodle Bar Midtown"),
+    ]);
+    const state = await lookUpPlace({}, form({ link: OPENTABLE }));
+    expect(state.choose).toBe(true);
+    expect(state.places?.map((found) => found.placeId)).toEqual(["ChIJInventedNoodles01", "ChIJInventedNoodles02"]);
+  });
+
   it("says a numbered OpenTable page doesn't give a name, without asking Google", async () => {
     given();
     expect(await lookUpPlace({}, form({ link: "https://www.opentable.com/restaurant/profile/123456" }))).toEqual({ error: OPENTABLE_UNNAMED });
@@ -287,6 +305,15 @@ describe("mark as tried and go again (REQ-133)", () => {
       { restaurant_id: ROW, user_id: "user-1", go_again: false, answered_at: expect.any(String) },
       { onConflict: "restaurant_id,user_id" },
     );
+  });
+
+  it("says so when the place was put back on Want to try before the answer landed", async () => {
+    given();
+    const answers = fake.from("restaurant_answers");
+    fake.from.mockClear();
+    vi.mocked(answers.upsert as ReturnType<typeof vi.fn>).mockReturnValue(Promise.resolve({ error: { code: "42501", message: "row-level security" } }));
+    fake.from.mockReturnValue(answers);
+    expect(await answerGoAgain({}, form({ id: ROW, goAgain: "yes" }))).toEqual({ error: "This place isn't marked tried any more." });
   });
 
   it("answers only yes or no, and only with module access", async () => {

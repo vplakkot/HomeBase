@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ModuleStatus } from "../module-status";
 import { followShortLink, readLink, type LinkReading } from "./links";
-import { pickMatch, type Match } from "./match";
+import { MAX_CANDIDATES, pickMatch, sameName, type Match } from "./match";
 import type { Places } from "./places";
 
 // Restaurants (REQ-90, REQ-129 to REQ-133): the places we want to try and
@@ -99,9 +99,11 @@ export const ALREADY_TRIED = "Already on Been to.";
 // place's own site); nothing else, so it can only ever open a web page.
 export function bookingUrlFrom(pasted: string): string | null {
   const found = /https?:\/\/\S+/i.exec(pasted.trim())?.[0];
-  if (!found || found.length > 2000) return null;
+  if (!found) return null;
   try {
     const url = new URL(found);
+    // The length the database will see, after the address is tidied.
+    if (url.href.length > 2000) return null;
     return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
   } catch {
     return null;
@@ -134,11 +136,14 @@ export async function lookUpLink(
     case "opentable_unnamed":
       return { kind: "error", message: OPENTABLE_UNNAMED };
     // REQ-131: OpenTable's name for it, looked up in Google with no spot
-    // to go by; the name has to agree, and more than one match is a
-    // choice.
+    // to go by. Only places whose name agrees count; none is "nothing
+    // found", and more than one is a choice.
     case "opentable": {
-      const match = pickMatch(reading.name, null, await places.search(reading.name, null));
-      return match.kind === "none" ? { kind: "error", message: NOTHING_FOUND } : { ...match, bookingUrl: reading.bookingUrl };
+      const agree = (await places.search(reading.name, null)).filter((place) => sameName(reading.name, place.name));
+      if (agree.length === 0) return { kind: "error", message: NOTHING_FOUND };
+      const match: Match =
+        agree.length === 1 ? { kind: "one", place: agree[0] } : { kind: "choose", places: agree.slice(0, MAX_CANDIDATES) };
+      return { ...match, bookingUrl: reading.bookingUrl };
     }
     case "not_a_place":
     case "short":

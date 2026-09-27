@@ -33,5 +33,7 @@ describe("booking links (REQ-132)", () => {
     expect(bookingUrlFrom("javascript:alert(1)")).toBeNull();
     expect(bookingUrlFrom("ftp://example.com")).toBeNull();
     expect(bookingUrlFrom("")).toBeNull();
+    // Measured after tidying: é becomes %C3%A9, pushing it past 2000.
+    expect(bookingUrlFrom(`https://example.com/${"é".repeat(700)}`)).toBeNull();
   });
 });

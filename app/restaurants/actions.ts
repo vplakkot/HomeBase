@@ -180,6 +180,9 @@ export async function answerGoAgain(_previous: FormState, formData: FormData): P
   const { error } = await supabase
     .from("restaurant_answers")
     .upsert({ restaurant_id: id, user_id: userId, go_again: answer === "yes", answered_at: new Date().toISOString() }, { onConflict: "restaurant_id,user_id" });
+  // Refused by the database: the place was put back on Want to try
+  // meanwhile (42501 is "not allowed").
+  if (error?.code === "42501") return { error: "This place isn't marked tried any more." };
   if (error) return { error: error.message };
   refresh();
   return {};
