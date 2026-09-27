@@ -80,7 +80,7 @@ export default async function HomePage({
       current="home"
       canAdminister={canManageMembers}
       account={account}
-      phoneBar={<QuickAdd variant="bar" />}
+      phoneBar={<QuickAdd variant="bar" today={householdToday()} />}
     >
       <header className={styles.header}>
         <BrandLockup />
@@ -91,7 +91,7 @@ export default async function HomePage({
       <div className={styles.intro}>
         <Greeting name={account.name?.split(/\s+/)[0] ?? null} />
         <div className={styles.desktopQuickAdd}>
-          <QuickAdd variant="buttons" />
+          <QuickAdd variant="buttons" today={householdToday()} />
         </div>
       </div>
 

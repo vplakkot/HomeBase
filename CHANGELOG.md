@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Meal Plans' home is about food now: this week's dishes as big
+  photos with "Covers you through at least <day>", or "What are we
+  eating this week?" and a way to start a plan when none is open. Our
+  kitchen shows the most planned and top rated recipes, how many
+  recipes and how many cuisines. On Home, Quick add's Meal button is
+  now New meal plan and starts a plan right there.
 - Meal Plans, third batch: closing a week, rating, and suggestions.
   Close this plan counts everything in it as cooked, except recipes
   ticked Carry over, which come back first when the next plan starts.

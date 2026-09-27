@@ -314,7 +314,7 @@ describe("HomePage", () => {
       expect(within(group).getAllByRole("button").map((button) => button.textContent)).toEqual([
         "Expense",
         "Event",
-        "Meal",
+        "New meal plan",
       ]);
     }
   });

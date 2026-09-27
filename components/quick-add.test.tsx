@@ -1,8 +1,18 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { installDialogStandIn } from "../test/dialog";
 import { QuickAdd } from "./quick-add";
+
+vi.mock("../app/meal-plans/plan-actions", () => ({
+  startPlan: vi.fn(async () => ({})),
+  addToPlan: vi.fn(),
+  changePlanStart: vi.fn(),
+  rateRecipe: vi.fn(),
+  setCarryOver: vi.fn(),
+  setCooked: vi.fn(),
+  setPlanServings: vi.fn(),
+}));
 
 beforeAll(installDialogStandIn);
 afterEach(cleanup);
@@ -12,13 +22,13 @@ function openSheets() {
 }
 
 describe.each(["bar", "buttons"] as const)("Quick add as %s", (variant) => {
-  it("offers Expense, Event and Meal", () => {
-    render(<QuickAdd variant={variant} />);
+  it("offers Expense, Event and New meal plan", () => {
+    render(<QuickAdd variant={variant} today="2026-09-27" />);
     const group = screen.getByRole("group", { name: "Quick add" });
     expect(within(group).getAllByRole("button").map((button) => button.textContent)).toEqual([
       "Expense",
       "Event",
-      "Meal",
+      "New meal plan",
     ]);
   });
 
@@ -26,13 +36,23 @@ describe.each(["bar", "buttons"] as const)("Quick add as %s", (variant) => {
   it.each([
     ["Expense", "Add an expense"],
     ["Event", "Add an event"],
-    ["Meal", "Add a meal"],
   ])("opens a coming-soon sheet from %s", (label, title) => {
-    render(<QuickAdd variant={variant} />);
+    render(<QuickAdd variant={variant} today="2026-09-27" />);
     fireEvent.click(screen.getByRole("button", { name: label }));
     const [sheet] = openSheets();
     expect(openSheets()).toHaveLength(1);
     expect(within(sheet).getByRole("heading").textContent).toBe(title);
     expect(sheet.textContent).toContain("Coming soon");
+  });
+
+  // REQ-118: New meal plan starts a plan, then opens it.
+  it("starts a meal plan from New meal plan, on today by default", () => {
+    render(<QuickAdd variant={variant} today="2026-09-27" />);
+    fireEvent.click(screen.getByRole("button", { name: "New meal plan" }));
+    const [sheet] = openSheets();
+    expect(within(sheet).getByRole("heading").textContent).toBe("Start a meal plan");
+    expect((within(sheet).getByLabelText("Starts on") as HTMLInputElement).value).toBe("2026-09-27");
+    expect(within(sheet).getByRole("button", { name: "Start a plan" })).toBeTruthy();
+    expect((sheet.querySelector('input[name="then"]') as HTMLInputElement).value).toBe("week");
   });
 });

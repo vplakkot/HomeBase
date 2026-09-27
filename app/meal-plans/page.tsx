@@ -1,9 +1,14 @@
 import Link from "next/link";
-import { coversThrough, dayLabel, readOpenPlan } from "../../lib/meal-plans/plan";
-import { readRatingPrompts } from "../../lib/meal-plans/ratings";
+import { signedPhotoLinks } from "../../lib/drinks/photos";
+import { householdToday } from "../../lib/finances/budget-year";
+import { homeStats } from "../../lib/meal-plans/home";
+import { RECIPE_PHOTOS } from "../../lib/meal-plans/photos";
+import { coversThrough, dayLabel, planStats, readOpenPlan, readPlanRows } from "../../lib/meal-plans/plan";
+import { averageRatings, readRatingPrompts, readRatings, starsText } from "../../lib/meal-plans/ratings";
 import { readImports, readRecipes } from "../../lib/meal-plans/recipes";
 import { dismissImport } from "./actions";
 import { MealPlansScreen, mealPlansViewer } from "./frame";
+import { StartPlanForm } from "./plan-forms";
 import { RatePrompts } from "./rate-prompts";
 import styles from "./meal-plans.module.css";
 
@@ -14,23 +19,32 @@ const STATUS: Record<string, string> = {
   failed: "Couldn't be read",
 };
 
-// Meal Plan's home for now: recipes on their way in, this week's plan and
-// the way to the library. The module's real home is a later batch.
+// REQ-118: Meal Plans' home is about food, not paperwork: this week's
+// dishes as big photos, how long they last, and a few fun numbers. Above
+// them, anything to rate (REQ-116) and recipes on their way in.
 export default async function MealPlansPage() {
   const viewer = await mealPlansViewer();
-  const [all, imports, plan, prompts] = await Promise.all([
+  const [all, imports, plan, prompts, rows, ratings] = await Promise.all([
     readRecipes(viewer.supabase),
     readImports(viewer.supabase),
     readOpenPlan(viewer.supabase),
     readRatingPrompts(viewer.supabase, viewer.userId),
+    readPlanRows(viewer.supabase),
+    readRatings(viewer.supabase),
   ]);
-  const recipes = all.filter((recipe) => !recipe.hidden);
-  const names = new Map(all.map((recipe) => [recipe.id, recipe.name]));
-  const planned = plan?.recipes.filter((entry) => names.has(entry.recipe_id)) ?? [];
-  const through = plan ? coversThrough(plan.starts_on, planned) : null;
+  const byId = new Map(all.map((recipe) => [recipe.id, recipe]));
+  const planned = plan?.recipes.flatMap((entry) => byId.get(entry.recipe_id) ?? []) ?? [];
+  const through = plan ? coversThrough(plan.starts_on, plan.recipes.filter((entry) => byId.has(entry.recipe_id))) : null;
+  const photos = await signedPhotoLinks(
+    viewer.supabase,
+    planned.flatMap((recipe) => (recipe.photo ? [recipe.photo] : [])),
+    60 * 60,
+    RECIPE_PHOTOS,
+  );
+  const numbers = homeStats(all, planStats(rows), averageRatings(ratings));
   return (
     <MealPlansScreen viewer={viewer}>
-      <RatePrompts recipes={prompts.flatMap((id) => (names.has(id) ? [{ id, name: names.get(id) ?? "" }] : []))} />
+      <RatePrompts recipes={prompts.flatMap((id) => (byId.has(id) ? [{ id, name: byId.get(id)?.name ?? "" }] : []))} />
       {imports.length > 0 ? (
         <section className={styles.section} aria-label="On their way">
           <div className={styles.sectionHead}>
@@ -57,32 +71,97 @@ export default async function MealPlansPage() {
       ) : null}
       <section className={styles.section} aria-label="This week">
         <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>This week</h2>
+          <h2 className={styles.sectionTitle}>On the menu</h2>
+          {plan ? (
+            <Link href="/meal-plans/week" className={styles.textLink}>
+              Open the plan
+            </Link>
+          ) : null}
         </div>
         {plan ? (
-          <Link href="/meal-plans/week" className={styles.linkCard}>
-            <span className={styles.cardTitle}>
-              {through ? `Covers you through at least ${dayLabel(through)}` : `From ${dayLabel(plan.starts_on)}`}
-            </span>
-            <span className={styles.cardDetail}>
-              {planned.length === 0 ? "No recipes yet" : planned.map((entry) => names.get(entry.recipe_id)).join(" · ")}
-            </span>
-          </Link>
+          <>
+            <p className={styles.summary}>
+              {through
+                ? `Covers you through at least ${dayLabel(through)}`
+                : planned.length > 0
+                  ? "Half a day sorted so far"
+                  : "An empty plate so far"}
+            </p>
+            {planned.length > 0 ? (
+              <ul className={styles.foodGrid} aria-label="Recipes in the plan">
+                {planned.map((recipe) => {
+                  const photo = recipe.photo ? photos.get(recipe.photo) : undefined;
+                  return (
+                    <li key={recipe.id}>
+                      <Link href={`/meal-plans/${recipe.id}`} className={styles.foodCard}>
+                        {photo ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- a private, short-lived link
+                          <img src={photo} alt="" className={styles.foodPhoto} />
+                        ) : (
+                          <span className={styles.foodPhoto} aria-hidden="true" />
+                        )}
+                        <span className={styles.cardTitle}>{recipe.name}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <Link href="/meal-plans/week" className={styles.textLink}>
+                Add some recipes
+              </Link>
+            )}
+          </>
         ) : (
-          <Link href="/meal-plans/week" className={styles.linkCard}>
-            <span className={styles.cardTitle}>No plan yet</span>
-            <span className={styles.cardDetail}>Start one</span>
-          </Link>
+          <>
+            <p className={styles.summary}>What are we eating this week?</p>
+            <StartPlanForm today={householdToday()} thenWeek />
+          </>
         )}
       </section>
-      <section className={styles.section} aria-label="Recipes">
+      <section className={styles.section} aria-label="Our kitchen">
         <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>Recipes</h2>
+          <h2 className={styles.sectionTitle}>Our kitchen</h2>
         </div>
-        <Link href="/meal-plans/recipes" className={styles.linkCard}>
-          <span className={styles.cardTitle}>{recipes.length === 1 ? "1 recipe" : `${recipes.length} recipes`}</span>
-          <span className={styles.cardDetail}>Search, filter and sort the library</span>
-        </Link>
+        <dl className={styles.stats}>
+          <div>
+            <dt>Most planned</dt>
+            <dd>
+              {numbers.mostPlanned ? (
+                <Link href={`/meal-plans/${numbers.mostPlanned.recipe.id}`}>
+                  {numbers.mostPlanned.recipe.name} <span className={styles.statNote}>× {numbers.mostPlanned.times}</span>
+                </Link>
+              ) : (
+                "Nothing yet"
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>Top rated</dt>
+            <dd>
+              {numbers.topRated ? (
+                <Link href={`/meal-plans/${numbers.topRated.recipe.id}`}>
+                  {numbers.topRated.recipe.name}{" "}
+                  <span className={styles.stars} aria-label={`${numbers.topRated.average.toFixed(1)} of 5 stars`}>
+                    {starsText(numbers.topRated.average)}
+                  </span>
+                </Link>
+              ) : (
+                "Nothing yet"
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>Recipes</dt>
+            <dd>
+              <Link href="/meal-plans/recipes">{numbers.recipes}</Link>
+            </dd>
+          </div>
+          <div>
+            <dt>Cuisines</dt>
+            <dd>{numbers.cuisines}</dd>
+          </div>
+        </dl>
       </section>
     </MealPlansScreen>
   );

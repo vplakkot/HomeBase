@@ -30,10 +30,21 @@ const submitForm = (event: React.ChangeEvent<HTMLSelectElement | HTMLInputElemen
 
 // REQ-115: any day will do, usually a Sunday. With a plan open, starting
 // the next one closes it (REQ-116).
-export function StartPlanForm({ today, label = "Start a plan", dateLabel = "Starts on" }: { today: string; label?: string; dateLabel?: string }) {
+export function StartPlanForm({
+  today,
+  label = "Start a plan",
+  dateLabel = "Starts on",
+  thenWeek = false,
+}: {
+  today: string;
+  label?: string;
+  dateLabel?: string;
+  thenWeek?: boolean;
+}) {
   const [state, formAction, pending] = useActionState(startPlan, initialState);
   return (
     <form action={formAction} className={styles.inline}>
+      {thenWeek ? <input type="hidden" name="then" value="week" /> : null}
       <label className={styles.control}>
         <span>{dateLabel}</span>
         <input type="date" name="starts_on" defaultValue={today} required />

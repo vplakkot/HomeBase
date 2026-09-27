@@ -135,3 +135,28 @@ describe("suggestions while planning (REQ-117)", () => {
     expect(ids(suggest(recipes, [], { inPlan: new Set(["b"]), carried: ["a"] }))).toEqual(["c"]);
   });
 });
+
+describe("the fun numbers on Meal Plans' home (REQ-118)", async () => {
+  const { homeStats } = await import("./home");
+  it("finds the most planned and top rated recipes, and counts recipes and cuisines, leaving hidden ones out", () => {
+    const recipes = [
+      recipe("tacos", { cuisine: "Mexican" }),
+      recipe("pasta", { cuisine: "Italian" }),
+      recipe("pizza", { cuisine: "Italian" }),
+      recipe("gone", { cuisine: "Thai", hidden: true }),
+    ];
+    const result = homeStats(
+      recipes,
+      new Map([["tacos", planned("2026-09-20", 5)], ["pasta", planned("2026-09-13", 2)], ["gone", planned("2026-01-01", 9)]]),
+      new Map([["pasta", 4.5], ["pizza", 4], ["gone", 5]]),
+    );
+    expect(result.mostPlanned).toEqual({ recipe: recipes[0], times: 5 });
+    expect(result.topRated).toEqual({ recipe: recipes[1], average: 4.5 });
+    expect(result.recipes).toBe(3);
+    expect(result.cuisines).toBe(2);
+  });
+
+  it("has no favourites before anything is planned or rated", () => {
+    expect(homeStats([recipe("a")], new Map(), new Map())).toEqual({ mostPlanned: null, topRated: null, recipes: 1, cuisines: 1 });
+  });
+});

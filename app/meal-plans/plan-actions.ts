@@ -84,6 +84,8 @@ export async function startPlan(_prev: PlanFormState, formData: FormData): Promi
     return { error: "The plan couldn't be started. Try again." };
   }
   refresh();
+  // From Home's quick add (REQ-118): straight to the new plan.
+  if (formData.get("then") === "week") redirect("/meal-plans/week");
   return {};
 }
 
