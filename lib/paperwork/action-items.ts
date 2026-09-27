@@ -6,9 +6,9 @@ import { documentsCount, type Paper } from "./paperwork";
 // the "done", so it clears itself when the last paper is filed; there's
 // nothing to tick off. It pushes nothing: REQ-97 asks only for Home.
 //
-// Less urgent than anything Finances raises (its ranks run 1 to 9),
+// Less urgent than anything Finances raises (its ranks run 1 to 12),
 // because a paper on the desk can wait a day and a bill can't.
-export const UNFILED_RANK = 10;
+export const UNFILED_RANK = 13;
 
 export const UNFILED_HREF = "/paperwork/unfiled";
 

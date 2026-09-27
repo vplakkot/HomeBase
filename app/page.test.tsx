@@ -42,6 +42,7 @@ const NOT_SET_UP: FinanceSnapshot = {
   months: [],
   balances: [],
   acks: [],
+  income: [],
 };
 
 function finances(snapshot: Partial<FinanceSnapshot> = {}) {

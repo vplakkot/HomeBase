@@ -3,7 +3,8 @@ import type { Balance } from "./balances";
 import { cashCheck } from "./balances";
 import { dueDateIn } from "./bills";
 import { monthLabel, monthStart, splitInForce, type Person, type Split } from "./budget-year";
-import { leftovers } from "./leftover";
+import { threePaycheckMonths, type IncomeSource } from "./income";
+import { leftovers, projectedIncome } from "./leftover";
 import { billEntered, isSquared, monthShares, monthStatus, monthTotals, type Month } from "./month";
 import { formatMoney } from "./money";
 import { marchReview } from "./recalibrate";
@@ -40,6 +41,9 @@ export type FinanceSnapshot = {
   months: Month[];
   balances: Balance[];
   acks: { user_id: string; key: string }[];
+  // Every income source, ended ones too (REQ-51): the paychecks a month
+  // expects, and which months bring three (REQ-62).
+  income: (IncomeSource & { effective_from: string })[];
 };
 
 // Most urgent first. Due-soon and month-ended outrank the rest (REQ-93).
@@ -51,8 +55,11 @@ export const RANKS = {
   ready: 5,
   squared: 6,
   balances: 7,
-  cashGap: 8,
-  recalibrate: 9,
+  householdOver: 8,
+  overBudget: 9,
+  cashGap: 10,
+  recalibrate: 11,
+  threePaychecks: 12,
 } as const;
 
 // How far ahead of its due date an unpaid bill shows.
@@ -119,6 +126,7 @@ export function financeItems(snapshot: FinanceSnapshot, viewer: string): Finance
     }
 
     // The month now running.
+    items.push(...overBudget(snapshot, month, totals, acked, viewer));
     const toEnter = month.bills.filter((bill) => !billEntered(bill)).length;
     if (toEnter > 0) {
       items.push(enterItem(month.starts_on, `${toEnter} bill${toEnter === 1 ? "" : "s"} still to enter`));
@@ -198,6 +206,8 @@ export function financeItems(snapshot: FinanceSnapshot, viewer: string): Finance
     });
   }
 
+  items.push(...threePaychecks(snapshot, viewer));
+
   const april = marchReview(today, splits);
   if (april && me.manages_budget) {
     const key = `recalibrate:${april}`;
@@ -275,6 +285,78 @@ function cashGap(snapshot: FinanceSnapshot): FinanceItem | null {
     };
   }
   return null;
+}
+
+// REQ-93's two over-budget items for the month now running, counting the
+// paychecks it still expects as income (as the savings card does), so
+// nobody looks over budget on the 2nd. Both see every item, and each
+// clears it for themselves (Vin, 2026-09-27).
+function overBudget(
+  snapshot: FinanceSnapshot,
+  month: Month,
+  totals: ReturnType<typeof monthTotals>,
+  acked: Set<string>,
+  viewer: string,
+): FinanceItem[] {
+  const { income } = projectedIncome(snapshot.income, month.starts_on, month.income);
+  // With no income set up or logged, everyone would look over budget.
+  if (income.length === 0) return [];
+  const left = leftovers(totals, income);
+  const name = monthName(month.starts_on);
+  const href = `/finances/balances?month=${month.starts_on.slice(0, 7)}`;
+  const items: FinanceItem[] = [];
+  if (left.joint < 0) {
+    items.push({
+      key: `household-over:${month.starts_on}`,
+      text: "Household over budget",
+      detail: `${name}'s bills are ${formatMoney(-left.joint)} more than our income`,
+      rank: RANKS.householdOver,
+      href,
+      button: "Acknowledge",
+      push: null,
+    });
+  }
+  for (const person of left.people) {
+    if (person.leftover >= 0) continue;
+    const who = snapshot.people.find((row) => row.user_id === person.user_id)?.name || "Someone";
+    items.push({
+      key: `over:${month.starts_on}:${person.user_id}`,
+      text: person.user_id === viewer ? "You'll be over budget" : `${who} will be over budget`,
+      detail: `${name}'s share is ${formatMoney(-person.leftover)} more than income`,
+      rank: RANKS.overBudget,
+      href,
+      button: "Acknowledge",
+      push: null,
+    });
+  }
+  return items.filter((item) => !acked.has(item.key));
+}
+
+// REQ-62's flag: in the last week of a month, each biweekly source of the
+// viewer's that pays three times next month. It clears when that month
+// starts, since today is then no longer in the month before.
+function threePaychecks(snapshot: FinanceSnapshot, viewer: string): FinanceItem[] {
+  const [year, month, day] = snapshot.today.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  if (day <= lastDay - 7) return [];
+  const next = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
+  const name = monthName(next);
+  return snapshot.income
+    .filter(
+      (source) =>
+        source.owner_id === viewer &&
+        (!source.ended_on || source.ended_on > next) &&
+        threePaycheckMonths(source, next, 1).length > 0,
+    )
+    .map((source) => ({
+      key: `three-pay:${next}:${source.id}`,
+      text: "Three-paycheck month next",
+      detail: source.name ? `${name} brings three ${source.name} paychecks` : `${name} brings three paychecks`,
+      rank: RANKS.threePaychecks,
+      href: "/finances/income",
+      button: "View income",
+      push: null,
+    }));
 }
 
 // The quarter-end month whose balances are due: from that month's last
