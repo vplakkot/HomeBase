@@ -97,14 +97,18 @@ export const MODULES: readonly Module[] = [
       { name: "Want to try", description: "Wines to try next", href: "/drinks/want-to-try" },
     ],
   },
-  // v2.0 (REQ-110 to REQ-112): recipe cards first; the weekly plan and
-  // the library's own tabs come in later batches.
+  // v2.0 (REQ-110 to REQ-115): recipe cards, the week's plan and the
+  // recipe library.
   {
     slug: "meal-plans",
     name: "Meal Plans",
     tokens: "meals",
     href: "/meal-plans",
-    sections: [{ name: "Add recipe", description: "From a video, text, or by hand", pinned: true, href: "/meal-plans/new" }],
+    sections: [
+      { name: "This week", description: "What we're cooking", href: "/meal-plans/week" },
+      { name: "Recipes", description: "Every recipe we keep", href: "/meal-plans/recipes" },
+      { name: "Add recipe", description: "From a video, text, or by hand", pinned: true, href: "/meal-plans/new" },
+    ],
   },
   { slug: "health", name: "Health", tokens: "health", href: null, sections: [] },
   // Added in v1.0 (REQ-88, REQ-97); Vin chose slate and the last place

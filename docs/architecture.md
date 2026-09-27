@@ -1082,6 +1082,24 @@ there is no Google library. Nothing is saved as a recipe until someone
 reviews the draft: a draft lives in `recipe_imports`, which only its
 starter can see, and saving it makes the recipe and removes the draft.
 
+### The week's plan and the library (REQ-113 to REQ-115)
+
+`meal_plans` holds one plan per week, started on any day. A partial
+unique index allows only one with no `closed_at` (a later batch closes
+a week), so two people starting a plan at once can't make two.
+`meal_plan_recipes` puts a recipe in a plan once, at 4 servings or 2,
+with an optional cooked tick; removing a plan removes its rows. A
+recipe's "times planned" and "last planned" aren't stored: they're
+counted from these rows each time (`lib/meal-plans/plan.ts`), so taking
+a recipe off a plan can't leave a stale count. `recipes.hidden` keeps a
+recipe out of the library without deleting it.
+
+Scaling (`lib/meal-plans/scale.ts`) is plain arithmetic shared by the
+screen and the server: the browser shows the scaled card and sends only
+the ratio when saving, and the server scales the stored card itself.
+Why the rule lives in an index and why the counts aren't stored:
+[lesson 30](lessons/30-one-open-plan-and-counting.md).
+
 ### A video's trip
 
 A video is too big to pass through our server (Vercel takes about

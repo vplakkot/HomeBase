@@ -28,7 +28,8 @@ export type RecipeFields = {
   page_url: string | null;
 };
 
-export type Recipe = RecipeFields & { id: string; photo: string | null; created_at: string };
+// REQ-114: a hidden recipe leaves the library but is kept.
+export type Recipe = RecipeFields & { id: string; photo: string | null; hidden: boolean; created_at: string };
 
 // What Gemini hands back, before anyone has reviewed it. `guessed` names
 // the fields it filled without being told (REQ-111: marked for review).
@@ -163,7 +164,7 @@ export function cookTimeText(minutes: number | null): string | null {
 }
 
 const RECIPE_COLUMNS =
-  "id, name, photo, video_url, page_url, cuisine, main_meat, cooking_method, cook_minutes, servings, ingredients, steps, notes, created_at";
+  "id, name, photo, video_url, page_url, cuisine, main_meat, cooking_method, cook_minutes, servings, ingredients, steps, notes, hidden, created_at";
 
 export async function readRecipes(supabase: SupabaseClient): Promise<Recipe[]> {
   const { data, error } = await supabase.from("recipes").select(RECIPE_COLUMNS).order("name");

@@ -702,3 +702,31 @@ describe("drinks: label photos (REQ-32)", () => {
     expect(photos).toMatch(/check \(back_label is null or front_label is not null\)/);
   });
 });
+
+describe("meal plan: hidden recipes and the week's plan (REQ-114, REQ-115)", () => {
+  const plan = readMigration("20260927100000");
+
+  it("hides a recipe with a flag rather than deleting it", () => {
+    expect(plan).toMatch(/alter table public\.recipes add column hidden boolean not null default false;/);
+  });
+
+  it("allows one open plan at a time", () => {
+    expect(plan).toMatch(/create unique index meal_plans_one_open on public\.meal_plans \(\(true\)\) where closed_at is null;/);
+  });
+
+  it("puts a recipe in a plan once, at 4 servings or 2", () => {
+    expect(plan).toMatch(/servings integer not null default 4 check \(servings in \(2, 4\)\)/);
+    expect(plan).toMatch(/primary key \(plan_id, recipe_id\)/);
+  });
+
+  it("lets every household member read and change both tables, and no one else", () => {
+    for (const table of ["meal_plans", "meal_plan_recipes"]) {
+      expect(plan).toMatch(new RegExp(`alter table public\\.${table} enable row level security;`));
+      expect(plan).toMatch(new RegExp(`revoke all on public\\.${table} from anon;`));
+      for (const action of ["select", "insert", "update", "delete"]) {
+        expect(plan).toMatch(new RegExp(`on public\\.${table} for ${action} to authenticated`));
+      }
+    }
+    expect(plan).not.toMatch(/to anon/);
+  });
+});
