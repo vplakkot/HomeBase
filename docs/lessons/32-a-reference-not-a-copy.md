@@ -68,6 +68,22 @@ city, different restaurant. Look at the address before adding.
 The OpenTable link itself is ours, not Google's, so it is kept as the
 place's booking link.
 
+## Filtering what you didn't keep
+
+Want to try and Been to can be narrowed by neighbourhood and cuisine
+(REQ-135). Usually a filter is a question for the database: "only the
+rows where cuisine is Mexican". Here the database can't answer it,
+because it never kept the cuisine. So the order flips: every place on
+the page is looked up in Google first (which the page did anyway, to
+draw the tiles), and then the list is narrowed on the server using what
+Google said. The dropdowns are built the same way, from the places
+actually on that page, so no choice leads to an empty list.
+
+The cost is that a filtered page asks Google about every place, not
+just the ones shown. For a household's list that is a few dozen
+lookups; if it ever became thousands, that would be the point to
+reconsider keeping a copy (and to check Google's terms first).
+
 ## Try it
 
 - `lib/restaurants/links.test.ts` lists every link shape we read, and

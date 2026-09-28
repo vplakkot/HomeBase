@@ -31,18 +31,21 @@ export type RestaurantsViewer = Awaited<ReturnType<typeof restaurantsViewer>>;
 
 // Every Restaurants screen: the module header with Add place (a desktop's;
 // a phone has it pinned above the bottom bar), and below the top level a
-// breadcrumb back to Want to try. `section` names the screen under the
+// breadcrumb back to Want to try, or Been to for a tried place. `section` names the screen under the
 // title on a phone.
 export function RestaurantsScreen({
   viewer,
   section,
   crumb,
+  beenTo = false,
   actions,
   children,
 }: {
   viewer: RestaurantsViewer;
   section?: string;
   crumb?: string;
+  // The crumb's parent: Want to try unless it's a tried place.
+  beenTo?: boolean;
   // In place of Add place; null for none.
   actions?: ReactNode;
   children: ReactNode;
@@ -69,7 +72,7 @@ export function RestaurantsScreen({
           <nav aria-label="Breadcrumb">
             <ol className={styles.crumbs}>
               <li>
-                <Link href="/restaurants">Want to try</Link>
+                {beenTo ? <Link href="/restaurants/been-to">Been to</Link> : <Link href="/restaurants">Want to try</Link>}
               </li>
               <li>
                 <span aria-hidden="true">› </span>

@@ -42,6 +42,15 @@ Clear always lands you on the screen you searched from, whether that
 was Storage's home or a single box. A bookmark with a sticky note on it
 is still the same bookmark.
 
+One catch with dropdowns that do the same (Restaurants' neighbourhood
+and cuisine filter, REQ-135). Tapping Clear changes the address, but
+React keeps the page's existing dropdowns rather than drawing new ones,
+so they can go on showing the old choice over an unfiltered list. The
+fix is to give the form a `key` made from the filter: a new filter
+means a new key, and React throws the old form away and draws a fresh
+one. Think of a name badge: change the name, and it's a new badge, not
+the old one with a crossing-out.
+
 ## One stylesheet, shared, not copied
 
 Every module's cards now follow the same rules (DESIGN.md §6), so the

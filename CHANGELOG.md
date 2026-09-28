@@ -2,14 +2,19 @@
 
 ## Unreleased
 
+- Restaurants: a Been to page, as a tab beside Want to try. Each place
+  you've tried is a photo tile, most recently tried first, with each of
+  your go-again answers (Yes, No or waiting); tap one for its date,
+  answers, Book and Google Maps. Both pages can be filtered by
+  neighbourhood and cuisine, from Google's details for the places on
+  that page; Clear shows them all again.
 - Restaurants: paste an OpenTable link to add a place; its booking link
   comes with it, or is added to the place if it's already saved. A
   place's page has Book (any booking site; paste or change the link
   there) and Open in Google Maps. Mark as tried takes it off Want to
   try with today's date; each of you is then asked "Go again?" (on
   Restaurants and on Home) until you answer, and can change your own
-  answer later. Undo puts it back with both answers cleared. The Been
-  to page itself comes next.
+  answer later. Undo puts it back with both answers cleared.
 - A new module, Restaurants, for places we want to try. Add place: paste
   a Google Maps or Apple Maps link (a share link works), check it's the
   right place, and it's saved to Want to try with who added it and when.
