@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { searchRecipePages } from "../../lib/meal-plans/gemini";
+import { readRecipePage } from "../../lib/meal-plans/recipe-search";
 import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
 import EditRecipePage from "./[id]/edit/page";
@@ -14,6 +15,10 @@ vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("../../lib/meal-plans/gemini", async (original) => ({
   ...(await original<typeof import("../../lib/meal-plans/gemini")>()),
   searchRecipePages: vi.fn(),
+}));
+vi.mock("../../lib/meal-plans/recipe-search", async (original) => ({
+  ...(await original<typeof import("../../lib/meal-plans/recipe-search")>()),
+  readRecipePage: vi.fn(),
 }));
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -190,6 +195,35 @@ describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
     expect(screen.getByTitle("Google search suggestions").getAttribute("srcdoc")).toBe("<div>chips</div>");
     expect(screen.getByRole("button", { name: "Use this page" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "None of these: save it as Recipe missing" })).toBeTruthy();
+  });
+
+  it("adds from a recipe page link: the link alone, read by Gemini (REQ-150)", async () => {
+    given({});
+    render(await NewRecipePage());
+    fireEvent.click(screen.getByRole("radio", { name: "From a recipe page link" }));
+    expect(screen.getByRole("textbox", { name: /Link to the recipe page/ }).getAttribute("type")).toBe("url");
+    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Read the recipe" })).toBeTruthy();
+  });
+
+  it("when the page can't be read, says so and switches to typing it in, the link kept (REQ-150)", async () => {
+    given({});
+    vi.mocked(readRecipePage).mockRejectedValue(new Error("The page answered 403"));
+    render(await NewRecipePage());
+    fireEvent.click(screen.getByRole("radio", { name: "From a recipe page link" }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Link to the recipe page/ }), {
+      target: { value: "https://recipes.example.com/lemon-test-chicken/" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Read the recipe" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "That page couldn't be read. Copy the recipe from the site and paste it here.",
+    );
+    expect((screen.getByRole("radio", { name: "Paste or type it" }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement).value).toBe("Lemon test chicken");
+    expect(screen.getByRole("textbox", { name: "The recipe" })).toBeTruthy();
+    const kept = document.querySelector('input[type="hidden"][name="page_url"]') as HTMLInputElement;
+    expect(kept.value).toBe("https://recipes.example.com/lemon-test-chicken/");
+    expect(screen.getByRole("link", { name: "https://recipes.example.com/lemon-test-chicken/" })).toBeTruthy();
   });
 
   it("says so when nothing came up, and still offers to save it as Recipe missing", async () => {

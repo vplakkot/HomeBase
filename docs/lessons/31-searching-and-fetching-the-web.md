@@ -62,6 +62,33 @@ stored (`recipes.ai_generated`), because nothing in the card itself
 says who wrote it. Gemini writes a recipe of its own only here, when
 asked on a "Recipe missing" card, and any edit clears the label.
 
+## 4. A pasted link, and its photo (REQ-150)
+
+Pasting a recipe page's link skips the search: the same careful reader
+fetches that one page. Two things are new.
+
+**The name comes from the page.** With no name typed, the prompt asks
+Gemini for the recipe's own title as the page gives it. If it gives
+none, the link's words stand in ("lemon-test-chicken" becomes "Lemon
+test chicken").
+
+**The photo.** The same search-engine block names the recipe's photo
+(`"image"`), and most pages also name the picture shown when they're
+shared (`og:image`). The server downloads it the same careful way as
+the page (public https only, redirects checked, 5 MB at most, only
+real picture types) and hands it to the browser, which shrinks it to a
+small JPEG the way it shrinks your own photos. Think of it as the
+server picking up the parcel and the browser repacking it: the photo
+store only takes small JPEGs, and only the browser has the tools to
+repack.
+
+**When a page won't open.** Some big recipe sites turn away any
+automated reader (tried 2026-09-28: two sites answered 403, two others
+read fine). HomeBase doesn't pretend to be a browser to get round
+that. It says the page couldn't be read and switches to "Paste or type
+it", with the link already kept, so you copy the recipe across
+yourself.
+
 ## Where to look
 
 - `lib/meal-plans/recipe-search.ts`: the search's pages, safe fetching,
@@ -69,4 +96,6 @@ asked on a "Recipe missing" card, and any edit clears the label.
 - `lib/meal-plans/gemini.ts`: `searchRecipePages`, `pagePrompt`,
   `genericPrompt`.
 - `app/meal-plans/actions.ts`: `findRecipePages`, `draftFromPage`,
-  `saveRecipeMissing`, `draftGeneric`.
+  `saveRecipeMissing`, `draftGeneric`, and REQ-150's `draftFromLink`
+  and `setDraftPhoto`.
+- `lib/meal-plans/recipe-search.ts` again: `imageFrom`, `readImage`.

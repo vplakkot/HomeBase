@@ -17,7 +17,7 @@ import {
   searchRecipePages,
   uploadProgress,
 } from "../../lib/meal-plans/gemini";
-import { isPublicPage, readPage, type SearchResult } from "../../lib/meal-plans/recipe-search";
+import { isPublicPage, readImage, readPage, readRecipePage, titleFrom, type SearchResult } from "../../lib/meal-plans/recipe-search";
 import { MAX_VIDEO_BYTES, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
 import { PROCESSING_GIVES_UP_MS, UPLOAD_GIVES_UP_MS, processVideoImport } from "../../lib/meal-plans/import-job";
 import { RECIPE_PHOTOS, recipePhotoPath } from "../../lib/meal-plans/photos";
@@ -101,11 +101,88 @@ export async function draftFromText(_prev: FormState, formData: FormData): Promi
   });
   if ("error" in reading) return { error: `${reading.error} Try again, or fill the card in yourself.` };
   const id = crypto.randomUUID();
-  const { error } = await supabase
-    .from("recipe_imports")
-    .insert({ id, name, status: "ready", draft: reading.draft, seen: true, video_url: linkOrNull(formData.get("video_url")) });
+  // REQ-150: a recipe typed in from a page that couldn't be read keeps
+  // that page's link.
+  const page_url = isPublicPage(formData.get("page_url")) ? String(formData.get("page_url")) : null;
+  const { error } = await supabase.from("recipe_imports").insert({
+    id,
+    name,
+    status: "ready",
+    draft: reading.draft,
+    seen: true,
+    video_url: linkOrNull(formData.get("video_url")),
+    page_url,
+  });
   if (error) return { error: "The draft couldn't be kept. Try again." };
   redirect(`/meal-plans/drafts/${id}`);
+}
+
+export type LinkDraft =
+  | { id: string; photo: string | null }
+  // The page couldn't be read, or has no recipe: type it in instead,
+  // with the link kept and a name to start from.
+  | { error: string; typeIn: { url: string; name: string } }
+  | { error: string };
+
+// REQ-150: a pasted recipe page link becomes a draft card, read from
+// that page only; its name comes from the page. The page's photo comes
+// back as a data: address for the browser to shrink and keep (the
+// bucket takes only small JPEGs, and shrinking happens in the browser).
+export async function draftFromLink(link: string): Promise<LinkDraft> {
+  const supabase = await requireMember();
+  const url = link.trim();
+  if (!isPublicPage(url)) return { error: "Paste the recipe page's link, starting with https://." };
+  const typeIn = { url, name: titleFrom(url) };
+  let page: { text: string; image: string | null };
+  try {
+    page = await readRecipePage(url);
+  } catch {
+    return { error: "That page couldn't be read. Copy the recipe from the site and paste it here.", typeIn };
+  }
+  if (!page.text) return { error: "That page has nothing to read. Copy the recipe from the site and paste it here.", typeIn };
+  const reading = await recipeFromPage("", page.text).catch((error: unknown) => {
+    Sentry.captureException(error);
+    return null;
+  });
+  if (!reading) return { error: "Gemini didn't answer. Try again." };
+  if ("error" in reading) {
+    if (!reading.error.includes("no recipe")) return { error: `${reading.error} Try again.` };
+    return { error: "Gemini found no recipe on that page. Copy it from the site and paste it here.", typeIn };
+  }
+  const name = reading.draft.name || typeIn.name;
+  const id = crypto.randomUUID();
+  const { error } = await supabase
+    .from("recipe_imports")
+    .insert({ id, name, status: "ready", draft: { ...reading.draft, name }, seen: true, page_url: url });
+  if (error) return { error: "The draft couldn't be kept. Try again." };
+  // A missing or unreadable photo doesn't stop the card.
+  const photo = page.image ? await readImage(page.image).catch(() => null) : null;
+  return { id, photo };
+}
+
+// REQ-150: the page's photo, shrunk by the browser, goes on the draft
+// that has none yet; saving the draft makes it the card's photo.
+export async function setDraftPhoto(formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const id = idFrom(formData.get("import_id"));
+  if (!id) return { error: "That draft is gone." };
+  const photo = photoFrom(formData);
+  if (!photo) return { error: "Choose a photo first." };
+  if ("error" in photo) return photo;
+  const { data: draft } = await supabase.from("recipe_imports").select("photo").eq("id", id).maybeSingle();
+  if (!draft) return { error: "That draft is gone." };
+  if (draft.photo) return { saved: true };
+  let path: string | null = null;
+  try {
+    path = await storePhoto(supabase, `imports/${id}`, photo);
+    const { error } = await supabase.from("recipe_imports").update({ photo: path }).eq("id", id);
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    Sentry.captureException(error);
+    await removePhoto(supabase, path);
+    return { error: "The photo couldn't be kept." };
+  }
+  return { saved: true };
 }
 
 export type VideoStart = { id: string; uploadUrl: string } | { error: string };

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Meal Plans: add a recipe from a recipe page's link. Gemini reads that
+  page only and drafts the card, named from the page and with the
+  page's photo, for you to check before saving; the card keeps the
+  link. If the page can't be read (some sites turn automated readers
+  away) or has no recipe, it says so and switches to typing the recipe
+  in, with the link already kept.
+
 ## 2.1.0 - 2026-09-27
 
 A new module, Restaurants: save a place from a Google Maps, Apple Maps

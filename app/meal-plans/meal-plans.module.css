@@ -342,6 +342,14 @@
   font-size: var(--text-body-sm);
 }
 
+/* REQ-150: the link of a page that couldn't be read, kept for the card. */
+.pageKept {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+  overflow-wrap: anywhere;
+}
+
 /* Google's search suggestions, as its terms ask: its own small block. */
 .suggestions {
   width: 100%;
