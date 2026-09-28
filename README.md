@@ -15,30 +15,32 @@ field it asks for:
   Tiles load theirs only as they scroll into view, and a phone keeps
   each one for a day.
 
-### A cap so a bug can't run up a bill (a step for Vin)
+### A cap so a bug can't run up a bill (set 2026-09-28)
 
-Google documents its Places (New) limits **per minute, per method**
-(each kind of request has its own). Not checked from here: whether the
-console also offers a per-day limit for your project.
+Google bills Places by the request, with a free amount each month, and
+has no spending cap in dollars. So the cap is a limit on requests, per
+method, per minute and per day. They live in Google Cloud console →
+**Google Maps Platform → Quotas → Places API (New)** (not APIs &
+Services → Quotas, where Gemini's are). Vin set these on 2026-09-28:
 
-1. Google Cloud console → **Google Maps Platform → Quotas**.
-2. Choose **Places API (New)**.
-3. For each of these methods, tick its row, **Edit**, enter the value,
-   **Submit request**:
-   - Get Place (tiles and a place's page): **100 per minute**
-   - Search Text (adding a place): **10 per minute**
-   - Get Photo Media (photos): **60 per minute**
+| Quota | Per minute | Per day | Why |
+|---|---|---|---|
+| GetPlaceRequest (tiles, a place's page) | 100 | 150 | 150 × 31 = 4,650, under the 5,000 free Place Details Pro |
+| GetPhotoMediaRequest (photos) | 60 | 30 | 30 × 31 = 930, under the 1,000 free photos |
+| SearchTextRequest (adding a place) | 10 | 30 | well under the 5,000 free Text Search Pro |
 
-   Opening a list asks about every place on it at once, so these sit
-   above the size of our lists; lower and a busy list goes blank.
-4. If a **per day** row is listed for those methods, set it too:
-   Get Place **190**, Search Text **30**, Get Photo Media **30**. That
-   keeps a month under the free amounts above. Opening a list of 20
-   places costs 20 Get Place, so 190 a day is about nine opens; past
-   it, tiles say "Couldn't load from Google" until the next day.
-5. **Billing → Budgets & alerts**: a budget of **$1** with an email
-   alert, so any charge at all is noticed. (A budget warns; it does
-   not stop requests.)
+Opening a list asks about every place on it at once, so the per-minute
+limits sit above the size of our lists; lower and a busy list goes
+blank. Opening a list of 20 places costs 20 GetPlace, so 150 a day is
+about seven opens; past it, tiles say "Couldn't load from Google" until
+the next day. The other quotas on that page are Google's defaults;
+HomeBase doesn't use those methods.
 
-The per-minute limits stop a runaway loop quickly; only a per-day
-limit or the budget alert catches slow, steady overuse.
+A place's own page is billed as Place Details Enterprise (1,000 free),
+but counts against the same GetPlace limit, so the per-day limit can't
+keep that one free on its own. A **$1 budget** with an email alert
+(**Billing → Budgets & alerts**) catches that and anything else: it
+warns at the first charge, but doesn't stop requests.
+
+The per-minute limits stop a runaway loop quickly; the per-day limits
+and the budget alert catch slow, steady overuse.
