@@ -156,9 +156,12 @@ ${recipe}
 }
 
 // REQ-112: a card from the one recipe page we picked, and nothing else.
+// REQ-150: a pasted link comes with no name, so the page gives it.
 export function pagePrompt(name: string, page: string): string {
+  const which = name ? ` for "${name}"` : "";
+  const naming = name ? "" : " For name, give the recipe's own title as the page gives it.";
   return `${CARD_RULES}
-Read the recipe for "${name}" from this web page only. Don't add anything the page doesn't say. If the page has no recipe, say so as above.
+Read the recipe${which} from this web page only. Don't add anything the page doesn't say. If the page has no recipe, say so as above.${naming}
 """
 ${page}
 """`;

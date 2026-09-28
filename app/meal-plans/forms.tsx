@@ -14,6 +14,7 @@ import { sendVideo } from "../../lib/meal-plans/video-upload";
 import { stillFromVideo } from "../../lib/meal-plans/video-still";
 import {
   addRecipe,
+  draftFromLink,
   draftFromPage,
   draftFromText,
   draftGeneric,
@@ -21,6 +22,7 @@ import {
   saveRecipeMissing,
   type PageSearch,
   saveDraft,
+  setDraftPhoto,
   setRecipePhoto,
   startVideoImport,
   updateRecipe,
@@ -54,19 +56,33 @@ function Check() {
   return <em className={styles.unsure}> · check this</em>;
 }
 
-type Way = "video" | "web" | "text" | "blank";
+type Way = "video" | "link" | "web" | "text" | "blank";
 
 const WAYS: { value: Way; label: string }[] = [
   { value: "video", label: "From a video" },
+  { value: "link", label: "From a recipe page link" },
   { value: "web", label: "Find it on the web" },
   { value: "text", label: "Paste or type it" },
   { value: "blank", label: "Fill in the card" },
 ];
 
-// Add recipe: from a video (REQ-112, BETA), from text in any form
-// (REQ-111), or an empty card to fill in.
+// A page that couldn't be read (REQ-150): its link, a name to start
+// from, and why.
+type TypeIn = { url: string; name: string; why: string };
+
+// Add recipe: from a video (REQ-112, BETA), a recipe page link
+// (REQ-150), text in any form (REQ-111), or an empty card to fill in.
 export function AddRecipe() {
   const [way, setWay] = useState<Way>("video");
+  const [typeIn, setTypeIn] = useState<TypeIn | null>(null);
+  const choose = (next: Way) => {
+    setWay(next);
+    setTypeIn(null);
+  };
+  const cantRead = (page: TypeIn) => {
+    setTypeIn(page);
+    setWay("text");
+  };
   return (
     <>
       <fieldset className={styles.choices}>
@@ -74,7 +90,7 @@ export function AddRecipe() {
         <div className={styles.choiceRow}>
           {WAYS.map((option) => (
             <label key={option.value} className={styles.choice}>
-              <input type="radio" name="way" value={option.value} checked={way === option.value} onChange={() => setWay(option.value)} />
+              <input type="radio" name="way" value={option.value} checked={way === option.value} onChange={() => choose(option.value)} />
               <span>
                 {option.label}
                 {option.value === "video" ? <Beta /> : null}
@@ -83,7 +99,17 @@ export function AddRecipe() {
           ))}
         </div>
       </fieldset>
-      {way === "video" ? <VideoForm /> : way === "web" ? <WebForm /> : way === "text" ? <TextForm /> : <RecipeForm />}
+      {way === "video" ? (
+        <VideoForm />
+      ) : way === "link" ? (
+        <LinkForm cantRead={cantRead} />
+      ) : way === "web" ? (
+        <WebForm />
+      ) : way === "text" ? (
+        <TextForm key={typeIn?.url ?? ""} from={typeIn} />
+      ) : (
+        <RecipeForm />
+      )}
     </>
   );
 }
@@ -171,6 +197,64 @@ function VideoForm() {
       ) : null}
       <button type="submit" className={buttonClass} disabled={busy}>
         {busy ? "Starting…" : "Read the recipe"}
+      </button>
+    </form>
+  );
+}
+
+// The page's photo, shrunk like any photo we add (REQ-32), goes on the
+// draft. Nothing is lost if it can't be: the card just has no photo yet.
+async function keepPagePhoto(importId: string, dataUrl: string) {
+  const blob = await (await fetch(dataUrl)).blob();
+  const photo = await shrinkPhoto(blob);
+  const data = new FormData();
+  data.set("import_id", importId);
+  data.set("photo", photo.full, "page.jpg");
+  data.set("photo_thumb", photo.thumb, "page-thumb.jpg");
+  await setDraftPhoto(data);
+}
+
+// REQ-150, flow 1: paste a recipe page's link; Gemini reads that page
+// and drafts the card, named from the page. If the page can't be read,
+// flow 2: switch to typing the recipe in, with the link kept.
+function LinkForm({ cantRead }: { cantRead: (page: TypeIn) => void }) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const link = String(new FormData(event.currentTarget).get("page_url") ?? "");
+    setError(null);
+    setBusy("Gemini is reading the page…");
+    const result = await draftFromLink(link).catch(() => ({ error: "HomeBase didn't answer. Try again." }));
+    if ("id" in result) {
+      if (result.photo) {
+        setBusy("Keeping the page's photo…");
+        await keepPagePhoto(result.id, result.photo).catch(() => undefined);
+      }
+      router.push(`/meal-plans/drafts/${result.id}`);
+      return;
+    }
+    setBusy(null);
+    if ("typeIn" in result) cantRead({ ...result.typeIn, why: result.error });
+    else setError(result.error);
+  };
+  return (
+    <form onSubmit={submit} className={cards.form}>
+      <label className={cards.field}>
+        <span className={styles.labelRow}>
+          Link to the recipe page
+          <Hint text="Gemini reads that page only and drafts the card, with the page's photo. You check it before it's saved." />
+        </span>
+        <input name="page_url" type="url" inputMode="url" required placeholder="https://www.example.com/recipes/…" autoComplete="off" />
+      </label>
+      {error ? (
+        <p role="alert" className={cards.error}>
+          {error}
+        </p>
+      ) : null}
+      <button type="submit" className={buttonClass} disabled={busy !== null}>
+        {busy ?? "Read the recipe"}
       </button>
     </form>
   );
@@ -295,13 +379,27 @@ export function GenericRecipeForm({ recipeId }: { recipeId: string }) {
   );
 }
 
-function TextForm() {
+function TextForm({ from = null }: { from?: TypeIn | null }) {
   const [state, formAction, pending] = useActionState(draftFromText, initialState);
   return (
     <form action={formAction} className={cards.form}>
+      {from ? (
+        <>
+          <p role="alert" className={cards.error}>
+            {from.why}
+          </p>
+          <input type="hidden" name="page_url" value={from.url} />
+          <p className={styles.pageKept}>
+            Link kept:{" "}
+            <a href={from.url} target="_blank" rel="noopener noreferrer">
+              {from.url}
+            </a>
+          </p>
+        </>
+      ) : null}
       <label className={cards.field}>
         <span>Name</span>
-        <input name="name" required placeholder="What the dish is called" autoComplete="off" />
+        <input name="name" required defaultValue={from?.name} placeholder="What the dish is called" autoComplete="off" />
       </label>
       <label className={cards.field}>
         <span>The recipe</span>

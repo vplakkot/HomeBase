@@ -7,11 +7,12 @@ import {
   searchRecipePages,
   uploadProgress,
 } from "../../lib/meal-plans/gemini";
-import { readPage } from "../../lib/meal-plans/recipe-search";
+import { readImage, readPage, readRecipePage } from "../../lib/meal-plans/recipe-search";
 import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
 import {
   dismissImport,
+  draftFromLink,
   draftFromPage,
   draftFromText,
   draftGeneric,
@@ -21,6 +22,7 @@ import {
   myRecipeImports,
   removeRecipe,
   saveDraft,
+  setDraftPhoto,
   setRecipePhoto,
   startVideoImport,
   videoProgress,
@@ -44,6 +46,8 @@ vi.mock("../../lib/meal-plans/gemini", async (original) => ({
 vi.mock("../../lib/meal-plans/recipe-search", async (original) => ({
   ...(await original<typeof import("../../lib/meal-plans/recipe-search")>()),
   readPage: vi.fn(),
+  readRecipePage: vi.fn(),
+  readImage: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
@@ -356,5 +360,120 @@ describe("finding the recipe on the web (REQ-112, flows 2 and 3)", () => {
       `REDIRECT:/meal-plans/${RECIPE}`,
     );
     expect(on("recipes")[0].update).toHaveBeenCalledWith(expect.objectContaining({ ai_generated: false }));
+  });
+});
+
+describe("adding a recipe from a web page link (REQ-150)", () => {
+  const LINK = "https://recipes.example.com/2024/05/lemon-test-chicken/";
+  const PAGE_TEXT = "Lemon test chicken: 200 g chicken. Fry it.";
+  const FROM_PAGE = { ...DRAFT, name: "Lemon Test Chicken" };
+
+  it("drafts the card from that page only, named from the page, with the link kept and the page's photo handed back", async () => {
+    given();
+    vi.mocked(readRecipePage).mockResolvedValue({ text: PAGE_TEXT, image: "https://img.example.com/chicken.jpg" });
+    vi.mocked(recipeFromPage).mockResolvedValue({ draft: FROM_PAGE as never });
+    vi.mocked(readImage).mockResolvedValue("data:image/jpeg;base64,cGlj");
+    const result = await draftFromLink(`  ${LINK} `);
+    expect(result).toEqual({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), photo: "data:image/jpeg;base64,cGlj" });
+    expect(readRecipePage).toHaveBeenCalledWith(LINK);
+    expect(recipeFromPage).toHaveBeenCalledWith("", PAGE_TEXT);
+    expect(readImage).toHaveBeenCalledWith("https://img.example.com/chicken.jpg");
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith({
+      id: (result as { id: string }).id,
+      name: "Lemon Test Chicken",
+      status: "ready",
+      draft: FROM_PAGE,
+      seen: true,
+      page_url: LINK,
+    });
+    // A draft, not a card: it's reviewed first.
+    expect(fake.from).not.toHaveBeenCalledWith("recipes");
+  });
+
+  it("names it from the link when the page gives no name, and still drafts it with no photo", async () => {
+    given();
+    vi.mocked(readRecipePage).mockResolvedValue({ text: PAGE_TEXT, image: null });
+    vi.mocked(recipeFromPage).mockResolvedValue({ draft: DRAFT as never });
+    expect(await draftFromLink(LINK)).toEqual({ id: expect.any(String), photo: null });
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ name: "Lemon test chicken" }));
+    expect(readImage).not.toHaveBeenCalled();
+  });
+
+  it("a photo that can't be downloaded doesn't stop the draft", async () => {
+    given();
+    vi.mocked(readRecipePage).mockResolvedValue({ text: PAGE_TEXT, image: "https://img.example.com/gone.jpg" });
+    vi.mocked(recipeFromPage).mockResolvedValue({ draft: FROM_PAGE as never });
+    vi.mocked(readImage).mockRejectedValue(new Error("The page answered 404"));
+    expect(await draftFromLink(LINK)).toEqual({ id: expect.any(String), photo: null });
+  });
+
+  it("when the page can't be read or has no recipe, says so, keeps nothing, and hands over the link to type it in", async () => {
+    given();
+    const typeIn = { url: LINK, name: "Lemon test chicken" };
+    vi.mocked(readRecipePage).mockRejectedValue(new Error("The page answered 403"));
+    expect(await draftFromLink(LINK)).toEqual({
+      error: "That page couldn't be read. Copy the recipe from the site and paste it here.",
+      typeIn,
+    });
+    vi.mocked(readRecipePage).mockResolvedValue({ text: "", image: null });
+    expect(await draftFromLink(LINK)).toMatchObject({ typeIn });
+    vi.mocked(readRecipePage).mockResolvedValue({ text: "Subscribe to read this recipe.", image: null });
+    vi.mocked(recipeFromPage).mockResolvedValue({ error: "Gemini found no recipe in it." });
+    expect(await draftFromLink(LINK)).toEqual({
+      error: "Gemini found no recipe on that page. Copy it from the site and paste it here.",
+      typeIn,
+    });
+    expect(fake.from).not.toHaveBeenCalledWith("recipe_imports");
+  });
+
+  it("when Gemini itself doesn't answer, asks to try again rather than switching", async () => {
+    given();
+    vi.mocked(readRecipePage).mockResolvedValue({ text: PAGE_TEXT, image: null });
+    vi.mocked(recipeFromPage).mockRejectedValue(new Error("down"));
+    expect(await draftFromLink(LINK)).toEqual({ error: "Gemini didn't answer. Try again." });
+  });
+
+  it("never reads an address that isn't a public web page", async () => {
+    given();
+    for (const link of ["", "recipes.example.com/x", "http://recipes.example.com/x", "https://localhost/x", "https://10.0.0.1/x"]) {
+      expect(await draftFromLink(link)).toEqual({ error: "Paste the recipe page's link, starting with https://." });
+    }
+    expect(readRecipePage).not.toHaveBeenCalled();
+  });
+
+  it("lets either of us add recipes, and nobody without the permission", async () => {
+    given({}, []);
+    await expect(draftFromLink(LINK)).rejects.toThrow("REDIRECT:/meal-plans");
+  });
+
+  it("the recipe typed in instead keeps the page's link", async () => {
+    given();
+    vi.mocked(recipeFromText).mockResolvedValue({ draft: DRAFT as never });
+    await expect(draftFromText({}, form({ name: "Lemon test chicken", recipe: PAGE_TEXT, page_url: LINK }))).rejects.toThrow(
+      /^REDIRECT:\/meal-plans\/drafts\//,
+    );
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ page_url: LINK, draft: DRAFT }));
+  });
+
+  it("keeps only a public web page as that link", async () => {
+    given();
+    vi.mocked(recipeFromText).mockResolvedValue({ draft: DRAFT as never });
+    await expect(draftFromText({}, form({ name: "Test", recipe: "x", page_url: "javascript:alert(1)" }))).rejects.toThrow("REDIRECT");
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ page_url: null }));
+  });
+
+  it("puts the shrunk page photo on the draft, which saving makes the card's photo", async () => {
+    given({ recipe_imports: [{ id: IMPORT, photo: null }] });
+    expect(await setDraftPhoto(form({ import_id: IMPORT, photo: jpeg(), photo_thumb: jpeg() }))).toEqual({ saved: true });
+    expect(fake.storage.bucket.upload).toHaveBeenCalledTimes(2);
+    expect(on("recipe_imports").at(-1)!.update).toHaveBeenCalledWith({ photo: expect.stringMatching(new RegExp(`^imports/${IMPORT}/`)) });
+  });
+
+  it("never replaces a draft's photo, and refuses anything but a small JPEG", async () => {
+    given({ recipe_imports: [{ id: IMPORT, photo: "imports/x/1.jpg" }] });
+    expect(await setDraftPhoto(form({ import_id: IMPORT, photo: jpeg(), photo_thumb: jpeg() }))).toEqual({ saved: true });
+    expect(fake.storage.bucket.upload).not.toHaveBeenCalled();
+    const png = new Blob(["x"], { type: "image/png" });
+    expect(await setDraftPhoto(form({ import_id: IMPORT, photo: png, photo_thumb: png }))).toEqual({ error: "Photos are sent as JPEG." });
   });
 });
