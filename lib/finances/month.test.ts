@@ -47,6 +47,9 @@ function month(bills: MonthBill[], direct: Month["direct_payments"] = []): Month
     split_from: null,
     people: [],
     savings: [],
+    added_later: false,
+    settled: false,
+    own_shares: [],
   };
 }
 
@@ -294,3 +297,28 @@ describe("monthMark", () => {
     expect(monthMark(false, "2026-08-01", "2026-09-22")).toBe("Open");
   });
 });
+
+// REQ-148: a month added later divides by its own split while open, and
+// by what was written on it once closed.
+describe("a month added later's split", () => {
+  const SPLITS = [{ id: "s", effective_from: "2026-09-01", note: "", shares: [{ user_id: "a", percent: 50 }, { user_id: "b", percent: 50 }] }];
+  const own = [{ user_id: "a", percent: 70 }, { user_id: "b", percent: 30 }];
+
+  it("uses its own split while open, never the household's", () => {
+    const added = { ...month([rent]), starts_on: "2026-05-01", added_later: true, own_shares: own };
+    expect(monthShares(added, SPLITS, "2026-05-01")).toEqual(own);
+    expect(monthTotals(added, monthShares(added, SPLITS, "2026-05-01")).people.map((p) => p.share)).toEqual([1400, 600]);
+  });
+
+  it("uses what was written on it once closed", () => {
+    const closed = {
+      ...month([rent]),
+      added_later: true,
+      own_shares: own,
+      closed_at: "2026-09-20T12:00:00Z",
+      people: [{ user_id: "a", percent: 60, outstanding: 0 }, { user_id: "b", percent: 40, outstanding: 0 }],
+    };
+    expect(monthShares(closed, SPLITS, "2026-05-01")).toEqual([{ user_id: "a", percent: 60 }, { user_id: "b", percent: 40 }]);
+  });
+});
+

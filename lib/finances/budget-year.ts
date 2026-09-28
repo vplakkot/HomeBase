@@ -35,6 +35,31 @@ export function monthStart(day: string): string {
   return `${day.slice(0, 7)}-01`;
 }
 
+// The budget year runs April to March (REQ-69). Its first month, as
+// "YYYY-04-01", for the day given.
+export function budgetYearStart(day: string): string {
+  const [year, month] = day.split("-").map(Number);
+  return `${month < 4 ? year - 1 : year}-04-01`;
+}
+
+// REQ-148: every month of the budget year so far, oldest first, up to
+// and including the one the day falls in.
+export function budgetYearMonthsSoFar(day: string): string[] {
+  const months: string[] = [];
+  let [year, month] = budgetYearStart(day).split("-").map(Number);
+  const last = monthStart(day);
+  for (;;) {
+    const first = `${year}-${String(month).padStart(2, "0")}-01`;
+    if (first > last) return months;
+    months.push(first);
+    month += 1;
+    if (month === 13) {
+      month = 1;
+      year += 1;
+    }
+  }
+}
+
 export function monthLabel(day: string): string {
   const [year, month] = day.split("-").map(Number);
   return `${MONTHS[month - 1]} ${year}`;

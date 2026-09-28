@@ -67,7 +67,10 @@ export const DUE_SOON_DAYS = 5;
 // How long without a payment before someone who owes is nudged.
 export const QUIET_DAYS = 14;
 
-export function financeItems(snapshot: FinanceSnapshot, viewer: string): FinanceItem[] {
+export function financeItems(everything: FinanceSnapshot, viewer: string): FinanceItem[] {
+  // REQ-148: a month filled in afterwards raises no items, so it pushes
+  // nothing either (pushes are made from these items).
+  const snapshot = { ...everything, months: everything.months.filter((month) => !month.added_later) };
   const { today, splits } = snapshot;
   const me = snapshot.people.find((person) => person.user_id === viewer);
   if (!me || !splitInForce(splits, today)) return [];

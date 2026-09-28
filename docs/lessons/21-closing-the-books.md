@@ -74,6 +74,33 @@ Three details worth knowing:
   `supabase/checks/months_open_themselves.sql` can say "pretend it's the
   1st" without waiting for the calendar.
 
+### The month filled in afterwards (#244)
+
+We started HomeBase in September, but the budget year began in April.
+REQ-148 lets us go back and fill in April to August. Think of a ledger
+with blank pages at the front: you can write them up later, but you
+write *on those pages*, without rubbing out anything on the pages after.
+
+Three details:
+
+- **Its own copy of the split.** A split whose month has passed is
+  history (lesson 20), so filling in May can't change the household's
+  splits. Instead the month gets its own copy (`month_shares`): the
+  split in force in May if there was one, otherwise today's. Changing
+  it changes May only. It's the photocopy from section 1, taken when
+  the page is written rather than when it's signed off.
+- **Settled is a different signature.** "We sorted it out between us"
+  isn't the app's to check. So `settle_past_month()` signs the page off
+  with nobody owing anything, whatever payments were or weren't logged.
+  The padlock works the same as for any closed month.
+- **Quiet on purpose.** A month from last spring that's still open would
+  otherwise look overdue, and the reminders would nag about it every
+  day. The action items skip any month added later, and since
+  notifications are made from action items, those stop too.
+
+`supabase/checks/months_added_later.sql` proves these against the real
+database, pretending it's September 2999.
+
 ## 3. The same rule, written twice, on purpose
 
 "Is this month squared?" is answered in two places:

@@ -191,3 +191,48 @@ describe("Monthly entry in a closed month", () => {
     expect(within(main).queryByRole("textbox")).toBeNull();
   });
 });
+
+// REQ-148: a month added later, filled in on the same screen.
+describe("Monthly entry in a month added later", () => {
+  const MAY = {
+    ...SEPTEMBER,
+    id: "m-may",
+    starts_on: "2026-05-01",
+    direct_payments: [],
+    added_later: true,
+    settled: false,
+    closed_at: null,
+    own_shares: [
+      { user_id: "u-alex", percent: "65.00" },
+      { user_id: "u-sam", percent: "35.00" },
+    ],
+  };
+
+  it("is the same Monthly entry screen, with its own split to change and Mark settled", async () => {
+    given({ months: [MAY, SEPTEMBER] });
+    await page("2026-05");
+    expect(screen.getByRole("region", { name: "Bills" })).toBeDefined();
+    expect(screen.getByRole("region", { name: "One-time Payments" })).toBeDefined();
+    const split = screen.getByRole("region", { name: "Split for May 2026" });
+    expect((within(split).getByRole("textbox", { name: "Alex's percentage" }) as HTMLInputElement).value).toBe("65");
+    expect((within(split).getByRole("textbox", { name: "Sam's percentage" }) as HTMLInputElement).value).toBe("35");
+    const finish = screen.getByRole("region", { name: "Finish May 2026" });
+    expect(within(finish).getByRole("button", { name: "Mark settled" })).toBeDefined();
+    expect(within(finish).getByRole("link", { name: "log payments" }).getAttribute("href")).toBe("/finances/log-payment?month=2026-05");
+  });
+
+  it("once closed, has nothing to change", async () => {
+    given({ months: [{ ...MAY, closed_at: "2026-09-20T12:00:00Z", settled: true }, SEPTEMBER] });
+    await page("2026-05");
+    expect(screen.queryByRole("region", { name: "Split for May 2026" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Finish May 2026" })).toBeNull();
+  });
+
+  it("a month opened as usual has neither", async () => {
+    given({ months: [SEPTEMBER] });
+    await page();
+    expect(screen.queryByRole("region", { name: /^Split for/ })).toBeNull();
+    expect(screen.queryByRole("region", { name: /^Finish/ })).toBeNull();
+  });
+});
+

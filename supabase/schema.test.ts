@@ -789,3 +789,46 @@ describe("restaurants migration (REQ-90, REQ-129)", () => {
     expect(restaurants).not.toMatch(/for update/);
   });
 });
+
+// REQ-148: months added later. The live check is
+// supabase/checks/months_added_later.sql, against the hosted project.
+describe("months added later", () => {
+  const added = readMigration("20261001100000");
+
+  it("adds only an earlier month of this budget year, never one already there", () => {
+    expect(added).toMatch(/starts >= date_trunc\('month', p_today\)::date or starts < public\.budget_year_start\(p_today\)/);
+    expect(added).toMatch(/make_date\(\s*extract\(year from p_today\)::integer - case when extract\(month from p_today\) < 4 then 1 else 0 end,\s*4, 1\)/);
+    expect(added).toMatch(/if exists \(select 1 from public\.months where starts_on = starts\) then\s+raise exception 'That month is already there'/);
+  });
+
+  it("gives it its own split: the one in force then, else today's, and never touches the household's", () => {
+    expect(added).toMatch(/where effective_from <= starts order by effective_from desc limit 1;\s+if the_split is null then/);
+    expect(added).toMatch(/insert into public\.month_shares \(month_id, user_id, percent\)\s+select the_month, user_id, percent from public\.split_shares/);
+    expect(added).not.toMatch(/insert into public\.splits|update public\.splits|delete from public\.split_shares/);
+  });
+
+  it("lets its split change only while it's open, and only to 100", () => {
+    expect(added).toMatch(/if total <> 100 then/);
+    expect(added).toMatch(/where id = p_month and added_later and closed_at is null\s+for update;/);
+    expect(added).toMatch(/raise exception 'Give everyone in the household a percentage, once each'/);
+  });
+
+  it("divides an open month by its own split when it has one", () => {
+    expect(added).toMatch(/where ms\.month_id = p_month and the_month\.closed_at is null and own/);
+    expect(added).toMatch(/where the_month\.closed_at is null and not own/);
+  });
+
+  it("settles with every bill entered and nobody owing anything", () => {
+    expect(added).toMatch(/raise exception 'Enter every bill before settling the month'/);
+    expect(added).toMatch(/select p_month, b\.user_id, b\.percent, 0 from public\.month_balances\(p_month\) b/);
+    expect(added).toMatch(/if the_month\.id is null or not the_month\.added_later or the_month\.closed_at is not null then/);
+  });
+
+  it("is open to either member, and its shares are written only by these functions", () => {
+    for (const fn of ["add_past_month(date, date)", "set_month_split(uuid, jsonb)", "settle_past_month(uuid)"]) {
+      expect(added).toContain(`grant execute on function public.${fn} to authenticated;`);
+    }
+    expect(added.match(/has_permission\('use_modules'\)/g)).toHaveLength(3);
+    expect(added).not.toMatch(/on public\.month_shares for (insert|update|delete|all)/);
+  });
+});

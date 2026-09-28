@@ -796,6 +796,34 @@ today, to confirm, and takes any other income by hand. Finances home's
 verdict card is each person's income minus their obligation, and the
 two together (REQ-61).
 
+### Months added later
+
+A household that started partway through the budget year can fill in
+the months before it (REQ-148). History lists every month of the budget
+year so far (April to March); one never opened reads "Not entered", and
+Add calls `add_past_month()`. That opens it through the same
+`create_month()` (today's bill list, rent pre-filled), but only for an
+earlier month of the current budget year, and marks it `added_later`.
+
+| Table / column | One row is | Key facts |
+|---|---|---|
+| `months.added_later`, `settled` | filled in afterwards; closed as settled between us | set only by `add_past_month()` and `settle_past_month()` |
+| `month_shares` | one person's percentage in a month added later's own split | a copy of the split in force then, or of today's if none had started; changed only by `set_month_split()` while the month is open |
+
+The household's dated splits are never touched, so a split already past
+stays history. `month_balances()` and `monthShares()` divide an open
+month by its own split when it has one; once closed, by what was
+written on it, as before. Such a month expects paychecks from each
+person's sources in force then, or their current ones if HomeBase knows
+none (`sourcesForMonth()`), and each can be changed as it's confirmed.
+
+`settle_past_month()` closes it with every bill entered and nobody
+owing anything (`month_people.outstanding` is 0): it changes nothing
+anyone owes today. Paying it off and closing it as usual also works.
+Either member may add, change the split of, or settle such a month.
+It raises no action items, so it sends no notifications: `financeItems()`
+leaves it out. It counts everywhere else like any other month.
+
 ### Savings
 
 What a month allows into joint savings is worked out, never stored:
