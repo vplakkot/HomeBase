@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Restaurants: a tile's photo now loads only as it scrolls into view,
+  to stay inside Google's free photo allowance. The README explains
+  what each screen costs in Google requests and how to set a cap in
+  Google Cloud so a bug can't run up a bill.
 - Restaurants: a Been to page, as a tab beside Want to try. Each place
   you've tried is a photo tile, most recently tried first, with each of
   your go-again answers (Yes, No or waiting); tap one for its date,

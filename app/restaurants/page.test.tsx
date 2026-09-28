@@ -143,6 +143,12 @@ describe("Want to try (REQ-129)", () => {
     expect(places.details).toHaveBeenCalledWith("ChIJInventedNoodles01", "tile");
   });
 
+  it("loads a tile's photo only as it scrolls into view (REQ-139)", async () => {
+    given();
+    render(await home());
+    expect(tiles()[0].querySelector("img")?.getAttribute("loading")).toBe("lazy");
+  });
+
   it("draws a plain block in the module colour where Google has no photo", async () => {
     given();
     render(await home());
@@ -169,6 +175,13 @@ describe("Want to try (REQ-129)", () => {
 
 describe("a place's page (REQ-129)", () => {
   const open = (id: string) => RestaurantPage({ params: Promise.resolve({ id }) });
+
+  it("asks Google for hours, website and address only here, not for a tile (REQ-139)", async () => {
+    given();
+    render(await open("r2"));
+    expect(places.details).toHaveBeenCalledWith("ChIJInventedNoodles01", "detail");
+    expect(screen.getByRole("main").querySelector("img")?.getAttribute("loading")).toBe("eager");
+  });
 
   it("shows its address, hours, website, and who added it and when", async () => {
     given();

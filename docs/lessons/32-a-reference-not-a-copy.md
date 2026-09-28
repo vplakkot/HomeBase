@@ -68,6 +68,18 @@ city, different restaurant. Look at the address before adding.
 The OpenTable link itself is ours, not Google's, so it is kept as the
 place's booking link.
 
+## What each look costs (REQ-139)
+
+Keeping only the ID means paying Google for every look. Google prices
+a request by the dearest thing it asks for, like a restaurant bill
+charged entirely at the price of its most expensive dish. So a tile asks
+only for name, cuisine, neighbourhood and which photo (billed "Pro"),
+and the dearer hours and website ("Enterprise") are asked for only on
+a place's own page. Photos are the scarcest allowance, so a tile's
+image has `loading="lazy"`: the browser fetches it only when it's about
+to scroll into view. The README has the numbers and the Cloud console
+cap.
+
 ## Filtering what you didn't keep
 
 Want to try and Been to can be narrowed by neighbourhood and cuisine
