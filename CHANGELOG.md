@@ -12,6 +12,8 @@
   and nobody owes anything), or log payments as usual. Such a month is
   marked "Added later", counts in the year's totals like any other,
   and sends no reminders.
+- README: the Google Places request limits now in place (per minute
+  and per day), and where to find them in Google Cloud.
 - Meal Plans: add a recipe from a recipe page's link. Gemini reads that
   page only and drafts the card, named from the page and with the
   page's photo, for you to check before saving; the card keeps the
