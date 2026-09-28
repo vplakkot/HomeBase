@@ -1187,15 +1187,27 @@ toast (every page) ──myRecipeImports every 15 s──▶ "Recipe ready"
 
 ## Restaurants
 
-Places we want to try (REQ-90, REQ-129, REQ-130), saved by pasting a
-Google Maps or Apple Maps link. Module home `/restaurants` is Want to
-try; `/restaurants/new` adds a place; `/restaurants/[id]` is one place.
+Places we want to try and have tried (REQ-90, REQ-129 to REQ-133),
+saved by pasting a Google Maps, Apple Maps or OpenTable link. Module
+home `/restaurants` is Want to try, with "Go again?" above it for tried
+places you haven't answered for; `/restaurants/new` adds a place;
+`/restaurants/[id]` is one place (Book, Open in Google Maps, Mark as
+tried, or once tried, both answers and Undo).
 
 | Table | One row is | Key facts |
 |---|---|---|
-| `restaurants` | a place on our lists | `google_place_id` (unique), `added_by`, `created_at` |
+| `restaurants` | a place on our lists | `google_place_id` (unique), `added_by`, `created_at`, `booking_url`, `tried_on` (empty = Want to try) |
+| `restaurant_answers` | one person's "go again?" for one tried place | key `(restaurant_id, user_id)`, `go_again` yes/no; no row = still asking |
 
-That is the whole table. Google's terms let us keep a place's ID and
+- Only `booking_url` and `tried_on` can be changed (a column grant);
+  which place a row is never changes.
+- You write only your own answer, and only for a tried place. Undoing
+  tried clears both answers through a `security definer` trigger, the
+  one place anyone's answer but your own is removed (lesson 26).
+- Home's Restaurants tile says how many are left to try, and turns into
+  an action item, "Go again? N places", for whoever hasn't answered.
+
+Google's terms let us keep a place's ID and
 nothing else from Google, so the name, photo, cuisine, neighbourhood,
 address, hours and website are asked of **Google Places** (the "new"
 Places API, a second outside Google service) every time a place is
@@ -1207,10 +1219,13 @@ paste a link ──lookUpPlace──▶ readLink (lib/restaurants/links.ts)
                                ├─ share link? follow its redirects
                                │  (maps hosts only, 5 hops at most)
                                ├─ place ID in the link → Place Details
-                               └─ name + spot → Text Search near it
-                                  → pickMatch: same name within 150 m?
-                                    one to confirm, else up to 3 within 1 km
-confirm ──addPlace──▶ insert { google_place_id } (database adds who, when)
+                               ├─ name + spot → Text Search near it
+                               │  → pickMatch: same name within 150 m?
+                               │    one to confirm, else up to 3 within 1 km
+                               └─ OpenTable: name (+ city) from its address,
+                                  never fetched → Text Search, name must agree
+confirm ──addPlace──▶ insert { google_place_id, booking_url } (database adds who, when)
+        (already saved without a booking link? addBookingLink fills it in)
 
 list / place page ──▶ Place Details per place, asking only for the
                       fields that screen shows (Google bills by field)

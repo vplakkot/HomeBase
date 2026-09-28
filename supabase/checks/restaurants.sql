@@ -1,4 +1,4 @@
--- Live check of Restaurants (REQ-90, REQ-129), as a real household
+-- Live check of Restaurants (REQ-90, REQ-129, REQ-131 to REQ-133), as a real household
 -- member, against the hosted project. Needs one Member. Run:
 --
 --   npx supabase db query --linked -f supabase/checks/restaurants.sql
@@ -54,25 +54,85 @@ begin
     report := report || format('4. a malformed place ID is refused (wants this): %s%s', sqlerrm, E'\n');
   end;
 
-  -- 5. There's nothing to change about a saved place.
-  update public.restaurants set google_place_id = 'ChIJCheckInvented0003' where id = saved;
-  get diagnostics v_count = row_count;
-  report := report || format('5. changing a saved place touched %s rows (wants 0)%s', v_count, E'\n');
+  -- 5. Which place a row is never changes (only its booking link and
+  -- tried date do, below).
+  begin
+    update public.restaurants set google_place_id = 'ChIJCheckInvented0003' where id = saved;
+    get diagnostics v_count = row_count;
+    report := report || format('5. changing which place a row is touched %s rows (wants refused or 0)%s', v_count, E'\n');
+  exception when others then
+    report := report || format('5. changing which place a row is, refused (wants this): %s%s', sqlerrm, E'\n');
+  end;
 
-  -- 6. A member removes a place.
+  -- 6. A member sets a booking link (REQ-132) and marks the place tried
+  -- (REQ-133).
+  update public.restaurants set booking_url = 'https://www.opentable.com/r/check-invented', tried_on = current_date where id = saved;
+  get diagnostics v_count = row_count;
+  report := report || format('6. a member sets the booking link and tried date: %s row (wants 1)%s', v_count, E'\n');
+
+  -- 7. A booking link must be a web address.
+  begin
+    update public.restaurants set booking_url = 'javascript:alert(1)' where id = saved;
+    report := report || E'7. a non-web booking link was SAVED -- WRONG\n';
+  exception when others then
+    report := report || format('7. a non-web booking link is refused (wants this): %s%s', sqlerrm, E'\n');
+  end;
+
+  -- 8. The member answers for themselves, and can change it.
+  insert into public.restaurant_answers (restaurant_id, go_again) values (saved, true);
+  update public.restaurant_answers set go_again = false where restaurant_id = saved and user_id = member_id;
+  get diagnostics v_count = row_count;
+  report := report || format('8. a member answers, then changes their answer: %s row (wants 1)%s', v_count, E'\n');
+
+  -- 9. Nobody answers in someone else's name.
+  begin
+    insert into public.restaurant_answers (restaurant_id, user_id, go_again) values (saved, other_id, true);
+    report := report || E'9. an answer was saved in someone else''s name -- WRONG\n';
+  exception when others then
+    report := report || format('9. answering for someone else is refused (wants this): %s%s', sqlerrm, E'\n');
+  end;
+
+  -- 10. Nobody changes the other person's answer. The other's answer is
+  -- written as the database owner, as if they had given it.
+  reset role;
+  insert into public.restaurant_answers (restaurant_id, user_id, go_again) values (saved, other_id, true);
+  set local role authenticated;
+  update public.restaurant_answers set go_again = false where restaurant_id = saved and user_id = other_id;
+  get diagnostics v_count = row_count;
+  report := report || format('10. changing the other person''s answer touched %s rows (wants 0)%s', v_count, E'\n');
+  delete from public.restaurant_answers where restaurant_id = saved and user_id = other_id;
+  get diagnostics v_count = row_count;
+  report := report || format('11. deleting the other person''s answer touched %s rows (wants 0)%s', v_count, E'\n');
+
+  -- 12. Undoing tried clears both answers (REQ-133).
+  update public.restaurants set tried_on = null where id = saved;
+  reset role;
+  select count(*) into v_count from public.restaurant_answers where restaurant_id = saved;
+  report := report || format('12. undoing tried leaves %s answers (wants 0)%s', v_count, E'\n');
+  set local role authenticated;
+
+  -- 13. No answering for a place not tried.
+  begin
+    insert into public.restaurant_answers (restaurant_id, go_again) values (saved, true);
+    report := report || E'13. an answer was saved for a place not tried -- WRONG\n';
+  exception when others then
+    report := report || format('13. answering before it''s tried is refused (wants this): %s%s', sqlerrm, E'\n');
+  end;
+
+  -- 14. A member removes a place.
   delete from public.restaurants where id = saved;
   get diagnostics v_count = row_count;
-  report := report || format('6. a member removes a place: %s row (wants 1)%s', v_count, E'\n');
+  report := report || format('14. a member removes a place: %s row (wants 1)%s', v_count, E'\n');
 
-  -- 7. Someone signed out sees none of it.
+  -- 15. Someone signed out sees none of it.
   reset role;
   insert into public.restaurants (google_place_id, added_by) values ('ChIJCheckInvented0004', member_id);
   set local role anon;
   begin
     select count(*) into v_count from public.restaurants;
-    report := report || format('7. signed out sees %s places (wants refused or 0)%s', v_count, E'\n');
+    report := report || format('15. signed out sees %s places (wants refused or 0)%s', v_count, E'\n');
   exception when others then
-    report := report || format('7. signed out is refused (wants this): %s%s', sqlerrm, E'\n');
+    report := report || format('15. signed out is refused (wants this): %s%s', sqlerrm, E'\n');
   end;
 
   reset role;

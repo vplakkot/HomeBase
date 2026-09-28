@@ -57,6 +57,36 @@ by name.
 on every insert and update, whatever the app sends, so a rating's date
 can't be wrong or faked.
 
+## Restaurants: go again?, and an undo that clears both lines
+
+`restaurant_answers` (REQ-133) is the same guest book: one line each
+per tried place, `(restaurant_id, user_id)` as the key, an upsert to
+answer or change, and `auth.uid()` so you can't write on the other
+person's line. Two things are new.
+
+**Undo has to clear a line that isn't yours.** Marking a place tried by
+mistake and undoing it must wipe both answers, but no policy lets you
+delete the other person's. Loosening the policy would let anyone erase
+anyone's answer at any time. Instead a trigger does it, only on that
+one change (a tried date going back to empty), and runs as the
+database's owner (`security definer`). The analogy: you can't tear a
+page out of the guest book, but handing the wine back to the shop
+makes the shop start a fresh page. The pen rules never loosened; the
+database did one narrow job itself.
+
+**Some columns never change.** A place row gets a booking link and a
+tried date that either of us may change, but which Google place it is
+must never move. Policies choose *rows*; column grants choose
+*columns*:
+
+```sql
+revoke update on public.restaurants from authenticated;
+grant update (booking_url, tried_on) on public.restaurants to authenticated;
+```
+
+Now an update that touches `google_place_id` is refused before any
+policy is looked at.
+
 ## Where to look
 
 - `supabase/migrations/20260926100000_drinks_and_ratings.sql`: the
@@ -64,3 +94,6 @@ can't be wrong or faked.
 - `app/drinks/actions.ts`: `rateDrink` (the upsert) and `clearRating`.
 - `supabase/checks/drinks.sql`: signs in as the Member, rates, then as
   the Admin tries to change it, and shows the rating unchanged.
+- `supabase/migrations/20260930100000_restaurants_tried.sql` and
+  `supabase/checks/restaurants.sql` (checks 5 to 13): the column grant,
+  the answers, and the undo trigger.

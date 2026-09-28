@@ -14,7 +14,16 @@ vi.mock("../../lib/restaurants/places", async (original) => ({
   ...(await original<typeof import("../../lib/restaurants/places")>()),
   placesFromEnv: vi.fn(),
 }));
-vi.mock("./actions", () => ({ lookUpPlace: vi.fn(), addPlace: vi.fn(), removePlace: vi.fn() }));
+vi.mock("./actions", () => ({
+  lookUpPlace: vi.fn(),
+  addPlace: vi.fn(),
+  removePlace: vi.fn(),
+  addBookingLink: vi.fn(),
+  setBookingLink: vi.fn(),
+  markTried: vi.fn(),
+  undoTried: vi.fn(),
+  answerGoAgain: vi.fn(),
+}));
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -33,9 +42,19 @@ afterEach(cleanup);
 // Invented places and household; nothing here is real. Rows come back
 // newest first, as the database is asked for them.
 const ROWS = [
-  { id: "r2", google_place_id: "ChIJInventedNoodles01", added_by: "user-2", created_at: "2026-09-27T12:00:00Z" },
-  { id: "r1", google_place_id: "ChIJInventedTaqueria1", added_by: "user-1", created_at: "2026-09-20T12:00:00Z" },
+  { id: "r2", google_place_id: "ChIJInventedNoodles01", added_by: "user-2", created_at: "2026-09-27T12:00:00Z", booking_url: null, tried_on: null },
+  { id: "r1", google_place_id: "ChIJInventedTaqueria1", added_by: "user-1", created_at: "2026-09-20T12:00:00Z", booking_url: null, tried_on: null },
 ];
+// A third place, tried on 25 Sept; the viewer (fakeSupabase signs in as
+// user-1, Sam) is asked about it until they answer.
+const TRIED = {
+  id: "r3",
+  google_place_id: "ChIJInventedDumpling",
+  added_by: "user-2",
+  created_at: "2026-09-10T12:00:00Z",
+  booking_url: "https://www.opentable.com/r/dumpling-pretend-new-york",
+  tried_on: "2026-09-25",
+};
 const PEOPLE = [
   { user_id: "user-1", name: "Sam", manages_budget: true },
   { user_id: "user-2", name: "Alex", manages_budget: false },
@@ -68,6 +87,10 @@ const GOOGLE: Record<string, Place> = {
     photo: { name: "places/ChIJInventedNoodles01/photos/P1", credit: "A. Photographer" },
   }),
   ChIJInventedTaqueria1: place("ChIJInventedTaqueria1", { name: "Taqueria Pretend", cuisine: "Mexican", neighborhood: "Mission" }),
+  ChIJInventedDumpling: place("ChIJInventedDumpling", {
+    name: "Dumpling Pretend",
+    mapsUrl: "https://maps.google.com/?cid=1234567890",
+  }),
 };
 
 let places: Places;
@@ -81,8 +104,8 @@ beforeEach(() => {
   vi.mocked(placesFromEnv).mockReturnValue(places);
 });
 
-function given(rows: unknown[] = ROWS) {
-  const fake = fakeSupabase({ permissions: ["use_modules"], people: PEOPLE, tables: { restaurants: rows } });
+function given(rows: unknown[] = ROWS, answers: unknown[] = []) {
+  const fake = fakeSupabase({ permissions: ["use_modules"], people: PEOPLE, tables: { restaurants: rows, restaurant_answers: answers } });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
 }
 
@@ -165,11 +188,106 @@ describe("a place's page (REQ-129)", () => {
   });
 });
 
-describe("Add place (REQ-90, REQ-130)", () => {
-  it("asks for a Google Maps or Apple Maps link", async () => {
+describe("Add place (REQ-90, REQ-130, REQ-131)", () => {
+  it("asks for a Google Maps, Apple Maps or OpenTable link", async () => {
     given();
     render(await AddPlacePage());
-    expect(screen.getByRole("textbox", { name: "Google Maps or Apple Maps link" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Google Maps, Apple Maps or OpenTable link" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Find place" })).toBeTruthy();
+  });
+});
+
+describe("book a table (REQ-132)", () => {
+  const open = (id: string) => RestaurantPage({ params: Promise.resolve({ id }) });
+
+  it("shows Book, opening the place's booking link, and Open in Google Maps", async () => {
+    given([...ROWS, TRIED]);
+    render(await open("r3"));
+    const book = screen.getByRole("link", { name: "Book" });
+    expect(book.getAttribute("href")).toBe("https://www.opentable.com/r/dumpling-pretend-new-york");
+    expect(book.getAttribute("target")).toBe("_blank");
+    expect(screen.getByRole("link", { name: "Open in Google Maps" }).getAttribute("href")).toBe("https://maps.google.com/?cid=1234567890");
+    expect(screen.getByRole("button", { name: "Change" })).toBeTruthy();
+  });
+
+  it("has no Book without a booking link, but offers to add one by pasting it", async () => {
+    given();
+    render(await open("r1"));
+    expect(screen.queryByRole("link", { name: "Book" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add booking link" }));
+    const sheet = screen.getByRole("dialog", { name: "Add booking link" });
+    const field = within(sheet).getByRole("textbox", { name: /OpenTable, Resy, Tock/ }) as HTMLInputElement;
+    expect(field.value).toBe("");
+    expect(within(sheet).getByRole("button", { name: "Save" })).toBeTruthy();
+  });
+
+  it("changes a booking link starting from the current one", async () => {
+    given([...ROWS, TRIED]);
+    render(await open("r3"));
+    fireEvent.click(screen.getByRole("button", { name: "Change" }));
+    const sheet = screen.getByRole("dialog", { name: "Change booking link" });
+    expect((within(sheet).getByRole("textbox", { name: /OpenTable/ }) as HTMLInputElement).value).toBe(TRIED.booking_url);
+  });
+});
+
+describe("mark as tried and go again (REQ-133)", () => {
+  const open = (id: string) => RestaurantPage({ params: Promise.resolve({ id }) });
+
+  it("offers Mark as tried on a place not yet tried, with nothing to fill in", async () => {
+    given();
+    render(await open("r1"));
+    const button = screen.getByRole("button", { name: "Mark as tried" });
+    const fields = [...button.closest("form")!.querySelectorAll("input")];
+    expect(fields.map((input) => [input.type, input.name, input.value])).toEqual([["hidden", "id", "r1"]]);
+  });
+
+  it("takes a tried place off Want to try and asks the viewer, until they answer", async () => {
+    given([...ROWS, TRIED]);
+    render(await RestaurantsPage());
+    expect(tiles().map((tile) => tile.textContent)).toEqual([expect.stringContaining("Corner Noodle"), expect.stringContaining("Taqueria")]);
+    expect(screen.getByRole("region", { name: /Want to try/ }).textContent).toContain("· 2");
+    const ask = screen.getByRole("region", { name: "Go again?" });
+    expect(ask.textContent).toContain("Dumpling Pretend");
+    const answer = within(ask).getByRole("form", { name: "Go again to Dumpling Pretend?" });
+    expect(within(answer).getByRole("button", { name: "Yes" }).getAttribute("value")).toBe("yes");
+    expect(within(answer).getByRole("button", { name: "No" }).getAttribute("value")).toBe("no");
+  });
+
+  it("stops asking the viewer once they've answered, whatever the other person said", async () => {
+    given([...ROWS, TRIED], [{ restaurant_id: "r3", user_id: "user-1", go_again: true }]);
+    render(await RestaurantsPage());
+    expect(screen.queryByRole("region", { name: "Go again?" })).toBeNull();
+  });
+
+  it("still asks the viewer when only the other person has answered", async () => {
+    given([...ROWS, TRIED], [{ restaurant_id: "r3", user_id: "user-2", go_again: false }]);
+    render(await RestaurantsPage());
+    expect(screen.getByRole("region", { name: "Go again?" }).textContent).toContain("Dumpling Pretend");
+  });
+
+  it("shows a tried place's date and each answer; only the viewer's own can be changed", async () => {
+    given([...ROWS, TRIED], [
+      { restaurant_id: "r3", user_id: "user-1", go_again: false },
+    ]);
+    render(await open("r3"));
+    expect(screen.queryByRole("button", { name: "Mark as tried" })).toBeNull();
+    const details = screen.getAllByRole("definition")[0].closest("dl")!;
+    expect(details.textContent).toContain("25 Sept 2026");
+    const answers = screen.getByRole("region", { name: "Go again?" });
+    const [you, alex] = within(answers).getAllByRole("listitem");
+    expect(you.textContent).toContain("You");
+    expect(within(you).getByRole("button", { name: "No" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(you).getByRole("button", { name: "Yes" }).getAttribute("aria-pressed")).toBe("false");
+    expect(alex.textContent).toBe("AlexWaiting");
+    expect(within(alex).queryByRole("button")).toBeNull();
+  });
+
+  it("undoes tried only after a confirm that says both answers go", async () => {
+    given([...ROWS, TRIED]);
+    render(await open("r3"));
+    fireEvent.click(screen.getByRole("button", { name: "Undo tried" }));
+    const sheet = screen.getByRole("dialog", { name: "Undo tried" });
+    expect(sheet.textContent).toContain("Put Dumpling Pretend back on Want to try? Both go-again answers are cleared.");
+    expect(within(sheet).getByRole("button", { name: "Yes, undo it" })).toBeTruthy();
   });
 });

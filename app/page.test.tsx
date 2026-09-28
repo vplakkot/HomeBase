@@ -32,7 +32,7 @@ vi.mock("../lib/drinks/drinks", async (original) => ({
 }));
 vi.mock("../lib/restaurants/restaurants", async (original) => ({
   ...(await original<typeof import("../lib/restaurants/restaurants")>()),
-  countRestaurants: vi.fn(async () => 0),
+  readRestaurantsSummary: vi.fn(async () => ({ toTry: 0, unanswered: 0 })),
 }));
 vi.mock("../lib/meal-plans/recipes", async (original) => ({
   ...(await original<typeof import("../lib/meal-plans/recipes")>()),
@@ -227,7 +227,7 @@ describe("HomePage", () => {
     expect(money).toMatchObject({ status: "Not set up", loud: false });
     expect(paperwork).toMatchObject({ name: "Paperwork", status: "All filed", loud: false });
     expect(storage).toMatchObject({ name: "Storage", status: "Nothing logged yet", loud: false });
-    expect(restaurants).toMatchObject({ name: "Restaurants", status: "Nothing saved yet", loud: false });
+    expect(restaurants).toMatchObject({ name: "Restaurants", status: "Nothing to try yet", loud: false });
     for (const tile of others) {
       expect(tile, tile.name!).toMatchObject({ status: "Coming soon", loud: false });
     }
