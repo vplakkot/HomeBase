@@ -580,3 +580,30 @@ describe("browsing by category (REQ-105)", () => {
     await expect(openCategory("c-none")).rejects.toThrow("NOT_FOUND");
   });
 });
+
+// #238: only the home says "Overview" under the module's name; a page
+// under no tab is named by its own crumb.
+describe("where you are, under the module's name", () => {
+  const where = () => screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent;
+
+  it("says Overview only at home, and the page's own name elsewhere", async () => {
+    given();
+    render(await home());
+    expect(where()).toBe("Overview");
+    cleanup();
+    render(await place("Hall cupboard"));
+    expect(where()).toBe("Hall cupboard");
+    cleanup();
+    render(await BoxPage({ params: Promise.resolve({ id: "s3" }), searchParams: q() }));
+    expect(where()).toBe("Box S-003 · Shoes");
+    cleanup();
+    render(await openFile("f-42"));
+    expect(where()).toBe("F-0042");
+    cleanup();
+    render(await home("taxes"));
+    expect(where()).toBe("Results for “taxes”");
+    cleanup();
+    render(await UnfiledPage({ searchParams: q() }));
+    expect(where()).toBe("Unfiled");
+  });
+});

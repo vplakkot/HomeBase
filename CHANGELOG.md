@@ -6,6 +6,10 @@
   to stay inside Google's free photo allowance. The README explains
   what each screen costs in Google requests and how to set a cap in
   Google Cloud so a bug can't run up a bill.
+- Pages away from a module's home no longer say "Overview" under the
+  module's name. A Paperwork file, box, place or search, and a Storage
+  entry, now show their own name there; only each module's home says
+  Overview.
 - Restaurants: a Been to page, as a tab beside Want to try. Each place
   you've tried is a photo tile, most recently tried first, with each of
   your go-again answers (Yes, No or waiting); tap one for its date,

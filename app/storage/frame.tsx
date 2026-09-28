@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { ModuleFrame } from "../../components/module-frame";
+import { ModuleFrame, OVERVIEW } from "../../components/module-frame";
 import { readAccount } from "../../lib/account";
 import { hasPermission } from "../../lib/auth/permissions";
 import { readPaperwork } from "../../lib/paperwork/paperwork";
@@ -64,6 +64,7 @@ export function StorageScreen({
   return (
     <ModuleFrame
       slug="storage"
+      section={last ?? OVERVIEW}
       canManageMembers={viewer.canManageMembers}
       account={viewer.account}
       actions={<HeaderTools here={here} query={query} />}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { ModuleFrame } from "../../components/module-frame";
+import { ModuleFrame, OVERVIEW } from "../../components/module-frame";
 import { readAccount } from "../../lib/account";
 import { hasPermission } from "../../lib/auth/permissions";
 import { householdToday, listPeople } from "../../lib/finances/budget-year";
@@ -57,7 +57,8 @@ export type Crumb = { name: string; href?: string };
 // Every Paperwork screen (REQ-100, DESIGN.md §11): the module header
 // with the one search, the settings gear (admin) and Log document; the
 // tabs, Overview, Unfiled and Categories, with `tab` the one you're under
-// (Settings highlights none); and a breadcrumb below the top level. With
+// (Settings highlights none); and a breadcrumb below the top level. Away
+// from the home and any tab, the page is named by its own crumb (#238). With
 // a search typed, the results take the screen's place; clearing it
 // brings the screen back.
 export function PaperworkScreen({
@@ -84,7 +85,7 @@ export function PaperworkScreen({
       slug="paperwork"
       canManageMembers={viewer.canManageMembers}
       account={viewer.account}
-      section={tab}
+      section={tab ?? (trail.length > 1 ? trail[trail.length - 1].name : OVERVIEW)}
       context={tab === "Settings" ? "Settings" : undefined}
       actions={<HeaderTools here={here} query={query} choices={viewer.choices} settings={viewer.canManagePaperwork} />}
     >

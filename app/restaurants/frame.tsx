@@ -42,7 +42,7 @@ export function RestaurantsScreen({
   children,
 }: {
   viewer: RestaurantsViewer;
-  section?: string;
+  section: string;
   crumb?: string;
   // The crumb's parent: Want to try unless it's a tried place.
   beenTo?: boolean;

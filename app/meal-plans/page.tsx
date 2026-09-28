@@ -1,3 +1,4 @@
+import { OVERVIEW } from "../../components/module-frame";
 import Link from "next/link";
 import { signedPhotoLinks } from "../../lib/drinks/photos";
 import { householdToday } from "../../lib/finances/budget-year";
@@ -43,7 +44,7 @@ export default async function MealPlansPage() {
   );
   const numbers = homeStats(all, planStats(rows), averageRatings(ratings));
   return (
-    <MealPlansScreen viewer={viewer}>
+    <MealPlansScreen viewer={viewer} section={OVERVIEW}>
       <RatePrompts recipes={prompts.flatMap((id) => (byId.has(id) ? [{ id, name: byId.get(id)?.name ?? "" }] : []))} />
       {imports.length > 0 ? (
         <section className={styles.section} aria-label="On their way">
