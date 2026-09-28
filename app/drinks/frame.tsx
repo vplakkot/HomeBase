@@ -50,7 +50,7 @@ export function DrinksScreen({
   children,
 }: {
   viewer: DrinksViewer;
-  section?: string;
+  section: string;
   crumb?: string;
   parent?: { name: string; href: string };
   tools?: ReactNode;

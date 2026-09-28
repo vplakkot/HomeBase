@@ -242,3 +242,18 @@ describe("a Storage entry (REQ-107, REQ-98)", () => {
     await expect(open("nope")).rejects.toThrow("NOT_FOUND");
   });
 });
+
+// #238: only the home says "Overview" under the module's name.
+describe("where you are, under the module's name", () => {
+  const where = () => screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent;
+
+  it("says Overview only at home, and the entry's own name on its page", async () => {
+    given();
+    render(await list());
+    expect(where()).toBe("Overview");
+    cleanup();
+    render(await open("s3"));
+    expect(where()).not.toBe("Overview");
+    expect(where()).toMatch(/S-003/);
+  });
+});

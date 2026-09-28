@@ -423,3 +423,28 @@ describe("filter by area and cuisine (REQ-135)", () => {
     expect(within(region).getByRole("link", { name: "Clear" }).getAttribute("href")).toBe("/restaurants/been-to");
   });
 });
+
+// #238: only Want to try, the module's home, says "Overview" under the
+// module's name.
+describe("where you are, under the module's name", () => {
+  const where = () => screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent;
+  const open = (id: string) => RestaurantPage({ params: Promise.resolve({ id }) });
+
+  it("says Overview only at home", async () => {
+    given([...ROWS, TRIED]);
+    render(await home());
+    expect(where()).toBe("Overview");
+    cleanup();
+    render(await beenTo());
+    expect(where()).toBe("Been to");
+    cleanup();
+    render(await open("r1"));
+    expect(where()).toBe("Want to try");
+    cleanup();
+    render(await open("r3"));
+    expect(where()).toBe("Been to");
+    cleanup();
+    render(await AddPlacePage());
+    expect(where()).toBe("Add place");
+  });
+});
