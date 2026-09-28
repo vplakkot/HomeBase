@@ -57,6 +57,22 @@ goes once a month. `nudge:2026-10-01:2026-10-03` names the day the
 person last paid, so once they pay and then go quiet again, a new nudge
 is a new topic.
 
+## Items follow the month on screen
+
+Finances home can show any month, but the items are worked out for the
+household as it is today. Shown on April's page, "Chase Visa due today"
+reads as if it were April's (Vin, 2026-09-28). So each item now says
+which month it's about, and it does that without a new field: every
+item about one month already links there with `?month=2026-04`.
+`itemsForMonth()` reads that. A month gone by shows only its own items;
+the month now running shows them all, including ones about no month in
+particular, like "Review the split".
+
+A month added later (REQ-148) raises none of the usual items, which
+would nag about spring bills as if they were overdue. It has one of its
+own while it's open, "April 2026 isn't finished", shown in the app but
+never pushed.
+
 ## Where to look
 
 - `lib/finances/action-items.ts`: every item, its rank, link and push.

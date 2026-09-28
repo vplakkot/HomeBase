@@ -218,7 +218,7 @@ describe("Monthly entry in a month added later", () => {
     expect((within(split).getByRole("textbox", { name: "Sam's percentage" }) as HTMLInputElement).value).toBe("35");
     const finish = screen.getByRole("region", { name: "Finish May 2026" });
     expect(within(finish).getByRole("button", { name: "Mark settled" })).toBeDefined();
-    expect(within(finish).getByRole("link", { name: "log payments" }).getAttribute("href")).toBe("/finances/log-payment?month=2026-05");
+    expect(within(finish).getByRole("link", { name: "Log payments instead" }).getAttribute("href")).toBe("/finances/log-payment?month=2026-05");
   });
 
   it("once closed, has nothing to change", async () => {

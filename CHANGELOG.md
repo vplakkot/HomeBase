@@ -5,6 +5,11 @@
 - Finances home: each action item's title, each person's name and each
   bill's name sit on a pale band of the Finances colour, all the same
   length.
+- Finances home on a month gone by shows only that month's action
+  items; September's no longer appear on April's page. A month added
+  later that isn't closed yet now has an action item, "April 2026 isn't
+  finished", with Finish month (in the app only, no notification).
+  Finish month's "log payments" is now a proper button inside the card.
 
 - Finances: fill in earlier months of this budget year. History now
   lists every month since April; one never opened says "Not entered",
