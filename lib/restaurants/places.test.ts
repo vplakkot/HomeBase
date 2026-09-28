@@ -41,7 +41,7 @@ describe("what a place looks like on screen (REQ-90, REQ-129)", () => {
 });
 
 describe("asking Google", () => {
-  it("sends the key in a header, never in the address, and asks only for a tile's fields", async () => {
+  it("sends the key in a header, never in the address, and asks only for a tile's fields, none billed as Enterprise (REQ-139)", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(json({ id: "ChIJInvented000001", displayName: { text: "Corner Noodle Bar" } }));
     const place = await googlePlaces(KEY, fetchImpl).details("ChIJInvented000001", "tile");
     expect(place?.name).toBe("Corner Noodle Bar");

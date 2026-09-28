@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Restaurants: a tile's photo now loads only as it scrolls into view,
+  to stay inside Google's free photo allowance. The README explains
+  what each screen costs in Google requests and how to set a cap in
+  Google Cloud so a bug can't run up a bill.
 - Pages away from a module's home no longer say "Overview" under the
   module's name. A Paperwork file, box, place or search, and a Storage
   entry, now show their own name there; only each module's home says
