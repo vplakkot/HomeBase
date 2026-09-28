@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 2.1.0 - 2026-09-27
+
+A new module, Restaurants: save a place from a Google Maps, Apple Maps
+or OpenTable link, keep Want to try and Been to lists with photos from
+Google, book a table, and each say whether we'd go again. Meal Plans
+can now find a recipe on the web. Pages away from a module's home no
+longer say "Overview".
+
 - Restaurants: a tile's photo now loads only as it scrolls into view,
   to stay inside Google's free photo allowance. The README explains
   what each screen costs in Google requests and how to set a cap in
