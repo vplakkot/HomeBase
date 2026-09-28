@@ -146,6 +146,8 @@ export async function addPastMonth(formData: FormData): Promise<void> {
   if (!/^\d{4}-\d{2}$/.test(month)) return;
   const supabase = await requireMember();
   const { error } = await supabase.rpc("add_past_month", { p_month: `${month}-01`, p_today: householdToday() });
+  // With no split yet, Finances home says how to set the year up.
+  if (error?.message.includes("Set up the budget year first")) redirect("/finances");
   // Added a moment ago by the other person: it's there either way.
   if (error && !error.message.includes("already there")) throw new Error(`Could not add the month: ${error.message}`);
   refresh();

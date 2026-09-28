@@ -233,6 +233,11 @@ describe("addPastMonth (REQ-148)", () => {
     await expect(addPastMonth(form({ month: "2026-05" }))).rejects.toThrow("REDIRECT:/finances/monthly-entry?month=2026-05");
   });
 
+  it("before the budget year is set up, goes to Finances home, which says how", async () => {
+    given({ error: { message: "Set up the budget year first" } });
+    await expect(addPastMonth(form({ month: "2026-05" }))).rejects.toThrow("REDIRECT:/finances");
+  });
+
   it("says why when the database refuses it", async () => {
     given({ error: { message: "Only an earlier month of this budget year can be added" } });
     await expect(addPastMonth(form({ month: "2025-05" }))).rejects.toThrow("Only an earlier month of this budget year");

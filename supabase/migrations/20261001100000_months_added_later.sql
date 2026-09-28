@@ -111,9 +111,24 @@ begin
     raise exception 'Only a household member can change the split'
       using errcode = 'insufficient_privilege';
   end if;
-  if not exists (select 1 from public.months
-                 where id = p_month and added_later and closed_at is null) then
+  -- Locked, so a close at the same moment waits for this or sees it.
+  perform 1 from public.months
+  where id = p_month and added_later and closed_at is null
+  for update;
+  if not found then
     raise exception 'Only an open month added later has its own split'
+      using errcode = 'check_violation';
+  end if;
+  -- Everyone in the household, each once: nobody drops out of a month.
+  if (select count(distinct (share ->> 'user_id')::uuid) from jsonb_array_elements(p_shares) as share)
+       <> jsonb_array_length(p_shares)
+     or exists (select 1 from public.household_members hm
+                where not exists (select 1 from jsonb_array_elements(p_shares) as share
+                                  where (share ->> 'user_id')::uuid = hm.user_id))
+     or exists (select 1 from jsonb_array_elements(p_shares) as share
+                where not exists (select 1 from public.household_members hm
+                                  where hm.user_id = (share ->> 'user_id')::uuid)) then
+    raise exception 'Give everyone in the household a percentage, once each'
       using errcode = 'check_violation';
   end if;
   select coalesce(sum((share ->> 'percent')::numeric), 0) into total

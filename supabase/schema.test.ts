@@ -808,8 +808,9 @@ describe("months added later", () => {
   });
 
   it("lets its split change only while it's open, and only to 100", () => {
-    expect(added).toMatch(/where id = p_month and added_later and closed_at is null\) then\s+raise exception 'Only an open month added later has its own split'/);
     expect(added).toMatch(/if total <> 100 then/);
+    expect(added).toMatch(/where id = p_month and added_later and closed_at is null\s+for update;/);
+    expect(added).toMatch(/raise exception 'Give everyone in the household a percentage, once each'/);
   });
 
   it("divides an open month by its own split when it has one", () => {

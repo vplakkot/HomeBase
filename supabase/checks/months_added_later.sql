@@ -69,6 +69,14 @@ begin
     report := report || format('5. a split must total 100 (wants this): %s%s', sqlerrm, E'\n');
   end;
 
+  begin
+    perform public.set_month_split(v_may, jsonb_build_array(
+      jsonb_build_object('user_id', admin_id, 'percent', 100)));
+    report := report || E'5b. a split LEAVING OUT the member saved -- WRONG\n';
+  exception when others then
+    report := report || format('5b. everyone must be in the split (wants this): %s%s', sqlerrm, E'\n');
+  end;
+
   perform public.set_month_split(v_may, jsonb_build_array(
     jsonb_build_object('user_id', admin_id, 'percent', 70),
     jsonb_build_object('user_id', member_id, 'percent', 30)));
