@@ -122,6 +122,14 @@ describe("the web flows (REQ-112, flows 2 and 3)", () => {
     expect(prompt).toContain("from this web page only");
     expect(prompt).toContain("Fry 200 g chicken.");
     expect(prompt).toContain("Never invent a recipe in its place.");
+    expect(prompt).not.toContain("title as the page gives it");
+  });
+
+  it("names a pasted link's recipe from the page itself (REQ-150)", () => {
+    const prompt = pagePrompt("", "Test curry. Fry 200 g chicken.");
+    expect(prompt).toContain("Read the recipe from this web page only");
+    expect(prompt).toContain("give the recipe's own title as the page gives it");
+    expect(prompt).toContain("Never invent a recipe in its place.");
   });
 
   it("only the generic version, asked for on a Recipe missing card, may write a recipe of its own", () => {

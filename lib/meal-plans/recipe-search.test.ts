@@ -7,7 +7,10 @@ import {
   isRecipePage,
   linksFrom,
   pagesFrom,
+  imageFrom,
+  readImage,
   readPage,
+  readRecipePage,
   recipeTextFrom,
   suggestionsFrom,
   titleFrom,
@@ -171,5 +174,67 @@ describe("reading the page we picked (REQ-112)", () => {
     const text = await readPage("https://curry.example.com/x", fetchImpl, PUBLIC);
     expect(text.length).toBeLessThanOrEqual(30_000);
     expect(sent).toBeLessThanOrEqual(4 * 1024 * 1024);
+  });
+});
+
+// REQ-150: the page's own photo, from invented pages.
+describe("a recipe page's photo (REQ-150)", () => {
+  const PAGE = "https://curry.example.com/recipes/test-curry";
+
+  it("finds the Recipe's image in the search-engine block, in any of its shapes", () => {
+    const block = (value: unknown) => `<script type="application/ld+json">${JSON.stringify(value)}</script>`;
+    expect(imageFrom(block({ "@type": "Recipe", image: "https://img.example.com/a.jpg" }), PAGE)).toBe("https://img.example.com/a.jpg");
+    expect(imageFrom(block({ "@type": "Recipe", image: ["https://img.example.com/b.jpg", "https://img.example.com/c.jpg"] }), PAGE)).toBe(
+      "https://img.example.com/b.jpg",
+    );
+    expect(imageFrom(block({ "@type": ["Recipe"], image: { "@type": "ImageObject", url: "/photos/d.jpg" } }), PAGE)).toBe(
+      "https://curry.example.com/photos/d.jpg",
+    );
+    expect(
+      imageFrom(block({ "@graph": [{ "@type": "WebPage", image: "https://img.example.com/page.jpg" }, { "@type": "Recipe", image: "https://img.example.com/e.jpg" }] }), PAGE),
+    ).toBe("https://img.example.com/e.jpg");
+  });
+
+  it("falls back to the picture shown when the page is shared, and gives nothing when there's none", () => {
+    expect(imageFrom('<meta content="https://img.example.com/og.jpg" property="og:image">', PAGE)).toBe("https://img.example.com/og.jpg");
+    expect(imageFrom('<meta name="twitter:image" content="https://img.example.com/tw.jpg">', PAGE)).toBe("https://img.example.com/tw.jpg");
+    expect(imageFrom("<p>No photo here.</p>", PAGE)).toBeNull();
+    expect(imageFrom('<script type="application/ld+json">{not json</script>', PAGE)).toBeNull();
+  });
+
+  it("never offers an address that isn't a public https one", () => {
+    expect(imageFrom('<meta property="og:image" content="http://img.example.com/a.jpg">', PAGE)).toBeNull();
+    expect(imageFrom('<meta property="og:image" content="https://127.0.0.1/a.jpg">', PAGE)).toBeNull();
+  });
+
+  it("reads a page's recipe text and its photo's address together", async () => {
+    const html = `<meta property="og:image" content="https://img.example.com/og.jpg"><p>Fry 200 g chicken.</p>`;
+    const fetchImpl = vi.fn(async () => new Response(html, { status: 200 })) as unknown as typeof fetch;
+    expect(await readRecipePage(PAGE, fetchImpl, PUBLIC)).toEqual({ text: "Fry 200 g chicken.", image: "https://img.example.com/og.jpg" });
+  });
+
+  it("downloads the photo as a data: address, and only a photo", async () => {
+    const photo = (type: string, body: BodyInit = "pic") =>
+      vi.fn(async () => new Response(body, { status: 200, headers: { "content-type": type } })) as unknown as typeof fetch;
+    expect(await readImage("https://img.example.com/a.jpg", photo("image/jpeg"), PUBLIC)).toBe(
+      `data:image/jpeg;base64,${Buffer.from("pic").toString("base64")}`,
+    );
+    await expect(readImage("https://img.example.com/a.jpg", photo("text/html"), PUBLIC)).rejects.toThrow("Not a photo");
+    await expect(readImage("https://img.example.com/a.jpg", photo("image/svg+xml"), PUBLIC)).rejects.toThrow("Not a photo");
+    await expect(readImage("https://img.example.com/a.jpg", photo("image/jpeg", ""), PUBLIC)).rejects.toThrow("empty");
+    await expect(readImage("https://127.0.0.1/a.jpg", photo("image/jpeg"), PUBLIC)).rejects.toThrow("Not a public web page");
+  });
+
+  it("stops downloading a photo past 5 MB, however much the site sends", async () => {
+    let sent = 0;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        sent += 1024 * 1024;
+        controller.enqueue(new Uint8Array(1024 * 1024));
+      },
+    });
+    const fetchImpl = vi.fn(async () => new Response(endless, { status: 200, headers: { "content-type": "image/png" } })) as unknown as typeof fetch;
+    await expect(readImage("https://img.example.com/huge.png", fetchImpl, PUBLIC)).rejects.toThrow("too big");
+    expect(sent).toBeLessThanOrEqual(7 * 1024 * 1024);
   });
 });
