@@ -103,7 +103,7 @@ export default async function FinancesPage({
       {items.length > 0 ? (
         <section className={styles.section} aria-labelledby="action-items">
           <div className={styles.sectionHead}>
-            <h2 id="action-items" className={styles.sectionTitle}>
+            <h2 id="action-items" className={`${styles.sectionTitle} ${styles.band}`}>
               Action items <span className={styles.count}>{items.length}</span>
             </h2>
           </div>
@@ -111,7 +111,7 @@ export default async function FinancesPage({
             {items.map((item) => (
               <li key={item.key} className={styles.itemRow}>
                 <span className={styles.itemText}>
-                  <span className={styles.strong}>{item.text}</span>
+                  <span className={`${styles.strong} ${styles.band}`}>{item.text}</span>
                   <span className={styles.note}>{item.detail}</span>
                 </span>
                 {item.button === "Acknowledge" ? (
@@ -133,7 +133,7 @@ export default async function FinancesPage({
       {summary ? (
         <section className={styles.section} aria-labelledby="progress">
           <div className={styles.sectionHead}>
-            <h2 id="progress" className={styles.sectionTitle}>
+            <h2 id="progress" className={`${styles.sectionTitle} ${styles.band}`}>
               Progress
             </h2>
           </div>
@@ -192,7 +192,7 @@ export default async function FinancesPage({
       {totals && totals.people.length > 0 ? (
         <section className={styles.section} aria-labelledby="who-owes">
           <div className={styles.sectionHead}>
-            <h2 id="who-owes" className={styles.sectionTitle}>
+            <h2 id="who-owes" className={`${styles.sectionTitle} ${styles.band}`}>
               Outstanding balances
             </h2>
           </div>
@@ -255,7 +255,7 @@ export default async function FinancesPage({
 
       <section className={styles.section} aria-labelledby="bills">
         <div className={styles.sectionHead}>
-          <h2 id="bills" className={styles.sectionTitle}>
+          <h2 id="bills" className={`${styles.sectionTitle} ${styles.band}`}>
             Bills
           </h2>
           <Link href={`/finances/monthly-entry?month=${at}`} className={styles.link}>

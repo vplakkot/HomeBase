@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Finances home: section headings and each action item's title sit on
+  a pale band of the Finances colour, all the same length.
+
 - Finances: fill in earlier months of this budget year. History now
   lists every month since April; one never opened says "Not entered",
   and Add opens it on the usual Monthly entry screen (today's bill
