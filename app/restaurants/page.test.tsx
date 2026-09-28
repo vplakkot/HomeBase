@@ -6,6 +6,7 @@ import { createClient } from "../../lib/supabase/server";
 import { installDialogStandIn } from "../../test/dialog";
 import { fakeSupabase } from "../../test/fake-supabase";
 import RestaurantPage from "./[id]/page";
+import BeenToPage from "./been-to/page";
 import AddPlacePage from "./new/page";
 import RestaurantsPage from "./page";
 
@@ -55,6 +56,16 @@ const TRIED = {
   booking_url: "https://www.opentable.com/r/dumpling-pretend-new-york",
   tried_on: "2026-09-25",
 };
+// A fourth, added after the third but tried before it, to show Been to
+// goes by the day tried, not the day added.
+const TRIED_EARLIER = {
+  id: "r4",
+  google_place_id: "ChIJInventedPhoHouse",
+  added_by: "user-1",
+  created_at: "2026-09-11T12:00:00Z",
+  booking_url: null,
+  tried_on: "2026-09-12",
+};
 const PEOPLE = [
   { user_id: "user-1", name: "Sam", manages_budget: true },
   { user_id: "user-2", name: "Alex", manages_budget: false },
@@ -87,6 +98,7 @@ const GOOGLE: Record<string, Place> = {
     photo: { name: "places/ChIJInventedNoodles01/photos/P1", credit: "A. Photographer" },
   }),
   ChIJInventedTaqueria1: place("ChIJInventedTaqueria1", { name: "Taqueria Pretend", cuisine: "Mexican", neighborhood: "Mission" }),
+  ChIJInventedPhoHouse: place("ChIJInventedPhoHouse", { name: "Pretend Pho House", cuisine: "Vietnamese", neighborhood: "Lower East Side" }),
   ChIJInventedDumpling: place("ChIJInventedDumpling", {
     name: "Dumpling Pretend",
     mapsUrl: "https://maps.google.com/?cid=1234567890",
@@ -109,12 +121,16 @@ function given(rows: unknown[] = ROWS, answers: unknown[] = []) {
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
 }
 
+type Params = Record<string, string>;
+const home = (params: Params = {}) => RestaurantsPage({ searchParams: Promise.resolve(params) });
+const beenTo = (params: Params = {}) => BeenToPage({ searchParams: Promise.resolve(params) });
+
 const tiles = () => within(screen.getByRole("region", { name: /Want to try/ })).queryAllByRole("link");
 
 describe("Want to try (REQ-129)", () => {
   it("shows each place as a tile with Google's photo, name, cuisine and neighbourhood, newest first", async () => {
     given();
-    render(await RestaurantsPage());
+    render(await home());
     const [noodles, tacos] = tiles();
     expect(noodles.textContent).toContain("Corner Noodle Bar");
     expect(noodles.textContent).toContain("Noodle · Lower East Side");
@@ -129,7 +145,7 @@ describe("Want to try (REQ-129)", () => {
 
   it("draws a plain block in the module colour where Google has no photo", async () => {
     given();
-    render(await RestaurantsPage());
+    render(await home());
     const tacos = tiles()[1];
     expect(tacos.querySelector("img")).toBeNull();
     expect(tacos.querySelector('[aria-hidden="true"]')?.className).toMatch(/noPhoto/);
@@ -138,13 +154,13 @@ describe("Want to try (REQ-129)", () => {
   it("still lists a place Google can't answer for, so it can be opened and removed", async () => {
     given();
     vi.mocked(places.details).mockRejectedValue(new Error("Google down"));
-    render(await RestaurantsPage());
+    render(await home());
     expect(tiles().map((tile) => tile.textContent)).toEqual(["Couldn't load from Google", "Couldn't load from Google"]);
   });
 
   it("with no places, says so and offers Add place", async () => {
     given([]);
-    render(await RestaurantsPage());
+    render(await home());
     const region = screen.getByRole("region", { name: /Want to try/ });
     expect(region.textContent).toContain("No places yet.");
     expect(within(region).getByRole("link", { name: "Add place" }).getAttribute("href")).toBe("/restaurants/new");
@@ -243,7 +259,7 @@ describe("mark as tried and go again (REQ-133)", () => {
 
   it("takes a tried place off Want to try and asks the viewer, until they answer", async () => {
     given([...ROWS, TRIED]);
-    render(await RestaurantsPage());
+    render(await home());
     expect(tiles().map((tile) => tile.textContent)).toEqual([expect.stringContaining("Corner Noodle"), expect.stringContaining("Taqueria")]);
     expect(screen.getByRole("region", { name: /Want to try/ }).textContent).toContain("· 2");
     const ask = screen.getByRole("region", { name: "Go again?" });
@@ -255,13 +271,13 @@ describe("mark as tried and go again (REQ-133)", () => {
 
   it("stops asking the viewer once they've answered, whatever the other person said", async () => {
     given([...ROWS, TRIED], [{ restaurant_id: "r3", user_id: "user-1", go_again: true }]);
-    render(await RestaurantsPage());
+    render(await home());
     expect(screen.queryByRole("region", { name: "Go again?" })).toBeNull();
   });
 
   it("still asks the viewer when only the other person has answered", async () => {
     given([...ROWS, TRIED], [{ restaurant_id: "r3", user_id: "user-2", go_again: false }]);
-    render(await RestaurantsPage());
+    render(await home());
     expect(screen.getByRole("region", { name: "Go again?" }).textContent).toContain("Dumpling Pretend");
   });
 
@@ -289,5 +305,121 @@ describe("mark as tried and go again (REQ-133)", () => {
     const sheet = screen.getByRole("dialog", { name: "Undo tried" });
     expect(sheet.textContent).toContain("Put Dumpling Pretend back on Want to try? Both go-again answers are cleared.");
     expect(within(sheet).getByRole("button", { name: "Yes, undo it" })).toBeTruthy();
+  });
+});
+
+describe("Been to (REQ-134)", () => {
+  const open = (id: string) => RestaurantPage({ params: Promise.resolve({ id }) });
+  const beenTiles = () => within(screen.getByRole("region", { name: /Been to/ })).queryAllByRole("link");
+
+  it("is a tab beside Want to try", async () => {
+    given([...ROWS, TRIED]);
+    render(await beenTo());
+    const tab = within(screen.getByRole("navigation", { name: "Restaurants sections" })).getByRole("link", { name: "Been to" });
+    expect(tab.getAttribute("href")).toBe("/restaurants/been-to");
+    expect(tab.getAttribute("aria-current")).toBe("page");
+  });
+
+  it("shows each tried place as a tile like Want to try, most recently tried first", async () => {
+    given([...ROWS, TRIED_EARLIER, TRIED]);
+    render(await beenTo());
+    const [dumplings, pho] = beenTiles();
+    expect(beenTiles()).toHaveLength(2);
+    expect(dumplings.textContent).toContain("Dumpling Pretend");
+    expect(dumplings.getAttribute("href")).toBe("/restaurants/r3");
+    expect(pho.textContent).toContain("Pretend Pho House");
+    expect(pho.textContent).toContain("Vietnamese · Lower East Side");
+    expect(screen.getByRole("region", { name: /Been to/ }).textContent).toContain("· 2");
+    expect(places.details).toHaveBeenCalledWith("ChIJInventedPhoHouse", "tile");
+  });
+
+  it("shows each person's answer on a tile: Yes, No or waiting", async () => {
+    given([...ROWS, TRIED_EARLIER, TRIED], [
+      { restaurant_id: "r3", user_id: "user-1", go_again: true },
+      { restaurant_id: "r3", user_id: "user-2", go_again: false },
+      { restaurant_id: "r4", user_id: "user-2", go_again: true },
+    ]);
+    render(await beenTo());
+    const [dumplings, pho] = beenTiles();
+    expect(dumplings.textContent).toContain("You: Yes");
+    expect(dumplings.textContent).toContain("Alex: No");
+    expect(pho.textContent).toContain("You: Waiting");
+    expect(pho.textContent).toContain("Alex: Yes");
+  });
+
+  it("opens to the place's detail: date tried, both answers, Book, Google Maps, and a way back to Been to", async () => {
+    given([...ROWS, TRIED], [{ restaurant_id: "r3", user_id: "user-2", go_again: true }]);
+    render(await open("r3"));
+    expect(screen.getAllByRole("definition")[0].closest("dl")!.textContent).toContain("25 Sept 2026");
+    const [you, alex] = within(screen.getByRole("region", { name: "Go again?" })).getAllByRole("listitem");
+    expect(you.textContent).toContain("You");
+    expect(alex.textContent).toBe("AlexYes");
+    expect(screen.getByRole("link", { name: "Book" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open in Google Maps" })).toBeTruthy();
+    const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(within(crumbs).getByRole("link").getAttribute("href")).toBe("/restaurants/been-to");
+  });
+
+  it("with nothing tried, says so", async () => {
+    given();
+    render(await beenTo());
+    expect(beenTiles()).toHaveLength(0);
+    expect(screen.getByRole("region", { name: /Been to/ }).textContent).toContain("Nowhere yet.");
+  });
+});
+
+describe("filter by area and cuisine (REQ-135)", () => {
+  // A third untried place sharing the noodle bar's neighbourhood.
+  const MORE = [
+    ...ROWS,
+    { id: "r5", google_place_id: "ChIJInventedPhoHouse", added_by: "user-1", created_at: "2026-09-01T12:00:00Z", booking_url: null, tried_on: null },
+  ];
+  const optionsOf = (name: string) =>
+    [...(screen.getByRole("combobox", { name }) as HTMLSelectElement).options].map((option) => option.textContent);
+
+  it("lists only the neighbourhoods and cuisines Google gives for the places on that page", async () => {
+    given(MORE);
+    render(await home());
+    expect(optionsOf("Neighborhood")).toEqual(["Any neighborhood", "Lower East Side", "Mission"]);
+    expect(optionsOf("Cuisine")).toEqual(["Any cuisine", "Mexican", "Noodle", "Vietnamese"]);
+  });
+
+  it("filters by neighbourhood, and by both together", async () => {
+    given(MORE);
+    render(await home({ area: "Lower East Side" }));
+    expect(tiles().map((tile) => tile.textContent)).toEqual([
+      "Clear",
+      expect.stringContaining("Corner Noodle Bar"),
+      expect.stringContaining("Pretend Pho House"),
+    ]);
+    cleanup();
+    render(await home({ area: "Lower East Side", cuisine: "Vietnamese" }));
+    const shown = tiles().filter((link) => link.textContent !== "Clear");
+    expect(shown.map((tile) => tile.textContent)).toEqual([expect.stringContaining("Pretend Pho House")]);
+    expect((screen.getByRole("combobox", { name: "Cuisine" }) as HTMLSelectElement).value).toBe("Vietnamese");
+  });
+
+  it("says when nothing matches, and Clear goes back to every place", async () => {
+    given(MORE);
+    render(await home({ area: "Mission", cuisine: "Noodle" }));
+    const region = screen.getByRole("region", { name: /Want to try/ });
+    expect(region.textContent).toContain("No places match.");
+    expect(within(region).getByRole("link", { name: "Clear" }).getAttribute("href")).toBe("/restaurants");
+  });
+
+  it("has no Clear while nothing is filtered", async () => {
+    given(MORE);
+    render(await home());
+    expect(screen.queryByRole("link", { name: "Clear" })).toBeNull();
+  });
+
+  it("works on Been to, from the tried places' own neighbourhoods and cuisines", async () => {
+    given([...ROWS, TRIED_EARLIER, TRIED]);
+    render(await beenTo({ cuisine: "Vietnamese" }));
+    expect(optionsOf("Cuisine")).toEqual(["Any cuisine", "Vietnamese"]);
+    expect(optionsOf("Neighborhood")).toEqual(["Any neighborhood", "Lower East Side"]);
+    const region = screen.getByRole("region", { name: /Been to/ });
+    expect(within(region).getAllByRole("link").map((link) => link.textContent)).toEqual(["Clear", expect.stringContaining("Pretend Pho House")]);
+    expect(within(region).getByRole("link", { name: "Clear" }).getAttribute("href")).toBe("/restaurants/been-to");
   });
 });

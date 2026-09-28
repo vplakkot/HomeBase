@@ -144,9 +144,12 @@ export const MODULES: readonly Module[] = [
     name: "Restaurants",
     tokens: "restaurants",
     href: "/restaurants",
-    // The module's home is Want to try (REQ-129); Been to joins it as a
-    // tab in a later batch. Add place is a button in the header.
-    sections: [{ name: "Add place", description: "Paste a Google or Apple Maps link", pinned: true, href: "/restaurants/new" }],
+    // The module's home is Want to try (REQ-129), with Been to (REQ-134)
+    // as a tab beside it. Add place is a button in the header.
+    sections: [
+      { name: "Been to", description: "Places we've tried", href: "/restaurants/been-to" },
+      { name: "Add place", description: "Paste a Google or Apple Maps link", pinned: true, href: "/restaurants/new" },
+    ],
   },
 ];
 

@@ -14,6 +14,9 @@
 .details { composes: details from "../drinks/drinks.module.css"; }
 .notice { composes: notice from "../drinks/drinks.module.css"; }
 .textLink { composes: textLink from "../meal-plans/meal-plans.module.css"; }
+.controls { composes: controls from "../drinks/drinks.module.css"; }
+.control { composes: control from "../drinks/drinks.module.css"; }
+.clear { composes: clear from "../drinks/drinks.module.css"; }
 
 .emptyState {
   display: flex;
@@ -241,4 +244,38 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
+}
+
+/* REQ-135: the neighbourhood and cuisine dropdowns, Clear beside them. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+/* REQ-134: each person's go-again answer on a Been to tile. */
+.tileAnswers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  color: var(--color-ink);
+  font-size: var(--text-label);
+  font-weight: 700;
+}
+
+.filters .controls {
+  flex: 1 1 320px;
+}
+
+@media (min-width: 1024px) {
+  .filters .controls {
+    flex: 0 1 auto;
+  }
+}
+
+.filters .clear {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target-min);
 }

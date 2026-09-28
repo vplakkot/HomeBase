@@ -38,6 +38,7 @@ export function PlaceScreen({ viewer, row, place }: { viewer: RestaurantsViewer;
       viewer={viewer}
       section={row.tried_on ? "Been to" : "Want to try"}
       crumb={name}
+      beenTo={row.tried_on !== null}
       actions={<RemovePlace id={row.id} name={name} />}
     >
       <article className={styles.detail}>

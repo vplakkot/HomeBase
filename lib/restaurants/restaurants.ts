@@ -4,7 +4,7 @@ import { followShortLink, readLink, type LinkReading } from "./links";
 import { MAX_CANDIDATES, pickMatch, sameName, type Match } from "./match";
 import type { Places } from "./places";
 
-// Restaurants (REQ-90, REQ-129 to REQ-133): the places we want to try and
+// Restaurants (REQ-90, REQ-129 to REQ-134): the places we want to try and
 // have tried. A row is Google's place ID, who added it and when, its
 // booking link and the day we tried it; everything else is asked of
 // Google when the place is shown.
@@ -49,6 +49,12 @@ export function waitingOn<T extends Pick<Restaurant, "id" | "tried_on">>(
   return rows
     .filter((row) => row.tried_on !== null && !answered.has(row.id))
     .sort((a, b) => (b.tried_on ?? "").localeCompare(a.tried_on ?? ""));
+}
+
+// REQ-134: Been to, most recently tried first. Places tried the same day
+// keep the newest-added first, the order they're read in.
+export function beenTo<T extends Pick<Restaurant, "tried_on">>(rows: readonly T[]): T[] {
+  return rows.filter((row) => row.tried_on !== null).sort((a, b) => (b.tried_on ?? "").localeCompare(a.tried_on ?? ""));
 }
 
 // What Home needs: how many are still to try, and how many tried places
