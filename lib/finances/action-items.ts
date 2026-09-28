@@ -68,8 +68,8 @@ export const DUE_SOON_DAYS = 5;
 export const QUIET_DAYS = 14;
 
 export function financeItems(everything: FinanceSnapshot, viewer: string): FinanceItem[] {
-  // REQ-148: a month filled in afterwards raises no items, so it pushes
-  // nothing either (pushes are made from these items).
+  // REQ-148: a month filled in afterwards raises none of the usual items;
+  // while it's open it has one of its own (below), which never pushes.
   const snapshot = { ...everything, months: everything.months.filter((month) => !month.added_later) };
   const { today, splits } = snapshot;
   const me = snapshot.people.find((person) => person.user_id === viewer);
@@ -186,6 +186,22 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
     }
   }
 
+  // Vin, 2026-09-28: a month added later and not yet closed stays in
+  // view until it's finished. In the app only: it sends no notification.
+  for (const month of everything.months) {
+    if (!month.added_later || month.closed_at) continue;
+    const toEnter = month.bills.filter((bill) => !billEntered(bill)).length;
+    items.push({
+      key: `unfinished:${month.starts_on}`,
+      text: `${monthLabel(month.starts_on)} isn't finished`,
+      detail: toEnter > 0 ? `${toEnter} bill${toEnter === 1 ? "" : "s"} still to enter` : "Mark it settled, or log payments",
+      rank: RANKS.enter,
+      href: `/finances/monthly-entry?month=${month.starts_on.slice(0, 7)}`,
+      button: "Finish month",
+      push: null,
+    });
+  }
+
   // The month now running, not opened yet.
   if (snapshot.billCount > 0 && !snapshot.months.some((month) => month.starts_on === current)) {
     items.push(enterItem(current, "Open the month and enter the bills"));
@@ -226,6 +242,21 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
   }
 
   return items.sort((a, b) => a.rank - b.rank);
+}
+
+// The month an item is about, as "YYYY-MM-01": every item about one
+// month links to it with ?month=YYYY-MM. Null for an item about none.
+export function itemMonth(item: Pick<FinanceItem, "href">): string | null {
+  const month = new URL(item.href, "https://homebase.invalid").searchParams.get("month");
+  return month && /^\d{4}-\d{2}$/.test(month) ? `${month}-01` : null;
+}
+
+// Vin, 2026-09-28: Finances home on a month gone by shows only that
+// month's items, so April never shows September's. The month now
+// running shows them all.
+export function itemsForMonth(items: FinanceItem[], startsOn: string, today: string): FinanceItem[] {
+  if (startsOn === monthStart(today)) return items;
+  return items.filter((item) => itemMonth(item) === startsOn);
 }
 
 function enterItem(startsOn: string, detail: string): FinanceItem {

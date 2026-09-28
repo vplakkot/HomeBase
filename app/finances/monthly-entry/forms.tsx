@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import type { Person, Share } from "../../../lib/finances/budget-year";
 import type { MonthBill } from "../../../lib/finances/month";
@@ -229,6 +230,9 @@ export function SettleForm({ monthId, month }: { monthId: string; month: string 
       <button type="submit" className={styles.primary} disabled={pending}>
         {pending ? "Settling…" : "Mark settled"}
       </button>
+      <Link href={`/finances/log-payment?month=${month}`} className={styles.quiet}>
+        Log payments instead
+      </Link>
       <Outcome state={state} saved="Settled." />
     </form>
   );

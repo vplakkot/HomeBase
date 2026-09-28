@@ -431,6 +431,28 @@ describe("Finances home", () => {
     expect(owes.textContent).not.toContain("outstanding");
   });
 
+  // Vin, 2026-09-28: April's page never shows September's items, and a
+  // month added later stays in view until it's finished.
+  it("on a month gone by shows only that month's items", async () => {
+    const april = { ...SEPTEMBER, id: "m-apr", starts_on: "2026-04-01", added_later: true, settled: false, closed_at: null };
+    await showMonth({ months: [april, SEPTEMBER], month: "2026-04" });
+    const items = within(screen.getByRole("region", { name: /^Action items/ })).getAllByRole("listitem");
+    expect(items.map((item) => item.querySelector("span span")?.textContent)).toEqual(["April 2026 isn't finished"]);
+    expect(within(items[0]).getByRole("link", { name: "Finish month" }).getAttribute("href")).toBe(
+      "/finances/monthly-entry?month=2026-04",
+    );
+  });
+
+  it("on the month now running shows every item, an unfinished month's too", async () => {
+    const april = { ...SEPTEMBER, id: "m-apr", starts_on: "2026-04-01", added_later: true, settled: false, closed_at: null };
+    await showMonth({ months: [SEPTEMBER, april] });
+    const texts = within(screen.getByRole("region", { name: /^Action items/ }))
+      .getAllByRole("listitem")
+      .map((item) => item.querySelector("span span")?.textContent);
+    expect(texts).toContain("April 2026 isn't finished");
+    expect(texts.length).toBeGreaterThan(1);
+  });
+
   it("says a month not open yet will open on its own", async () => {
     await showMonth({ months: [], bills: [{ id: "b-rent", name: "Rent", kind: "rent", due_day: 1 }] });
     expect(region("Bills").textContent).toContain("isn't open yet: it opens on its own");

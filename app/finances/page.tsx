@@ -2,7 +2,7 @@ import { OVERVIEW } from "../../components/module-frame";
 import Link from "next/link";
 import { ButtonLink, buttonClass } from "../../components/button";
 import { householdToday, listPeople, listSplits, monthLabel, splitInForce } from "../../lib/finances/budget-year";
-import { financeItems } from "../../lib/finances/action-items";
+import { financeItems, itemsForMonth } from "../../lib/finances/action-items";
 import { listBills } from "../../lib/finances/bills";
 import { billEntered, chosenMonth, dayLabel, listOpenedMonths, monthShares, monthTotals, readMonth } from "../../lib/finances/month";
 import { formatMoney } from "../../lib/finances/money";
@@ -83,7 +83,7 @@ export default async function FinancesPage({
   ) {
     await acknowledge(supabase, `ready:${startsOn}`).catch((reason) => console.error(reason));
   }
-  const items = financeItems(await readFinanceSnapshot(supabase, todayIso, people), userId);
+  const items = itemsForMonth(financeItems(await readFinanceSnapshot(supabase, todayIso, people), userId), startsOn, todayIso);
 
   // The month shown runs on the split that had started by then, or the
   // percentages written on it when it closed.
