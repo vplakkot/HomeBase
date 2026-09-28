@@ -103,7 +103,7 @@ export default async function FinancesPage({
       {items.length > 0 ? (
         <section className={styles.section} aria-labelledby="action-items">
           <div className={styles.sectionHead}>
-            <h2 id="action-items" className={`${styles.sectionTitle} ${styles.band}`}>
+            <h2 id="action-items" className={styles.sectionTitle}>
               Action items <span className={styles.count}>{items.length}</span>
             </h2>
           </div>
@@ -133,7 +133,7 @@ export default async function FinancesPage({
       {summary ? (
         <section className={styles.section} aria-labelledby="progress">
           <div className={styles.sectionHead}>
-            <h2 id="progress" className={`${styles.sectionTitle} ${styles.band}`}>
+            <h2 id="progress" className={styles.sectionTitle}>
               Progress
             </h2>
           </div>
@@ -192,7 +192,7 @@ export default async function FinancesPage({
       {totals && totals.people.length > 0 ? (
         <section className={styles.section} aria-labelledby="who-owes">
           <div className={styles.sectionHead}>
-            <h2 id="who-owes" className={`${styles.sectionTitle} ${styles.band}`}>
+            <h2 id="who-owes" className={styles.sectionTitle}>
               Outstanding balances
             </h2>
           </div>
@@ -204,7 +204,7 @@ export default async function FinancesPage({
               return (
                 <li key={person.user_id} className={`${styles.card} ${styles.person}`}>
                   <span className={styles.personHead}>
-                    <span className={styles.strong}>{nameOf.get(person.user_id) ?? "Someone"}</span>
+                    <span className={`${styles.strong} ${styles.band}`}>{nameOf.get(person.user_id) ?? "Someone"}</span>
                     <span className={styles.note}>{person.percent}% share</span>
                   </span>
                   <span className={styles.figureLine}>
@@ -255,7 +255,7 @@ export default async function FinancesPage({
 
       <section className={styles.section} aria-labelledby="bills">
         <div className={styles.sectionHead}>
-          <h2 id="bills" className={`${styles.sectionTitle} ${styles.band}`}>
+          <h2 id="bills" className={styles.sectionTitle}>
             Bills
           </h2>
           <Link href={`/finances/monthly-entry?month=${at}`} className={styles.link}>
@@ -282,7 +282,7 @@ export default async function FinancesPage({
                   {summary.rows.map((row) => (
                     <tr key={row.id}>
                       <th scope="row" className={styles.strong}>
-                        {row.name}
+                        <span className={styles.band}>{row.name}</span>
                       </th>
                       <td className={row.overdue ? styles.urgent : styles.muted}>
                         {dayLabel(row.due)}
