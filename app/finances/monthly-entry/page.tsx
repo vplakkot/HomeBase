@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { listBills } from "../../../lib/finances/bills";
 import { householdToday, listPeople, listSplits, monthLabel, monthStart } from "../../../lib/finances/budget-year";
 import {
@@ -15,7 +16,7 @@ import styles from "../../../components/cards.module.css";
 import { FinancesFrame, financesViewer } from "../frame";
 import { Hint } from "../../../components/hint";
 import { openMonth, removeDirectPayment, removePersonalCharge } from "./actions";
-import { BillEntryForm, DirectPaymentForm, PersonalChargeForm } from "./forms";
+import { BillEntryForm, DirectPaymentForm, MonthSplitForm, PersonalChargeForm, SettleForm } from "./forms";
 
 const SECTION = "Monthly entry";
 
@@ -97,9 +98,27 @@ export default async function MonthlyEntryPage({
   // (REQ-59); the database refuses changes to it anyway.
   const closed = month.closed_at !== null;
 
+  // REQ-148: a month added later, still open, has its own split and
+  // can be marked settled.
+  const addedLater = month.added_later && !closed;
+  const at = month.starts_on.slice(0, 7);
+
   return (
     <FinancesFrame {...frame}>
       <div className={styles.cards}>
+        {addedLater ? (
+          <section className={styles.card} aria-labelledby="month-split">
+            <header className={styles.head}>
+              <h2 id="month-split" className={styles.name}>
+                Split for {monthLabel(month.starts_on)}
+              </h2>
+              <Hint text="Added later, so it has its own split: the one you had then, or today's if HomeBase doesn't know it. Changing it changes this month only." />
+            </header>
+            <div className={styles.addBlock}>
+              <MonthSplitForm monthId={month.id} people={people} shares={monthShares(month, splits, month.starts_on)} />
+            </div>
+          </section>
+        ) : null}
         <section className={styles.card} aria-labelledby="month-bills">
           <header className={styles.head}>
             <h2 id="month-bills" className={styles.name}>
@@ -223,6 +242,23 @@ export default async function MonthlyEntryPage({
             </ul>
           </div>
         </section>
+
+        {addedLater ? (
+          <section className={styles.card} aria-labelledby="finish-month">
+            <header className={styles.head}>
+              <h2 id="finish-month" className={styles.name}>
+                Finish {monthLabel(month.starts_on)}
+              </h2>
+              <Hint text="Settled: you sorted it out between you outside the app. It closes and nobody owes anything for it. Add its income first; it locks when the month closes." />
+            </header>
+            <div className={styles.addBlock}>
+              <SettleForm monthId={month.id} month={at} />
+              <p className={styles.empty}>
+                Or <Link href={`/finances/log-payment?month=${at}`}>log payments</Link> as usual.
+              </p>
+            </div>
+          </section>
+        ) : null}
       </div>
     </FinancesFrame>
   );

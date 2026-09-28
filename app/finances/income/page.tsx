@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { householdToday, listPeople, listSplits } from "../../../lib/finances/budget-year";
 import { listIncomeHistory } from "../../../lib/finances/income";
-import { expectedPaychecks, INCOME_KINDS } from "../../../lib/finances/leftover";
+import { expectedPaychecks, INCOME_KINDS, sourcesForMonth } from "../../../lib/finances/leftover";
 import {
   chosenMonth,
   dayLabel,
@@ -74,7 +74,9 @@ export default async function IncomePage({
   // A squared month can close before it's out, and pay can still land
   // after; income locks once the month is closed and over.
   const locked = month.closed_at !== null && todayIso > monthEnd;
-  const expected = locked ? [] : expectedPaychecks(sources, startsOn, todayIso, month.income);
+  const expected = locked
+    ? []
+    : expectedPaychecks(sourcesForMonth(sources, startsOn, month.added_later), startsOn, todayIso, month.income);
 
   return (
     <FinancesFrame {...frame}>

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasPermission } from "../../../lib/auth/permissions";
-import { householdToday } from "../../../lib/finances/budget-year";
+import { formatPercent, householdToday, parsePercent } from "../../../lib/finances/budget-year";
 import { parseAmount } from "../../../lib/finances/money";
 import { createClient } from "../../../lib/supabase/server";
 
@@ -138,3 +138,60 @@ export async function removeDirectPayment(formData: FormData): Promise<void> {
   if (error) throw new Error(`Could not remove the payment: ${error.message}`);
   refresh();
 }
+
+// REQ-148: an earlier month of this budget year, never opened, added
+// now. It opens like any month and goes straight to its entry.
+export async function addPastMonth(formData: FormData): Promise<void> {
+  const month = String(formData.get("month") ?? "");
+  if (!/^\d{4}-\d{2}$/.test(month)) return;
+  const supabase = await requireMember();
+  const { error } = await supabase.rpc("add_past_month", { p_month: `${month}-01`, p_today: householdToday() });
+  // Added a moment ago by the other person: it's there either way.
+  if (error && !error.message.includes("already there")) throw new Error(`Could not add the month: ${error.message}`);
+  refresh();
+  redirect(`/finances/monthly-entry?month=${month}`);
+}
+
+const SHARE_FIELD = "share_";
+
+// REQ-148: a month added later has its own split, which either of us may
+// change for that month only. The household's splits stay as they are.
+export async function setMonthSplit(_previous: FormState, formData: FormData): Promise<FormState> {
+  const monthId = String(formData.get("monthId") ?? "");
+  const shares: { user_id: string; percent: number }[] = [];
+  for (const [field, value] of formData.entries()) {
+    if (!field.startsWith(SHARE_FIELD)) continue;
+    const hundredths = parsePercent(String(value));
+    if (hundredths === null) return { error: "Each percentage must be a number from 0 to 100, with at most two decimals." };
+    shares.push({ user_id: field.slice(SHARE_FIELD.length), percent: hundredths / 100 });
+  }
+  if (!monthId || shares.length === 0) return { error: "Give each person a percentage." };
+  const total = shares.reduce((sum, share) => sum + Math.round(share.percent * 100), 0);
+  if (total !== 100_00) return { error: `The percentages add up to ${formatPercent(total)}. They must total 100%.` };
+
+  const supabase = await requireMember();
+  const { error } = await supabase.rpc("set_month_split", { p_month: monthId, p_shares: shares });
+  if (error) return { error: error.message };
+  refresh();
+  return { saved: true };
+}
+
+// REQ-148: we sorted a month added later out between us, outside the
+// app. It closes with nobody owing anything for it.
+export async function settleMonth(_previous: FormState, formData: FormData): Promise<FormState> {
+  const monthId = String(formData.get("monthId") ?? "");
+  const month = String(formData.get("month") ?? "");
+  if (!monthId || !/^\d{4}-\d{2}$/.test(month)) return { error: "That month isn't there." };
+  const supabase = await requireMember();
+  const { error } = await supabase.rpc("settle_past_month", { p_month: monthId });
+  if (error) {
+    return {
+      error: error.message.includes("Enter every bill")
+        ? "Enter every bill first ($0 is fine), so the year's totals have the whole month."
+        : error.message,
+    };
+  }
+  refresh();
+  redirect(`/finances?month=${month}`);
+}
+

@@ -1,11 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import type { Person } from "../../../lib/finances/budget-year";
+import type { Person, Share } from "../../../lib/finances/budget-year";
 import type { MonthBill } from "../../../lib/finances/month";
 import styles from "../../../components/cards.module.css";
 import { Hint } from "../../../components/hint";
-import { addDirectPayment, addPersonalCharge, enterBill, type FormState } from "./actions";
+import { addDirectPayment, addPersonalCharge, enterBill, setMonthSplit, settleMonth, type FormState } from "./actions";
 
 const initialState: FormState = {};
 
@@ -185,3 +185,52 @@ export function DirectPaymentForm({
     </form>
   );
 }
+
+// REQ-148: a month added later divides by its own split, a copy of the
+// one in force then (or today's, if none had started), changed here for
+// that month only.
+export function MonthSplitForm({ monthId, people, shares }: { monthId: string; people: Person[]; shares: Share[] }) {
+  const [state, formAction, pending] = useActionState(setMonthSplit, initialState);
+  const percentOf = new Map(shares.map((share) => [share.user_id, share.percent]));
+  return (
+    <form action={formAction} className={styles.form}>
+      <input type="hidden" name="monthId" value={monthId} />
+      {people.map((person) => (
+        <label key={person.user_id} className={styles.field}>
+          <span>{person.name}</span>
+          <span className={styles.withPrefix}>
+            <input
+              name={`share_${person.user_id}`}
+              aria-label={`${person.name}'s percentage`}
+              inputMode="decimal"
+              defaultValue={percentOf.get(person.user_id)?.toString() ?? ""}
+              required
+            />
+            <span aria-hidden="true">%</span>
+          </span>
+        </label>
+      ))}
+      <button type="submit" className={styles.primary} disabled={pending}>
+        {pending ? "Saving…" : "Save this month's split"}
+      </button>
+      <Outcome state={state} saved="Split saved for this month." />
+    </form>
+  );
+}
+
+// REQ-148: we sorted the month out between us outside the app. It
+// closes with nobody owing anything for it.
+export function SettleForm({ monthId, month }: { monthId: string; month: string }) {
+  const [state, formAction, pending] = useActionState(settleMonth, initialState);
+  return (
+    <form action={formAction} className={styles.form}>
+      <input type="hidden" name="monthId" value={monthId} />
+      <input type="hidden" name="month" value={month} />
+      <button type="submit" className={styles.primary} disabled={pending}>
+        {pending ? "Settling…" : "Mark settled"}
+      </button>
+      <Outcome state={state} saved="Settled." />
+    </form>
+  );
+}
+

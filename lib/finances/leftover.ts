@@ -57,6 +57,30 @@ export function expectedPaychecks(
     .sort((a, b) => a.payday.localeCompare(b.payday) || a.name.localeCompare(b.name));
 }
 
+// REQ-148: the income sources a month added later expects paychecks
+// from. Each person's sources in force during that month, if HomeBase
+// knows any; otherwise their sources today, counted as if in force all
+// month. Whatever landed can still be changed as it's confirmed, which
+// changes that month only.
+export function sourcesForMonth(
+  sources: (IncomeSource & { effective_from: string })[],
+  startsOn: string,
+  addedLater: boolean,
+): (IncomeSource & { effective_from: string })[] {
+  if (!addedLater) return sources;
+  const [year, month] = startsOn.split("-").map(Number);
+  const nextMonth = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
+  const then = (source: IncomeSource & { effective_from: string }) =>
+    source.effective_from < nextMonth && (!source.ended_on || source.ended_on > startsOn);
+  const owners = [...new Set(sources.map((source) => source.owner_id))];
+  return owners.flatMap((owner) => {
+    const theirs = sources.filter((source) => source.owner_id === owner);
+    const known = theirs.filter(then);
+    if (known.length > 0) return known;
+    return theirs.filter((source) => !source.ended_on).map((source) => ({ ...source, effective_from: startsOn }));
+  });
+}
+
 // Vin, 2026-09-24: while a month is running, a paycheck the income setup
 // expects counts as income until someone confirms it, so the savings card
 // shows what's likely rather than "take from savings" on the 2nd of the

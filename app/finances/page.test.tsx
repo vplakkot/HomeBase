@@ -407,6 +407,30 @@ describe("Finances home", () => {
     expect(closed.textContent).toContain("Closed with $800.00 of Sam's unpaid.");
   });
 
+  // REQ-148: settled between us outside the app, so nobody owes anything
+  // for it, whatever was logged in it.
+  it("shows a month added later and settled as settled, owing nothing", async () => {
+    const may = {
+      ...SEPTEMBER,
+      id: "m-may",
+      starts_on: "2026-05-01",
+      closed_at: "2026-09-20T14:00:00Z",
+      closed_by: "user-1",
+      split_from: null,
+      added_later: true,
+      settled: true,
+      people: [
+        { user_id: "user-1", percent: "70.00", outstanding: "0.00" },
+        { user_id: "u-sam", percent: "30.00", outstanding: "0.00" },
+      ],
+    };
+    await showMonth({ months: [may, SEPTEMBER], month: "2026-05" });
+    expect(region("Closed month").textContent).toContain("Settled between you 20 Sep · its own split: Alex 70% · Sam 30%");
+    const owes = region("Outstanding balances");
+    expect(within(owes).getAllByText("Settled")).toHaveLength(2);
+    expect(owes.textContent).not.toContain("outstanding");
+  });
+
   it("says a month not open yet will open on its own", async () => {
     await showMonth({ months: [], bills: [{ id: "b-rent", name: "Rent", kind: "rent", due_day: 1 }] });
     expect(region("Bills").textContent).toContain("isn't open yet: it opens on its own");

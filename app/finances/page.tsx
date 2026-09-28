@@ -170,9 +170,12 @@ export default async function FinancesPage({
       {month?.closed_at ? (
         <section className={styles.card} aria-label="Closed month">
           <p className={styles.note}>
-            Closed {dayLabel(month.closed_at.slice(0, 10))}
-            {month.closed_automatically ? ", squared" : ""} · split from{" "}
-            {month.split_from ? monthLabel(month.split_from) : "no split"}: {percentages(month.people)}
+            {month.settled ? "Settled between you" : "Closed"} {dayLabel(month.closed_at.slice(0, 10))}
+            {month.closed_automatically ? ", squared" : ""} ·{" "}
+            {month.added_later
+              ? "its own split"
+              : `split from ${month.split_from ? monthLabel(month.split_from) : "no split"}`}
+            : {percentages(month.people)}
           </p>
           {leftOwing.map((person) => {
             const name = nameOf.get(person.user_id) ?? "Someone";
@@ -195,7 +198,9 @@ export default async function FinancesPage({
           </div>
           <ul className={styles.people}>
             {totals.people.map((person) => {
-              const settled = person.outstanding <= 0;
+              // REQ-148: a month settled between us outside the app owes
+              // nothing, whatever was logged in it.
+              const settled = person.outstanding <= 0 || month?.settled === true;
               return (
                 <li key={person.user_id} className={`${styles.card} ${styles.person}`}>
                   <span className={styles.personHead}>
@@ -204,14 +209,14 @@ export default async function FinancesPage({
                   </span>
                   <span className={styles.figureLine}>
                     <span className={styles.personFigure}>
-                      {settled ? "Paid" : formatMoney(person.outstanding)}
+                      {month?.settled ? "Settled" : settled ? "Paid" : formatMoney(person.outstanding)}
                     </span>
                     {settled ? null : <span className={styles.note}>outstanding</span>}
                   </span>
                   <Bar percent={progress(person.paid, person.obligation)} />
                   <span className={styles.note}>
                     Paid {formatMoney(person.paid)} of {formatMoney(person.obligation)}
-                    {person.outstanding < 0 ? ` · ${formatMoney(-person.outstanding)} credit` : ""}
+                    {person.outstanding < 0 && !month?.settled ? ` · ${formatMoney(-person.outstanding)} credit` : ""}
                   </span>
                 </li>
               );

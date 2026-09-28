@@ -54,6 +54,9 @@ function month(startsOn: string, bills: MonthBill[], over: Partial<Month> = {}):
     split_from: null,
     people: [],
     savings: [],
+    added_later: false,
+    settled: false,
+    own_shares: [],
     ...over,
   };
 }
@@ -423,3 +426,23 @@ describe("Finances pushes (REQ-70)", () => {
     ]);
   });
 });
+
+// REQ-148: a month filled in afterwards raises nothing, and pushes nothing.
+describe("a month added later", () => {
+  it("creates no action items and sends no notifications, however it stands", () => {
+    const owing = month("2026-05-01", [rent({ entered_by: null }), card({ amount: null, personal_answer: null })], {
+      added_later: true,
+    });
+    const ended = month("2026-06-01", [rent({ payments: [pay(ALEX, 500, "2026-06-03")] })], { added_later: true });
+    const s = snapshot({ today: "2026-09-10", months: [owing, ended, month("2026-09-01", [rent({ payments: [pay(ALEX, 1000, "2026-09-01"), pay(BLAIR, 1000, "2026-09-01")] })])] });
+    for (const viewer of [ALEX, BLAIR]) {
+      const keys = financeItems(s, viewer).map((item) => item.key);
+      expect(keys.filter((key) => key.includes("2026-05") || key.includes("2026-06"))).toEqual([]);
+    }
+    expect(pushesDue(s, []).filter((push) => /2026-0[56]/.test(push.topic))).toEqual([]);
+    // The same months, not added later, would have raised items.
+    const plain = snapshot({ months: [{ ...owing, added_later: false }, { ...ended, added_later: false }] });
+    expect(financeItems(plain, ALEX).some((item) => item.key.includes("2026-06"))).toBe(true);
+  });
+});
+

@@ -50,9 +50,15 @@ export type Month = {
   people: ClosedPerson[];
   // What was actually put away (REQ-66).
   savings: RecordedSavings[];
+  // REQ-148: filled in afterwards, for a month before we started. It
+  // carries its own split, and may close as settled between us.
+  added_later: boolean;
+  settled: boolean;
+  own_shares: Share[];
 };
 
-const MONTH_FIELDS = `id, starts_on, closed_at, closed_by, closed_automatically, split_from,
+const MONTH_FIELDS = `id, starts_on, closed_at, closed_by, closed_automatically, split_from, added_later, settled,
+  own_shares:month_shares(user_id, percent),
   people:month_people(user_id, percent, outstanding),
   income:month_income(id, owner_id, kind, amount, received_on, income_source_id, note),
   savings:month_savings(user_id, to_joint, own),
@@ -114,6 +120,9 @@ function tidyMonth(month: Month): Month {
       percent: Number(p.percent),
       outstanding: Number(p.outstanding),
     })),
+    added_later: month.added_later ?? false,
+    settled: month.settled ?? false,
+    own_shares: (month.own_shares ?? []).map((share) => ({ ...share, percent: Number(share.percent) })),
     savings: (month.savings ?? []).map((row) => ({
       ...row,
       to_joint: Number(row.to_joint),
@@ -132,17 +141,22 @@ export async function listOpenedMonths(supabase: SupabaseClient): Promise<string
   return ((data ?? []) as { starts_on: string }[]).map((row) => row.starts_on);
 }
 
-// Every opened month, newest first, and whether it has closed (History,
-// REQ-102).
-export async function listMonthsClosed(supabase: SupabaseClient): Promise<{ startsOn: string; closed: boolean }[]> {
+export type MonthListed = { startsOn: string; closed: boolean; addedLater: boolean; settled: boolean };
+
+// Every opened month, newest first, whether it has closed, and whether
+// it was added later and settled (History, REQ-102, REQ-148).
+export async function listMonthsClosed(supabase: SupabaseClient): Promise<MonthListed[]> {
   const { data, error } = await supabase
     .from("months")
-    .select("starts_on, closed_at")
+    .select("starts_on, closed_at, added_later, settled")
     .order("starts_on", { ascending: false });
   if (error) throw new Error(`Could not list the months: ${error.message}`);
-  return ((data ?? []) as { starts_on: string; closed_at: string | null }[]).map((row) => ({
+  type Row = { starts_on: string; closed_at: string | null; added_later?: boolean; settled?: boolean };
+  return ((data ?? []) as Row[]).map((row) => ({
     startsOn: row.starts_on,
     closed: row.closed_at !== null,
+    addedLater: row.added_later ?? false,
+    settled: row.settled ?? false,
   }));
 }
 
@@ -190,9 +204,11 @@ export function billEntered(bill: MonthBill): boolean {
 }
 
 // The percentages a month is split by: the ones written on it when it
-// closed (REQ-52), otherwise the split that had started by its first day.
+// closed (REQ-52); for a month added later, its own (REQ-148);
+// otherwise the split that had started by its first day.
 export function monthShares(month: Month | null, splits: Split[], startsOn: string): Share[] {
   if (month?.closed_at) return month.people.map(({ user_id, percent }) => ({ user_id, percent }));
+  if (month?.own_shares?.length) return month.own_shares;
   return splitInForce(splits, startsOn)?.shares ?? [];
 }
 

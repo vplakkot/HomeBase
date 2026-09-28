@@ -3,11 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../../lib/supabase/server";
 import {
   addDirectPayment,
+  addPastMonth,
   addPersonalCharge,
   enterBill,
   openMonth,
   removeDirectPayment,
   removePersonalCharge,
+  setMonthSplit,
+  settleMonth,
 } from "./actions";
 
 vi.mock("../../../lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -209,3 +212,77 @@ describe("addDirectPayment (REQ-55)", () => {
     expect(table.eq).toHaveBeenCalledWith("id", "d-1");
   });
 });
+
+// REQ-148: filling in an earlier month of this budget year. Invented ids.
+const ALEX = "11111111-1111-4111-8111-111111111111";
+const SAM = "22222222-2222-4222-8222-222222222222";
+
+describe("addPastMonth (REQ-148)", () => {
+  it("adds the month, as either member, and goes to its Monthly entry", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-22T16:00:00Z"));
+    given();
+    await expect(addPastMonth(form({ month: "2026-05" }))).rejects.toThrow("REDIRECT:/finances/monthly-entry?month=2026-05");
+    vi.useRealTimers();
+    expect(rpc).toHaveBeenCalledWith("add_past_month", { p_month: "2026-05-01", p_today: "2026-09-22" });
+    expect(revalidatePath).toHaveBeenCalledWith("/finances", "layout");
+  });
+
+  it("goes to the month anyway if the other person added it a moment ago", async () => {
+    given({ error: { message: "That month is already there" } });
+    await expect(addPastMonth(form({ month: "2026-05" }))).rejects.toThrow("REDIRECT:/finances/monthly-entry?month=2026-05");
+  });
+
+  it("says why when the database refuses it", async () => {
+    given({ error: { message: "Only an earlier month of this budget year can be added" } });
+    await expect(addPastMonth(form({ month: "2025-05" }))).rejects.toThrow("Only an earlier month of this budget year");
+  });
+
+  it("does nothing with a month that isn't one, or for someone who isn't a member", async () => {
+    given();
+    await addPastMonth(form({ month: "May" }));
+    expect(rpc).not.toHaveBeenCalledWith("add_past_month", expect.anything());
+    given({ member: false });
+    await expect(addPastMonth(form({ month: "2026-05" }))).rejects.toThrow("REDIRECT:/finances");
+    expect(rpc).not.toHaveBeenCalledWith("add_past_month", expect.anything());
+  });
+});
+
+describe("setMonthSplit (REQ-148)", () => {
+  it("saves that month's own split", async () => {
+    given();
+    expect(await setMonthSplit({}, form({ monthId: "m-5", [`share_${ALEX}`]: "55.5", [`share_${SAM}`]: "44.5" }))).toEqual({ saved: true });
+    expect(rpc).toHaveBeenCalledWith("set_month_split", {
+      p_month: "m-5",
+      p_shares: [
+        { user_id: ALEX, percent: 55.5 },
+        { user_id: SAM, percent: 44.5 },
+      ],
+    });
+  });
+
+  it("refuses percentages that don't total 100 or aren't percentages", async () => {
+    given();
+    expect(await setMonthSplit({}, form({ monthId: "m-5", [`share_${ALEX}`]: "60", [`share_${SAM}`]: "30" }))).toEqual({
+      error: "The percentages add up to 90%. They must total 100%.",
+    });
+    expect((await setMonthSplit({}, form({ monthId: "m-5", [`share_${ALEX}`]: "lots" }))).error).toMatch(/from 0 to 100/);
+    expect(rpc).not.toHaveBeenCalledWith("set_month_split", expect.anything());
+  });
+});
+
+describe("settleMonth (REQ-148)", () => {
+  it("settles the month, as either member, and shows it on Finances home", async () => {
+    given();
+    await expect(settleMonth({}, form({ monthId: "m-5", month: "2026-05" }))).rejects.toThrow("REDIRECT:/finances?month=2026-05");
+    expect(rpc).toHaveBeenCalledWith("settle_past_month", { p_month: "m-5" });
+  });
+
+  it("asks for every bill first, in plain words", async () => {
+    given({ error: { message: "Enter every bill before settling the month" } });
+    expect(await settleMonth({}, form({ monthId: "m-5", month: "2026-05" }))).toEqual({
+      error: "Enter every bill first ($0 is fine), so the year's totals have the whole month.",
+    });
+  });
+});
+

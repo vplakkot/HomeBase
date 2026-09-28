@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expectedPaychecks, INCOME_KINDS, leftovers, projectedIncome } from "./leftover";
+import { expectedPaychecks, INCOME_KINDS, leftovers, projectedIncome, sourcesForMonth } from "./leftover";
 import type { MonthIncome, MonthTotals } from "./month";
 
 const biweekly = {
@@ -98,3 +98,46 @@ describe("whether the month moved you forward (REQ-61)", () => {
     expect(leftovers(totals, []).joint).toBe(-3000.5);
   });
 });
+
+// REQ-148: the paychecks a month added later expects. Invented sources.
+describe("income for a month added later", () => {
+  const src = (id: string, owner: string, over: Record<string, unknown> = {}) => ({
+    id,
+    name: id,
+    owner_id: owner,
+    net_amount: 1000,
+    cadence: "monthly" as const,
+    anchor_date: "2026-01-15",
+    effective_from: "2026-09-05",
+    ended_on: null,
+    ...over,
+  });
+
+  it("uses the sources in force then, if HomeBase knows them", () => {
+    const old = src("old", "a", { effective_from: "2026-03-01", ended_on: "2026-09-05", net_amount: 900 });
+    const now = src("now", "a");
+    const known = sourcesForMonth([old, now], "2026-05-01", true);
+    expect(known.map((s) => s.id)).toEqual(["old"]);
+    expect(expectedPaychecks(known, "2026-05-01", "2026-09-22", []).map((p) => [p.payday, p.amount])).toEqual([["2026-05-15", 900]]);
+  });
+
+  it("otherwise uses each person's current ones, as if in force all month", () => {
+    const known = src("a-old", "a", { effective_from: "2026-04-01", ended_on: "2026-09-05" });
+    const bNow = src("b-now", "b", { anchor_date: "2026-01-31" });
+    const sources = sourcesForMonth([known, src("a-now", "a"), bNow], "2026-05-01", true);
+    expect(sources.map((s) => [s.id, s.effective_from])).toEqual([
+      ["a-old", "2026-04-01"],
+      ["b-now", "2026-05-01"],
+    ]);
+    expect(expectedPaychecks(sources, "2026-05-01", "2026-09-22", []).map((p) => `${p.owner_id} ${p.payday}`)).toEqual([
+      "a 2026-05-15",
+      "b 2026-05-31",
+    ]);
+  });
+
+  it("leaves every other month as it was", () => {
+    const sources = [src("now", "a")];
+    expect(sourcesForMonth(sources, "2026-05-01", false)).toBe(sources);
+  });
+});
+
