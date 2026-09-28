@@ -1,3 +1,4 @@
+import { OVERVIEW } from "../../components/module-frame";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ButtonLink } from "../../components/button";
@@ -29,7 +30,7 @@ export function WantToTry({
   filter: PlaceFilter;
 }) {
   return (
-    <RestaurantsScreen viewer={viewer}>
+    <RestaurantsScreen viewer={viewer} section={OVERVIEW}>
       {waiting.length > 0 ? (
         <section className={styles.section} aria-labelledby="go-again">
           <div className={styles.sectionHead}>

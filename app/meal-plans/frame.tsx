@@ -34,7 +34,7 @@ export function MealPlansScreen({
   children,
 }: {
   viewer: MealPlansViewer;
-  section?: string;
+  section: string;
   crumb?: string;
   tools?: ReactNode;
   actions?: ReactNode;

@@ -1,3 +1,4 @@
+import { OVERVIEW } from "../../components/module-frame";
 import Link from "next/link";
 import { ButtonLink, buttonClass } from "../../components/button";
 import { householdToday, listPeople, listSplits, monthLabel, splitInForce } from "../../lib/finances/budget-year";
@@ -43,7 +44,7 @@ export default async function FinancesPage({
   if (!split) {
     const admins = people.filter((person) => person.manages_budget).map((person) => person.name);
     return (
-      <FinancesFrame {...frame} month={{ startsOn, closed: false }}>
+      <FinancesFrame {...frame} section={OVERVIEW} month={{ startsOn, closed: false }}>
         <section className={styles.card} aria-labelledby="first-run">
           <h2 id="first-run" className={styles.cardTitle}>
             Set up your budget year
@@ -98,7 +99,7 @@ export default async function FinancesPage({
   const at = startsOn.slice(0, 7);
 
   return (
-    <FinancesFrame {...frame} month={{ startsOn, closed: Boolean(month?.closed_at) }}>
+    <FinancesFrame {...frame} section={OVERVIEW} month={{ startsOn, closed: Boolean(month?.closed_at) }}>
       {items.length > 0 ? (
         <section className={styles.section} aria-labelledby="action-items">
           <div className={styles.sectionHead}>

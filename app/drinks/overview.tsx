@@ -1,3 +1,4 @@
+import { OVERVIEW } from "../../components/module-frame";
 import Link from "next/link";
 import { displayName, drinksSummary, ratingsFor, recentDrinks, starsText, summaryText, vintageText } from "../../lib/drinks/drinks";
 import { thumbPath } from "../../lib/drinks/photos";
@@ -12,7 +13,7 @@ import styles from "./drinks.module.css";
 export function DrinksOverview({ viewer }: { viewer: DrinksViewer }) {
   const recent = recentDrinks(viewer.drinks);
   return (
-    <DrinksScreen viewer={viewer} tools={<SearchBox query="" here="/drinks/wines" />}>
+    <DrinksScreen viewer={viewer} section={OVERVIEW} tools={<SearchBox query="" here="/drinks/wines" />}>
       {viewer.drinks.length > 0 ? (
         <p className={styles.summary}>{summaryText(drinksSummary(viewer.drinks, viewer.ratings))}</p>
       ) : null}

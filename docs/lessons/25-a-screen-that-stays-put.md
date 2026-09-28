@@ -79,6 +79,23 @@ that holds them: the first block draws the top edge, the last one
 the bottom, every one the sides (`.card > .head + *` and
 `.card > :last-child:not(.head)` in `cards.module.css`).
 
+## A name you can't forget to give (#238)
+
+The small label under a module's name ("Paperwork", then "Unfiled") says
+where you are. Each page passed that name in by hand, and a page that
+didn't got "Overview" without anyone noticing: a file, a box, a Storage
+entry all claimed to be the module's home. Drinks had the same bug fixed
+on its own earlier, and it came back elsewhere, because the cause was
+the fallback, not any one page.
+
+The fix is to take the fallback away. The name is now *required*, so a
+page without one doesn't build: TypeScript refuses it, the way a form
+won't submit with a required field empty. Each module's home passes
+"Overview" on purpose; a page under a tab passes the tab's name; a page
+under none (a box, a file, search results) passes its own name, the
+last step of its breadcrumb. A name that isn't a tab simply lights up no
+tab.
+
 ## How it was checked
 
 The page tests open the sheets, save, and check the notice appears
