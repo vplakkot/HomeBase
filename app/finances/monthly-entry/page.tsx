@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { listBills } from "../../../lib/finances/bills";
 import { householdToday, listPeople, listSplits, monthLabel, monthStart } from "../../../lib/finances/budget-year";
 import {
@@ -253,9 +252,6 @@ export default async function MonthlyEntryPage({
             </header>
             <div className={styles.addBlock}>
               <SettleForm monthId={month.id} month={at} />
-              <p className={styles.empty}>
-                Or <Link href={`/finances/log-payment?month=${at}`}>log payments</Link> as usual.
-              </p>
             </div>
           </section>
         ) : null}
