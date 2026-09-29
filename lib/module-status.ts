@@ -11,7 +11,8 @@ import type { Module } from "./modules";
 // seen side by side (a Notion decision of 2026-09-21).
 
 // Where the item comes in urgency order across all modules: 1 is the most
-// urgent. Home shows the three with the lowest ranks (DESIGN.md §5).
+// urgent. Home shows one card per module, the three with the lowest ranks
+// (DESIGN.md §5).
 // href: where tapping it goes, the exact screen where the action happens
 // (REQ-91); the design's example items have none.
 export type ActionItem = { text: string; detail: string; rank: number; href?: string };
@@ -151,13 +152,34 @@ export function moduleStatus(
   return { ...example, actionItems: example.actionItems.filter((item) => item.rank <= demo) };
 }
 
-// The action items Home shows: across the given modules, the three most
-// urgent, most urgent first (DESIGN.md §5).
+// The action items Home shows: one card per module, most urgent module
+// first, three at most (DESIGN.md §5). A module with one item shows that
+// item. A module with several shows one card that says so and opens the
+// module's home, where every item is listed: otherwise a busy module
+// would fill all three cards and hide the others, and the card would show
+// only whichever of its items happened to be on top.
 export function mostUrgent(
   statuses: readonly { module: Module; status: ModuleStatus }[],
 ): { module: Module; item: ActionItem }[] {
   return statuses
-    .flatMap(({ module, status }) => status.actionItems.map((item) => ({ module, item })))
+    .flatMap(({ module, status }) => {
+      const items = [...status.actionItems].sort((a, b) => a.rank - b.rank);
+      if (items.length === 0) return [];
+      if (items.length === 1) return [{ module, item: items[0] }];
+      const [first, ...rest] = items;
+      const more = rest.length === 1 ? "1 more" : `${rest.length} more`;
+      return [
+        {
+          module,
+          item: {
+            text: "Multiple action items",
+            detail: `${first.text}, and ${more}`,
+            rank: first.rank,
+            href: module.href ?? undefined,
+          },
+        },
+      ];
+    })
     .sort((a, b) => a.item.rank - b.item.rank)
     .slice(0, 3);
 }
