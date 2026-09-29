@@ -109,7 +109,6 @@ stylesheet can't say "the band inside a person's header"; it says
 `.personHead > :first-child` instead, which needs no name from another
 file.
 
-
 ## What's next
 
 The phone and desktop layouts, which give these tokens their first real
