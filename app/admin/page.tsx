@@ -58,8 +58,9 @@ export default async function AdminPage() {
   // phone; People and Notifications beside Modules on a desktop. v0.1's
   // working controls keep working inside them. The designed control that
   // has nothing behind it yet (a test per person) is shown but can't be
-  // pressed. The module switches work (REQ-141). The notification log isn't in the design;
-  // it stays below the cards while v0.1's notifications are being proven.
+  // pressed. The module switches work (REQ-141). The notification log
+  // isn't in the design; it stays below the cards while v0.1's
+  // notifications are being proven.
   const initial = (text: string) => text.trim().charAt(0).toUpperCase();
   const person = (member: (typeof members)[number]) => (
     <>
