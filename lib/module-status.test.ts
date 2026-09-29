@@ -24,18 +24,34 @@ describe("loud or quiet", () => {
 });
 
 describe("the action items Home shows", () => {
-  it("are the three most urgent, most urgent first, whichever module they're from", () => {
+  it("are one card per module, most urgent first, three at most", () => {
     const shown = mostUrgent([
       { module: moduleBySlug("pets"), status: { ...quiet, actionItems: [item(4), item(2)] } },
       { module: moduleBySlug("drinks"), status: quiet },
       { module: moduleBySlug("health"), status: { ...quiet, actionItems: [item(5)] } },
       { module: moduleBySlug("finances"), status: { ...quiet, actionItems: [item(1)] } },
+      { module: moduleBySlug("calendar"), status: { ...quiet, actionItems: [item(9)] } },
     ]);
     expect(shown.map(({ module, item }) => `${module.slug} ${item.rank}`)).toEqual([
       "finances 1",
       "pets 2",
-      "pets 4",
+      "health 5",
     ]);
+  });
+
+  // Vin, 2026-09-29: Finances' three items filled every card and hid
+  // Paperwork's, and the card showed just one of the three.
+  it("says 'Multiple action items' for a module with several, and opens its home", () => {
+    const shown = mostUrgent([
+      { module: moduleBySlug("finances"), status: { ...quiet, actionItems: [item(3), item(1), item(2)] } },
+      { module: moduleBySlug("paperwork"), status: { ...quiet, actionItems: [item(13)] } },
+    ]);
+    expect(shown.map(({ module, item }) => [module.slug, item.text])).toEqual([
+      ["finances", "Multiple action items"],
+      ["paperwork", "Item 13"],
+    ]);
+    expect(shown[0].item.detail).toBe("Item 1, and 2 more");
+    expect(shown[0].item.href).toBe("/finances");
   });
 
   it("are all of them when there are three or fewer, and none when there are none", () => {

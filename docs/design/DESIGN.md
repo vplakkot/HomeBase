@@ -73,9 +73,9 @@ There is **no navigation bar on Home**. The tiles are the navigation.
 
 Replaces the old "Needs you" label. Label: **ACTION ITEMS**.
 
-- Maximum **3** at a time, ordered by urgency.
+- Maximum **3** cards at a time, ordered by urgency, **one card per module** (Vin, 2026-09-29). A module with several items gets one card reading "Multiple action items", with its top item in the detail line ("…, and 2 more"); it opens the module's home, where they are all listed. So a module with many items can't crowd the others out.
 - Each item shows: the module's icon on its loud colour, one line of text, one line of detail, and a chevron. **No module name** — the icon identifies it.
-- Tapping an item deep-links to the exact screen (e.g. the bill), not the module home.
+- Tapping a single item deep-links to the exact screen (e.g. the bill); a "Multiple action items" card opens the module home.
 - **Phone:** one dark card (`--color-panel`). If there is more than one item, the card is a horizontal swipe stack: stacked edges show behind it, a "1 / 3" counter sits right of the label, and dots sit below the card. One item: no counter, no stacked edges.
 - **Desktop:** up to 3 dark cards side by side.
 - **None:** replace the card with a green "All clear" row ("No action items today").
