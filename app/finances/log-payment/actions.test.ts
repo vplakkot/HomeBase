@@ -36,7 +36,7 @@ const paymentsQuery = () => {
   return fake.from.mock.results[call]?.value as Record<string, ReturnType<typeof vi.fn>> | undefined;
 };
 
-const base = { payerId: "u-alex", monthBillId: "mb-joint", amount: "200" };
+const base = { payerId: "u-alex", monthBillId: "mb-joint", amount: "200", paidOn: "2026-09-12" };
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -48,6 +48,7 @@ describe("savePayment (REQ-57)", () => {
       payer_id: "u-alex",
       month_bill_id: "mb-joint",
       amount: 200,
+      paid_on: "2026-09-12",
     });
   });
 
@@ -59,13 +60,18 @@ describe("savePayment (REQ-57)", () => {
     expect(paymentsQuery()).toBeUndefined();
   });
 
-  it("warns and saves nothing when the payment is more than what's left on the bill", async () => {
+  // Vin, 2026-09-29: log whatever the payment was.
+  it("saves a payment bigger than what's left on the bill, and one for a bill already paid", async () => {
     given();
-    expect((await savePayment({}, form({ ...base, amount: "450.01" }))).error).toBe(
-      "That's more than the $450.00 left on Joint card. Nothing was saved.",
-    );
-    expect(paymentsQuery()).toBeUndefined();
-    expect(await savePayment({}, form({ ...base, amount: "450" }))).toEqual({ saved: true });
+    expect(await savePayment({}, form({ ...base, amount: "450.01" }))).toEqual({ saved: true });
+    expect(await savePayment({}, form({ ...base, amount: "5000" }))).toEqual({ saved: true });
+  });
+
+  it("keeps the day it was paid, and asks for one", async () => {
+    given();
+    await savePayment({}, form({ ...base, paidOn: "2026-04-15" }));
+    expect(paymentsQuery()?.insert).toHaveBeenCalledWith(expect.objectContaining({ paid_on: "2026-04-15" }));
+    expect((await savePayment({}, form({ ...base, paidOn: "" }))).error).toBe("Pick the day it was paid.");
   });
 
   it("refuses a bill with no amount entered yet", async () => {
@@ -78,25 +84,8 @@ describe("savePayment (REQ-57)", () => {
     given();
     expect(await savePayment({}, form({ ...base, id: "p-1", amount: "600" }))).toEqual({ saved: true });
     const query = paymentsQuery();
-    expect(query?.update).toHaveBeenCalledWith({ payer_id: "u-alex", month_bill_id: "mb-joint", amount: 600 });
+    expect(query?.update).toHaveBeenCalledWith({ payer_id: "u-alex", month_bill_id: "mb-joint", amount: 600, paid_on: expect.any(String) });
     expect(query?.eq).toHaveBeenCalledWith("id", "p-1");
-  });
-
-  it("puts the database's refusal in words", async () => {
-    given();
-    vi.mocked(createClient).mockResolvedValue({
-      ...fake,
-      from: vi.fn((table: string) => {
-        const query = fake.from(table) as Record<string, unknown>;
-        if (table === "payments") {
-          query.insert = vi.fn().mockResolvedValue({ error: { message: "The payments come to more than the bill" } });
-        }
-        return query;
-      }),
-    } as unknown as Awaited<ReturnType<typeof createClient>>);
-    expect((await savePayment({}, form(base))).error).toBe(
-      "That's more than what's left on Joint card. Nothing was saved.",
-    );
   });
 
   it("sends someone without use_modules back to Finances", async () => {

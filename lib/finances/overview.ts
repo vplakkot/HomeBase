@@ -84,11 +84,11 @@ export function paymentsMade(month: Month): PaymentLine[] {
     for (const payment of bill.payments) {
       lines.push({
         id: payment.id,
-        on: householdToday(new Date(payment.created_at)),
+        on: payment.paid_on ?? householdToday(new Date(payment.created_at)),
         payerId: payment.payer_id,
         toward: bill.name,
         amount: payment.amount,
-        sortKey: payment.created_at,
+        sortKey: payment.paid_on ?? payment.created_at,
       });
     }
   }

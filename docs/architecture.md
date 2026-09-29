@@ -722,14 +722,15 @@ logged on `/finances/log-payment` (REQ-57). One more table:
 
 | Table | One row is | Key facts |
 |---|---|---|
-| `payments` | money one person paid toward one month bill | `month_bill_id`, `payer_id`, `amount` |
+| `payments` | money one person paid toward one month bill | `month_bill_id`, `payer_id`, `amount`, `paid_on` |
 
 Logging is shared like entering: any member with `use_modules` logs,
-changes or deletes a payment for either person. A trigger checked at
-both doors refuses a bill's payments coming to more than the bill:
-when a payment is logged or changed, and when the bill's amount is
-changed (a bill not entered counts as $0, so it can't be paid toward).
-The page says the same thing in words first.
+changes or deletes a payment for either person. A payment carries the
+day it was paid (`paid_on`, today unless changed), and there is no
+ceiling: a payment may come to more than its bill, and `monthTotals()`
+reads the surplus as a credit (Vin, 2026-09-29; a trigger that refused
+it was dropped in `20261003100000`). A bill not entered still can't be
+paid toward, which the page checks.
 
 `monthTotals()` then gives each person their obligation, what they paid
 (payments toward bills plus any one-time payment they fronted) and what

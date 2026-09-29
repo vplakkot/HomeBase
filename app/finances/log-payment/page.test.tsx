@@ -67,9 +67,10 @@ const page = async (params: { bill?: string } = {}) =>
   render(await LogPaymentPage({ searchParams: Promise.resolve(params) }));
 
 describe("Log payment", () => {
-  // REQ-57: who paid, how much, and toward which bill. Only bills with
-  // something left are offered; one not entered yet can't be paid toward.
-  it("asks who paid, the amount and the bill, offering only bills with something left", async () => {
+  // REQ-57: who paid, how much, on what day and toward which bill. Every
+  // bill with an amount is offered, paid or not (more can always have been
+  // sent); one not entered yet can't be paid toward.
+  it("asks who paid, the amount, the day and the bill, offering every bill entered", async () => {
     given();
     await page();
     const log = screen.getByRole("region", { name: "Log a payment" });
@@ -81,8 +82,10 @@ describe("Log payment", () => {
     expect(within(log).getByRole("textbox", { name: "Amount of the payment" })).toBeDefined();
     const toward = within(log).getByRole("group", { name: "Toward" });
     expect(within(toward).getAllByRole("radio").map((radio) => radio.parentElement?.textContent)).toEqual([
+      "RentPaid",
       "Joint card$450.00 left",
     ]);
+    expect((within(log).getByLabelText("Paid on") as HTMLInputElement).type).toBe("date");
     // Alex's rent covers their $1,560 share; Sam owes $1,040 less $150.
     expect(log.textContent).toContain("Alex is paid up · Sam still owes $890.00");
   });

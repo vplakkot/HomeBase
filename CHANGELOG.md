@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Finances, Log payment: a payment has a "Paid on" day (today, or the
+  last day of a month gone by, changeable), and it can be more than
+  what's left on the bill, or toward a bill already paid; the surplus
+  reads as a credit. Existing payments keep the day they were logged.
+  Migration: `payments.paid_on`, and the rule refusing overpayment is
+  dropped. Finances home's action-item buttons stay on the right.
 - Home's action items: one card per module. A module with several
   (Finances with three) shows one card reading "Multiple action items"
   that opens the module, so Paperwork's "1 document unfiled" and the

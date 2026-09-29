@@ -11,7 +11,8 @@ import type { RecordedSavings } from "./savings";
 
 export type PersonalCharge = { id: string; owner_id: string; amount: number; note: string };
 export type DirectPayment = { id: string; payer_id: string; amount: number; note: string; paid_on: string };
-export type Payment = { id: string; payer_id: string; amount: number; created_at: string };
+// paid_on is the day it was paid; created_at is when it was typed in.
+export type Payment = { id: string; payer_id: string; amount: number; created_at: string; paid_on?: string };
 export type IncomeKind = "paycheck" | "espp" | "rsu" | "bonus" | "other";
 export type MonthIncome = {
   id: string;
@@ -64,7 +65,7 @@ const MONTH_FIELDS = `id, starts_on, closed_at, closed_by, closed_automatically,
   savings:month_savings(user_id, to_joint, own),
   bills:month_bills(id, name, kind, due_day, amount, personal_answer, entered_by,
     personal_charges(id, owner_id, amount, note),
-    payments(id, payer_id, amount, created_at)),
+    payments(id, payer_id, amount, created_at, paid_on)),
   direct_payments(id, payer_id, amount, note, paid_on)`;
 
 // Postgres hands numeric columns back as strings.

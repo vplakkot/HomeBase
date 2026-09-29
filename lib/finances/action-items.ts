@@ -413,7 +413,7 @@ function lastPaid(month: Month, person: string): string | null {
   const days = [
     ...month.bills.flatMap((bill) => bill.payments)
       .filter((payment) => payment.payer_id === person)
-      .map((payment) => payment.created_at.slice(0, 10)),
+      .map((payment) => payment.paid_on ?? payment.created_at.slice(0, 10)),
     ...month.direct_payments.filter((payment) => payment.payer_id === person).map((payment) => payment.paid_on),
   ];
   return days.sort().at(-1) ?? null;
