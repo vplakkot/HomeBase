@@ -414,7 +414,7 @@ describe("Meal Plans' home (REQ-118)", () => {
     render(await MealPlansPage());
     const kitchen = screen.getByRole("region", { name: "Our kitchen" });
     const value = (label: string) => within(kitchen).getByText(label).nextElementSibling?.textContent;
-    expect(value("Most planned")).toBe("Test chicken rice × 2");
+    expect(value("Most planned")).toBe("Test chicken rice planned 2 times");
     expect(value("Top rated")).toBe("Test lentil soup ★★★★★");
     expect(value("Recipes")).toBe("3");
     expect(value("Cuisines")).toBe("2");

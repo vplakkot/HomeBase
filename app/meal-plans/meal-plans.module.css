@@ -306,10 +306,19 @@
   color: var(--color-ink);
 }
 
+/* The label sits on a band of the module's pale tint, like a name. */
 .stats dt {
-  color: var(--module-quiet-ink);
+  display: block;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--module-quiet);
+  color: var(--module-quiet-title);
   font-size: var(--text-body-sm);
   font-weight: 700;
+}
+
+.stats .plain {
+  text-decoration: none;
 }
 
 .stats dd {

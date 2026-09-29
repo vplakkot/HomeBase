@@ -17,7 +17,11 @@
   - A recipe being read, or ready, takes the place of the phone's
     "Add recipe" bar, and reads "Save recipe" when it's ready.
   - Adding from a video no longer asks for a name first; Gemini names
-    the recipe from the video.
+    the recipe from the video. The photo taken from the video is now a
+    frame near its end, where the finished dish usually is.
+  - Our kitchen's labels sit on a pale band, "Most planned" says "planned
+    once / 3 times" instead of "× 1", and recipe names in the library
+    sit on the band too.
 - Home's action items: one card per module. A module with several
   (Finances with three) shows one card reading "Multiple action items"
   that opens the module, so Paperwork's "1 document unfiled" and the
