@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Every module: on the pages you read, the name of each thing listed
+  (action items, people, bills, payments, months in History, Paperwork
+  files and documents, Storage entries, drinks, Meal Plans drafts, the
+  people answering on a restaurant) sits on a pale band of the module's
+  colour, all the same length. Headings, photo tiles and forms stay
+  plain.
 - Finances home on a month gone by shows only that month's action
   items; September's no longer appear on April's page. A month added
   later that isn't closed yet now has an action item, "April 2026 isn't

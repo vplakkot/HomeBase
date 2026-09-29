@@ -1,4 +1,5 @@
 import Link from "next/link";
+import band from "../../../components/band.module.css";
 import { buttonClass } from "../../../components/button";
 import { ChevronRightIcon } from "../../../components/icons";
 import styles from "../page.module.css";
@@ -50,7 +51,9 @@ export default async function HistoryPage() {
             if (!month && startsOn !== current) {
               return (
                 <li key={startsOn} className={styles.linkRow}>
-                  <span className={styles.strong}>{monthLabel(startsOn)}</span>
+                  <span className={styles.strong}>
+                    <span className={band.band}>{monthLabel(startsOn)}</span>
+                  </span>
                   <span className={styles.note}>Not entered</span>
                   <form action={addPastMonth}>
                     <input type="hidden" name="month" value={startsOn.slice(0, 7)} />
@@ -64,7 +67,9 @@ export default async function HistoryPage() {
             return (
               <li key={startsOn}>
                 <Link href={`/finances?month=${startsOn.slice(0, 7)}`} className={styles.linkRow}>
-                  <span className={styles.strong}>{monthLabel(startsOn)}</span>
+                  <span className={styles.strong}>
+                    <span className={band.band}>{monthLabel(startsOn)}</span>
+                  </span>
                   <span className={styles.note}>
                     {startsOn === current ? "This month" : month ? standing(month) : "Open"}
                   </span>

@@ -4,6 +4,7 @@ import { UNFILED_HREF, unfiledItem } from "../../lib/paperwork/action-items";
 import { documentsCount, filesCount, places, type PlaceCard } from "../../lib/paperwork/paperwork";
 import { Fact, PaperworkScreen, Section, paperworkViewer } from "./frame";
 import styles from "./paperwork.module.css";
+import band from "../../components/band.module.css";
 
 // Paperwork's Overview (REQ-100, DESIGN.md §11): the filing cabinet from
 // the outside. Top to bottom: the action item while documents wait on the
@@ -29,7 +30,7 @@ export default async function PaperworkPage({ searchParams }: { searchParams: Pr
           <ul className={`${styles.card} ${styles.rows}`}>
             <li className={styles.itemRow}>
               <span className={styles.itemText}>
-                <span className={styles.strong}>{item.text}</span>
+                <span className={`${styles.strong} ${band.band}`}>{item.text}</span>
                 <span className={styles.note}>{item.detail}</span>
               </span>
               <ButtonLink href={UNFILED_HREF}>File it</ButtonLink>
@@ -69,7 +70,7 @@ function Places({ cards }: { cards: PlaceCard[] }) {
       {cards.map((card) => (
         <li key={card.href}>
           <Link href={card.href} className={styles.linkCard}>
-            <span className={styles.cardTitle}>{card.name}</span>
+            <span className={`${styles.cardTitle} ${band.band}`}>{card.name}</span>
             <span className={styles.cardDetail}>
               {filesCount(card.files.length)} · {documentsCount(card.items)}
             </span>

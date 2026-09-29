@@ -93,6 +93,22 @@ DESIGN.md sets its name at 19 px, a size with no token. Rather than
 write 19px (which the raw-value test would refuse), `tokens.css` gained
 `--text-brand`.
 
+## One style, many modules (REQ-151)
+
+The pale band behind names appears in five modules, but it's written
+once, in `components/band.module.css`, and every page adds that class
+next to its own. It reads the module's colour through
+`--module-quiet`, which each module's frame sets from its tokens, so
+Paperwork's band is slate and Finances' is rose without either file
+naming a colour. Change the band once and every module follows, like a
+rubber stamp inked from whichever pad the page holds.
+
+One catch with CSS modules: each stylesheet's class names are private
+to it (`.band` becomes something like `band_x7f`). So a module's own
+stylesheet can't say "the band inside a person's header"; it says
+`.personHead > :first-child` instead, which needs no name from another
+file.
+
 ## What's next
 
 The phone and desktop layouts, which give these tokens their first real

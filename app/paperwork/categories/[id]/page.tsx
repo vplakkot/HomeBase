@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { documentsByYear, fileId, ownerName, placeOf } from "../../../../lib/paperwork/paperwork";
 import { Fact, PaperworkScreen, Section, paperworkViewer } from "../../frame";
 import styles from "../../paperwork.module.css";
+import band from "../../../../components/band.module.css";
 
 // One category (REQ-105): its files, documents and keep-until default,
 // then every document in it, whatever file or place it's in, by the year
@@ -72,7 +73,7 @@ export default async function CategoryPage({
                       return (
                         <li key={paper.id}>
                           <Link href={`/paperwork/items/${paper.id}`} className={styles.doc}>
-                            <span className={styles.rowName}>{paper.name}</span>
+                            <span className={`${styles.rowName} ${band.band}`}>{paper.name}</span>
                             <span className={styles.rowCell}>{ownerName(paper, people)}</span>
                             <span className={styles.rowCell}>
                               {fileId(file)} · {placeOf(file, storage).name}

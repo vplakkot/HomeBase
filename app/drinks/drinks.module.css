@@ -312,6 +312,17 @@
   grid-column: 2;
 }
 
+/* REQ-151: beside a thumbnail the name's band stays in its column
+   rather than reaching into the gap, and the lines under it step in to
+   match its words. */
+.withThumb > .cardTitle {
+  margin-left: 0;
+}
+
+.withThumb > :not(.thumb):not(.cardTitle) {
+  padding-left: var(--space-4);
+}
+
 .thumb {
   grid-row: 1 / span 3;
   width: 56px;

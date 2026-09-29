@@ -5,6 +5,7 @@ import { boxes } from "../../../../lib/storage/storage";
 import { PaperworkScreen, paperworkViewer } from "../../frame";
 import styles from "../../paperwork.module.css";
 import { AddPaperwork, ManageFile } from "../../sheets";
+import band from "../../../../components/band.module.css";
 
 // REQ-100's third screen, one file: ID · category, its label name, where
 // it is and whether it's archived, then every document in it. Changing the
@@ -65,7 +66,7 @@ export default async function FilePage({
           {inside.map((paper) => (
             <li key={paper.id}>
               <Link href={`/paperwork/items/${paper.id}`} className={`${styles.row} ${styles.items}`}>
-                <span className={styles.rowName}>{paper.name}</span>
+                <span className={`${styles.rowName} ${band.band}`}>{paper.name}</span>
                 <span className={styles.rowCell}>{ownerName(paper, people)}</span>
                 <span className={styles.rowCell}>
                   {paper.document_date ? `Dated ${paper.document_date}` : "No date"}

@@ -1,0 +1,17 @@
+/* REQ-151: the name of each thing on a page you read (an action item, a
+   person, a bill, a file) sits on a band of its module's quiet tint, the
+   colour of the module's Home tile with nothing to do. Every band is the
+   same length, whatever its text, and reaches left by its own padding so
+   its words line up with the text below. Headings, photo tiles and forms
+   stay plain; a drink's small thumbnail doesn't count as a photo tile
+   (Vin, 2026-09-28). */
+.band {
+  display: block;
+  box-sizing: border-box;
+  width: min(calc(100% + var(--space-4)), 18rem);
+  margin-left: calc(-1 * var(--space-4));
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--module-quiet);
+  color: var(--module-quiet-title);
+}

@@ -7,6 +7,7 @@ import { PlacePhoto } from "./place-photo";
 import { RemovePlace } from "./remove";
 import styles from "./restaurants.module.css";
 import { BookingLink, GoAgain, MarkTried, UndoTried } from "./tried";
+import band from "../../components/band.module.css";
 
 const addedOn = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: HOUSEHOLD_TIME_ZONE });
 
@@ -70,7 +71,7 @@ export function PlaceScreen({ viewer, row, place }: { viewer: RestaurantsViewer;
                   const answer = answerOf(person.user_id);
                   return (
                     <li key={person.user_id}>
-                      <span className={styles.cardTitle}>{person.user_id === viewer.userId ? "You" : person.name}</span>
+                      <span className={`${styles.cardTitle} ${band.band}`}>{person.user_id === viewer.userId ? "You" : person.name}</span>
                       {person.user_id === viewer.userId ? (
                         <GoAgain id={row.id} answer={answer} label="Your answer" />
                       ) : (

@@ -12,6 +12,7 @@ import { MealPlansScreen, mealPlansViewer } from "./frame";
 import { StartPlanForm } from "./plan-forms";
 import { RatePrompts } from "./rate-prompts";
 import styles from "./meal-plans.module.css";
+import band from "../../components/band.module.css";
 
 const STATUS: Record<string, string> = {
   uploading: "Sending the video",
@@ -54,7 +55,7 @@ export default async function MealPlansPage() {
           <ul className={styles.grid}>
             {imports.map((item) => (
               <li key={item.id} className={styles.card}>
-                <Link href={`/meal-plans/drafts/${item.id}`} className={styles.cardTitle}>
+                <Link href={`/meal-plans/drafts/${item.id}`} className={`${styles.cardTitle} ${band.band}`}>
                   {item.name}
                 </Link>
                 <span className={styles.cardDetail}>{STATUS[item.status]}</span>

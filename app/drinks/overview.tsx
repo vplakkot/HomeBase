@@ -5,6 +5,7 @@ import { thumbPath } from "../../lib/drinks/photos";
 import { SearchBox } from "./controls";
 import { DrinksScreen, type DrinksViewer } from "./frame";
 import styles from "./drinks.module.css";
+import band from "../../components/band.module.css";
 
 // Drinks' Overview (REQ-120): where we stand at a glance, and the last
 // three drinks added, or Recent scans saying nothing's recorded yet (the
@@ -40,7 +41,7 @@ export function DrinksOverview({ viewer }: { viewer: DrinksViewer }) {
                       // eslint-disable-next-line @next/next/no-img-element -- a private, short-lived link
                       <img src={thumb} alt="" className={styles.thumb} />
                     ) : null}
-                    <span className={styles.cardTitle}>{displayName(drink)}</span>
+                    <span className={`${styles.cardTitle} ${band.band}`}>{displayName(drink)}</span>
                     {vintage ? <span className={styles.cardDetail}>{vintage}</span> : null}
                     {stars.length > 0 ? (
                       <ul className={styles.ratings} aria-label="Ratings">
