@@ -18,6 +18,10 @@
     "Add recipe" bar, and reads "Save recipe" when it's ready.
   - Adding from a video no longer asks for a name first; Gemini names
     the recipe from the video.
+- Home's action items: one card per module. A module with several
+  (Finances with three) shows one card reading "Multiple action items"
+  that opens the module, so Paperwork's "1 document unfiled" and the
+  others are no longer crowded out.
 - Modules can be turned off. The admin console's module switches now
   work: off hides a module for everyone (navigation, Home tile, action
   items, Quick add, Finances reminders), and a link to it lands on Home
