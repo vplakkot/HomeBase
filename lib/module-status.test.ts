@@ -24,37 +24,24 @@ describe("loud or quiet", () => {
 });
 
 describe("the action items Home shows", () => {
-  it("are one card per module, most urgent first, three at most", () => {
+  it("are every module's, most urgent first, so a busy module doesn't hide the others", () => {
     const shown = mostUrgent([
       { module: moduleBySlug("pets"), status: { ...quiet, actionItems: [item(4), item(2)] } },
       { module: moduleBySlug("drinks"), status: quiet },
       { module: moduleBySlug("health"), status: { ...quiet, actionItems: [item(5)] } },
       { module: moduleBySlug("finances"), status: { ...quiet, actionItems: [item(1)] } },
-      { module: moduleBySlug("calendar"), status: { ...quiet, actionItems: [item(9)] } },
+      { module: moduleBySlug("paperwork"), status: { ...quiet, actionItems: [item(13)] } },
     ]);
     expect(shown.map(({ module, item }) => `${module.slug} ${item.rank}`)).toEqual([
       "finances 1",
       "pets 2",
+      "pets 4",
       "health 5",
+      "paperwork 13",
     ]);
   });
 
-  // Vin, 2026-09-29: Finances' three items filled every card and hid
-  // Paperwork's, and the card showed just one of the three.
-  it("says 'Multiple action items' for a module with several, and opens its home", () => {
-    const shown = mostUrgent([
-      { module: moduleBySlug("finances"), status: { ...quiet, actionItems: [item(3), item(1), item(2)] } },
-      { module: moduleBySlug("paperwork"), status: { ...quiet, actionItems: [item(13)] } },
-    ]);
-    expect(shown.map(({ module, item }) => [module.slug, item.text])).toEqual([
-      ["finances", "Multiple action items"],
-      ["paperwork", "Item 13"],
-    ]);
-    expect(shown[0].item.detail).toBe("Item 1, and 2 more");
-    expect(shown[0].item.href).toBe("/finances");
-  });
-
-  it("are all of them when there are three or fewer, and none when there are none", () => {
+  it("are all of them, and none when there are none", () => {
     const one = [{ module: moduleBySlug("pets"), status: { ...quiet, actionItems: [item(1)] } }];
     expect(mostUrgent(one)).toHaveLength(1);
     expect(mostUrgent([{ module: moduleBySlug("pets"), status: quiet }])).toEqual([]);
@@ -128,12 +115,13 @@ describe("what each module says with ?demo", () => {
     expect(loud(2)).toEqual(["Finances", "Pets"]);
   });
 
-  it("with four, lights up Calendar too, but its item is too far down for the card", () => {
+  it("with four, lights up Calendar too, and its card comes after the others", () => {
     expect(loud(4)).toEqual(["Finances", "Calendar", "Pets", "Health"]);
     expect(mostUrgent(example(4)).map(({ module }) => module.name)).toEqual([
       "Finances",
       "Pets",
       "Health",
+      "Calendar",
     ]);
   });
 });

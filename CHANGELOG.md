@@ -2,10 +2,10 @@
 
 ## Unreleased
 
-- Home's action items: one card per module. A module with several
-  (Finances with three) shows one card reading "Multiple action items"
-  that opens the module, so Paperwork's "1 document unfiled" and the
-  others are no longer crowded out.
+- Home's action items now show every item, Paperwork's unfiled document
+  included, instead of only the three most urgent. A module's tile says
+  "Multiple action items" when it has several (Finances showed only its
+  top one).
 - Modules can be turned off. The admin console's module switches now
   work: off hides a module for everyone (navigation, Home tile, action
   items, Quick add, Finances reminders), and a link to it lands on Home

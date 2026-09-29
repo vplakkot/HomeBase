@@ -132,7 +132,8 @@ describe("with no items", () => {
 
 describe("on a desktop", () => {
   it("shows the items side by side, with no counter, dots or edges", () => {
-    expect(styleOf(css, "item", true).get("flex")).toBe("1 1 0");
+    expect(styleOf(css, "item", true).get("flex")).toBe("1 1 18rem");
+    expect(styleOf(css, "cards", true).get("flex-wrap")).toBe("wrap");
     expect(styleOf(css, "cards", true).get("overflow-x")).toBe("visible");
     for (const className of ["counter", "dots", "edgeNear", "edgeFar"]) {
       expect(shown(className, false), `${className} on a phone`).toBe(true);

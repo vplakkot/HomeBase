@@ -12,7 +12,7 @@ import styles from "./action-items.module.css";
 export type HomeActionItem = { module: Module; item: ActionItem };
 
 // The things that need someone, at the top of Home (docs/design/DESIGN.md
-// §5), already cut to the three most urgent. None: the All clear row.
+// §5), most urgent first, all of them. None: the All clear row.
 //
 // It's one list either way, and the screen width lays it out. On a phone
 // the list scrolls sideways and snaps to one card at a time, so a swipe
