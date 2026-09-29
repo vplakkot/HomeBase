@@ -7,6 +7,7 @@ import { EnableNotifications } from "../app/notifications/enable-notifications";
 import { saveMyName } from "../app/profile/actions";
 import { SignOutForm } from "../app/sign-out/sign-out-form";
 import { BottomSheet } from "./bottom-sheet";
+import { MyModules } from "./my-modules";
 import { NameForm } from "./name-form";
 import { AdminConsoleIcon, PersonIcon, SettingsIcon, SignOutIcon } from "./icons";
 import styles from "./account-menu.module.css";
@@ -16,7 +17,7 @@ import styles from "./account-menu.module.css";
 // Home, which opens a menu; admins also find the admin console there. On a
 // desktop the three sit at the bottom of the sidebar. Profile and Settings
 // open sheets. Settings holds this device's notifications, which used to
-// sit at the bottom of Home.
+// sit at the bottom of Home, and the modules you see (REQ-143).
 
 type Sheet = "menu" | "profile" | "settings" | null;
 
@@ -137,6 +138,7 @@ function AccountSheets({
         {sheet === "settings" ? (
           <div className={styles.settings}>
             <EnableNotifications publicKey={account.publicKey} knownDevice={account.knownDevice} />
+            <MyModules view={account.modules} />
             <p data-testid="build-info" className={styles.note}>
               {account.build}
             </p>

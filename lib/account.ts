@@ -1,5 +1,8 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { version } from "../package.json";
+import { readModuleView } from "./module-switches";
+import type { ModuleView } from "./modules";
 import { DEVICE_COOKIE } from "./notifications/device";
 
 // What the account menu needs about whoever is signed in: who they are for
@@ -14,6 +17,9 @@ export type Account = {
   // The note this browser keeps once notifications are turned on here.
   knownDevice: string | null;
   build: string;
+  // Which modules are off for the household and hidden by this person
+  // (REQ-141, REQ-143): the frame's navigation is drawn from it.
+  modules: ModuleView;
 };
 
 // Which build this is, to tell two apart (REQ-128): the full commit, or
@@ -32,11 +38,15 @@ export function buildInfo(): string {
   return `v${version} · ${ref} · ${sha ? sha.slice(0, 7) : "local"}`;
 }
 
-export async function readAccount(claims: {
-  email?: string;
-  user_metadata?: unknown;
-}): Promise<Account> {
-  const cookieStore = await cookies();
+export async function readAccount(
+  claims: {
+    sub?: string;
+    email?: string;
+    user_metadata?: unknown;
+  },
+  supabase: SupabaseClient,
+): Promise<Account> {
+  const [cookieStore, modules] = await Promise.all([cookies(), readModuleView(supabase, claims.sub ?? "")]);
   const name = (claims.user_metadata as { name?: unknown } | undefined)?.name;
   return {
     email: claims.email ?? null,
@@ -44,5 +54,6 @@ export async function readAccount(claims: {
     publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
     knownDevice: cookieStore.get(DEVICE_COOKIE)?.value ?? null,
     build: buildInfo(),
+    modules,
   };
 }

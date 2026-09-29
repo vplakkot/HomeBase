@@ -9,6 +9,7 @@ import { DEVICE_COOKIE } from "../lib/notifications/device";
 import { countUnfiled } from "../lib/paperwork/paperwork";
 import { createClient } from "../lib/supabase/server";
 import { installDialogStandIn } from "../test/dialog";
+import { switchTable, type SwitchRows } from "../test/module-switches";
 import tileStyles from "../components/module-tile.module.css";
 import HomePage from "./page";
 
@@ -16,7 +17,7 @@ beforeAll(installDialogStandIn);
 
 vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
-vi.mock("./profile/actions", () => ({ saveMyName: vi.fn() }));
+vi.mock("./profile/actions", () => ({ saveMyName: vi.fn(), setModuleHidden: vi.fn() }));
 vi.mock("../lib/finances/snapshot", () => ({ readFinanceSnapshot: vi.fn() }));
 vi.mock("../lib/paperwork/paperwork", async (original) => ({
   ...(await original<typeof import("../lib/paperwork/paperwork")>()),
@@ -83,7 +84,9 @@ function given({
   permissions = [],
   device,
   otherCookies = {},
+  switches = {},
 }: {
+  switches?: SwitchRows;
   email: string | null;
   name?: string;
   permissions?: string[];
@@ -104,6 +107,7 @@ function given({
       data: permissions.includes(args.permission),
       error: null,
     })),
+    from: vi.fn((table: string) => switchTable(table, switches)),
   } as unknown as Awaited<ReturnType<typeof createClient>>);
   finances();
   vi.mocked(cookies).mockResolvedValue({
@@ -260,6 +264,57 @@ describe("HomePage", () => {
     expect(link.textContent).toContain("3 documents unfiled");
     expect(link.getAttribute("href")).toBe("/paperwork/unfiled");
     expect(tiles().at(-3)).toMatchObject({ name: "Paperwork", status: "3 documents unfiled", loud: true });
+  });
+
+  // REQ-141: a module that's off is gone for everyone: its tile, its
+  // action items and its Quick add.
+  it("leaves out a module that's off: its tile, its items and its Quick add", async () => {
+    given({ email: "member@example.com", switches: { off: ["paperwork", "finances"] } });
+    vi.mocked(countUnfiled).mockResolvedValueOnce(3);
+    render(await home());
+    const names = tiles().map((tile) => tile.name);
+    expect(names).not.toContain("Paperwork");
+    expect(names).not.toContain("Storage");
+    expect(names).not.toContain("Finances");
+    expect(names).toContain("Drinks");
+    const section = screen.getByRole("region", { name: "Action items" });
+    expect(within(section).queryByRole("link")).toBeNull();
+    const group = within(screen.getByRole("main")).getByRole("group", { name: "Quick add" });
+    expect(within(group).queryByRole("button", { name: "Expense" })).toBeNull();
+  });
+
+  it("says a module is turned off, after a link to it lands on Home", async () => {
+    given({ email: "member@example.com", switches: { off: ["drinks"] } });
+    render(await home({ off: "drinks" }));
+    expect(screen.getByRole("status").textContent).toBe("Drinks is turned off.");
+  });
+
+  it("says nothing about a module that's on, whatever the address says", async () => {
+    given({ email: "member@example.com" });
+    render(await home({ off: "drinks" }));
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  // REQ-143: hiding takes the tile away, not the work.
+  it("leaves out a tile you've hidden, but keeps its action items", async () => {
+    given({ email: "member@example.com", switches: { hidden: ["paperwork"] } });
+    vi.mocked(countUnfiled).mockResolvedValueOnce(3);
+    render(await home());
+    expect(tiles().map((tile) => tile.name)).not.toContain("Paperwork");
+    const section = screen.getByRole("region", { name: "Action items" });
+    expect(within(section).getByRole("link").getAttribute("href")).toBe("/paperwork/unfiled");
+  });
+
+  // REQ-142.
+  it("sends a new household's admin to choose its modules first", async () => {
+    given({ email: "admin@example.com", permissions: ["manage_modules"], switches: { chosen: false } });
+    await expect(home()).rejects.toThrow("REDIRECT:/setup/modules");
+  });
+
+  it("never sends a member to choose modules", async () => {
+    given({ email: "member@example.com", switches: { chosen: false } });
+    render(await home());
+    expect(screen.getByRole("region", { name: "Action items" })).toBeTruthy();
   });
 
   it("with ?demo, shows the design's example, loud and quiet tiles side by side", async () => {
@@ -449,6 +504,18 @@ describe("HomePage", () => {
     expect(within(openMenu("Settings")).getByTestId("notifications").textContent).toBe(
       "public-push-key · https://web.push.apple.com/this",
     );
+  });
+
+  // REQ-143: Settings lists the modules that are on, each with a switch
+  // for your own view.
+  it("lists the modules that are on under Settings, a hidden one switched off", async () => {
+    given({ email: "member@example.com", switches: { off: ["pets"], hidden: ["drinks"] } });
+    render(await home());
+    const settings = openMenu("Settings");
+    const switches = within(settings).getAllByRole("switch");
+    expect(switches.map((s) => s.getAttribute("aria-label"))).not.toContain("Show Pets");
+    expect(within(settings).getByRole("switch", { name: "Show Drinks" }).getAttribute("aria-checked")).toBe("false");
+    expect(within(settings).getByRole("switch", { name: "Show Finances" }).getAttribute("aria-checked")).toBe("true");
   });
 
   // The control moved into Settings, but Home still checks the device on

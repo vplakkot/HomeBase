@@ -95,4 +95,15 @@ describe("the desktop sidebar", () => {
       .filter((link) => link.getAttribute("aria-current") === "page");
     expect(marked.map((link) => link.textContent)).toEqual([name]);
   });
+
+  // REQ-141, REQ-143.
+  it("leaves out modules that are off, and those you've hidden", () => {
+    const account = { ...TEST_ACCOUNT, modules: { off: ["paperwork", "storage"], hidden: ["pets"] } };
+    render(<Sidebar current="home" canAdminister={false} account={account} />);
+    const items = within(sidebar()).getAllByRole("listitem").map((item) => item.textContent ?? "");
+    expect(items.some((item) => item.startsWith("Paperwork"))).toBe(false);
+    expect(items.some((item) => item.startsWith("Storage"))).toBe(false);
+    expect(items.some((item) => item.startsWith("Pets"))).toBe(false);
+    expect(items).toContain("Drinks");
+  });
 });

@@ -595,12 +595,11 @@ module has an action item. No module has data yet, so that file is a
 stand-in: every module is quiet and says "Coming soon", unless `?demo`
 is in Home's address, which swaps in the design's invented example (a
 Notion decision of 2026-09-21). Home draws tiles only for modules that
-are switched on; the admin console's switches come later, so for now
-none is off.
+are on and that you haven't hidden (see "Module switches" below).
 
 The action items card at the top of Home reads the same stand-in: each
 item carries an urgency rank, and Home shows the three most urgent
-across the switched-on modules, so a loud tile's item is always there
+across the modules that are on, hidden or not, so a loud tile's item is always there
 unless three more urgent ones fill the card. `?demo=0` to `?demo=4` show
 each state of the card, from All clear to more items than fit. The card
 ([`components/action-items.tsx`](../components/action-items.tsx)) is
@@ -1276,6 +1275,46 @@ list / place page ──▶ Place Details per place, asking only for the
   photographer's name sits on the photo and the place page says "From
   Google Maps".
 - See [lesson 32](lessons/32-a-reference-not-a-copy.md).
+
+## Module switches
+
+REQ-141 to REQ-143. The list of modules stays in the code
+([`lib/modules.ts`](../lib/modules.ts)); the database only holds which
+are turned off, and who has hidden what. Nothing about a module's data
+is ever deleted: off and hidden only change what's drawn.
+
+- **`modules_off`** — one row per switch that's off, for everyone. Only
+  a role holding `manage_modules` (Admin) adds or removes rows. Paperwork
+  and Storage share one switch, stored as `paperwork`, because archived
+  paperwork files live in Storage.
+- **`modules_hidden`** — one row per person and module they've hidden
+  from their own navigation and Home tiles. Only its owner reads or
+  changes it.
+- **`households.modules_chosen`** — false only for a household whose
+  admin hasn't yet been through the "Choose your modules" step
+  (`/setup/modules`), which Home sends them to. `choose_modules()`
+  writes the left-out switches and the flag together, once.
+
+```mermaid
+flowchart LR
+  DB[(modules_off<br/>modules_hidden)] --> Account[readAccount]
+  Account --> Frame[AppFrame]
+  Frame -->|module off| Home["Home, with a note"]
+  Frame --> Nav[Sidebar and module switcher:<br/>on and not hidden]
+  Account --> HomeTiles[Home tiles: on and not hidden]
+  Account --> Items[Action items, Quick add: on]
+  DB --> Job[Finances reminders:<br/>send nothing while off]
+```
+
+Every signed-in page already reads the account for its menu, so that
+read now brings the module view along, and every module page sits in
+`AppFrame`, which is where a link to a module that's off turns into a
+trip to Home. If the switches can't be read, everything counts as on.
+The Finances reminders job asks for itself and fails instead of
+guessing. While Finances is off its months still open and close on the
+database's schedule; only the pushes stop. No module creates starter
+rows today, so turning on one that was left out at setup has nothing to
+set up yet.
 
 ## Not yet built
 

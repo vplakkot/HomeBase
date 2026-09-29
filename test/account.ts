@@ -1,4 +1,5 @@
 import type { Account } from "../lib/account";
+import { EVERYTHING_ON } from "../lib/modules";
 
 // A signed-in account for tests that draw the frame or sidebar. Fake, as
 // all test data is.
@@ -8,4 +9,5 @@ export const TEST_ACCOUNT: Account = {
   publicKey: "public-push-key",
   knownDevice: null,
   build: "dev · local",
+  modules: EVERYTHING_ON,
 };

@@ -3,10 +3,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { MODULES } from "../../lib/modules";
 import { createClient } from "../../lib/supabase/server";
 import { REPO_ROOT, styleOf } from "../../test/css";
 import { installDialogStandIn } from "../../test/dialog";
+import { switchTable } from "../../test/module-switches";
 import { version } from "../../package.json";
 import AdminPage from "./page";
 
@@ -49,8 +49,10 @@ function given({
   permissions = [],
   log = [] as Record<string, unknown>[],
   logFails = false,
+  off = [],
 }: {
   signedIn: boolean;
+  off?: string[];
   permissions?: string[];
   log?: Record<string, unknown>[];
   logFails?: boolean;
@@ -72,6 +74,8 @@ function given({
       throw new Error(`unexpected rpc ${fn}`);
     }),
     from: vi.fn((table: string) => {
+      const switches = switchTable(table, { off });
+      if (switches) return switches;
       if (table === "notification_log") {
         return {
           select: vi.fn(() => ({
@@ -219,16 +223,43 @@ describe("AdminPage", () => {
     expect(areas(true)).toBe('"people modules" "notifications modules"');
   });
 
-  it("shows a row per module, its switch there but not yet working", async () => {
+  // REQ-141.
+  it("has a working switch per module, with Paperwork & Storage sharing one", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());
     const modules = screen.getByRole("region", { name: "Modules" });
     const switches = within(modules).getAllByRole("switch");
     expect(switches.map((s) => s.getAttribute("aria-label"))).toEqual(
-      MODULES.map((module) => `${module.name} module`),
+      ["Finances", "Calendar", "Pets", "Drinks", "Meal Plans", "Health", "Paperwork & Storage", "Restaurants"].map(
+        (name) => `${name} module`,
+      ),
     );
-    for (const s of switches) expect((s as HTMLButtonElement).disabled).toBe(true);
-    expect(modules.textContent).toContain("coming soon");
+    for (const s of switches) {
+      expect((s as HTMLButtonElement).disabled).toBe(false);
+      expect(s.getAttribute("aria-checked")).toBe("true");
+    }
+    expect(within(modules).queryByRole("switch", { name: "Storage module" })).toBeNull();
+    expect(modules.textContent).toContain("share one switch");
+  });
+
+  it("shows a module that's off as off for everyone", async () => {
+    given({ signedIn: true, permissions: ["manage_members"], off: ["pets"] });
+    render(await AdminPage());
+    const modules = screen.getByRole("region", { name: "Modules" });
+    const pets = within(modules).getByRole("switch", { name: "Pets module" });
+    expect(pets.getAttribute("aria-checked")).toBe("false");
+    expect(pets.closest("li")?.textContent).toContain("Off for everyone");
+  });
+
+  it("asks before turning a module off, and deletes nothing", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    const modules = screen.getByRole("region", { name: "Modules" });
+    fireEvent.click(within(modules).getByRole("switch", { name: "Drinks module" }));
+    const sheet = screen.getByRole("dialog", { name: "Turn off Drinks" });
+    expect(sheet.textContent).toContain("Nothing is deleted");
+    expect(within(sheet).getByRole("button", { name: "Yes, turn it off" })).toBeTruthy();
+    expect((sheet.querySelector('input[name="on"]') as HTMLInputElement).value).toBe("false");
   });
 
   it("shows a Send test per person, not yet working", async () => {

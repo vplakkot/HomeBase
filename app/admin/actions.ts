@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { sendTestNotification } from "../../lib/notifications/send";
 import { cleanName, NAME_MAX } from "../../lib/auth/names";
 import { hasPermission } from "../../lib/auth/permissions";
+import { SWITCHES } from "../../lib/modules";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { createClient } from "../../lib/supabase/server";
 
@@ -14,6 +15,7 @@ export type ChangeRoleState = { error?: string; saved?: boolean };
 export type RenameState = { error?: string; saved?: boolean };
 export type ResetPasswordState = { error?: string; reset?: boolean };
 export type NotificationsState = { error?: string; enabled?: boolean };
+export type ModuleSwitchState = { error?: string; on?: boolean };
 export type SendTestState = {
   error?: string;
   sent?: { people: number; devices: number; delivered: number };
@@ -235,4 +237,33 @@ export async function sendTestNow(
     console.error("Could not send a test notification", reason);
     return { error: "Couldn't send the test notification. Try again." };
   }
+}
+
+// REQ-141: turn one of the admin console's module switches on or off for
+// the household. Like the notifications switch, the form sends the state
+// it wants, not "flip this". Off is a row; on is no row. No module data is
+// touched either way.
+export async function setModuleOn(
+  _previous: ModuleSwitchState,
+  formData: FormData,
+): Promise<ModuleSwitchState> {
+  const key = String(formData.get("module") ?? "");
+  if (!SWITCHES.some((each) => each.key === key)) {
+    return { error: "Which module?" };
+  }
+  const on = formData.get("on") === "true";
+
+  const supabase = await createClient();
+  if (!(await hasPermission(supabase, "manage_modules"))) {
+    redirect("/");
+  }
+  const { error } = on
+    ? await supabase.from("modules_off").delete().eq("module", key)
+    : await supabase.from("modules_off").upsert({ module: key }, { onConflict: "module", ignoreDuplicates: true });
+  if (error) {
+    return { error: error.message };
+  }
+  // Every page's navigation changes, not just this one.
+  revalidatePath("/", "layout");
+  return { on };
 }

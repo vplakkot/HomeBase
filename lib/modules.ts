@@ -37,6 +37,9 @@ export type Module = {
   // The module's home page, or null while the module has no pages.
   href: string | null;
   sections: readonly ModuleSection[];
+  // Turned on and off by another module's switch (REQ-141): Storage by
+  // Paperwork's, because archived paperwork files live in Storage.
+  switchedWith?: string;
 };
 
 export const MODULES: readonly Module[] = [
@@ -136,6 +139,7 @@ export const MODULES: readonly Module[] = [
     // REQ-107: one home screen; Add to storage is a sheet from the
     // header, like Paperwork's Log document.
     sections: [],
+    switchedWith: "paperwork",
   },
   // v2.1 (REQ-90, REQ-129, REQ-130): places we want to try, saved from a
   // maps link. Tangerine, and the last place, until Vin says otherwise.
@@ -153,13 +157,48 @@ export const MODULES: readonly Module[] = [
   },
 ];
 
-// A module switched off in the admin console disappears from Home, and
-// its data is kept (DESIGN.md §3). The console's switches come in a later
-// milestone, so for now nothing is switched off.
-export const NOTHING_SWITCHED_OFF: ReadonlySet<string> = new Set();
+// Which modules this person gets: those the household has turned off in
+// the admin console (REQ-141), by module, and those they've hidden from
+// their own view (REQ-143). Nothing about a module's data changes either
+// way (DESIGN.md §3).
+export type ModuleView = { off: readonly string[]; hidden: readonly string[] };
 
-export function modulesSwitchedOn(switchedOff: ReadonlySet<string>): readonly Module[] {
-  return MODULES.filter((module) => !switchedOff.has(module.slug));
+export const EVERYTHING_ON: ModuleView = { off: [], hidden: [] };
+
+// The name of the switch a module is under.
+export function switchOf(module: Module): string {
+  return module.switchedWith ?? module.slug;
+}
+
+// The admin console's switches, one per module except where modules share
+// one (Paperwork & Storage), in the list's order.
+export type ModuleSwitch = { key: string; name: string; modules: readonly Module[] };
+
+export const SWITCHES: readonly ModuleSwitch[] = MODULES.filter((module) => !module.switchedWith).map(
+  (module) => {
+    const modules = MODULES.filter((other) => switchOf(other) === module.slug);
+    return { key: module.slug, name: modules.map((each) => each.name).join(" & "), modules };
+  },
+);
+
+// The modules under the switches that are off.
+export function modulesUnder(keys: readonly string[]): string[] {
+  return MODULES.filter((module) => keys.includes(switchOf(module))).map((module) => module.slug);
+}
+
+export function isOn(view: ModuleView, slug: string): boolean {
+  return !view.off.includes(slug);
+}
+
+// On for the household: whatever needs someone (action items, pushes)
+// comes from these, hidden or not.
+export function modulesOn(view: ModuleView): readonly Module[] {
+  return MODULES.filter((module) => isOn(view, module.slug));
+}
+
+// On and not hidden: this person's navigation and Home cards.
+export function modulesShown(view: ModuleView): readonly Module[] {
+  return modulesOn(view).filter((module) => !view.hidden.includes(module.slug));
 }
 
 export function moduleBySlug(slug: string): Module {

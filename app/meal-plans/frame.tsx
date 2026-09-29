@@ -15,7 +15,7 @@ export async function mealPlansViewer() {
   if (!data?.claims) redirect("/sign-in");
   const [canManageMembers, account] = await Promise.all([
     hasPermission(supabase, "manage_members"),
-    readAccount(data.claims),
+    readAccount(data.claims, supabase),
   ]);
   return { canManageMembers, account, supabase, userId: String(data.claims.sub) };
 }

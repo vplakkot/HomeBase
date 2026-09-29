@@ -18,8 +18,19 @@ const ACTIONS = [
   { label: "New meal plan", title: "Start a meal plan", module: "meal-plans" },
 ] as const;
 
-export function QuickAdd({ variant, today }: { variant: "bar" | "buttons"; today: string }) {
+// `off`: modules the household has turned off, whose actions go too
+// (REQ-141).
+export function QuickAdd({
+  variant,
+  today,
+  off = [],
+}: {
+  variant: "bar" | "buttons";
+  today: string;
+  off?: readonly string[];
+}) {
   const [openLabel, setOpenLabel] = useState<string | null>(null);
+  const actions = ACTIONS.filter((action) => !off.includes(action.module));
 
   return (
     <>
@@ -28,7 +39,7 @@ export function QuickAdd({ variant, today }: { variant: "bar" | "buttons"; today
         aria-label="Quick add"
         className={variant === "bar" ? styles.bar : styles.buttons}
       >
-        {ACTIONS.map((action) => (
+        {actions.map((action) => (
           <button
             key={action.label}
             type="button"
@@ -43,7 +54,7 @@ export function QuickAdd({ variant, today }: { variant: "bar" | "buttons"; today
           </button>
         ))}
       </div>
-      {ACTIONS.map((action) => (
+      {actions.map((action) => (
         <BottomSheet
           key={action.label}
           open={openLabel === action.label}

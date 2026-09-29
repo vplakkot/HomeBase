@@ -1,0 +1,25 @@
+/* The boxes sit inside the sign-in page's column, whose own rules stack
+   a label over its field; these win by naming the list too. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list .choice {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  text-align: left;
+}
+
+.list .choice input {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+}

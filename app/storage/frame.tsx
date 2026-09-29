@@ -22,7 +22,7 @@ export async function storageViewer() {
   }
   const [canManageMembers, account, entries, paperwork] = await Promise.all([
     hasPermission(supabase, "manage_members"),
-    readAccount(data.claims),
+    readAccount(data.claims, supabase),
     readStorage(supabase),
     readPaperwork(supabase),
   ]);

@@ -53,7 +53,8 @@ function useSheet() {
 }
 
 // The header's tools on every Paperwork screen (DESIGN.md §11): the one
-// search, the settings gear for an admin, and Log document. The search
+// search, the settings gear for an admin, New file (#254) and Log
+// document. The search
 // stays on the screen it's typed on: results replace the view, and Clear
 // goes back to it.
 export function HeaderTools({
@@ -93,6 +94,7 @@ export function HeaderTools({
           <SettingsIcon size={20} />
         </ButtonLink>
       ) : null}
+      <NewFile choices={choices} />
       <button type="button" className={buttonClass} onClick={() => sheet.setOpen(true)}>
         Log document
       </button>

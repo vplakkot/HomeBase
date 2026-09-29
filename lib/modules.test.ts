@@ -3,10 +3,14 @@ import { readTokens } from "../test/css";
 import {
   SAVINGS_PAUSED,
   MODULES,
-  NOTHING_SWITCHED_OFF,
+  SWITCHES,
+  EVERYTHING_ON,
+  isOn,
   moduleBySlug,
   moduleColours,
-  modulesSwitchedOn,
+  modulesOn,
+  modulesShown,
+  modulesUnder,
 } from "./modules";
 
 const tokens = readTokens();
@@ -64,15 +68,46 @@ describe("the module list", () => {
     expect(MODULES.map((module) => module.tokens).sort()).toEqual(coloured.sort());
   });
 
-  // DESIGN.md §3: a module switched off disappears from Home.
-  it("leaves out a module that is switched off", () => {
-    const names = modulesSwitchedOn(new Set(["pets", "drinks"])).map((module) => module.name);
-    expect(names).toEqual(["Finances", "Calendar", "Meal Plans", "Health", "Paperwork", "Storage", "Restaurants"]);
+  // REQ-141: one switch per module, except Paperwork and Storage, which
+  // share one because archived paperwork files live in Storage.
+  it("has one switch per module, Paperwork & Storage sharing one", () => {
+    expect(SWITCHES.map((each) => each.name)).toEqual([
+      "Finances",
+      "Calendar",
+      "Pets",
+      "Drinks",
+      "Meal Plans",
+      "Health",
+      "Paperwork & Storage",
+      "Restaurants",
+    ]);
+    expect(modulesUnder(["paperwork"])).toEqual(["paperwork", "storage"]);
   });
 
-  // The admin console's module switches come in a later milestone.
-  it("has nothing switched off yet", () => {
-    expect(modulesSwitchedOn(NOTHING_SWITCHED_OFF)).toEqual(MODULES);
+  it("leaves out the modules that are off, and only those, from what's on", () => {
+    const view = { off: ["pets", "drinks"], hidden: [] };
+    expect(modulesOn(view).map((module) => module.name)).toEqual([
+      "Finances",
+      "Calendar",
+      "Meal Plans",
+      "Health",
+      "Paperwork",
+      "Storage",
+      "Restaurants",
+    ]);
+    expect(isOn(view, "pets")).toBe(false);
+    expect(isOn(view, "finances")).toBe(true);
+  });
+
+  // REQ-143: hidden is yours alone, and only leaves what you're shown.
+  it("keeps a hidden module on, but out of what you're shown", () => {
+    const view = { off: [], hidden: ["drinks"] };
+    expect(modulesOn(view).map((module) => module.slug)).toContain("drinks");
+    expect(modulesShown(view).map((module) => module.slug)).not.toContain("drinks");
+  });
+
+  it("shows everything when nothing is off or hidden", () => {
+    expect(modulesShown(EVERYTHING_ON)).toEqual(MODULES);
   });
 
   it("finds a module by its slug, and refuses one that doesn't exist", () => {

@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
 import type { Account } from "../lib/account";
+import { MODULES, isOn } from "../lib/modules";
 import { RecipeToast } from "./recipe-toast";
 import { Sidebar, type Place } from "./sidebar";
 import styles from "./app-frame.module.css";
@@ -10,6 +12,11 @@ import styles from "./app-frame.module.css";
 // screen: the sidebar on the left, the page beside it. Both layouts are in
 // the page at once and the screen width picks one, so resizing a window
 // switches between them on the spot.
+//
+// Every module page sits in it, so this is where a module the household
+// has turned off stops opening (REQ-141): a link to it, old or typed,
+// lands on Home with a note instead. Hidden from your own view (REQ-143)
+// still opens, so an action item can take you there.
 export function AppFrame({
   current,
   canAdminister,
@@ -26,6 +33,9 @@ export function AppFrame({
   style?: CSSProperties;
   children: ReactNode;
 }) {
+  if (MODULES.some((module) => module.slug === current) && !isOn(account.modules, current)) {
+    redirect(`/?off=${current}`);
+  }
   return (
     <div className={styles.frame}>
       <Sidebar current={current} canAdminister={canAdminister} account={account} />

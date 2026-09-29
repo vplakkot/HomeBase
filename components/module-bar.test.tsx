@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { moduleBySlug } from "../lib/modules";
+import { EVERYTHING_ON, moduleBySlug, modulesShown } from "../lib/modules";
 import { installDialogStandIn } from "../test/dialog";
 import { ModuleBar } from "./module-bar";
 
@@ -9,6 +9,7 @@ beforeAll(installDialogStandIn);
 afterEach(cleanup);
 
 const finances = moduleBySlug("finances");
+const ALL = modulesShown(EVERYTHING_ON);
 
 function bar() {
   return screen.getByRole("navigation", { name: "Finances navigation" });
@@ -22,7 +23,7 @@ function openSheet() {
 
 describe("the bar inside a module, on a phone", () => {
   it("has exactly Home, Sections and Modules", () => {
-    render(<ModuleBar module={finances} />);
+    render(<ModuleBar module={finances} others={ALL} />);
     const items = [...bar().children].map(
       (item) => item.getAttribute("aria-label") ?? item.textContent,
     );
@@ -30,20 +31,20 @@ describe("the bar inside a module, on a phone", () => {
   });
 
   it("goes Home", () => {
-    render(<ModuleBar module={finances} />);
+    render(<ModuleBar module={finances} others={ALL} />);
     expect(within(bar()).getByRole("link", { name: "Home" }).getAttribute("href")).toBe("/");
   });
 
   // The module switcher is an icon; its name is for screen readers.
   it("names the icon-only Modules button for screen readers", () => {
-    render(<ModuleBar module={finances} />);
+    render(<ModuleBar module={finances} others={ALL} />);
     expect(within(bar()).getByRole("button", { name: "Other modules" }).textContent).toBe("");
   });
 });
 
 describe("the Sections sheet", () => {
   it("lists the overview, then the module's sections, leaving out Savings while it's paused", () => {
-    render(<ModuleBar module={finances} />);
+    render(<ModuleBar module={finances} others={ALL} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const sheet = openSheet();
     const rows = within(sheet).getAllByRole("listitem");
@@ -61,14 +62,14 @@ describe("the Sections sheet", () => {
   // A sheet isn't inside the bar that sets the module's colours, so it
   // has to set them itself, or "where you are" loses its colour.
   it("carries the module's colours into the sheet", () => {
-    render(<ModuleBar module={finances} />);
+    render(<ModuleBar module={finances} others={ALL} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const list = within(openSheet()).getByRole("list");
     expect(list.style.getPropertyValue("--module-quiet-ink")).toBe("var(--finances-quiet-ink)");
   });
 
   it("links the overview, where you are, and the sections that have a page", () => {
-    render(<ModuleBar module={finances} />);
+    render(<ModuleBar module={finances} others={ALL} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const links = within(openSheet()).getAllByRole("link");
     expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
@@ -84,7 +85,7 @@ describe("the Sections sheet", () => {
   });
 
   it("marks a section as where you are when you're on its page", () => {
-    render(<ModuleBar module={finances} current="History" />);
+    render(<ModuleBar module={finances} others={ALL} current="History" />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Sections" }));
     const links = within(openSheet()).getAllByRole("link");
     expect(links.map((link) => link.getAttribute("aria-current"))).toEqual([null, null, null, null, null, null, "page"]);
@@ -94,17 +95,17 @@ describe("the Sections sheet", () => {
 // DESIGN.md §6: the module's most frequent action, pinned above the bar.
 describe("the pinned action", () => {
   it("puts Log payment above the bar, except on its own page", () => {
-    render(<ModuleBar module={finances} />);
+    render(<ModuleBar module={finances} others={ALL} />);
     expect(screen.getByRole("link", { name: "Log payment" }).getAttribute("href")).toBe("/finances/log-payment");
     cleanup();
-    render(<ModuleBar module={finances} current="Log payment" />);
+    render(<ModuleBar module={finances} others={ALL} current="Log payment" />);
     expect(screen.queryByRole("link", { name: "Log payment" })).toBeNull();
   });
 });
 
 describe("the module switcher", () => {
   it("lists all nine modules, opening Finances, the one you're in, Drinks, Meal Plans, Paperwork, Storage and Restaurants", () => {
-    render(<ModuleBar module={finances} />);
+    render(<ModuleBar module={finances} others={ALL} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Other modules" }));
     const sheet = openSheet();
     expect(within(sheet).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
@@ -121,5 +122,16 @@ describe("the module switcher", () => {
     const links = within(sheet).getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual(["/finances", "/drinks", "/meal-plans", "/paperwork", "/storage", "/restaurants"]);
     expect(links[0].getAttribute("aria-current")).toBe("page");
+  });
+
+  // REQ-141, REQ-143: the sheet lists what it's given, the modules you're
+  // shown.
+  it("lists only the modules it's given", () => {
+    render(<ModuleBar module={finances} others={modulesShown({ off: ["drinks"], hidden: ["pets"] })} />);
+    fireEvent.click(within(bar()).getByRole("button", { name: "Other modules" }));
+    const names = within(openSheet()).getAllByRole("listitem").map((row) => row.textContent);
+    expect(names).not.toContain("Drinks");
+    expect(names).not.toContain("PetsComing soon");
+    expect(names).toContain("Restaurants");
   });
 });

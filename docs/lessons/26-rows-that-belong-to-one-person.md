@@ -97,3 +97,7 @@ policy is looked at.
 - `supabase/migrations/20260930100000_restaurants_tried.sql` and
   `supabase/checks/restaurants.sql` (checks 5 to 13): the column grant,
   the answers, and the undo trigger.
+- `modules_hidden` in
+  `supabase/migrations/20261002100000_module_switches.sql`: the same
+  one-line-each key, `(user_id, module)`, for a module someone hid from
+  their own view (lesson 33). Here even reading is yours alone.

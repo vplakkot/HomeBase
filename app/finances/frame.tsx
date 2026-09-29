@@ -20,7 +20,7 @@ export async function financesViewer() {
   const [canManageMembers, canManageBudget, account] = await Promise.all([
     hasPermission(supabase, "manage_members"),
     hasPermission(supabase, "manage_budget"),
-    readAccount(data.claims),
+    readAccount(data.claims, supabase),
   ]);
   return { supabase, canManageMembers, canManageBudget, account, userId: data.claims.sub };
 }

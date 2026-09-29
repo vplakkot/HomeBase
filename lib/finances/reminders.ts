@@ -1,3 +1,4 @@
+import { isSwitchedOff } from "../module-switches";
 import { createAdminClient } from "../supabase/admin";
 import { sendPush } from "../notifications/send";
 import { pushesDue } from "./action-items";
@@ -24,6 +25,11 @@ export async function sendFinanceReminders({ subject, now = new Date() }: { subj
   if (hour < FIRST_HOUR || hour >= LAST_HOUR) return { sent: 0, quiet: true };
 
   const admin = createAdminClient();
+  // REQ-141: while Finances is off, nothing is sent. The months still open
+  // and close on their own schedule in the database, so the data is
+  // current when it's turned back on, and whatever is still due then goes
+  // out at the next run.
+  if (await isSwitchedOff(admin, "finances")) return { sent: 0, quiet: true };
   const people = await householdForJob(admin);
   const snapshot = await readFinanceSnapshot(admin, householdToday(now), people);
   const { data: sent, error } = await admin.from("finance_pushes").select("user_id, topic");

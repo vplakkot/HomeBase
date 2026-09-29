@@ -34,7 +34,7 @@ export async function paperworkViewer() {
   const [canManageMembers, canManagePaperwork, account, people, paperwork, storage] = await Promise.all([
     hasPermission(supabase, "manage_members"),
     hasPermission(supabase, "manage_paperwork"),
-    readAccount(data.claims),
+    readAccount(data.claims, supabase),
     listPeople(supabase),
     readPaperwork(supabase),
     readStorage(supabase),

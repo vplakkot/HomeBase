@@ -90,4 +90,18 @@ describe("the hourly Finances reminders", () => {
       [["a"], "A quarter has ended. Time to update balances."],
     ]);
   });
+
+  // REQ-141: while Finances is off, the job sends nothing.
+  it("sends nothing while Finances is turned off", async () => {
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: (table: string) => ({
+        select: async () => ({ data: table === "modules_off" ? [{ module: "finances" }] : [], error: null }),
+      }),
+    } as unknown as ReturnType<typeof createAdminClient>);
+    vi.mocked(householdForJob).mockResolvedValue(SNAPSHOT.people);
+    vi.mocked(readFinanceSnapshot).mockResolvedValue(SNAPSHOT);
+    expect(await sendFinanceReminders({ subject: "https://homebase.example", now: NINE_AM })).toEqual({ sent: 0, quiet: true });
+    expect(readFinanceSnapshot).not.toHaveBeenCalled();
+    expect(sendPush).not.toHaveBeenCalled();
+  });
 });

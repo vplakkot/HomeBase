@@ -21,7 +21,7 @@ export async function drinksViewer() {
   }
   const [canManageMembers, account, stored, people] = await Promise.all([
     hasPermission(supabase, "manage_members"),
-    readAccount(data.claims),
+    readAccount(data.claims, supabase),
     readDrinks(supabase),
     readPeople(supabase),
   ]);
