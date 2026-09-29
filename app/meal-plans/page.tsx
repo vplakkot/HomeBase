@@ -1,10 +1,11 @@
 import { OVERVIEW } from "../../components/module-frame";
 import Link from "next/link";
+import { readPeople } from "../../lib/drinks/drinks";
 import { signedPhotoLinks } from "../../lib/drinks/photos";
 import { householdToday } from "../../lib/finances/budget-year";
 import { homeStats } from "../../lib/meal-plans/home";
 import { RECIPE_PHOTOS } from "../../lib/meal-plans/photos";
-import { coversThrough, dayLabel, planStats, readOpenPlan, readPlanRows } from "../../lib/meal-plans/plan";
+import { coversText, coversThrough, planStats, readOpenPlan, readPlanRows } from "../../lib/meal-plans/plan";
 import { averageRatings, readRatingPrompts, readRatings, starsText } from "../../lib/meal-plans/ratings";
 import { readImports, readRecipes } from "../../lib/meal-plans/recipes";
 import { dismissImport } from "./actions";
@@ -26,17 +27,18 @@ const STATUS: Record<string, string> = {
 // them, anything to rate (REQ-116) and recipes on their way in.
 export default async function MealPlansPage() {
   const viewer = await mealPlansViewer();
-  const [all, imports, plan, prompts, rows, ratings] = await Promise.all([
+  const [all, imports, plan, prompts, rows, ratings, people] = await Promise.all([
     readRecipes(viewer.supabase),
     readImports(viewer.supabase),
     readOpenPlan(viewer.supabase),
     readRatingPrompts(viewer.supabase, viewer.userId),
     readPlanRows(viewer.supabase),
     readRatings(viewer.supabase),
+    readPeople(viewer.supabase),
   ]);
   const byId = new Map(all.map((recipe) => [recipe.id, recipe]));
   const planned = plan?.recipes.flatMap((entry) => byId.get(entry.recipe_id) ?? []) ?? [];
-  const through = plan ? coversThrough(plan.starts_on, plan.recipes.filter((entry) => byId.has(entry.recipe_id))) : null;
+  const through = plan ? coversThrough(plan.starts_on, plan.recipes.filter((entry) => byId.has(entry.recipe_id)), people.length) : null;
   const photos = await signedPhotoLinks(
     viewer.supabase,
     planned.flatMap((recipe) => (recipe.photo ? [recipe.photo] : [])),
@@ -82,13 +84,7 @@ export default async function MealPlansPage() {
         </div>
         {plan ? (
           <>
-            <p className={styles.summary}>
-              {through
-                ? `Covers you through at least ${dayLabel(through)}`
-                : planned.length > 0
-                  ? "Half a day sorted so far"
-                  : "An empty plate so far"}
-            </p>
+            <p className={styles.summary}>{through || planned.length > 0 ? coversText(through, planned.length > 0) : "An empty plate so far"}</p>
             {planned.length > 0 ? (
               <ul className={styles.foodGrid} aria-label="Recipes in the plan">
                 {planned.map((recipe) => {

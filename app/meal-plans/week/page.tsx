@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { readPeople } from "../../../lib/drinks/drinks";
 import { householdToday } from "../../../lib/finances/budget-year";
-import { carriedOver, coversThrough, dayLabel, planStats, readLastClosedPlan, readOpenPlan, readPlanRows } from "../../../lib/meal-plans/plan";
+import { carriedOver, coversText, coversThrough, dayLabel, planStats, readLastClosedPlan, readOpenPlan, readPlanRows } from "../../../lib/meal-plans/plan";
 import { averageRatings, readRatingPrompts, readRatings } from "../../../lib/meal-plans/ratings";
 import { readRecipes } from "../../../lib/meal-plans/recipes";
 import { suggestions } from "../../../lib/meal-plans/suggest";
@@ -19,13 +20,14 @@ const UUID = /^[0-9a-f-]{36}$/i;
 export default async function WeekPage({ searchParams }: { searchParams?: Promise<{ skip?: string }> } = {}) {
   const viewer = await mealPlansViewer();
   const query = (await searchParams) ?? {};
-  const [plan, lastClosed, recipes, rows, ratings, prompts] = await Promise.all([
+  const [plan, lastClosed, recipes, rows, ratings, prompts, people] = await Promise.all([
     readOpenPlan(viewer.supabase),
     readLastClosedPlan(viewer.supabase),
     readRecipes(viewer.supabase),
     readPlanRows(viewer.supabase),
     readRatings(viewer.supabase),
     readRatingPrompts(viewer.supabase, viewer.userId),
+    readPeople(viewer.supabase),
   ]);
   const names = new Map(recipes.map((recipe) => [recipe.id, recipe.name]));
   const toRate = prompts.flatMap((id) => (names.has(id) ? [{ id, name: names.get(id) ?? "" }] : []));
@@ -50,7 +52,7 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
     );
   }
   const planned = plan.recipes.filter((entry) => names.has(entry.recipe_id));
-  const through = coversThrough(plan.starts_on, planned);
+  const through = coversThrough(plan.starts_on, planned, people.length);
   const inPlan = new Set(planned.map((entry) => entry.recipe_id));
   const addable = recipes.filter((recipe) => !recipe.hidden && !inPlan.has(recipe.id));
   const skipped = (query.skip ?? "").split(",").filter((id) => UUID.test(id));
@@ -70,13 +72,7 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
         <div className={styles.fileHead}>
           <h2 className={styles.title}>From {dayLabel(plan.starts_on)}</h2>
         </div>
-        <p className={styles.covers}>
-          {through
-            ? `Covers you through at least ${dayLabel(through)}`
-            : planned.length > 0
-              ? "Covers half a day so far"
-              : "Add recipes to see how long the plan lasts"}
-        </p>
+        <p className={styles.covers}>{coversText(through, planned.length > 0)}</p>
         {planned.length > 0 ? (
           <ul className={styles.planList} aria-label="Recipes in the plan">
             {planned.map((entry) => {
@@ -117,7 +113,10 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
         ) : (
           <AddToPlanForm planId={plan.id} recipes={addable} />
         )}
-        <ChangeStartForm planId={plan.id} startsOn={plan.starts_on} />
+        <details className={styles.startDay}>
+          <summary className={styles.linkButton}>Change the start day</summary>
+          <ChangeStartForm planId={plan.id} startsOn={plan.starts_on} />
+        </details>
         <form action={closePlan}>
           <input type="hidden" name="plan_id" value={plan.id} />
           <button type="submit" className={styles.linkButton}>

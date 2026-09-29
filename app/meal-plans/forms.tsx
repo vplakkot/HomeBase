@@ -7,7 +7,7 @@ import cards from "../../components/cards.module.css";
 import { buttonClass } from "../../components/button";
 import { Hint } from "../../components/hint";
 import { shrinkPhoto } from "../../lib/drinks/shrink-photo";
-import { VIDEO_TYPES } from "../../lib/meal-plans/video-types";
+import { UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
 import { COOKING_METHODS, MAIN_MEATS, type Ingredient, type Recipe, type RecipeDraft } from "../../lib/meal-plans/recipes";
 import { rememberImports } from "../../lib/meal-plans/import-flag";
 import { sendVideo } from "../../lib/meal-plans/video-upload";
@@ -145,8 +145,8 @@ function VideoForm() {
     setBusy(true);
     setError(null);
     const data = new FormData();
-    const name = String(form.get("name") ?? "");
-    data.set("name", name);
+    // No name asked for: the video says what the dish is (Vin, 2026-09-29).
+    data.set("name", "");
     data.set("video_url", String(form.get("video_url") ?? ""));
     data.set("size", String(file.size));
     data.set("mime", mimeOf(file));
@@ -165,20 +165,16 @@ function VideoForm() {
       return;
     }
     rememberImports();
-    upload(started.id, name, started.uploadUrl, file);
+    upload(started.id, UNNAMED_RECIPE, started.uploadUrl, file);
     router.push("/meal-plans");
   };
   return (
     <form onSubmit={submit} className={cards.form}>
       <label className={cards.field}>
         <span className={styles.labelRow}>
-          Name
-          <Hint text="Gemini reads the video while you do other things, and a note says when the recipe is ready. Keep HomeBase open until the video has sent." />
+          Link to the video (optional)
+          <Hint text="Gemini reads the video while you do other things, and a note says when the recipe is ready, named from what it shows. Keep HomeBase open until the video has sent." />
         </span>
-        <input name="name" required placeholder="What the dish is called" autoComplete="off" />
-      </label>
-      <label className={cards.field}>
-        <span>Link to the video (optional)</span>
         <input name="video_url" type="url" inputMode="url" placeholder="https://www.instagram.com/reel/…" autoComplete="off" />
       </label>
       {/* #212: shaped like Drinks' Choose a photo, which opens the photo

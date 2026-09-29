@@ -107,7 +107,7 @@ export function AddToPlanForm({ planId, recipes }: { planId: string; recipes: re
         <ServingsSelect defaultValue={4} />
       </label>
       <button type="submit" className={buttonClass} disabled={pending}>
-        Add
+        Add to plan
       </button>
       <Outcome state={state} />
     </form>

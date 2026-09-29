@@ -74,7 +74,7 @@ export function RecipeToast() {
             <>
               <span>Recipe ready: {item.name}</span>
               <Link href={`/meal-plans/drafts/${item.id}`} onClick={() => dismiss(item.id)} className={styles.action}>
-                Review
+                Save recipe
               </Link>
             </>
           ) : (
@@ -95,7 +95,10 @@ export function RecipeToast() {
   ];
   if (notes.length === 0) return null;
   return (
-    <ul className={styles.toasts} aria-live="polite" aria-label="Recipes on their way">
+    // data-recipe-toast: while a note is showing on a phone, it stands in for
+    // Meal Plans' pinned "Add recipe" bar (module-bar.module.css), so the
+    // bottom of the screen says one thing: reading, then Save recipe.
+    <ul className={styles.toasts} data-recipe-toast="" aria-live="polite" aria-label="Recipes on their way">
       {notes}
     </ul>
   );

@@ -33,7 +33,7 @@ export function ModuleBar({
   return (
     <>
       {pinned?.href && current !== pinned.name ? (
-        <div className={styles.pinnedRow} style={moduleColours(module) as CSSProperties}>
+        <div className={styles.pinnedRow} data-action={pinned.name} style={moduleColours(module) as CSSProperties}>
           <Link href={pinnedHref ?? pinned.href} className={styles.pinned}>
             {pinned.name}
           </Link>

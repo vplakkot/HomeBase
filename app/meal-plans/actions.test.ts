@@ -128,6 +128,14 @@ describe("adding a recipe from a video (REQ-112, BETA)", () => {
     );
   });
 
+  // Vin, 2026-09-29: the video says what the dish is; no name is asked first.
+  it("needs no name: it starts as 'Recipe from a video' until Gemini has read it", async () => {
+    given();
+    const started = await startVideoImport(form({ name: "", size: "1000", mime: "video/mp4" }));
+    expect(started).toHaveProperty("uploadUrl");
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ name: "Recipe from a video", status: "uploading" }));
+  });
+
   it("refuses a file that isn't a video, or one over 500 MB", async () => {
     given();
     expect(await startVideoImport(form({ name: "x", size: "10", mime: "image/png" }))).toEqual({ error: "That file isn't a video HomeBase can send." });

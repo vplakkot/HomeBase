@@ -24,7 +24,9 @@ export type MealPlansViewer = Awaited<ReturnType<typeof mealPlansViewer>>;
 
 // Every Meal Plan screen: the module header with Add recipe (so the tab
 // row doesn't repeat it) and any tools such as the library's search, and
-// below the top level a breadcrumb back to the recipes.
+// below the top level a breadcrumb back to the recipes (every page that
+// has one is a recipe or a draft, so "Recipes › Test pasta", not "Meal
+// Plans › Test pasta", which read as if the recipe were a plan).
 export function MealPlansScreen({
   viewer,
   section,
@@ -51,7 +53,11 @@ export function MealPlansScreen({
         actions ?? (
           <div className={styles.tools}>
             {tools}
-            <ButtonLink href="/meal-plans/new">Add recipe</ButtonLink>
+            {/* A phone has the pinned Add recipe bar; a second button here
+                would be the same thing twice. */}
+            <ButtonLink href="/meal-plans/new" desktopOnly>
+              Add recipe
+            </ButtonLink>
           </div>
         )
       }
@@ -61,7 +67,7 @@ export function MealPlansScreen({
           <nav aria-label="Breadcrumb">
             <ol className={styles.crumbs}>
               <li>
-                <Link href="/meal-plans">Meal Plans</Link>
+                <Link href="/meal-plans/recipes">Recipes</Link>
               </li>
               <li>
                 <span aria-hidden="true">› </span>
