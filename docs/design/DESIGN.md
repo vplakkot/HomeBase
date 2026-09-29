@@ -106,7 +106,8 @@ Every module home follows the same rules. Mockups: `finances-desktop.html`, `pap
 - Every card: **1.5px border in the module's loud colour**, **no shadow**, corner radius **`--radius-lg` (20px)** — the same as Home's module tiles. Hard rule, no exceptions.
 
 **Colour**
-- The module colour is used only for: card borders, buttons, progress bars, the active tab, the context in the title (e.g. the month), and urgent text such as "Overdue".
+- The module's loud colour is used only for: card borders, buttons, progress bars, the active tab, the context in the title (e.g. the month), and urgent text such as "Overdue".
+- **Name bands** (REQ-151, Vin, 2026-09-28): on pages you read, the name of each thing listed (an action item's title, a person, a bill, a file, a document, a storage entry) sits on a band of the module's **quiet** tint (`--module-quiet`, the colour of its Home tile with nothing to do), text in `--module-quiet-title`. Every band is the same length, 18rem or the full width on a phone, whatever its text, and reaches left by its padding so its words line up with the text below. Section and card headings, photo tiles and forms stay plain. One shared style: `components/band.module.css`.
 - Main text charcoal, secondary text grey. Charcoal is never a card fill.
 - Status is **plain text** (Paid, Overdue), never a pill or chip. A past month's status is a small superscript after the title: "Closed", or "Open" if it was never closed. The current month shows none while it is open, and "Closed" once it closes early, paid up (Vin, 2026-09-25).
 

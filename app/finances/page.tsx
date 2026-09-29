@@ -11,6 +11,7 @@ import { acknowledge, readFinanceSnapshot } from "../../lib/finances/snapshot";
 import { acknowledgeItem } from "./actions";
 import { FinancesFrame, financesViewer } from "./frame";
 import styles from "./page.module.css";
+import band from "../../components/band.module.css";
 
 // The Finances module's home: one month, the one running unless History
 // asked for another (docs/design/DESIGN.md §6–§7, REQ-103). Top to
@@ -111,7 +112,7 @@ export default async function FinancesPage({
             {items.map((item) => (
               <li key={item.key} className={styles.itemRow}>
                 <span className={styles.itemText}>
-                  <span className={`${styles.strong} ${styles.band}`}>{item.text}</span>
+                  <span className={`${styles.strong} ${band.band}`}>{item.text}</span>
                   <span className={styles.note}>{item.detail}</span>
                 </span>
                 {item.button === "Acknowledge" ? (
@@ -204,7 +205,7 @@ export default async function FinancesPage({
               return (
                 <li key={person.user_id} className={`${styles.card} ${styles.person}`}>
                   <span className={styles.personHead}>
-                    <span className={`${styles.strong} ${styles.band}`}>{nameOf.get(person.user_id) ?? "Someone"}</span>
+                    <span className={`${styles.strong} ${band.band}`}>{nameOf.get(person.user_id) ?? "Someone"}</span>
                     <span className={styles.note}>{person.percent}% share</span>
                   </span>
                   <span className={styles.figureLine}>
@@ -282,7 +283,7 @@ export default async function FinancesPage({
                   {summary.rows.map((row) => (
                     <tr key={row.id}>
                       <th scope="row" className={styles.strong}>
-                        <span className={styles.band}>{row.name}</span>
+                        <span className={band.band}>{row.name}</span>
                       </th>
                       <td className={row.overdue ? styles.urgent : styles.muted}>
                         {dayLabel(row.due)}

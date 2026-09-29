@@ -6,6 +6,7 @@ import { contentLines, entryId } from "../../../../lib/storage/storage";
 import { StorageScreen, filesArchived, storageViewer } from "../../frame";
 import { ManageEntry } from "../../sheets";
 import styles from "../../storage.module.css";
+import band from "../../../../components/band.module.css";
 
 // One entry (REQ-87, REQ-107): ID · name, with "Box" after a box; what's
 // in it, one item per line; its note; and the paperwork files archived
@@ -65,7 +66,7 @@ export default async function EntryPage({
               {archived.map((file) => (
                 <li key={file.id}>
                   <Link href={`/paperwork/files/${file.id}`} className={styles.fileRow}>
-                    <span className={styles.fileName}>
+                    <span className={`${styles.fileName} ${band.band}`}>
                       <span className={styles.fileId}>{fileId(file)}</span>
                       {file.label ? file.label : <span className={styles.noLabel}>No label</span>}
                     </span>

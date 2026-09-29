@@ -3,6 +3,7 @@ import { ownerName, unfiled } from "../../../lib/paperwork/paperwork";
 import { PaperworkScreen, Section, paperworkViewer } from "../frame";
 import styles from "../paperwork.module.css";
 import { FileItButton } from "../sheets";
+import band from "../../../components/band.module.css";
 
 // REQ-100's fifth screen: documents waiting on the desk, which is where
 // Home's "N documents unfiled" item and the Overview's action item lead. Filing
@@ -28,7 +29,7 @@ export default async function UnfiledPage({ searchParams }: { searchParams?: Pro
             {waiting.map((paper) => (
               <li key={paper.id}>
                 <div className={`${styles.row} ${styles.unfiled}`}>
-                  <Link href={`/paperwork/items/${paper.id}`} className={styles.rowName}>
+                  <Link href={`/paperwork/items/${paper.id}`} className={`${styles.rowName} ${band.band}`}>
                     {paper.name}
                   </Link>
                   <span className={styles.rowCell}>{ownerName(paper, viewer.people)}</span>

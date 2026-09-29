@@ -20,6 +20,7 @@ import { readStorage } from "../../lib/storage/storage";
 import { createClient } from "../../lib/supabase/server";
 import styles from "./paperwork.module.css";
 import { HeaderTools } from "./sheets";
+import band from "../../components/band.module.css";
 
 // Who is looking at a Paperwork page, what they may do there, and
 // everything Paperwork holds, with Storage's entries for the boxes files
@@ -168,7 +169,7 @@ function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: stri
             {found.files.map(({ file, category, count }) => (
               <li key={file.id}>
                 <Link href={`/paperwork/files/${file.id}`} className={styles.linkCard}>
-                  <span className={styles.cardTitle}>{labelText(file, category)}</span>
+                  <span className={`${styles.cardTitle} ${band.band}`}>{labelText(file, category)}</span>
                   <span className={styles.cardDetail}>
                     {[file.label, placeOf(file, storage).name, documentsCount(count)].filter(Boolean).join(" · ")}
                   </span>
@@ -193,7 +194,7 @@ function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: stri
               return (
                 <li key={paper.id}>
                   <Link href={`/paperwork/items/${paper.id}`} className={`${styles.row} ${styles.found}`}>
-                    <span className={styles.rowName}>{paper.name}</span>
+                    <span className={`${styles.rowName} ${band.band}`}>{paper.name}</span>
                     <span className={styles.rowCell}>{file ? fileId(file) : "Unfiled"}</span>
                     <span className={styles.rowCell}>{file ? placeOf(file, storage).name : "Your desk"}</span>
                   </Link>

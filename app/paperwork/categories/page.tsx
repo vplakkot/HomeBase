@@ -2,6 +2,7 @@ import Link from "next/link";
 import { categoryCards, documentsCount, filesCount } from "../../../lib/paperwork/paperwork";
 import { PaperworkScreen, Section, paperworkViewer } from "../frame";
 import styles from "../paperwork.module.css";
+import band from "../../../components/band.module.css";
 
 // The Categories tab (REQ-105): one card per category with its files and
 // documents, for everyone. Managing categories is the admin's, behind the
@@ -27,7 +28,7 @@ export default async function CategoriesPage({ searchParams }: { searchParams?: 
             {cards.map(({ category, files, documents }) => (
               <li key={category.id}>
                 <Link href={`/paperwork/categories/${category.id}`} className={styles.linkCard}>
-                  <span className={styles.cardTitle}>{category.name}</span>
+                  <span className={`${styles.cardTitle} ${band.band}`}>{category.name}</span>
                   <span className={styles.cardDetail}>
                     {filesCount(files)} · {documentsCount(documents)}
                   </span>

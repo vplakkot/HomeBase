@@ -9,6 +9,7 @@ import { contentsPreview, entryId, readStorage, searchEntries, type StorageEntry
 import { createClient } from "../../lib/supabase/server";
 import { HeaderTools } from "./sheets";
 import styles from "./storage.module.css";
+import band from "../../components/band.module.css";
 
 // Who is looking at a Storage page, every entry, and Paperwork's files
 // and documents for the ones archived in a box (REQ-98). Signed-out
@@ -119,7 +120,7 @@ export function EntryCards({ viewer, entries, none }: { viewer: StorageViewer; e
         return (
           <li key={entry.id}>
             <Link href={`/storage/entries/${entry.id}`} className={styles.linkCard}>
-              <span className={styles.cardTitle}>
+              <span className={`${styles.cardTitle} ${band.band}`}>
                 {entryId(entry)} · {entry.name}
               </span>
               {files > 0 ? <span className={styles.strong}>{filesArchived(files)}</span> : null}

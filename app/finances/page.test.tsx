@@ -453,6 +453,15 @@ describe("Finances home", () => {
     expect(texts.length).toBeGreaterThan(1);
   });
 
+  // REQ-151: names on the band, headings plain.
+  it("puts each action item's title on the band, and leaves the heading plain", async () => {
+    const april = { ...SEPTEMBER, id: "m-apr", starts_on: "2026-04-01", added_later: true, settled: false, closed_at: null };
+    await showMonth({ months: [april, SEPTEMBER], month: "2026-04" });
+    const items = screen.getByRole("region", { name: /^Action items/ });
+    expect(within(items).getByText("April 2026 isn't finished").className).toContain("band");
+    expect(within(items).getByRole("heading").className).not.toContain("band");
+  });
+
   it("says a month not open yet will open on its own", async () => {
     await showMonth({ months: [], bills: [{ id: "b-rent", name: "Rent", kind: "rent", due_day: 1 }] });
     expect(region("Bills").textContent).toContain("isn't open yet: it opens on its own");

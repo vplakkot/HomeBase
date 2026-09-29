@@ -4,6 +4,7 @@ import { chosenMonth, dayLabel, listOpenedMonths, readMonth } from "../../../lib
 import { formatMoney } from "../../../lib/finances/money";
 import { paymentsMade } from "../../../lib/finances/overview";
 import { FinancesFrame, financesViewer } from "../frame";
+import band from "../../../components/band.module.css";
 
 const SECTION = "Payments";
 
@@ -60,7 +61,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                   <tr key={line.id}>
                     <td className={styles.muted}>{dayLabel(line.on)}</td>
                     <th scope="row" className={styles.strong}>
-                      {nameOf.get(line.payerId) ?? "Someone"}
+                      <span className={band.band}>{nameOf.get(line.payerId) ?? "Someone"}</span>
                     </th>
                     <td className={styles.muted}>{line.toward}</td>
                     <td className={`${styles.right} ${styles.strong}`}>{formatMoney(line.amount)}</td>

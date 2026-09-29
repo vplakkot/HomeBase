@@ -2,8 +2,10 @@
    (DESIGN.md §6, REQ-103, Vin 2026-09-25):
    - the page and every card are the shell background; each card has a
      1.5px border in the module colour, no shadow, --radius-lg corners;
-   - the module colour is only for borders, buttons, progress bars, the
-     active tab, the month in the title and urgent text ("Overdue");
+   - the module's loud colour is only for borders, buttons, progress
+     bars, the active tab, the month in the title and urgent text
+     ("Overdue"); names of things sit on its quiet tint (REQ-151,
+     components/band.module.css);
    - main text is ink, secondary text muted grey; status is plain text. */
 
 .section {
@@ -26,24 +28,9 @@
   font-weight: 700;
 }
 
-/* Trial (Vin, 2026-09-28), Finances home only, until approved: the
-   name of each thing (an action item, a person, a bill) sits on a band
-   of the module's quiet tint, the colour of a Home tile with nothing to
-   do. Every band is the same length, whatever its text, and reaches
-   left by its own padding so the words line up with the text below. */
-.band {
-  display: block;
-  box-sizing: border-box;
-  width: min(100%, 18rem);
-  margin-left: calc(-1 * var(--space-4));
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
-  background: var(--module-quiet);
-  color: var(--module-quiet-title);
-}
-
-/* Beside a person's share, the band gives way rather than the share. */
-.personHead > .band {
+/* REQ-151: beside a person's share, their name's band gives way rather
+   than the share, which stays on one line. */
+.personHead > :first-child {
   width: 18rem;
   min-width: 0;
 }
