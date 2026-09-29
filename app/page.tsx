@@ -19,7 +19,8 @@ import { readRestaurantsSummary, restaurantsTile } from "../lib/restaurants/rest
 import { countEntries, storageTile } from "../lib/storage/storage";
 import { countDrinks, drinksTile } from "../lib/drinks/drinks";
 import { countRecipes, recipesTile } from "../lib/meal-plans/recipes";
-import { NOTHING_SWITCHED_OFF, modulesSwitchedOn } from "../lib/modules";
+import { MODULES, modulesOn } from "../lib/modules";
+import { modulesChosen } from "../lib/module-switches";
 import { createClient } from "../lib/supabase/server";
 import { KeepThisDevice } from "./notifications/enable-notifications";
 import styles from "./page.module.css";
@@ -45,9 +46,20 @@ export default async function HomePage({
     // the proxy's matcher might miss.
     redirect("/sign-in");
   }
-  const canManageMembers = await hasPermission(supabase, "manage_members");
-  const account = await readAccount(data.claims);
-  const demo = demoFrom((await searchParams).demo);
+  const [canManageMembers, canManageModules, account, chosen] = await Promise.all([
+    hasPermission(supabase, "manage_members"),
+    hasPermission(supabase, "manage_modules"),
+    readAccount(data.claims, supabase),
+    modulesChosen(supabase),
+  ]);
+  // REQ-142: a new household's admin chooses its modules first, once.
+  if (canManageModules && !chosen) {
+    redirect("/setup/modules");
+  }
+  const params = await searchParams;
+  const demo = demoFrom(params.demo);
+  // REQ-141: a link to a module that's off lands here, saying so.
+  const turnedOff = MODULES.find((module) => module.slug === params.off && !modulesOn(account.modules).includes(module));
   // The modules with real items: Finances (REQ-91, REQ-93) and Paperwork
   // (REQ-97), and Restaurants' go-again (REQ-133); Storage (REQ-87) and
   // Drinks (REQ-30) only say how much is logged. The example
@@ -73,17 +85,21 @@ export default async function HomePage({
           };
         })()
       : {};
-  const modules = modulesSwitchedOn(NOTHING_SWITCHED_OFF).map((module) => ({
+  // Action items come from every module that's on (REQ-141), including
+  // those you've hidden, whose work is still yours (REQ-143). The tiles
+  // leave the hidden ones out.
+  const modules = modulesOn(account.modules).map((module) => ({
     module,
     status: moduleStatus(module, demo, live),
   }));
+  const tiles = modules.filter(({ module }) => !account.modules.hidden.includes(module.slug));
 
   return (
     <AppFrame
       current="home"
       canAdminister={canManageMembers}
       account={account}
-      phoneBar={<QuickAdd variant="bar" today={householdToday()} />}
+      phoneBar={<QuickAdd variant="bar" today={householdToday()} off={account.modules.off} />}
     >
       <header className={styles.header}>
         <BrandLockup />
@@ -94,9 +110,15 @@ export default async function HomePage({
       <div className={styles.intro}>
         <Greeting name={account.name?.split(/\s+/)[0] ?? null} />
         <div className={styles.desktopQuickAdd}>
-          <QuickAdd variant="buttons" today={householdToday()} />
+          <QuickAdd variant="buttons" today={householdToday()} off={account.modules.off} />
         </div>
       </div>
+
+      {turnedOff ? (
+        <p role="status" className={styles.note}>
+          {turnedOff.name} is turned off.
+        </p>
+      ) : null}
 
       <section className={styles.section} aria-labelledby="action-items">
         <ActionItems labelId="action-items" items={mostUrgent(modules)} />
@@ -105,7 +127,7 @@ export default async function HomePage({
       <section className={styles.section} aria-labelledby="modules">
         <SectionLabel id="modules">Modules</SectionLabel>
         <ul className={styles.tiles}>
-          {modules.map(({ module, status }) => (
+          {tiles.map(({ module, status }) => (
             <li key={module.slug}>
               <ModuleTile module={module} status={status} />
             </li>

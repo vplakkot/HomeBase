@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { Account } from "../lib/account";
-import { moduleBySlug, moduleColours } from "../lib/modules";
+import { moduleBySlug, moduleColours, modulesShown } from "../lib/modules";
 import { AppFrame } from "./app-frame";
 import { MODULE_ICONS } from "./icons";
 import { ModuleBar } from "./module-bar";
@@ -53,7 +53,9 @@ export function ModuleFrame({
       current={module.slug}
       canAdminister={canManageMembers}
       account={account}
-      phoneBar={<ModuleBar module={module} current={tab} pinnedHref={pinnedHref} />}
+      phoneBar={
+        <ModuleBar module={module} others={modulesShown(account.modules)} current={tab} pinnedHref={pinnedHref} />
+      }
       style={moduleColours(module) as CSSProperties}
     >
       <header className={styles.header}>

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Modules can be turned off. The admin console's module switches now
+  work: off hides a module for everyone (navigation, Home tile, action
+  items, Quick add, Finances reminders), and a link to it lands on Home
+  with a note. Nothing is deleted, and turning it back on brings it all
+  back. Paperwork & Storage share one switch.
+- Settings has "Modules I see": hide a module from your own navigation
+  and Home tiles. Its action items and notifications still reach you.
+- A new household's admin chooses its modules once, straight after
+  signing up. The household that already exists counts as done.
+- Paperwork: a New file button beside Log document (#254).
 - Every module: on the pages you read, the name of each thing listed
   (action items, people, bills, payments, months in History, Paperwork
   files and documents, Storage entries, drinks, Meal Plans drafts, the

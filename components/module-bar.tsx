@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
-import { MODULES, moduleColours, type Module } from "../lib/modules";
+import { moduleColours, type Module } from "../lib/modules";
 import { BottomSheet } from "./bottom-sheet";
 import { HomeIcon, ModulesIcon, SectionsIcon } from "./icons";
 import styles from "./module-bar.module.css";
@@ -14,12 +14,15 @@ import styles from "./module-bar.module.css";
 // module's pinned action (Finances: Log payment) sits just above the bar.
 // `pinnedHref` points the pinned action somewhere else (Finances: the
 // month you're looking at), and null leaves it out (a closed month).
+// `others` is what the Modules sheet lists: the modules you're shown.
 export function ModuleBar({
   module,
+  others,
   current,
   pinnedHref,
 }: {
   module: Module;
+  others: readonly Module[];
   current?: string;
   pinnedHref?: string | null;
 }) {
@@ -107,7 +110,7 @@ export function ModuleBar({
 
       <BottomSheet open={sheet === "modules"} onClose={close} title="Modules">
         <ul className={styles.list}>
-          {MODULES.map((other) => (
+          {others.map((other) => (
             <li key={other.slug} style={moduleColours(other) as CSSProperties}>
               {other.href ? (
                 <Link

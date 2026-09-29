@@ -34,6 +34,13 @@
   list-style: none;
 }
 
+/* REQ-141: after a link to a module that's turned off. */
+.note {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-caption);
+}
+
 .signedIn {
   margin: 0;
 }

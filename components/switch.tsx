@@ -10,12 +10,14 @@ export function Switch({
   type = "button",
   disabled = false,
   busy = false,
+  onClick,
 }: {
   on: boolean;
   label: string;
   type?: "button" | "submit";
   disabled?: boolean;
   busy?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
@@ -25,6 +27,7 @@ export function Switch({
       aria-label={label}
       aria-busy={busy || undefined}
       disabled={disabled || busy}
+      onClick={onClick}
       className={styles.switch}
     >
       <span className={on ? `${styles.track} ${styles.on}` : styles.track}>

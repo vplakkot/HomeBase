@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { Account } from "../lib/account";
-import { MODULES, moduleColours } from "../lib/modules";
+import { moduleColours, modulesShown } from "../lib/modules";
 import { AccountButtons } from "./account-menu";
 import { BrandLockup } from "./brand-lockup";
 import { AdminConsoleIcon, HomeIcon } from "./icons";
@@ -12,9 +12,10 @@ import styles from "./sidebar.module.css";
 export type Place = "home" | "admin" | (string & {});
 
 // Desktop navigation (docs/design/DESIGN.md §4): the brand, Home, every
-// module, then at the bottom the admin console for admins and your own
-// Profile, Settings and Sign out (REQ-85). Below 1024 px it isn't shown;
-// phones get Home's tiles, the account pill and the bars at the bottom.
+// module that's on and not hidden from you (REQ-141, REQ-143), then at
+// the bottom the admin console for admins and your own Profile, Settings
+// and Sign out (REQ-85). Below 1024 px it isn't shown; phones get Home's
+// tiles, the account pill and the bars at the bottom.
 export function Sidebar({
   current,
   canAdminister,
@@ -40,7 +41,7 @@ export function Sidebar({
       <div className={styles.modules}>
         <SectionLabel>Modules</SectionLabel>
         <ul className={styles.list}>
-          {MODULES.map((module) => (
+          {modulesShown(account.modules).map((module) => (
             <li key={module.slug} style={moduleColours(module) as CSSProperties}>
               {module.href ? (
                 <Link

@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../lib/supabase/server";
-import { saveMyName } from "./actions";
+import { saveMyName, setModuleHidden } from "./actions";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -49,5 +49,50 @@ describe("setting your own name in Profile (REQ-124)", () => {
     expect(await saveMyName({}, named("Sam"))).toEqual({ error: "network down" });
     given({ signedIn: false });
     await expect(saveMyName({}, named("Sam"))).rejects.toThrow("REDIRECT:/sign-in");
+  });
+});
+
+// REQ-143: hiding a module is yours alone.
+describe("hiding a module from your own view", () => {
+  function withTable() {
+    const deleteEq = vi.fn();
+    const chain = { eq: deleteEq };
+    deleteEq.mockReturnValue(chain);
+    Object.assign(chain, { then: (resolve: (value: unknown) => unknown) => resolve({ error: null }) });
+    const table = { upsert: vi.fn().mockResolvedValue({ error: null }), delete: vi.fn(() => chain) };
+    const auth = { getClaims: vi.fn().mockResolvedValue({ data: { claims: { sub: "u1" } } }) };
+    const from = vi.fn(() => table);
+    vi.mocked(createClient).mockResolvedValue({ auth, from } as unknown as Awaited<ReturnType<typeof createClient>>);
+    return { table, deleteEq, from };
+  }
+  const asked = (module: string, hidden: boolean) => {
+    const data = new FormData();
+    data.set("module", module);
+    data.set("hidden", String(hidden));
+    return data;
+  };
+
+  it("hides it with a row carrying your own ID", async () => {
+    const { table, from } = withTable();
+    expect(await setModuleHidden({}, asked("drinks", true))).toEqual({ hidden: true });
+    expect(from).toHaveBeenCalledWith("modules_hidden");
+    expect(table.upsert).toHaveBeenCalledWith(
+      { user_id: "u1", module: "drinks" },
+      { onConflict: "user_id,module", ignoreDuplicates: true },
+    );
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  });
+
+  it("shows it again by taking away only your own row", async () => {
+    const { deleteEq } = withTable();
+    expect(await setModuleHidden({}, asked("drinks", false))).toEqual({ hidden: false });
+    expect(deleteEq).toHaveBeenCalledWith("user_id", "u1");
+    expect(deleteEq).toHaveBeenCalledWith("module", "drinks");
+  });
+
+  it("refuses a module that doesn't exist", async () => {
+    const { from } = withTable();
+    expect(await setModuleHidden({}, asked("garage", true))).toEqual({ error: "Which module?" });
+    expect(from).not.toHaveBeenCalled();
   });
 });

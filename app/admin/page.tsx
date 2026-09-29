@@ -3,14 +3,14 @@ import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
 import { AppFrame } from "../../components/app-frame";
 import { ChevronLeftIcon } from "../../components/icons";
-import { Switch } from "../../components/switch";
-import { MODULES, moduleColours } from "../../lib/modules";
+import { SWITCHES, moduleColours } from "../../lib/modules";
 import { readAccount } from "../../lib/account";
 import { listMembers, listRoles } from "../../lib/auth/members";
 import { listRecentLog, SHOW_DAYS } from "../../lib/notifications/log";
 import { hasPermission } from "../../lib/auth/permissions";
 import { createClient } from "../../lib/supabase/server";
 import { AddPerson } from "./add-person";
+import { ModuleSwitchForm } from "./module-switch-form";
 import { NotificationLog } from "./notification-log";
 import { NotificationsForm } from "./notifications-form";
 import { NameForm } from "../../components/name-form";
@@ -33,7 +33,7 @@ export default async function AdminPage() {
   const [members, roles, account] = await Promise.all([
     listMembers(supabase),
     listRoles(supabase),
-    readAccount(data.claims),
+    readAccount(data.claims, supabase),
   ]);
   // Read separately, and forgiven if it fails. The log is the least
   // important thing on this page; losing it must not take member
@@ -56,10 +56,11 @@ export default async function AdminPage() {
   //
   // The three cards of DESIGN.md §8: Notifications, Modules, People on a
   // phone; People and Notifications beside Modules on a desktop. v0.1's
-  // working controls keep working inside them. The designed controls that
-  // have nothing behind them yet (module switches, a test per person) are
-  // shown but can't be pressed. The notification log isn't in the design;
-  // it stays below the cards while v0.1's notifications are being proven.
+  // working controls keep working inside them. The designed control that
+  // has nothing behind it yet (a test per person) is shown but can't be
+  // pressed. The module switches work (REQ-141). The notification log
+  // isn't in the design; it stays below the cards while v0.1's
+  // notifications are being proven.
   const initial = (text: string) => text.trim().charAt(0).toUpperCase();
   const person = (member: (typeof members)[number]) => (
     <>
@@ -182,26 +183,32 @@ export default async function AdminPage() {
             </div>
           </div>
           <ul className={styles.rows}>
-            {MODULES.map((module) => (
-              <li
-                key={module.slug}
-                className={styles.row}
-                style={moduleColours(module) as CSSProperties}
-              >
-                <div className={styles.rowMain}>
-                  <span className={styles.dot} aria-hidden="true" />
-                  <span className={styles.who}>
-                    <span className={styles.rowName}>{module.name}</span>
-                    <span className={styles.rowNote}>Visible to everyone</span>
-                  </span>
-                  <Switch on label={`${module.name} module`} disabled />
-                </div>
-              </li>
-            ))}
+            {SWITCHES.map((each) => {
+              const on = !account.modules.off.includes(each.key);
+              return (
+                <li
+                  key={each.key}
+                  className={styles.row}
+                  style={moduleColours(each.modules[0]) as CSSProperties}
+                >
+                  <div className={styles.rowMain}>
+                    <span className={styles.dot} aria-hidden="true" />
+                    <span className={styles.who}>
+                      <span className={styles.rowName}>{each.name}</span>
+                      <span className={styles.rowNote}>
+                        {on ? "Visible to everyone" : "Off for everyone"}
+                        {each.modules.length > 1 ? " · they share data" : ""}
+                      </span>
+                    </span>
+                    <ModuleSwitchForm moduleKey={each.key} name={each.name} on={on} />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
           <p className={styles.cardFoot}>
-            Turning a module off will hide it from Home and the sidebar, and
-            delete nothing. The switches are coming soon.
+            Off hides a module for everyone and deletes nothing. Archived
+            paperwork files live in Storage, so the two share one switch.
           </p>
         </section>
       </div>

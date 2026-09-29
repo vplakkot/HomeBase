@@ -832,3 +832,32 @@ describe("months added later", () => {
     expect(added).not.toMatch(/on public\.month_shares for (insert|update|delete|all)/);
   });
 });
+
+describe("module switches (REQ-141, REQ-142, REQ-143)", () => {
+  const switches = readMigration("20261002100000");
+
+  it("keeps which modules are off as data only the admin changes", () => {
+    expect(switches).toMatch(/create table public\.modules_off \(\s*module text primary key/);
+    expect(switches).toMatch(/select id, 'manage_modules' from public\.roles where name = 'Admin';/);
+    expect(switches.match(/has_permission\('manage_modules'\)/g)).toHaveLength(3);
+    expect(switches).not.toMatch(/on public\.modules_off for update/);
+  });
+
+  it("keeps each person's hidden modules to themselves", () => {
+    expect(switches).toMatch(/create table public\.modules_hidden/);
+    expect(switches.match(/user_id = \(select auth\.uid\(\)\)/g)).toHaveLength(3);
+  });
+
+  it("never deletes or changes any module's data", () => {
+    const writes = switches.match(/(?:insert into|delete from|update|drop table|truncate) public\.\w+/g) ?? [];
+    expect(new Set(writes)).toEqual(
+      new Set(["insert into public.role_permissions", "update public.households", "insert into public.modules_off"]),
+    );
+  });
+
+  it("counts the household that already exists as chosen, and lets a new one choose once", () => {
+    expect(switches).toMatch(/add column modules_chosen boolean not null default false;\s+update public\.households set modules_chosen = true;/);
+    expect(switches).toMatch(/update public\.households set modules_chosen = true where modules_chosen = false;\s+if not found then/);
+    expect(switches).toContain("grant execute on function public.choose_modules(text[]) to authenticated;");
+  });
+});

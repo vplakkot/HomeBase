@@ -125,7 +125,7 @@ describe("the module's structure (REQ-100)", () => {
     ]);
   });
 
-  it("puts search, the settings gear and Log document in the header of every screen", async () => {
+  it("puts search, the settings gear, New file and Log document in the header of every screen", async () => {
     given(ADMIN);
     for (const page of [
       home(),
@@ -141,8 +141,17 @@ describe("the module's structure (REQ-100)", () => {
         "/paperwork/settings",
       );
       expect(within(header).getByRole("button", { name: "Log document" })).toBeDefined();
+      // #254: a file can be made on its own, not only from Log document.
+      expect(within(header).getByRole("button", { name: "New file" })).toBeDefined();
       cleanup();
     }
+  });
+
+  it("opens the New file form from the header (#254)", async () => {
+    given();
+    render(await home());
+    fireEvent.click(within(screen.getByRole("banner")).getByRole("button", { name: "New file" }));
+    expect(screen.getByRole("dialog", { name: "New file" })).toBeDefined();
   });
 
   it("shows members no settings gear", async () => {

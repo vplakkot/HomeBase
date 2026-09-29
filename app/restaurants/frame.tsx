@@ -19,7 +19,7 @@ export async function restaurantsViewer() {
   if (!data?.claims) redirect("/sign-in");
   const [canManageMembers, account, restaurants, answers, people] = await Promise.all([
     hasPermission(supabase, "manage_members"),
-    readAccount(data.claims),
+    readAccount(data.claims, supabase),
     readRestaurants(supabase),
     readAnswers(supabase),
     readPeople(supabase),
