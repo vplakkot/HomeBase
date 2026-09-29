@@ -5,6 +5,7 @@ import { thumbPath } from "../../lib/drinks/photos";
 import { DrinksScreen, type DrinksViewer } from "./frame";
 import { ListControls, SearchBox } from "./controls";
 import styles from "./drinks.module.css";
+import band from "../../components/band.module.css";
 
 // The Wines section (REQ-30, REQ-121): every wine we've recorded, newest first, each
 // with every household member's rating or "not rated". Search, a type
@@ -59,7 +60,7 @@ export function DrinksList({
                       // eslint-disable-next-line @next/next/no-img-element -- a private, short-lived link
                       <img src={thumb} alt="" className={styles.thumb} />
                     ) : null}
-                    <span className={styles.cardTitle}>{displayName(drink)}</span>
+                    <span className={`${styles.cardTitle} ${band.band}`}>{displayName(drink)}</span>
                     {line ? <span className={styles.cardDetail}>{line}</span> : null}
                     {wanted ? null : (
                       <ul className={styles.ratings} aria-label="Ratings">
