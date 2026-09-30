@@ -316,6 +316,7 @@
    rather than reaching into the gap, and the lines under it step in to
    match its words. */
 .withThumb > .cardTitle {
+  width: calc(100% + var(--space-4));
   margin-left: 0;
 }
 

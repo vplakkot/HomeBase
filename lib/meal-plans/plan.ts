@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ModuleStatus } from "../module-status";
 
 // REQ-115: the week's plan. One plan is open at a time; both of us see
 // and change it. Recipes go in at 4 servings (dinner and the next day's
@@ -117,4 +118,23 @@ export function coversThrough(
 export function coversText(covers: Covers | null, anyPlanned: boolean): string {
   if (covers) return `Covers through ${covers.meal}, ${dayLabel(covers.day)}`;
   return anyPlanned ? "Not a whole meal yet" : "Add recipes to see how long the plan lasts";
+}
+
+// "Sep 29"
+function shortDay(day: string): string {
+  return new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+// Home's tile is about the plan we're on, not the library (Vin,
+// 2026-09-29): "Sep 29 – Oct 3 · 4 recipes", the start, the day it
+// carries us through and what's in it. Calm, like the rest of the
+// module: nothing here needs anyone.
+export function planTile(plan: MealPlan | null, eaters: number): ModuleStatus {
+  const status = (text: string): ModuleStatus => ({ status: text, headline: text, facts: [], actionItems: [] });
+  if (!plan) return status("No plan yet");
+  const count = plan.recipes.length;
+  const recipes = count === 0 ? "no recipes yet" : count === 1 ? "1 recipe" : `${count} recipes`;
+  const through = coversThrough(plan.starts_on, plan.recipes, eaters);
+  const days = through && through.day !== plan.starts_on ? `${shortDay(plan.starts_on)} – ${shortDay(through.day)}` : shortDay(plan.starts_on);
+  return status(`${days} · ${recipes}`);
 }

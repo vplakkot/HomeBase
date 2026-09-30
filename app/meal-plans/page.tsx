@@ -127,7 +127,7 @@ export default async function MealPlansPage() {
             <dd>
               {numbers.mostPlanned ? (
                 <Link href={`/meal-plans/${numbers.mostPlanned.recipe.id}`}>
-                  {numbers.mostPlanned.recipe.name} <span className={styles.statNote}>planned {numbers.mostPlanned.times === 1 ? "once" : `${numbers.mostPlanned.times} times`}</span>
+                  {numbers.mostPlanned.recipe.name} <span className={styles.statNote}>({numbers.mostPlanned.times})</span>
                 </Link>
               ) : (
                 "Nothing yet"

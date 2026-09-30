@@ -112,6 +112,38 @@ describe("on a phone, with two or three items", () => {
   });
 });
 
+// Vin, 2026-09-29: three show, a down arrow opens the rest in cards the
+// same size as the others.
+describe("with more than three items", () => {
+  const MANY = [...ITEMS, item("drinks", "Fourth", "d4", 4), item("storage", "Fifth", "d5", 5)];
+  const many = () => render(<ActionItems labelId="action-items" items={MANY} />);
+
+  it("shows three, and an arrow that says how many more", () => {
+    const { container } = many();
+    expect(container.querySelectorAll(`.${styles.card}`)).toHaveLength(3);
+    expect(screen.getByText("1 / 3")).toBeDefined();
+    const arrow = screen.getByRole("button", { name: "Show 2 more action items" });
+    expect(arrow.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("lists them all when the arrow is tapped, hides the swipe furniture, and folds back", () => {
+    const { container } = many();
+    fireEvent.click(screen.getByRole("button", { name: "Show 2 more action items" }));
+    const cards = [...container.querySelectorAll(`.${styles.card}`)];
+    expect(cards.map((card) => card.textContent?.slice(0, 6))).toEqual(["Card b", "Heartw", "Prescr", "Fourth", "Fifthd"]);
+    expect(container.querySelector(`.${styles.counter}`)).toBeNull();
+    expect(container.querySelector(`.${styles.dots}`)).toBeNull();
+    expect(container.querySelector(`.${styles.opened}`)).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show fewer action items" }));
+    expect(container.querySelectorAll(`.${styles.card}`)).toHaveLength(3);
+  });
+
+  it("has no arrow with three or fewer", () => {
+    show(3);
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
 describe("on a phone, with one item", () => {
   it("shows the card with no counter, dots or stacked edges", () => {
     const one = show(1);
@@ -132,8 +164,7 @@ describe("with no items", () => {
 
 describe("on a desktop", () => {
   it("shows the items side by side, with no counter, dots or edges", () => {
-    expect(styleOf(css, "item", true).get("flex")).toBe("1 1 18rem");
-    expect(styleOf(css, "cards", true).get("flex-wrap")).toBe("wrap");
+    expect(styleOf(css, "cards", true).get("grid-template-columns")).toBe("repeat(3, minmax(0, 1fr))");
     expect(styleOf(css, "cards", true).get("overflow-x")).toBe("visible");
     for (const className of ["counter", "dots", "edgeNear", "edgeFar"]) {
       expect(shown(className, false), `${className} on a phone`).toBe(true);

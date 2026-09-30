@@ -7,6 +7,33 @@
   gap: var(--space-1);
 }
 
+/* The counter and the expand arrow, at the right of the label. */
+.aside {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+/* The down arrow that opens the items past the first three. */
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-target-min);
+  min-height: var(--tap-target-min);
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) calc(-1 * var(--space-2)) 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.toggleOpen svg {
+  transform: rotate(180deg);
+}
+
 .counter {
   color: var(--color-ink);
   font-size: var(--text-caption);
@@ -69,6 +96,19 @@
 
 .cards::-webkit-scrollbar {
   display: none;
+}
+
+/* Opened on a phone: every card, one under the other, each as big as
+   the ones above. */
+.opened {
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-x: visible;
+  scroll-snap-type: none;
+}
+
+.opened .item {
+  flex: none;
 }
 
 .item {
@@ -176,15 +216,18 @@
     padding-bottom: 0;
   }
 
-  .cards {
-    flex-wrap: wrap;
+  /* Three to a row, all the same size, whether opened or not. */
+  .cards,
+  .opened {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-4);
     overflow-x: visible;
     scroll-snap-type: none;
   }
 
   .item {
-    flex: 1 1 18rem;
+    flex: none;
   }
 
   .card {

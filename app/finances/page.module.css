@@ -33,6 +33,8 @@
 .personHead > :first-child {
   width: 18rem;
   min-width: 0;
+  /* The band no longer reaches right here: the share is beside it. */
+  margin-right: 0;
 }
 
 .personHead > .note {

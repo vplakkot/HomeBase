@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Home's action items show three, with a down arrow in the corner that
+  opens the rest in cards the same size (no more mixed sizes).
+- Home's Meal Plans tile is about the current plan: "Sep 29 – Oct 3 · 4
+  recipes", or "No plan yet".
+- Every module: the band behind a name now spans the whole card, evenly
+  on both sides, instead of hanging to the left. Meal Plans' Our kitchen
+  numbers line up under their labels and "most planned" shows a count
+  in brackets, "Kerala Beef Curry (3)".
 - Finances, Log payment: a payment has a "Paid on" day (today, or the
   last day of a month gone by, changeable), and it can be more than
   what's left on the bill, or toward a bill already paid; the surplus
