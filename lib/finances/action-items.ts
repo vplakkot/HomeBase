@@ -273,14 +273,17 @@ function enterItem(startsOn: string, detail: string): FinanceItem {
   };
 }
 
-// Home's tile for Finances (DESIGN.md §4): loud with the most urgent item
-// while there is one, otherwise the month and how it stands.
+// Home's tile for Finances (DESIGN.md §4): loud with its one item, or
+// "Multiple action items", while there are any, otherwise the month and how it stands.
 export function financeTile(snapshot: FinanceSnapshot, items: FinanceItem[]): ModuleStatus {
   if (!splitInForce(snapshot.splits, snapshot.today)) {
     return { status: "Not set up", headline: "Not set up yet", facts: [], actionItems: [] };
   }
   if (items.length > 0) {
-    return { status: items[0].text, headline: items[0].text, facts: [], actionItems: items };
+    // One item is named; several are just counted, so the tile doesn't
+    // pass off the top one as the whole story (Vin, 2026-09-29).
+    const text = items.length === 1 ? items[0].text : "Multiple action items";
+    return { status: text, headline: text, facts: [], actionItems: items };
   }
   const current = monthStart(snapshot.today);
   const month = snapshot.months.find((row) => row.starts_on === current) ?? null;
