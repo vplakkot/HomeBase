@@ -1,21 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { coversThrough, dayLabel, isPlanServings } from "./plan";
+import { coversText, coversThrough, dayLabel, isPlanServings } from "./plan";
 
-describe("how far the week's plan carries us (REQ-115)", () => {
-  it("counts a 4-serving recipe as a day and a 2-serving one as half, from the start date", () => {
-    // Sunday 27 September 2026: two 4-serving and three 2-serving recipes are 3.5 days.
-    const plan = [{ servings: 4 }, { servings: 4 }, { servings: 2 }, { servings: 2 }, { servings: 2 }] as const;
-    expect(dayLabel(coversThrough("2026-09-27", plan) ?? "")).toBe("Tue, Sep 29");
+const dishes = (count: number, servings: 4 | 2 = 4) => Array.from({ length: count }, () => ({ servings }));
+
+describe("how far the week's plan carries us", () => {
+  // Vin, 2026-09-29: five 4-serving dishes for two people, from dinner on
+  // the first day, reach lunch on the sixth.
+  it("counts meals for everyone eating, from dinner on the start day", () => {
+    expect(coversThrough("2026-09-29", dishes(5), 2)).toEqual({ day: "2026-10-04", meal: "lunch" });
+    expect(dayLabel("2026-10-04")).toBe("Sun, Oct 4");
   });
 
-  it("reaches the start day itself with one 4-serving recipe, and no day with half of one", () => {
-    expect(coversThrough("2026-09-27", [{ servings: 4 }])).toBe("2026-09-27");
-    expect(coversThrough("2026-09-27", [{ servings: 2 }])).toBeNull();
-    expect(coversThrough("2026-09-27", [])).toBeNull();
+  it("gives one 4-serving dish for two a dinner and the next day's lunch", () => {
+    expect(coversThrough("2026-09-29", dishes(1), 2)).toEqual({ day: "2026-09-30", meal: "lunch" });
+  });
+
+  it("gives a 2-serving dish for two one dinner, and an odd number of dishes ends on a dinner", () => {
+    expect(coversThrough("2026-09-29", dishes(1, 2), 2)).toEqual({ day: "2026-09-29", meal: "dinner" });
+    expect(coversThrough("2026-09-29", [{ servings: 4 }, { servings: 2 }], 2)).toEqual({ day: "2026-09-30", meal: "dinner" });
+  });
+
+  it("follows the household's size, and ignores a serving that can't feed everyone", () => {
+    expect(coversThrough("2026-09-29", dishes(1), 4)).toEqual({ day: "2026-09-29", meal: "dinner" });
+    expect(coversThrough("2026-09-29", dishes(1, 2), 4)).toBeNull();
+    expect(coversThrough("2026-09-29", [], 2)).toBeNull();
+    expect(coversThrough("2026-09-29", dishes(1), 0)).toEqual({ day: "2026-10-01", meal: "lunch" });
   });
 
   it("crosses the end of a month", () => {
-    expect(coversThrough("2026-09-29", [{ servings: 4 }, { servings: 4 }, { servings: 4 }])).toBe("2026-10-01");
+    expect(coversThrough("2026-09-29", dishes(3), 2)).toEqual({ day: "2026-10-02", meal: "lunch" });
+  });
+
+  it("says it in words", () => {
+    expect(coversText({ day: "2026-10-04", meal: "lunch" }, true)).toBe("Covers through lunch, Sun, Oct 4");
+    expect(coversText(null, true)).toBe("Not a whole meal yet");
+    expect(coversText(null, false)).toBe("Add recipes to see how long the plan lasts");
   });
 
   it("allows 4 servings or 2, nothing else", () => {

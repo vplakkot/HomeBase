@@ -18,7 +18,7 @@ import {
   uploadProgress,
 } from "../../lib/meal-plans/gemini";
 import { isPublicPage, readImage, readPage, readRecipePage, titleFrom, type SearchResult } from "../../lib/meal-plans/recipe-search";
-import { MAX_VIDEO_BYTES, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
+import { MAX_VIDEO_BYTES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
 import { PROCESSING_GIVES_UP_MS, UPLOAD_GIVES_UP_MS, processVideoImport } from "../../lib/meal-plans/import-job";
 import { RECIPE_PHOTOS, recipePhotoPath } from "../../lib/meal-plans/photos";
 import { linkOrNull, readImports, recipeFieldsFrom, recipeMissing, type RecipeImport } from "../../lib/meal-plans/recipes";
@@ -192,12 +192,11 @@ export type VideoStart = { id: string; uploadUrl: string } | { error: string };
 // video to. The video itself never passes through here.
 export async function startVideoImport(formData: FormData): Promise<VideoStart> {
   const supabase = await requireMember();
-  const name = String(formData.get("name") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim() || UNNAMED_RECIPE;
   const size = Number(formData.get("size"));
   const mime = String(formData.get("mime") ?? "");
   const linkText = String(formData.get("video_url") ?? "").trim();
   const video_url = linkOrNull(linkText);
-  if (!name) return { error: "Give the recipe a name." };
   if (linkText && !video_url) return { error: "The video link should start with https://." };
   if (!VIDEO_TYPES[mime]) return { error: "That file isn't a video HomeBase can send." };
   if (!Number.isInteger(size) || size <= 0) return { error: "That video looks empty." };

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { deleteVideo, isGeminiFile, recipeFromVideo, videoState, type VideoState } from "./gemini";
+import { UNNAMED_RECIPE } from "./video-types";
 
 // Reading an uploaded video, after the phone has finished sending it
 // (REQ-112, BETA). It runs on the server once the request that started it
@@ -61,9 +62,11 @@ export async function processVideoImport(
       await finish({ status: "failed", error: ready.error });
       return;
     }
-    const reading = await (deps.read ?? recipeFromVideo)(row.name, { uri: ready.uri!, mimeType: ready.mimeType ?? "video/mp4" });
+    // A video sent without a name is read for its own: Gemini names it.
+    const unnamed = row.name === UNNAMED_RECIPE;
+    const reading = await (deps.read ?? recipeFromVideo)(unnamed ? "" : row.name, { uri: ready.uri!, mimeType: ready.mimeType ?? "video/mp4" });
     if ("error" in reading) await finish({ status: "failed", error: reading.error });
-    else await finish({ status: "ready", draft: reading.draft, error: null });
+    else await finish({ status: "ready", draft: reading.draft, error: null, ...(unnamed && reading.draft.name ? { name: reading.draft.name } : {}) });
   } catch (error) {
     await finish({ status: "failed", error: error instanceof Error ? error.message : "Something went wrong." });
   } finally {

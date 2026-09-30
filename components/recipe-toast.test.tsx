@@ -32,7 +32,7 @@ describe("the recipe toast, on any page (REQ-112)", () => {
     vi.mocked(myRecipeImports).mockResolvedValue([item("ready")] as never);
     render(<RecipeToast />);
     expect((await screen.findByText("Recipe ready: Test pasta")).closest("li")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Review" }).getAttribute("href")).toBe("/meal-plans/drafts/66666666-6666-4666-8666-666666666666");
+    expect(screen.getByRole("link", { name: "Save recipe" }).getAttribute("href")).toBe("/meal-plans/drafts/66666666-6666-4666-8666-666666666666");
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(markImportSeen).toHaveBeenCalledWith("66666666-6666-4666-8666-666666666666");
     expect(screen.queryByText("Recipe ready: Test pasta")).toBeNull();

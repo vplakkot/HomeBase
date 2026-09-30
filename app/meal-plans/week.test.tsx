@@ -198,8 +198,10 @@ describe("the week's plan (REQ-115)", () => {
     given({ meal_plans: [openPlan([planned(ID, 4, true), planned(OTHER, 2)])], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
     expect(screen.getByRole("heading", { name: "From Sun, Sep 27" })).toBeTruthy();
-    // One 4-serving recipe and one 2-serving one: a day and a half.
-    expect(screen.getByText("Covers you through at least Sun, Sep 27")).toBeTruthy();
+    // 6 servings for two of us is 3 meals: Sunday dinner, Monday lunch and dinner.
+    expect(screen.getByText("Covers through dinner, Mon, Sep 28")).toBeTruthy();
+    // The start day is already the heading; changing it is folded away.
+    expect(screen.getByText("Change the start day").closest("details")?.hasAttribute("open")).toBe(false);
     const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
     expect((screen.getByRole("combobox", { name: "Servings of Test chicken rice" }) as HTMLSelectElement).value).toBe("4");
@@ -383,7 +385,7 @@ describe("Meal Plans' home (REQ-118)", () => {
     given({ recipes: [RECIPE, SECOND], recipe_imports: [], meal_plans: [openPlan([planned(ID, 4), planned(OTHER, 4)])] });
     render(await MealPlansPage());
     const week = screen.getByRole("region", { name: "This week" });
-    expect(within(week).getByText("Covers you through at least Mon, Sep 28")).toBeTruthy();
+    expect(within(week).getByText("Covers through lunch, Tue, Sep 29")).toBeTruthy();
     const dishes = within(within(week).getByRole("list", { name: "Recipes in the plan" })).getAllByRole("link");
     expect(dishes.map((link) => link.textContent)).toEqual(["Test chicken rice", "Test lentil soup"]);
     expect(dishes[0].querySelector("img")?.getAttribute("src")).toBe(`https://signed.example/${ID}/1.jpg`);
@@ -412,7 +414,7 @@ describe("Meal Plans' home (REQ-118)", () => {
     render(await MealPlansPage());
     const kitchen = screen.getByRole("region", { name: "Our kitchen" });
     const value = (label: string) => within(kitchen).getByText(label).nextElementSibling?.textContent;
-    expect(value("Most planned")).toBe("Test chicken rice × 2");
+    expect(value("Most planned")).toBe("Test chicken rice planned 2 times");
     expect(value("Top rated")).toBe("Test lentil soup ★★★★★");
     expect(value("Recipes")).toBe("3");
     expect(value("Cuisines")).toBe("2");

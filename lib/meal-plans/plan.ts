@@ -89,10 +89,32 @@ export function dayLabel(day: string): string {
   return new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-// REQ-115: a 4-serving recipe is one day and a 2-serving one half a day,
-// counted from the start date. "At least" because a half day left over
-// doesn't reach the next day. Null until the plan covers a whole day.
-export function coversThrough(startsOn: string, recipes: readonly Pick<PlannedRecipe, "servings">[]): string | null {
-  const days = recipes.reduce((sum, recipe) => sum + (recipe.servings === 4 ? 1 : 0.5), 0);
-  return days >= 1 ? addDays(startsOn, Math.floor(days) - 1) : null;
+// How far the plan carries the household, counted in meals. A serving is
+// one person's meal, so a plan of 20 servings for two people is 10 meals.
+// The plan starts at dinner on its first day, and each day after has a
+// lunch and a dinner: 4 servings for two people are that dinner and the
+// next day's lunch. Five 4-serving dishes (10 meals) reach lunch on the
+// sixth day. Null until there's a whole meal; a leftover serving that
+// can't feed everyone doesn't count. (Vin, 2026-09-29; it replaced
+// "a day per 4 servings", which ignored how many of us eat.)
+export type Covers = { day: string; meal: "lunch" | "dinner" };
+
+export function coversThrough(
+  startsOn: string,
+  recipes: readonly Pick<PlannedRecipe, "servings">[],
+  eaters: number,
+): Covers | null {
+  const servings = recipes.reduce((sum, recipe) => sum + recipe.servings, 0);
+  const meals = Math.floor(servings / Math.max(eaters, 1));
+  if (meals < 1) return null;
+  const last = meals - 1;
+  // Meal 0 is the first dinner; odd meals are a lunch, the day after
+  // the dinner before it.
+  return last % 2 === 1 ? { day: addDays(startsOn, (last + 1) / 2), meal: "lunch" } : { day: addDays(startsOn, last / 2), meal: "dinner" };
+}
+
+// "Covers through lunch, Sun, Oct 4"
+export function coversText(covers: Covers | null, anyPlanned: boolean): string {
+  if (covers) return `Covers through ${covers.meal}, ${dayLabel(covers.day)}`;
+  return anyPlanned ? "Not a whole meal yet" : "Add recipes to see how long the plan lasts";
 }

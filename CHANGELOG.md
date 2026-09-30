@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- Meal Plans, from Vin's phone (2026-09-29):
+  - The plan says how far it covers in meals for the people in the
+    household, starting at dinner on the first day: "Covers through
+    lunch, Sun, Oct 4". Five 4-serving dishes for two reach lunch on
+    the sixth day.
+  - The plan no longer repeats its start day between the recipes;
+    "Change the start day" is folded away below. The button that puts a
+    recipe in the plan is "Add to plan", and a phone has one "Add
+    recipe" button, not two.
+  - Links are ink and underlined, not browser blue. The breadcrumb
+    reads "Recipes › name". Our kitchen's numbers are white cards with
+    a mustard border, like the other cards.
+  - A recipe being read, or ready, takes the place of the phone's
+    "Add recipe" bar, and reads "Save recipe" when it's ready.
+  - Adding from a video no longer asks for a name first; Gemini names
+    the recipe from the video. The photo taken from the video is now a
+    frame near its end, where the finished dish usually is.
+  - Our kitchen's labels sit on a pale band, "Most planned" says "planned
+    once / 3 times" instead of "× 1", and recipe names in the library
+    sit on the band too.
+- Home's action items: one card per module. A module with several
+  (Finances with three) shows one card reading "Multiple action items"
+  that opens the module, so Paperwork's "1 document unfiled" and the
+  others are no longer crowded out.
 - Home's action items now show every item, Paperwork's unfiled document
   included, instead of only the three most urgent. A module's tile says
   "Multiple action items" when it has several (Finances showed only its

@@ -269,7 +269,28 @@
   background: var(--module-loud);
 }
 
-/* The fun numbers: four solid tiles in the module colour. */
+/* A plain link on a Meal Plans page (Edit, Watch the video, Type it in)
+   reads in ink and underlined, never the browser's blue. Every link with
+   a style of its own keeps it: :where() adds no weight. */
+:where(.screen a:not([class])) {
+  color: var(--color-ink);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* "Change the start day": folded away until wanted. */
+.startDay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.startDay > summary {
+  cursor: pointer;
+}
+
+/* The fun numbers: four cards like every other module card (white, a
+   border in the module colour), their headings in the module's hue. */
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -278,15 +299,26 @@
 }
 
 .stats > div {
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--module-loud);
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--module-loud);
+  border-radius: var(--radius-lg);
+  background: var(--color-ground);
   color: var(--color-ink);
 }
 
+/* The label sits on a band of the module's pale tint, like a name. */
 .stats dt {
+  display: block;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--module-quiet);
+  color: var(--module-quiet-title);
   font-size: var(--text-body-sm);
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.stats .plain {
+  text-decoration: none;
 }
 
 .stats dd {
