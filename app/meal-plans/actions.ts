@@ -18,8 +18,8 @@ import {
   uploadProgress,
 } from "../../lib/meal-plans/gemini";
 import { isPublicPage, readImage, readPage, readRecipePage, titleFrom, type SearchResult } from "../../lib/meal-plans/recipe-search";
-import { MAX_VIDEO_BYTES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
-import { PROCESSING_GIVES_UP_MS, UPLOAD_GIVES_UP_MS, processVideoImport } from "../../lib/meal-plans/import-job";
+import { MAX_IMAGES, MAX_IMAGES_BYTES, MAX_VIDEO_BYTES, UNNAMED_IMAGES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
+import { PROCESSING_GIVES_UP_MS, UPLOAD_GIVES_UP_MS, processImageImport, processVideoImport } from "../../lib/meal-plans/import-job";
 import { RECIPE_PHOTOS, recipePhotoPath } from "../../lib/meal-plans/photos";
 import { linkOrNull, readImports, recipeFieldsFrom, recipeMissing, type RecipeImport } from "../../lib/meal-plans/recipes";
 import { createAdminClient } from "../../lib/supabase/admin";
@@ -218,6 +218,44 @@ export async function startVideoImport(formData: FormData): Promise<VideoStart> 
     await removePhoto(supabase, photo);
     return { error: "The upload couldn't start. Try again." };
   }
+}
+
+export type ImagesStart = { id: string } | { error: string };
+
+// REQ-157: adding from pictures. They're small once the phone has shrunk
+// them, so they come with this request, are read after it answers (the
+// "On their way" toast reports back, as for a video), and are never kept.
+// Each picture comes with its small copy, for the one that may become the
+// card's photo.
+export async function startImagesImport(formData: FormData): Promise<ImagesStart> {
+  const supabase = await requireMember();
+  const pictures = formData.getAll("image");
+  const smalls = formData.getAll("thumb");
+  if (pictures.length === 0) return { error: "Choose at least one image." };
+  if (pictures.length > MAX_IMAGES) return { error: `Up to ${MAX_IMAGES} images make one recipe.` };
+  const blobs = pictures.filter((item): item is File => item instanceof File && item.size > 0);
+  const thumbs = smalls.filter((item): item is File => item instanceof File && item.size > 0);
+  if (blobs.length !== pictures.length || thumbs.length !== pictures.length) return { error: "An image didn't arrive. Try again." };
+  if ([...blobs, ...thumbs].some((blob) => blob.type !== "image/jpeg" || blob.size > MAX_PHOTO_UPLOAD)) return { error: "Images are sent as JPEG, under 1 MB each." };
+  if ([...blobs, ...thumbs].reduce((sum, blob) => sum + blob.size, 0) > MAX_IMAGES_BYTES) return { error: "Those images are too big together. Try fewer." };
+  const id = crypto.randomUUID();
+  const { error } = await supabase.from("recipe_imports").insert({ id, name: UNNAMED_IMAGES, status: "processing" });
+  if (error) {
+    Sentry.captureException(error);
+    return { error: "The import couldn't start. Try again." };
+  }
+  const images = await Promise.all(blobs.map(async (blob) => ({ mime: "image/jpeg", data: Buffer.from(await blob.arrayBuffer()).toString("base64") })));
+  after(async () => {
+    try {
+      const admin = createAdminClient();
+      await processImageImport(admin, id, images, {
+        keepPhoto: (index) => storePhoto(admin, `imports/${id}`, { full: blobs[index], thumb: thumbs[index] }),
+      });
+    } catch (problem) {
+      Sentry.captureException(problem);
+    }
+  });
+  return { id };
 }
 
 export type VideoProgress = { done: true } | { received: number } | { error: string };

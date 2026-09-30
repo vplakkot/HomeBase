@@ -71,3 +71,12 @@ browser, and the job only touches the one row it was given.
 That's why the video path wears a permanent BETA label: three outside
 steps (upload, processing, reading) that we don't control, each allowed
 to fail without losing anything but the attempt.
+
+## Pictures skip the upload link
+
+A recipe from pictures (REQ-157) uses the same buzzer but not the side
+door: a phone shrinks each picture to a few hundred kilobytes, so all of
+them fit in one request through our server. The row starts at
+processing, `after()` hands the pictures to Gemini directly, and they
+are forgotten once read. Rule of thumb: go around the server only for
+what can't fit through it.

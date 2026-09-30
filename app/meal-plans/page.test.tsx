@@ -98,6 +98,8 @@ describe("adding a recipe (REQ-111, REQ-112)", () => {
     expect(screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent).toBe("Recipes");
     const video = screen.getByRole("radio", { name: /From a video/ });
     expect(video.closest("label")?.textContent).toContain("BETA");
+    fireEvent.click(screen.getByRole("radio", { name: "From images" }));
+    expect(screen.getByRole("button", { name: "Choose the images" })).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "Paste or type it" }));
     expect(screen.getByRole("textbox", { name: "The recipe" })).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "Fill in the card" }));
