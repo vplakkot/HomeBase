@@ -126,7 +126,7 @@ function shortDay(day: string): string {
 }
 
 // Home's tile is about the plan we're on, not the library (Vin,
-// 2026-09-29): "Sep 29 – Oct 2 · 4 recipes", the start, the day it
+// 2026-09-29): "Sep 29 – Oct 3 · 4 recipes", the start, the day it
 // carries us through and what's in it. Calm, like the rest of the
 // module: nothing here needs anyone.
 export function planTile(plan: MealPlan | null, eaters: number): ModuleStatus {
