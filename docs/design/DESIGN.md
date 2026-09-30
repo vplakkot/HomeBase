@@ -61,7 +61,7 @@ There is **no navigation bar on Home**. The tiles are the navigation.
 ### Desktop (1024 px and up)
 - Sidebar (248 px): brand lockup, Home, Modules list (colour dot + name), then at the bottom the Admin console link (admins only) and the user menu.
 - Main area: greeting and date on the left, **Quick add** buttons top-right.
-- Action items: all shown side by side (wrapping to more rows), no swiping or counter.
+- Action items: three to a row, all the same size; the arrow opens further rows. No swiping or counter.
 - Module tiles: 3-column grid. Each desktop tile shows a headline plus two supporting facts.
 
 ### Module tile rules
@@ -73,11 +73,11 @@ There is **no navigation bar on Home**. The tiles are the navigation.
 
 Replaces the old "Needs you" label. Label: **ACTION ITEMS**.
 
-- **Every** action item, ordered by urgency; no maximum (Vin, 2026-09-29: a module with many items must not hide another's). On a module's **tile**, a module with more than one says "Multiple action items" instead of naming the top one.
+- **Every** action item, ordered by urgency, but **three show**; with more, a down arrow in the right corner of the label row opens the rest below in cards the **same size** (Vin, 2026-09-29). A module's items are never hidden to make room for another's. On a module's **tile**, a module with more than one says "Multiple action items" instead of naming the top one.
 - Each item shows: the module's icon on its loud colour, one line of text, one line of detail, and a chevron. **No module name** — the icon identifies it.
 - Tapping an item deep-links to the exact screen (e.g. the bill), not the module home.
-- **Phone:** one dark card (`--color-panel`). If there is more than one item, the card is a horizontal swipe stack: stacked edges show behind it, a "1 / 3" counter sits right of the label, and dots sit below the card. One item: no counter, no stacked edges.
-- **Desktop:** the dark cards side by side, wrapping.
+- **Phone:** one dark card (`--color-panel`), the first three swipeable. If there is more than one item, the card is a horizontal swipe stack: stacked edges show behind it, a "1 / 3" counter sits right of the label, and dots sit below the card. One item: no counter, no stacked edges.
+- **Desktop:** the dark cards three to a row; opened, further rows of the same size.
 - **None:** replace the card with a green "All clear" row ("No action items today").
 - Never auto-rotate.
 - This section is Home's action items. Inside a module, action items use the module-home card instead (§6, Module home layout).

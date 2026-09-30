@@ -18,7 +18,8 @@ import { countUnfiled } from "../lib/paperwork/paperwork";
 import { readRestaurantsSummary, restaurantsTile } from "../lib/restaurants/restaurants";
 import { countEntries, storageTile } from "../lib/storage/storage";
 import { countDrinks, drinksTile } from "../lib/drinks/drinks";
-import { countRecipes, recipesTile } from "../lib/meal-plans/recipes";
+import { readPeople } from "../lib/drinks/drinks";
+import { planTile, readOpenPlan } from "../lib/meal-plans/plan";
 import { MODULES, modulesOn } from "../lib/modules";
 import { modulesChosen } from "../lib/module-switches";
 import { createClient } from "../lib/supabase/server";
@@ -67,12 +68,13 @@ export default async function HomePage({
   const live =
     demo === null
       ? await (async () => {
-          const [snapshot, unfiled, stored, drinks, recipes, restaurants] = await Promise.all([
+          const [snapshot, unfiled, stored, drinks, plan, people, restaurants] = await Promise.all([
             readFinanceSnapshot(supabase, householdToday()),
             countUnfiled(supabase),
             countEntries(supabase),
             countDrinks(supabase),
-            countRecipes(supabase),
+            readOpenPlan(supabase),
+            readPeople(supabase),
             readRestaurantsSummary(supabase, data.claims.sub),
           ]);
           return {
@@ -80,7 +82,7 @@ export default async function HomePage({
             paperwork: paperworkTile(unfiled),
             storage: storageTile(stored),
             drinks: drinksTile(drinks),
-            "meal-plans": recipesTile(recipes),
+            "meal-plans": planTile(plan, people.length),
             restaurants: restaurantsTile(restaurants),
           };
         })()

@@ -323,6 +323,8 @@
 
 .stats dd {
   margin: var(--space-1) 0 0;
+  /* Lines up with the words on the label's band above. */
+  padding-left: var(--space-3);
   font-size: var(--text-display-sm);
   font-weight: 700;
 }

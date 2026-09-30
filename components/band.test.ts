@@ -12,13 +12,13 @@ describe("the band (REQ-151)", () => {
     const band = styleOf(css, "band", false);
     expect(band.get("background")).toBe("var(--module-quiet)");
     expect(band.get("color")).toBe("var(--module-quiet-title)");
-    expect(band.get("width")).toBe("min(calc(100% + var(--space-4)), 18rem)");
+    expect(band.get("width")).toBe("calc(100% + 2 * var(--space-4))");
     expect(band.get("display")).toBe("block");
   });
 
-  it("reaches left by its own padding, so its words line up with the text below", () => {
+  it("reaches out evenly by its own padding, so its words line up with the text below", () => {
     const band = styleOf(css, "band", false);
-    expect(band.get("margin-left")).toBe("calc(-1 * var(--space-4))");
+    expect(band.get("margin-inline")).toBe("calc(-1 * var(--space-4))");
     expect(band.get("padding")).toBe("var(--space-2) var(--space-4)");
   });
 

@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ModuleStatus } from "../module-status";
 
 // A recipe card (REQ-110): what it holds, the fixed lists it draws from,
 // and turning the review form back into a row.
@@ -216,14 +215,3 @@ export async function readImport(supabase: SupabaseClient, id: string): Promise<
   return (data as RecipeImport | null) ?? null;
 }
 
-export async function countRecipes(supabase: SupabaseClient): Promise<number> {
-  const { count, error } = await supabase.from("recipes").select("id", { count: "exact", head: true });
-  if (error) throw new Error(`Could not count recipes: ${error.message}`);
-  return count ?? 0;
-}
-
-// Home's tile: calm, and says how many recipes we keep.
-export function recipesTile(count: number): ModuleStatus {
-  const status = count === 0 ? "No recipes yet" : count === 1 ? "1 recipe" : `${count} recipes`;
-  return { status, headline: status, facts: [], actionItems: [] };
-}

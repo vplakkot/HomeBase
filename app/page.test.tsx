@@ -30,14 +30,15 @@ vi.mock("../lib/storage/storage", async (original) => ({
 vi.mock("../lib/drinks/drinks", async (original) => ({
   ...(await original<typeof import("../lib/drinks/drinks")>()),
   countDrinks: vi.fn(async () => 0),
+  readPeople: vi.fn(async () => []),
 }));
 vi.mock("../lib/restaurants/restaurants", async (original) => ({
   ...(await original<typeof import("../lib/restaurants/restaurants")>()),
   readRestaurantsSummary: vi.fn(async () => ({ toTry: 0, unanswered: 0 })),
 }));
-vi.mock("../lib/meal-plans/recipes", async (original) => ({
-  ...(await original<typeof import("../lib/meal-plans/recipes")>()),
-  countRecipes: vi.fn(async () => 0),
+vi.mock("../lib/meal-plans/plan", async (original) => ({
+  ...(await original<typeof import("../lib/meal-plans/plan")>()),
+  readOpenPlan: vi.fn(async () => null),
 }));
 
 // Finances before setup: no split, no bills, nothing to do.
@@ -227,7 +228,7 @@ describe("HomePage", () => {
     const paperwork = others.pop();
     const [drinks, meals] = others.splice(2, 2);
     expect(drinks).toMatchObject({ name: "Drinks", status: "Nothing recorded yet", loud: false });
-    expect(meals).toMatchObject({ name: "Meal Plans", status: "No recipes yet", loud: false });
+    expect(meals).toMatchObject({ name: "Meal Plans", status: "No plan yet", loud: false });
     expect(money).toMatchObject({ status: "Not set up", loud: false });
     expect(paperwork).toMatchObject({ name: "Paperwork", status: "All filed", loud: false });
     expect(storage).toMatchObject({ name: "Storage", status: "Nothing logged yet", loud: false });
@@ -355,7 +356,7 @@ describe("HomePage", () => {
     expect(tiles().filter((tile) => tile.loud)).toEqual([]);
   });
 
-  it("with ?demo=4, lights four tiles and shows all four items, the fourth last", async () => {
+  it("with ?demo=4, lights four tiles, shows three items and opens the fourth with the arrow", async () => {
     given({ email: "member@example.com" });
     render(await home({ demo: "4" }));
     expect(tiles().filter((tile) => tile.loud).map((tile) => tile.name)).toEqual([
@@ -365,7 +366,8 @@ describe("HomePage", () => {
       "Health",
     ]);
     const section = screen.getByRole("region", { name: "Action items" });
-    expect(within(section).getAllByRole("listitem")).toHaveLength(4);
+    expect(within(section).getAllByRole("listitem")).toHaveLength(3);
+    fireEvent.click(within(section).getByRole("button", { name: "Show 1 more action item" }));
     expect(within(section).getAllByRole("listitem")[3].textContent).toContain("Confirm the dentist");
   });
 

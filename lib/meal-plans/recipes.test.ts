@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cookTimeText, draftFrom, ingredientText, recipeFieldsFrom, recipesTile } from "./recipes";
+import { cookTimeText, draftFrom, ingredientText, recipeFieldsFrom } from "./recipes";
 
 function form(fields: [string, string][]): FormData {
   const data = new FormData();
@@ -93,11 +93,5 @@ describe("how a card reads", () => {
     expect(cookTimeText(60)).toBe("1 h");
     expect(cookTimeText(95)).toBe("1 h 35 min");
     expect(cookTimeText(null)).toBeNull();
-  });
-
-  it("says on Home how many recipes we keep", () => {
-    expect(recipesTile(0).status).toBe("No recipes yet");
-    expect(recipesTile(1).status).toBe("1 recipe");
-    expect(recipesTile(12).status).toBe("12 recipes");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coversText, coversThrough, dayLabel, isPlanServings } from "./plan";
+import { coversText, coversThrough, dayLabel, isPlanServings, planTile } from "./plan";
 
 const dishes = (count: number, servings: 4 | 2 = 4) => Array.from({ length: count }, () => ({ servings }));
 
@@ -39,5 +39,29 @@ describe("how far the week's plan carries us", () => {
 
   it("allows 4 servings or 2, nothing else", () => {
     expect([4, 2, 3, 6].map(isPlanServings)).toEqual([true, true, false, false]);
+  });
+});
+
+// Vin, 2026-09-29: the tile is about the current plan.
+describe("Home's Meal Plans tile", () => {
+  const plan = (servings: (4 | 2)[]) => ({
+    id: "p",
+    starts_on: "2026-09-29",
+    recipes: servings.map((size, index) => ({ recipe_id: `r${index}`, servings: size, cooked: false, carry_over: false, added_at: "" })),
+  });
+
+  it("says the plan's dates and how many recipes are in it", () => {
+    expect(planTile(plan([4, 4, 4, 4]), 2).status).toBe("Sep 29 – Oct 3 · 4 recipes");
+    expect(planTile(plan([4]), 2).status).toBe("Sep 29 – Sep 30 · 1 recipe");
+  });
+
+  it("gives just the start while nothing is covered, and says so with no plan or no recipes", () => {
+    expect(planTile(plan([2]), 4).status).toBe("Sep 29 · 1 recipe");
+    expect(planTile(plan([]), 2).status).toBe("Sep 29 · no recipes yet");
+    expect(planTile(null, 2).status).toBe("No plan yet");
+  });
+
+  it("is calm: no action items", () => {
+    expect(planTile(plan([4]), 2).actionItems).toEqual([]);
   });
 });
