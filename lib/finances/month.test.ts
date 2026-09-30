@@ -102,6 +102,14 @@ describe("the month's status (REQ-53, REQ-59)", () => {
     expect(monthStatus(evenShares, SHARES, TODAY)).toBe("Squared");
   });
 
+  // Vin, 2026-09-29: paying more than due (a personal charge included, the
+  // other couldn't pay, or getting ahead) doesn't hold the month open.
+  it("is still Squared when a bill was paid more than in full and nobody owes", () => {
+    const extra = { ...evenShares, bills: evenShares.bills.map((bill) => (bill.id === rent.id ? { ...bill, payments: [...bill.payments, { id: "p-extra", payer_id: "u-alex", amount: 300, created_at: "2026-09-11" }] } : bill)) };
+    expect(monthTotals(extra, SHARES).bills.some((bill) => bill.left < 0)).toBe(true);
+    expect(isSquared(extra, monthTotals(extra, SHARES))).toBe(true);
+  });
+
   it("isn't Squared while one person paid more than their share and the other less", () => {
     // Bills paid in full, but Alex paid $1,800.01 and Sam $999.99.
     expect(monthStatus(squared, SHARES, TODAY)).toBe("Open");

@@ -215,16 +215,19 @@ export function monthShares(month: Month | null, splits: Split[], startsOn: stri
 
 export type MonthStatus = "Incomplete" | "Open" | "Squared" | "Closed" | "Ended · not squared";
 
-// Squared: a split to divide by, at least one bill, every bill entered and paid in full,
-// and nobody owing or owed anything (REQ-59). The database's
-// month_is_squared() decides the same thing for the nightly close.
+// Squared: a split to divide by, at least one bill, every bill entered and
+// paid in full or more, and nobody owing anything (REQ-59). Paying more
+// than was due doesn't hold a month open (Vin, 2026-09-29): someone
+// covered a personal charge, or the other couldn't pay, or got ahead.
+// The database's month_is_squared() decides the same thing for the
+// nightly close.
 export function isSquared(month: Month, totals: MonthTotals): boolean {
   return (
     totals.people.length > 0 &&
     month.bills.length > 0 &&
     month.bills.every(billEntered) &&
-    totals.bills.every((bill) => bill.left === 0) &&
-    totals.people.every((person) => person.outstanding === 0)
+    totals.bills.every((bill) => bill.left <= 0) &&
+    totals.people.every((person) => person.outstanding <= 0)
   );
 }
 

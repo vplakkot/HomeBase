@@ -20,3 +20,34 @@ grant update (paid_on) on public.payments to authenticated;
 drop trigger payments_fit_the_bill on public.payments;
 drop trigger bill_holds_its_payments on public.month_bills;
 drop function public.check_bill_payments();
+
+-- 3. A month paid more than in full still squares (Vin, 2026-09-29):
+--    every bill covered (paid at least its amount) and nobody owing.
+--    Same function as before, with `<>` and `<> 0` loosened to `>` and
+--    `> 0`, so the nightly close matches isSquared() in the app.
+create or replace function public.month_is_squared(p_month uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select
+    exists (select 1 from public.month_balances(p_month))
+    and exists (select 1 from public.month_bills mb where mb.month_id = p_month)
+    and not exists (
+      select 1 from public.month_bills mb
+      where mb.month_id = p_month
+        and (
+          mb.amount is null
+          or (mb.kind = 'card' and mb.personal_answer is null)
+          or (mb.kind = 'card' and mb.personal_answer = 'some'
+              and not exists (select 1 from public.personal_charges pc where pc.month_bill_id = mb.id))
+          or mb.amount > coalesce((select sum(pay.amount) from public.payments pay
+                                   where pay.month_bill_id = mb.id), 0)
+        )
+    )
+    and not exists (select 1 from public.month_balances(p_month) b where b.outstanding > 0);
+$$;
+
+revoke all on function public.month_is_squared(uuid) from public, anon, authenticated;
