@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Finances, Log payment: a payment has a "Paid on" day (today, or the
+  last day of a month gone by, changeable), and it can be more than
+  what's left on the bill, or toward a bill already paid; the surplus
+  reads as a credit. Existing payments keep the day they were logged.
+  Migration: `payments.paid_on`, and the rule refusing overpayment is
+  dropped. A month paid more than in full can still square and close.
+  Finances home's action-item buttons stay on the right.
 - Meal Plans, from Vin's phone (2026-09-29):
   - The plan says how far it covers in meals for the people in the
     household, starting at dinner on the first day: "Covers through

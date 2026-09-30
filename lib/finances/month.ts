@@ -11,7 +11,8 @@ import type { RecordedSavings } from "./savings";
 
 export type PersonalCharge = { id: string; owner_id: string; amount: number; note: string };
 export type DirectPayment = { id: string; payer_id: string; amount: number; note: string; paid_on: string };
-export type Payment = { id: string; payer_id: string; amount: number; created_at: string };
+// paid_on is the day it was paid; created_at is when it was typed in.
+export type Payment = { id: string; payer_id: string; amount: number; created_at: string; paid_on?: string };
 export type IncomeKind = "paycheck" | "espp" | "rsu" | "bonus" | "other";
 export type MonthIncome = {
   id: string;
@@ -64,7 +65,7 @@ const MONTH_FIELDS = `id, starts_on, closed_at, closed_by, closed_automatically,
   savings:month_savings(user_id, to_joint, own),
   bills:month_bills(id, name, kind, due_day, amount, personal_answer, entered_by,
     personal_charges(id, owner_id, amount, note),
-    payments(id, payer_id, amount, created_at)),
+    payments(id, payer_id, amount, created_at, paid_on)),
   direct_payments(id, payer_id, amount, note, paid_on)`;
 
 // Postgres hands numeric columns back as strings.
@@ -214,16 +215,19 @@ export function monthShares(month: Month | null, splits: Split[], startsOn: stri
 
 export type MonthStatus = "Incomplete" | "Open" | "Squared" | "Closed" | "Ended · not squared";
 
-// Squared: a split to divide by, at least one bill, every bill entered and paid in full,
-// and nobody owing or owed anything (REQ-59). The database's
-// month_is_squared() decides the same thing for the nightly close.
+// Squared: a split to divide by, at least one bill, every bill entered and
+// paid in full or more, and nobody owing anything (REQ-59). Paying more
+// than was due doesn't hold a month open (Vin, 2026-09-29): someone
+// covered a personal charge, or the other couldn't pay, or got ahead.
+// The database's month_is_squared() decides the same thing for the
+// nightly close.
 export function isSquared(month: Month, totals: MonthTotals): boolean {
   return (
     totals.people.length > 0 &&
     month.bills.length > 0 &&
     month.bills.every(billEntered) &&
-    totals.bills.every((bill) => bill.left === 0) &&
-    totals.people.every((person) => person.outstanding === 0)
+    totals.bills.every((bill) => bill.left <= 0) &&
+    totals.people.every((person) => person.outstanding <= 0)
   );
 }
 

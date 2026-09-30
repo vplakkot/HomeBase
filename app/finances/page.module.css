@@ -125,6 +125,12 @@
   padding: var(--space-4) var(--space-6);
 }
 
+/* The button stays on the right even when a narrow screen drops it
+   under the text. */
+.itemRow > :last-child {
+  margin-left: auto;
+}
+
 .itemText {
   display: flex;
   flex: 1 1 16rem;

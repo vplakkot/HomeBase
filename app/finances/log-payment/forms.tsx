@@ -21,15 +21,19 @@ export function PaymentForm({
   bills,
   payment,
   chosen,
+  defaultDay,
 }: {
   people: Person[];
   bills: BillChoice[];
   chosen?: string;
-  payment?: { id: string; payer_id: string; month_bill_id: string; amount: number };
+  // The day pre-filled for a new payment: today, or a past month's last day.
+  defaultDay: string;
+  payment?: { id: string; payer_id: string; month_bill_id: string; amount: number; paid_on?: string };
 }) {
   const [state, formAction, pending] = useActionState(savePayment, initialState);
   const which = payment ? "this payment" : "the payment";
-  const offered = bills.filter((bill) => bill.left > 0 || bill.id === payment?.month_bill_id);
+  // Every bill is offered, paid or not: more can always have been sent.
+  const offered = bills;
   return (
     <form action={formAction} className={styles.form}>
       {payment ? <input type="hidden" name="id" value={payment.id} /> : null}
@@ -62,10 +66,14 @@ export function PaymentForm({
           />
         </span>
       </label>
+      <label className={styles.field}>
+        <span>Paid on</span>
+        <input type="date" name="paidOn" defaultValue={payment?.paid_on ?? defaultDay} required />
+      </label>
       <fieldset className={own.choices}>
         <legend>Toward</legend>
         {offered.length === 0 ? (
-          <p className={styles.empty}>Every bill entered so far is paid in full.</p>
+          <p className={styles.empty}>No bill has an amount entered yet.</p>
         ) : (
           offered.map((bill) => (
             <label key={bill.id} className={own.choice}>

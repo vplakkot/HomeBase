@@ -2,6 +2,7 @@ import Link from "next/link";
 import { householdToday, listPeople, listSplits } from "../../../lib/finances/budget-year";
 import {
   chosenMonth,
+  dayLabel,
   listOpenedMonths,
   monthShares,
   monthTotals,
@@ -78,6 +79,10 @@ export default async function LogPaymentPage({
       name: bill.name,
       left: totals.bills.find((row) => row.id === bill.id)?.left ?? 0,
     }));
+  // Today in the month being looked at; in a month gone by, its last day.
+  const [year, monthNumber] = startsOn.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+  const defaultDay = todayIso.slice(0, 7) === startsOn.slice(0, 7) ? todayIso : lastDay;
   const logged = month.bills.flatMap((bill) =>
     bill.payments.map((payment) => ({ ...payment, month_bill_id: bill.id, bill: bill.name })),
   );
@@ -109,7 +114,7 @@ export default async function LogPaymentPage({
             ) : choices.length === 0 ? (
               <p className={styles.empty}>No bill has an amount entered yet, so there&apos;s nothing to pay toward.</p>
             ) : (
-              <PaymentForm people={people} bills={choices} chosen={chosen} />
+              <PaymentForm people={people} bills={choices} chosen={chosen} defaultDay={defaultDay} />
             )}
           </div>
         </section>
@@ -132,6 +137,7 @@ export default async function LogPaymentPage({
                       <div className={styles.entryHead}>
                         <span className={styles.entryName}>
                           {who} → {payment.bill}
+                          {payment.paid_on ? ` · ${dayLabel(payment.paid_on)}` : ""}
                         </span>
                         <span className={styles.amount}>{formatMoney(payment.amount)}</span>
                       </div>
@@ -139,7 +145,7 @@ export default async function LogPaymentPage({
                         <>
                       <details className={styles.change}>
                         <summary>Edit</summary>
-                        <PaymentForm people={people} bills={choices} payment={payment} />
+                        <PaymentForm people={people} bills={choices} payment={payment} defaultDay={defaultDay} />
                       </details>
                       <form action={deletePayment}>
                         <input type="hidden" name="id" value={payment.id} />
