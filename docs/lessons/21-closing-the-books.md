@@ -115,6 +115,12 @@ takes the rounding cent), naming each other in their comments, and
 testing both: the unit tests for the TypeScript, the live check for
 the SQL (check 4 is exactly the rounding cent).
 
+Both copies were loosened together on 2026-09-29, when paying *more*
+than a bill no longer holds a month open: `left <= 0` and
+`outstanding <= 0` in TypeScript, `amount > paid` and `outstanding > 0`
+in SQL, with checks 16b and 16c proving the two sides (overpaid and
+settled, overpaid but someone still owes).
+
 ## Try it
 
 1. In `closing_a_month.sql`, change check 17's percentages to 90/10

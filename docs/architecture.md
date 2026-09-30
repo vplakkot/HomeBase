@@ -756,7 +756,7 @@ nothing in it changes.
 
 ```mermaid
 flowchart LR
-  Open -->|every bill paid, nobody owes| Squared
+  Open -->|every bill paid in full or more, nobody owes| Squared
   Squared -->|pg_cron, just after midnight New York| Closed
   Open -->|month over, not squared| Ended["Ended · not squared"]
   Ended -->|admin: Close month action item| Closed

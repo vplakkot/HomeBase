@@ -176,6 +176,16 @@ begin
   reset role;
   report := report || format('16. every bill paid, both at zero: squared? %s (wants true)%s', public.month_is_squared(v_feb), E'\n');
 
+  -- Vin, 2026-09-29: paying more than in full still squares, unless someone
+  -- still owes. February's payments are put back afterwards.
+  insert into public.payments (month_bill_id, payer_id, amount) values (rent_row, low_id, 100);
+  report := report || format('16b. rent overpaid by one person, the other at zero: squared? %s (wants true)%s', public.month_is_squared(v_feb), E'\n');
+  delete from public.payments where month_bill_id = rent_row and payer_id = high_id and amount = 500.01;
+  insert into public.payments (month_bill_id, payer_id, amount) values (rent_row, low_id, 600);
+  report := report || format('16c. rent overpaid in total, but the other person still owes: squared? %s (wants false)%s', public.month_is_squared(v_feb), E'\n');
+  delete from public.payments where month_bill_id = rent_row and amount in (100, 600);
+  insert into public.payments (month_bill_id, payer_id, amount) values (rent_row, high_id, 500.01);
+
   -- REQ-52: a later change to the percentages doesn't reach a closed month.
   update public.split_shares set percent = case when user_id = admin_id then 70 else 30 end where split_id = v_split;
   select string_agg(format('%s', b.outstanding), ', ' order by b.user_id) into v_text from public.month_balances(v_jan) b;
