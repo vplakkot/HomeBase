@@ -8,6 +8,7 @@ import { cookTimeText, readCuisines, readRecipes } from "../../../lib/meal-plans
 import { MealPlansScreen, mealPlansViewer } from "../frame";
 import { LibraryFilters, LibrarySearch } from "../library-controls";
 import styles from "../meal-plans.module.css";
+import band from "../../../components/band.module.css";
 
 // REQ-114: every recipe as a photo card, to search, filter and sort.
 // Hidden recipes have a list of their own, where they can come back.
@@ -46,7 +47,7 @@ export default async function RecipesPage({ searchParams }: { searchParams: Prom
                 <li key={recipe.id}>
                   <Link href={`/meal-plans/${recipe.id}`} className={`${styles.linkCard} ${thumb ? styles.withThumb : ""}`}>
                     {thumb ? <img src={thumb} alt="" className={styles.thumb} /> : null}
-                    <span className={styles.cardTitle}>{recipe.name}</span>
+                    <span className={`${styles.cardTitle} ${band.band}`}>{recipe.name}</span>
                     <span className={styles.cardDetail}>
                       {[recipe.cuisine, recipe.main_meat, recipe.cooking_method, cookTimeText(recipe.cook_minutes)].filter(Boolean).join(" · ")}
                     </span>

@@ -343,6 +343,15 @@ describe("Finances action items (REQ-93)", () => {
     expect(due.every((item, i) => i === 0 || item.rank >= due[i - 1].rank)).toBe(true);
   });
 
+  // Vin, 2026-09-29: the tile named only the top item of several.
+  it("names the item on Finances' tile when there is one, and says 'Multiple action items' for several", () => {
+    const one = { text: "Rent overdue" } as FinanceItem;
+    const two = { text: "April isn't finished" } as FinanceItem;
+    expect(financeTile(snapshot({}), [one]).status).toBe("Rent overdue");
+    expect(financeTile(snapshot({}), [one, two]).status).toBe("Multiple action items");
+    expect(financeTile(snapshot({}), [one, two]).headline).toBe("Multiple action items");
+  });
+
   it("gives nothing before Finances is set up", () => {
     expect(financeItems(snapshot({ splits: [] }), ALEX)).toEqual([]);
     expect(financeTile(snapshot({ splits: [] }), []).status).toBe("Not set up");

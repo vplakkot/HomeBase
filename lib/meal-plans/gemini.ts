@@ -143,8 +143,10 @@ export const CARD_RULES = `Write one recipe card.
 - If there is no recipe to read, answer {"found": false, "ingredients": [], "steps": [], "guessed": []}. Never invent a recipe in its place.`;
 
 export function videoPrompt(name: string): string {
+  const which = name ? ` for "${name}"` : "";
+  const naming = name ? "" : " For name, give the dish's own name as the video calls it or shows it.";
   return `${CARD_RULES}
-Read the recipe for "${name}" from this cooking video only: what is shown, said aloud, and written on screen. Don't add anything the video doesn't show or say.`;
+Read the recipe${which} from this cooking video only: what is shown, said aloud, and written on screen. Don't add anything the video doesn't show or say.${naming}`;
 }
 
 export function textPrompt(name: string, recipe: string): string {

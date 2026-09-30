@@ -61,7 +61,7 @@ There is **no navigation bar on Home**. The tiles are the navigation.
 ### Desktop (1024 px and up)
 - Sidebar (248 px): brand lockup, Home, Modules list (colour dot + name), then at the bottom the Admin console link (admins only) and the user menu.
 - Main area: greeting and date on the left, **Quick add** buttons top-right.
-- Action items: all shown side by side (max 3), no swiping or counter.
+- Action items: all shown side by side (wrapping to more rows), no swiping or counter.
 - Module tiles: 3-column grid. Each desktop tile shows a headline plus two supporting facts.
 
 ### Module tile rules
@@ -73,11 +73,11 @@ There is **no navigation bar on Home**. The tiles are the navigation.
 
 Replaces the old "Needs you" label. Label: **ACTION ITEMS**.
 
-- Maximum **3** cards at a time, ordered by urgency, **one card per module** (Vin, 2026-09-29). A module with several items gets one card reading "Multiple action items", with its top item in the detail line ("…, and 2 more"); it opens the module's home, where they are all listed. So a module with many items can't crowd the others out.
+- **Every** action item, ordered by urgency; no maximum (Vin, 2026-09-29: a module with many items must not hide another's). On a module's **tile**, a module with more than one says "Multiple action items" instead of naming the top one.
 - Each item shows: the module's icon on its loud colour, one line of text, one line of detail, and a chevron. **No module name** — the icon identifies it.
-- Tapping a single item deep-links to the exact screen (e.g. the bill); a "Multiple action items" card opens the module home.
+- Tapping an item deep-links to the exact screen (e.g. the bill), not the module home.
 - **Phone:** one dark card (`--color-panel`). If there is more than one item, the card is a horizontal swipe stack: stacked edges show behind it, a "1 / 3" counter sits right of the label, and dots sit below the card. One item: no counter, no stacked edges.
-- **Desktop:** up to 3 dark cards side by side.
+- **Desktop:** the dark cards side by side, wrapping.
 - **None:** replace the card with a green "All clear" row ("No action items today").
 - Never auto-rotate.
 - This section is Home's action items. Inside a module, action items use the module-home card instead (§6, Module home layout).
@@ -107,7 +107,8 @@ Every module home follows the same rules. Mockups: `finances-desktop.html`, `pap
 
 **Colour**
 - The module's loud colour is used only for: card borders, buttons, progress bars, the active tab, the context in the title (e.g. the month), and urgent text such as "Overdue".
-- **Name bands** (REQ-151, Vin, 2026-09-28): on pages you read, the name of each thing listed (an action item's title, a person, a bill, a file, a document, a storage entry) sits on a band of the module's **quiet** tint (`--module-quiet`, the colour of its Home tile with nothing to do), text in `--module-quiet-title`. Every band is the same length, 18rem or the full width on a phone, whatever its text, and reaches left by its padding so its words line up with the text below. Section and card headings, photo tiles (Meal Plans recipes, Restaurants places) and forms stay plain; a card with only a small thumbnail (a drink) is banded, its band kept clear of the thumbnail. One shared style: `components/band.module.css`.
+- **Number cards** (Vin, 2026-09-29; Meal Plans' Our kitchen): like every other card — white, 1.5px border in the module's loud colour — with the label in the module's hue (`--module-quiet-ink`). Not solid module colour.
+- **Name bands** (REQ-151, Vin, 2026-09-28): on pages you read, the name of each thing listed (an action item's title, a person, a bill, a file, a document, a storage entry) sits on a band of the module's **quiet** tint (`--module-quiet`, the colour of its Home tile with nothing to do), text in `--module-quiet-title`. Every band is the same length, 18rem or the full width on a phone, whatever its text, and reaches left by its padding so its words line up with the text below. Section and card headings, photo tiles (Restaurants places, and the photos on Meal Plans' home) and forms stay plain; Meal Plans' recipe library names are banded (Vin, 2026-09-29); a card with only a small thumbnail (a drink) is banded, its band kept clear of the thumbnail. One shared style: `components/band.module.css`.
 - Main text charcoal, secondary text grey. Charcoal is never a card fill.
 - Status is **plain text** (Paid, Overdue), never a pill or chip. A past month's status is a small superscript after the title: "Closed", or "Open" if it was never closed. The current month shows none while it is open, and "Closed" once it closes early, paid up (Vin, 2026-09-25).
 

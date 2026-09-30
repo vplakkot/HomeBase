@@ -115,3 +115,9 @@
   font-weight: 700;
   text-decoration: none;
 }
+
+/* Meal Plans: a recipe being read, or ready to save, takes this bar's
+   place on a phone (components/recipe-toast.tsx). */
+:global(body):has(:global([data-recipe-toast])) .pinnedRow[data-action="Add recipe"] {
+  display: none;
+}

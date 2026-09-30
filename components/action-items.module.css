@@ -177,13 +177,14 @@
   }
 
   .cards {
+    flex-wrap: wrap;
     gap: var(--space-4);
     overflow-x: visible;
     scroll-snap-type: none;
   }
 
   .item {
-    flex: 1 1 0;
+    flex: 1 1 18rem;
   }
 
   .card {

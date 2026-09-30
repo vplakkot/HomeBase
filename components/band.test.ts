@@ -28,6 +28,7 @@ describe("the band (REQ-151)", () => {
     "app/finances/payments/page.tsx",
     "app/finances/history/page.tsx",
     "app/meal-plans/page.tsx",
+    "app/meal-plans/recipes/page.tsx",
     "app/paperwork/page.tsx",
     "app/paperwork/categories/page.tsx",
     "app/paperwork/file-cards.tsx",
@@ -44,11 +45,11 @@ describe("the band (REQ-151)", () => {
     expect(source(path)).toMatch(/\bband\.band\b/);
   });
 
-  // Photo tiles and forms stay plain (Vin, 2026-09-28). Drinks' cards
+  // Photo tiles and forms stay plain (Vin, 2026-09-28), except Meal Plans'
+  // recipe library, whose names Vin asked to have banded (2026-09-29). Drinks' cards
   // carry only a small thumbnail, so their names are banded (Vin, the
   // same day, after seeing Drinks left out).
   it.each([
-    "app/meal-plans/recipes/page.tsx",
     "app/restaurants/list.tsx",
     "app/finances/monthly-entry/page.tsx",
     "app/finances/budget-year/page.tsx",

@@ -1,8 +1,8 @@
 "use client";
 
 // REQ-110: a recipe from a video gets a still from it as its photo. The
-// browser plays the video silently to a point about a third of the way
-// in and copies that frame, or a later one if it comes out black. iPhones
+// browser plays the video silently to a point near its end and copies that
+// frame, or an earlier one if it comes out black. iPhones
 // play their own HEVC videos, so no conversion is needed. If no frame can
 // be had, the recipe simply has no photo yet, and either of us can add one.
 
@@ -45,9 +45,11 @@ export async function stillFromVideo(file: Blob, timeoutMs = 10_000): Promise<Bl
     canvas.height = video.videoHeight;
     if (!canvas.width || !canvas.height) return null;
     const context = canvas.getContext("2d", { willReadFrequently: true })!;
-    // A third of the way in, then later if that frame comes out black (a
-    // frame not drawn yet, or a dark shot).
-    for (const at of [0.33, 0.5, 0.7]) {
+    // Near the end first, where a cooking video usually shows the plated
+    // dish (a third of the way in was mostly prep: a blender, a hand).
+    // Then earlier frames if that one comes out black (a frame not drawn
+    // yet, or a dark shot).
+    for (const at of [0.92, 0.8, 0.5, 0.33]) {
       const seeked = event("seeked");
       video.currentTime = Math.max(0, Math.min(video.duration * at, video.duration - 0.1));
       await seeked;

@@ -5,8 +5,8 @@ import { processVideoImport, waitUntilReady } from "./import-job";
 const ID = "22222222-2222-4222-8222-222222222222";
 const wait = vi.fn(async () => {});
 
-function admin(status = "processing", gemini_file = "files/abc") {
-  return fakeSupabase({ tables: { recipe_imports: [{ id: ID, name: "Test pasta", gemini_file, status }] } });
+function admin(status = "processing", gemini_file = "files/abc", name = "Test pasta") {
+  return fakeSupabase({ tables: { recipe_imports: [{ id: ID, name, gemini_file, status }] } });
 }
 
 const updates = (fake: ReturnType<typeof fakeSupabase>) =>
@@ -26,6 +26,15 @@ describe("reading an uploaded video after the phone moves on (REQ-112)", () => {
     expect(read).toHaveBeenCalledWith("Test pasta", { uri: "u", mimeType: "video/mp4" });
     expect(updates(fake)).toEqual([expect.objectContaining({ status: "ready", draft: DRAFT, gemini_file: null })]);
     expect(discard).toHaveBeenCalledWith("files/abc");
+  });
+
+  it("names an unnamed video's import from what Gemini read, and doesn't tell Gemini the placeholder", async () => {
+    const fake = admin("processing", "files/abc", "Recipe from a video");
+    const check = vi.fn().mockResolvedValue({ state: "ACTIVE", uri: "u", mimeType: "video/mp4" });
+    const read = vi.fn(async () => ({ draft: { ...DRAFT, name: "Test tikka" } }));
+    await processVideoImport(fake as never, ID, { wait, check, read, discard: vi.fn(async () => {}) });
+    expect(read).toHaveBeenCalledWith("", { uri: "u", mimeType: "video/mp4" });
+    expect(updates(fake)).toEqual([expect.objectContaining({ status: "ready", name: "Test tikka" })]);
   });
 
   it("fails plainly when Gemini finds no recipe, keeps no draft, and still deletes the video", async () => {
