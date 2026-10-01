@@ -23,4 +23,4 @@ export const UNNAMED_IMAGES = "Recipe from images";
 // hundred kilobytes, and all of them well under Vercel's limit of about
 // 4.5 MB a request (the recipe goes through our server, unlike a video).
 export const MAX_IMAGES = 3;
-export const MAX_IMAGES_BYTES = 3.5 * 1024 * 1024;
+export const MAX_IMAGES_BYTES = 2.5 * 1024 * 1024;
