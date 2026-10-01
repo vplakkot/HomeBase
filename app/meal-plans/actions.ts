@@ -326,11 +326,15 @@ export async function uploadFailed(id: string): Promise<void> {
 
 // What the toast watches: the signed-in person's imports still going or
 // not yet seen. One stuck too long becomes a failure here.
-export async function myRecipeImports(): Promise<RecipeImport[]> {
+// Null when it couldn't be asked (not signed in, or the read failed): not
+// the same as having no imports, which would let the phone drop videos it
+// still needs for their photos (REQ-156).
+export async function myRecipeImports(): Promise<RecipeImport[] | null> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
-  if (!data?.claims) return [];
-  const imports = await readImports(supabase).catch(() => []);
+  if (!data?.claims) return null;
+  const imports = await readImports(supabase).catch(() => null);
+  if (!imports) return null;
   const now = Date.now();
   for (const item of imports) {
     // Age in its current step: processing counts from when the upload

@@ -112,6 +112,14 @@ describe("adding a recipe from text in any form (REQ-111)", () => {
   });
 });
 
+describe("asking after the imports (REQ-156)", () => {
+  it("answers null, not an empty list, when it can't be asked, so nothing is taken for removed", async () => {
+    given();
+    fake.auth.getClaims.mockResolvedValue({ data: null, error: null });
+    expect(await myRecipeImports()).toBeNull();
+  });
+});
+
 describe("adding a recipe from images (REQ-157)", () => {
   const pictures = (count: number) => {
     const data = new FormData();
@@ -226,7 +234,7 @@ describe("adding a recipe from a video (REQ-112, BETA)", () => {
   it("gives up on an import left processing too long, so the toast can say so", async () => {
     const old = new Date(Date.now() - 11 * 60_000).toISOString();
     given({ recipe_imports: [{ id: IMPORT, name: "Test", status: "processing", seen: false, created_at: old, updated_at: old }] });
-    const [item] = await myRecipeImports();
+    const [item] = (await myRecipeImports())!;
     expect(item).toMatchObject({ status: "failed", error: "It stopped before finishing." });
     const update = on("recipe_imports").find((query) => query.update.mock.calls.length > 0)!;
     expect(update.eq).toHaveBeenCalledWith("status", "processing");
@@ -236,7 +244,7 @@ describe("adding a recipe from a video (REQ-112, BETA)", () => {
     const started = new Date(Date.now() - 30 * 60_000).toISOString();
     const finished = new Date(Date.now() - 60_000).toISOString();
     given({ recipe_imports: [{ id: IMPORT, name: "Test", status: "processing", seen: false, created_at: started, updated_at: finished }] });
-    const [item] = await myRecipeImports();
+    const [item] = (await myRecipeImports())!;
     expect(item.status).toBe("processing");
     expect(on("recipe_imports").some((query) => query.update.mock.calls.length > 0)).toBe(false);
   });
