@@ -221,6 +221,15 @@ describe("the photo moment Gemini names while watching a video (REQ-156)", () =>
     expect(body.contents[0].parts[1].text).toContain("never a moment with any person in view");
   });
 
+  it("makes the photo answer required, as Gemini may skip an optional field", async () => {
+    fetchMock.mockResolvedValue(answer({ photo_at: 5 }));
+    await recipeFromVideo("", file);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).generationConfig.responseSchema.required).toContain("photo_at");
+    fetchMock.mockResolvedValue(answer({ photo_image: 1 }));
+    await recipeFromImages([{ mime: "image/jpeg", data: "AAAA" }]);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).generationConfig.responseSchema.required).toContain("photo_image");
+  });
+
   it("returns that second with the recipe, or none for -1, a missing or a nonsense answer", async () => {
     fetchMock.mockResolvedValue(answer({ photo_at: 48.5 }));
     expect(await recipeFromVideo("", file)).toEqual({ draft: expect.objectContaining({ name: "Test dal" }), photoAt: 48.5 });
