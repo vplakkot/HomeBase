@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Meal Plans, Add recipe: a new "From images" source. Choose up to 4
+- Meal Plans, Add recipe: a new "From images" source. Choose up to 3
   pictures (a picture-only post, screenshots of a recipe); Gemini reads
   them together as one recipe, names it from what they say, and a note
   says when the draft is ready, as for a video. If it can't read a

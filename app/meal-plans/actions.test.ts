@@ -130,10 +130,10 @@ describe("adding a recipe from images (REQ-157)", () => {
     expect(openVideoUpload).not.toHaveBeenCalled();
   });
 
-  it("needs at least one image, and no more than four", async () => {
+  it("needs at least one image, and no more than three", async () => {
     given();
     expect(await startImagesImport(pictures(0))).toEqual({ error: "Choose at least one image." });
-    expect(await startImagesImport(pictures(5))).toEqual({ error: "Up to 4 images make one recipe." });
+    expect(await startImagesImport(pictures(4))).toEqual({ error: "Up to 3 images make one recipe." });
     expect(fake.from).not.toHaveBeenCalledWith("recipe_imports");
   });
 
@@ -146,7 +146,7 @@ describe("adding a recipe from images (REQ-157)", () => {
     noThumb.append("image", jpeg(), "image.jpg");
     expect(await startImagesImport(noThumb)).toEqual({ error: "An image didn't arrive. Try again." });
     const big = new FormData();
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       big.append("image", new Blob([new Uint8Array(900 * 1024)], { type: "image/jpeg" }), "image.jpg");
       big.append("thumb", jpeg(), "thumb.jpg");
     }
