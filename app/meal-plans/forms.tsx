@@ -21,6 +21,7 @@ import {
   findRecipePages,
   saveRecipeMissing,
   type PageSearch,
+  dismissImport,
   saveDraft,
   setDraftPhoto,
   setRecipePhoto,
@@ -656,7 +657,15 @@ export function RecipeForm({
         <button type="submit" className={buttonClass} disabled={pending}>
           {pending ? "Saving…" : importId ? "Save recipe" : recipe ? "Save changes" : "Save recipe"}
         </button>
-        <Link href={recipe ? `/meal-plans/${recipe.id}` : "/meal-plans"}>Cancel</Link>
+        {importId ? (
+          // REQ-155: a draft's Cancel throws the draft away, so Save and
+          // Cancel are the only actions at its end.
+          <button type="submit" formAction={dismissImport} formNoValidate name="id" value={importId} className={styles.linkButton}>
+            Cancel
+          </button>
+        ) : (
+          <Link href={recipe ? `/meal-plans/${recipe.id}` : "/meal-plans"}>Cancel</Link>
+        )}
       </div>
     </form>
   );

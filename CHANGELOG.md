@@ -13,6 +13,9 @@
   - The Add recipe button shows only on the module home and the Recipes
     list, no longer under a draft's Save or on the plan, a card or the
     Add recipe screen.
+  - A draft's Cancel removes the draft, so Save and Cancel are the only
+    actions at its end (a draft still being read keeps "Remove this
+    draft").
 - Meal Plans, a video's photo (REQ-156): instead of one random still,
   the phone takes 12 frames spread through the video and
   Gemini picks up to 3 that show the finished dish with no one in

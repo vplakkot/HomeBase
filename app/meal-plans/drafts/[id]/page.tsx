@@ -67,12 +67,14 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
             frames={fromVideo && draft.status === "ready" && !draft.photo ? frames : undefined}
           />
         ) : null}
-        <form action={dismissImport}>
-          <input type="hidden" name="id" value={draft.id} />
-          <button type="submit" className={styles.linkButton}>
-            Remove this draft
-          </button>
-        </form>
+        {draft.status === "uploading" || draft.status === "processing" ? (
+          <form action={dismissImport}>
+            <input type="hidden" name="id" value={draft.id} />
+            <button type="submit" className={styles.linkButton}>
+              Remove this draft
+            </button>
+          </form>
+        ) : null}
       </section>
     </MealPlansScreen>
   );

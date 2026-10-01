@@ -179,12 +179,15 @@ describe("reviewing a draft before it's saved (REQ-111, REQ-112)", () => {
     render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
     expect(screen.getByRole("alert").textContent).toContain("Gemini couldn't read a recipe from this video. Gemini found no recipe in it.");
     expect((screen.getByRole("textbox", { name: /Steps/ }) as HTMLTextAreaElement).value).toBe("");
-    expect(screen.getByRole("button", { name: "Remove this draft" })).toBeTruthy();
+    // REQ-155: Cancel is the way out of a draft; no second "remove" beside it.
+    expect(screen.getByRole("button", { name: "Cancel" }).getAttribute("value")).toBe(ID);
+    expect(screen.queryByRole("button", { name: "Remove this draft" })).toBeNull();
   });
 
   it("shows a video still being read, with no form yet", async () => {
     given({ recipe_imports: [draftRow({ status: "processing", draft: null })], cuisines: [] });
     render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
+    expect(screen.getByRole("button", { name: "Remove this draft" })).toBeTruthy();
     expect(screen.getByText("Gemini is reading the video.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Save recipe" })).toBeNull();
   });
