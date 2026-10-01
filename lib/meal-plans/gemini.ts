@@ -235,14 +235,15 @@ export async function recipeFromVideo(name: string, file: { uri: string; mimeTyp
 
 // REQ-157: a recipe from pictures (a carousel, screenshots). The pictures
 // are numbered so Gemini can name the one that could be the card's photo:
-// the finished dish with no part of a person in it, or none (0).
+// the one showing the finished dish, or none (0). A person in it doesn't
+// matter here (Vin, 2026-10-01); that rule is for video frames (REQ-156).
 export const IMAGES_SCHEMA = {
   ...RECIPE_SCHEMA,
   properties: {
     ...RECIPE_SCHEMA.properties,
     photo_image: {
       type: "integer",
-      description: "The number of one image showing the finished dish with no person or any part of one (face, hands, body) in it; 0 if none does. Never a screenshot of text.",
+      description: "The number of the one image that shows the finished dish as a photo; 0 if none does. Never a screenshot of text.",
     },
   },
 };

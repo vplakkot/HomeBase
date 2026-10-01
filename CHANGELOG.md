@@ -2,12 +2,12 @@
 
 ## Unreleased
 
-- Meal Plans, Add recipe: a new "From images" source. Choose up to 8
+- Meal Plans, Add recipe: a new "From images" source. Choose up to 4
   pictures (a picture-only post, screenshots of a recipe); Gemini reads
   them together as one recipe, names it from what they say, and a note
   says when the draft is ready, as for a video. If it can't read a
-  recipe it says so and never invents one. A picture of the finished
-  dish with no person in it becomes the card's photo; otherwise the card
+  recipe it says so and never invents one. The picture showing the
+  finished dish becomes the card's photo; otherwise the card
   has none. The pictures are not kept. (REQ-157)
 - Home's action items show three, with a down arrow in the corner that
   opens the rest in cards the same size (no more mixed sizes).

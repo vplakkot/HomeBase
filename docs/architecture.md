@@ -1181,12 +1181,12 @@ Why the rule lives in an index and why the counts aren't stored:
 Pictures are small enough to pass through our server, so there is no
 upload link: the phone shrinks each one (the drink-label shrinker, a few
 hundred kilobytes) and sends them all, with a small copy of each, in one
-request to `startImagesImport`. Together they can't pass 4 MB (Vercel's
+request to `startImagesImport`. Together they can't pass 3.5 MB (Vercel's
 limit is about 4.5 MB; `bodySizeLimit` in `next.config.ts` is 4mb), and
-8 is the most. The row goes straight to `processing`, and `after()`
+4 is the most. The row goes straight to `processing`, and `after()`
 hands the pictures to Gemini inline (no file stored at Google), which
-reads them as one recipe and names the one that shows the finished dish
-with no person in it, or none. That one and its small copy become the
+reads them as one recipe and names the one that shows the finished dish,
+or none. That one and its small copy become the
 draft's photo; the pictures themselves are never stored. The same toast
 reports back. No new table or column.
 
