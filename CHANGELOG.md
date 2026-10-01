@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Meal Plans: Gemini is now required to answer which moment of a video
+  (or which image) is the card's photo; before, it could skip the
+  question, so the first two videos came back with no photo.
 - Meal Plans, phone layout tidied (REQ-155):
   - "On the menu" on the module home is plain rows: a recipe name and
     the meal it's for ("Dinner, Sun, Sep 27"), no photos or colour

@@ -145,8 +145,11 @@ export const CARD_RULES = `Write one recipe card.
 // REQ-156: Gemini watches the video, so it also says when the finished dish
 // is on screen, as the card's photo. It can only say when (text); the phone
 // cuts the picture out of the video, as only it has the file.
+// photo_at is required: Gemini may leave out an optional field instead of
+// answering it (the first videos came back with none, 2026-10-01).
 export const VIDEO_SCHEMA = {
   ...RECIPE_SCHEMA,
+  required: [...RECIPE_SCHEMA.required, "photo_at"],
   properties: {
     ...RECIPE_SCHEMA.properties,
     photo_at: {
@@ -262,6 +265,7 @@ export async function recipeFromVideo(name: string, file: { uri: string; mimeTyp
 // matter here (Vin, 2026-10-01); that rule is for video frames (REQ-156).
 export const IMAGES_SCHEMA = {
   ...RECIPE_SCHEMA,
+  required: [...RECIPE_SCHEMA.required, "photo_image"],
   properties: {
     ...RECIPE_SCHEMA.properties,
     photo_image: {
