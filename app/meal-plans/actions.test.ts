@@ -555,6 +555,16 @@ describe("saving a video draft with the photo chosen at review (REQ-156)", () =>
     expect(fake.storage.bucket.remove).toHaveBeenCalled();
   });
 
+  it("deletes the copy it made when the card then can't be saved", async () => {
+    given({ recipe_imports: [draftRow] });
+    const insert = vi.fn(() => Promise.resolve({ error: { message: "boom" } }));
+    fake.from.mockImplementationOnce(() => ({ select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), maybeSingle: async () => ({ data: draftRow, error: null }) }) as never);
+    fake.from.mockImplementationOnce(() => ({ upsert: vi.fn(() => Promise.resolve({ error: null })) }) as never);
+    fake.from.mockImplementationOnce(() => ({ insert }) as never);
+    expect(await saveDraft({}, form({ ...fields, import_id: IMPORT, frame: "1" }))).toEqual({ error: "The recipe couldn't be saved. Try again." });
+    expect(fake.storage.bucket.remove).toHaveBeenCalledWith([fake.storage.bucket.copy.mock.calls[0][1], fake.storage.bucket.copy.mock.calls[1][1]]);
+  });
+
   it("saves the card with no photo when 'No photo' is chosen, nothing random in its place", async () => {
     given({ recipe_imports: [draftRow] });
     await expect(saveDraft({}, form({ ...fields, import_id: IMPORT, frame: "" }))).rejects.toThrow(/^REDIRECT:/);

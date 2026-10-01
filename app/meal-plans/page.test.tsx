@@ -317,7 +317,7 @@ describe("choosing the photo in a video's draft (REQ-156)", () => {
   it("says plainly when it named a moment but the phone wasn't there to cut it", async () => {
     given({ recipe_imports: [{ ...video, photo_at: 48 }], cuisines: [] });
     render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
-    expect(screen.getByRole("group", { name: "Photo" }).textContent).toContain("wasn't open on the phone that sent it");
+    expect(screen.getByRole("group", { name: "Photo" }).textContent).toContain("couldn't be taken from the video");
   });
 
   it("is only for video drafts: a draft read from images (BETA-free) offers no frames", async () => {

@@ -422,6 +422,8 @@ export async function saveDraft(_prev: FormState, formData: FormData): Promise<F
     if (error) throw new Error(error.message);
   } catch (error) {
     Sentry.captureException(error);
+    // The copy made for this save isn't needed if it didn't happen.
+    if (photo !== (draft.photo ?? null)) await removePhoto(supabase, photo);
     return { error: "The recipe couldn't be saved. Try again." };
   }
   await supabase.from("recipe_imports").delete().eq("id", importId);

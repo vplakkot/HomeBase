@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cutDraftPhotos } from "./draft-photo";
-import { hasVideo, keepVideo } from "./kept-video";
+import { hasVideo, keepVideo, takeVideo } from "./kept-video";
 
 vi.mock("../../app/meal-plans/actions", () => ({ setDraftFrame: vi.fn() }));
 
@@ -8,6 +8,7 @@ const video = new Blob(["v"]);
 const frame = new Blob(["f"], { type: "image/jpeg" });
 
 beforeEach(() => {
+  for (const id of ["a", "b", "c", "d"]) takeVideo(id);
   for (const id of ["a", "b", "c", "d"]) keepVideo(id, video);
 });
 
@@ -47,6 +48,12 @@ describe("cutting the photo Gemini chose out of the video this phone kept (REQ-1
       send,
     });
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("lets go of a video whose draft was removed meanwhile, so it doesn't sit in memory", async () => {
+    await cutDraftPhotos([{ id: "a", status: "processing", photo_at: null }], { cut: vi.fn() });
+    expect(hasVideo("a")).toBe(true);
+    expect(hasVideo("b") || hasVideo("c") || hasVideo("d")).toBe(false);
   });
 
   it("does nothing for an import this tab never had the video of", async () => {

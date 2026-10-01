@@ -21,6 +21,10 @@ export function hasVideo(importId: string): boolean {
   return kept.has(importId);
 }
 
+export function keptIds(): string[] {
+  return [...kept.keys()];
+}
+
 export function dropVideo(importId: string): void {
   kept.delete(importId);
 }
