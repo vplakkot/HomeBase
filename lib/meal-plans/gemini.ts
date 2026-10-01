@@ -1,5 +1,4 @@
 import { pagesFrom, searchPrompt, suggestionsFrom, type SearchResult } from "./recipe-search";
-import { MAX_KEPT_FRAMES } from "./video-types";
 import { COOKING_METHODS, MAIN_MEATS, draftFrom, type RecipeDraft } from "./recipes";
 
 // Reading recipes with Google's Gemini (REQ-111, REQ-112). Plain web
@@ -143,11 +142,26 @@ export const CARD_RULES = `Write one recipe card.
 - Steps are short imperative sentences, in order, without numbers.
 - If there is no recipe to read, answer {"found": false, "ingredients": [], "steps": [], "guessed": []}. Never invent a recipe in its place.`;
 
+// REQ-156: Gemini watches the video, so it also says when the finished dish
+// is on screen, as the card's photo. It can only say when (text); the phone
+// cuts the picture out of the video, as only it has the file.
+export const VIDEO_SCHEMA = {
+  ...RECIPE_SCHEMA,
+  properties: {
+    ...RECIPE_SCHEMA.properties,
+    photo_at: {
+      type: "number",
+      description: "The second of the video where the finished, plated dish is shown clearly, with no person or any part of one (face, hands, body) in view; -1 if no moment qualifies.",
+    },
+  },
+};
+
 export function videoPrompt(name: string): string {
   const which = name ? ` for "${name}"` : "";
   const naming = name ? "" : " For name, give the dish's own name as the video calls it or shows it.";
   return `${CARD_RULES}
-Read the recipe${which} from this cooking video only: what is shown, said aloud, and written on screen. Don't add anything the video doesn't show or say.${naming}`;
+Read the recipe${which} from this cooking video only: what is shown, said aloud, and written on screen. Don't add anything the video doesn't show or say.${naming}
+Also give photo_at, as a photo for the recipe card: never a moment with any person in view, a dish still being made, loose ingredients, or text on screen.`;
 }
 
 export function textPrompt(name: string, recipe: string): string {
@@ -230,8 +244,16 @@ function answerFrom(reply: unknown): unknown {
   }
 }
 
-export async function recipeFromVideo(name: string, file: { uri: string; mimeType: string }): Promise<Reading> {
-  return read([{ file_data: { mime_type: file.mimeType, file_uri: file.uri } }, { text: videoPrompt(name) }], 240_000);
+export type VideoReading = { draft: RecipeDraft; photoAt: number | null } | { error: string };
+
+export async function recipeFromVideo(name: string, file: { uri: string; mimeType: string }): Promise<VideoReading> {
+  const response = await generate([{ file_data: { mime_type: file.mimeType, file_uri: file.uri } }, { text: videoPrompt(name) }], 240_000, VIDEO_SCHEMA);
+  if (!(response instanceof Response)) return response;
+  const reply = await response.json();
+  const reading = readingFrom(reply);
+  if ("error" in reading) return reading;
+  const at = (answerFrom(reply) as { photo_at?: unknown })?.photo_at;
+  return { draft: reading.draft, photoAt: typeof at === "number" && Number.isFinite(at) && at >= 0 ? at : null };
 }
 
 // REQ-157: a recipe from pictures (a carousel, screenshots). The pictures
@@ -273,37 +295,6 @@ export async function recipeFromImages(images: ImageFile[]): Promise<ImagesReadi
   const picked = (answerFrom(reply) as { photo_image?: unknown })?.photo_image;
   const photo = Number.isInteger(picked) && (picked as number) >= 1 && (picked as number) <= images.length ? (picked as number) - 1 : null;
   return { draft: reading.draft, photo };
-}
-
-// REQ-156: which frames of a cooking video could be the card's photo. The
-// phone takes 12, evenly through the video, in order; Gemini names up to
-// three that show the finished dish with no part of a person in it, best
-// first. None is a fine answer.
-export const FRAMES_SCHEMA = {
-  type: "object",
-  properties: {
-    frames: { type: "array", items: { type: "integer" }, description: "Frame numbers, best first. Empty if no frame qualifies." },
-  },
-  required: ["frames"],
-};
-
-export function framesPrompt(count: number): string {
-  return `These ${count} frames come from one cooking video, in order, spread evenly through it. The finished dish can be anywhere in it.
-Pick up to 3 frames that show the finished, plated dish clearly as the main subject, as a photo for its recipe card. Never pick a frame with any part of a person in it (face, hands, arms, body), a dish still being made, loose ingredients, or text. Best first. If no frame qualifies, answer an empty list.`;
-}
-
-export async function pickDishFrames(images: ImageFile[]): Promise<number[]> {
-  const parts: Part[] = images.flatMap((image, index): Part[] => [
-    { text: `Frame ${index + 1}:` },
-    { inline_data: { mime_type: image.mime, data: image.data } },
-  ]);
-  parts.push({ text: framesPrompt(images.length) });
-  const response = await generate(parts, 60_000, FRAMES_SCHEMA);
-  if (!(response instanceof Response)) throw new Error(response.error);
-  const picked = (answerFrom(await response.json()) as { frames?: unknown })?.frames;
-  if (!Array.isArray(picked)) return [];
-  const valid = picked.filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= images.length);
-  return [...new Set(valid)].slice(0, MAX_KEPT_FRAMES).map((n) => n - 1);
 }
 
 export async function recipeFromText(name: string, recipe: string): Promise<Reading> {

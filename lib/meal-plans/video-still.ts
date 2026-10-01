@@ -1,12 +1,12 @@
 "use client";
 
-// REQ-156: a recipe from a video may get one of its frames as its photo.
-// Before the video is sent, the browser plays it silently to 12 points
-// spread through it and copies a small picture of each, skipping any that
-// come out black. Gemini then names the ones that qualify. This happens while the
-// button says "Starting…", a few seconds, so the phone needn't stay on
-// screen afterwards. iPhones play their own HEVC videos, so no conversion
-// is needed. If no frame can be had, the card simply has no photo.
+// REQ-156: Gemini watches a recipe's video and names the second where the
+// finished dish is shown. Only the phone has the video, so it cuts that
+// frame out: the browser plays the file silently to that second and copies
+// a small picture of it. This needs the video still open on this phone
+// (see lib/meal-plans/kept-video.ts); if it isn't, or the frame comes out
+// black, the card simply has no photo. iPhones play their own HEVC videos,
+// so no conversion is needed.
 
 // True when a frame is almost all black, judged on a sample of pixels.
 export function mostlyBlack(context: CanvasRenderingContext2D, width: number, height: number): boolean {
@@ -21,13 +21,9 @@ export function mostlyBlack(context: CanvasRenderingContext2D, width: number, he
   return bright / samples < 0.05;
 }
 
-// Where in the video to look, as fractions of its length: evenly through
-// all of it, since the finished dish can be anywhere (the end is often a
-// thank-you card, not the plate).
-export const FRAME_POINTS = Array.from({ length: 12 }, (_, i) => 0.04 + (i * 0.92) / 11);
 const FRAME_EDGE = 960;
 
-export async function sampleFrames(file: Blob, points: readonly number[] = FRAME_POINTS, timeoutMs = 10_000): Promise<Blob[]> {
+export async function frameAt(file: Blob, seconds: number, timeoutMs = 10_000): Promise<Blob | null> {
   const url = URL.createObjectURL(file);
   const video = document.createElement("video");
   video.muted = true;
@@ -46,29 +42,23 @@ export async function sampleFrames(file: Blob, points: readonly number[] = FRAME
         { once: true },
       );
     });
-  const frames: Blob[] = [];
   try {
     await event("loadeddata");
-    if (!video.videoWidth || !video.videoHeight) return [];
+    if (!video.videoWidth || !video.videoHeight) return null;
     const scale = Math.min(1, FRAME_EDGE / Math.max(video.videoWidth, video.videoHeight));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(video.videoWidth * scale);
     canvas.height = Math.round(video.videoHeight * scale);
     const context = canvas.getContext("2d", { willReadFrequently: true })!;
-    for (const at of points) {
-      const seeked = event("seeked");
-      video.currentTime = Math.max(0, Math.min(video.duration * at, video.duration - 0.1));
-      await seeked;
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      if (mostlyBlack(context, canvas.width, canvas.height)) continue;
-      const frame = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.75));
-      if (frame) frames.push(frame);
-    }
-    return frames;
+    const seeked = event("seeked");
+    video.currentTime = Math.max(0, Math.min(seconds, video.duration - 0.1));
+    await seeked;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    if (mostlyBlack(context, canvas.width, canvas.height)) return null;
+    return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.8));
   } catch {
-    // Whatever was taken before it stopped is still good.
-    return frames;
+    return null;
   } finally {
     video.removeAttribute("src");
     video.load();

@@ -65,6 +65,11 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
             pageUrl={draft.page_url}
             cuisines={cuisines}
             frames={fromVideo && draft.status === "ready" && !draft.photo ? frames : undefined}
+            noFrame={
+              draft.photo_at === null
+                ? "Gemini found no moment in the video that shows the finished dish clearly, so this card will have no photo. You can add your own after saving."
+                : "The photo couldn't be taken from the video, because HomeBase wasn't open on the phone that sent it when the recipe was ready. You can add your own after saving."
+            }
           />
         ) : null}
         {draft.status === "uploading" || draft.status === "processing" ? (

@@ -25,6 +25,7 @@ import {
   saveDraft,
   setDraftPhoto,
   setRecipePhoto,
+  setDraftFrame,
   startImagesImport,
   startVideoImport,
   videoProgress,
@@ -179,26 +180,6 @@ describe("adding a recipe from a video (REQ-112, BETA)", () => {
       }),
     );
     expect(after).not.toHaveBeenCalled();
-  });
-
-  // REQ-156
-  it("hands the phone's frames to Gemini after answering, to name the photo candidates", async () => {
-    given();
-    const data = form({ name: "", size: "1000", mime: "video/mp4" });
-    for (let i = 0; i < 12; i++) data.append("frame", jpeg(), "frame.jpg");
-    expect(await startVideoImport(data)).toHaveProperty("uploadUrl");
-    expect(after).toHaveBeenCalledTimes(1);
-  });
-
-  it("refuses more than twelve frames, or ones that aren't JPEG", async () => {
-    given();
-    const many = form({ name: "", size: "1000", mime: "video/mp4" });
-    for (let i = 0; i < 13; i++) many.append("frame", jpeg(), "frame.jpg");
-    expect(await startVideoImport(many)).toEqual({ error: "The video's frames couldn't be used. Try again." });
-    const png = form({ name: "", size: "1000", mime: "video/mp4" });
-    png.append("frame", new Blob(["x"], { type: "image/png" }), "frame.png");
-    expect(await startVideoImport(png)).toEqual({ error: "The video's frames couldn't be used. Try again." });
-    expect(openVideoUpload).not.toHaveBeenCalled();
   });
 
   // Vin, 2026-09-29: the video says what the dish is; no name is asked first.
@@ -595,5 +576,27 @@ describe("saving a video draft with the photo chosen at review (REQ-156)", () =>
     fake.storage.bucket.list.mockResolvedValue({ data: [{ name: "1.jpg" }], error: null });
     await expect(dismissImport(form({ id: IMPORT }))).rejects.toThrow("REDIRECT:/meal-plans");
     expect(fake.storage.bucket.remove).toHaveBeenCalledWith([`imports/${IMPORT}/frames/1.jpg`, `imports/${IMPORT}/frames/1-thumb.jpg`]);
+  });
+});
+
+describe("the frame the phone cuts for a video's photo (REQ-156)", () => {
+  it("keeps it, with its small copy, beside the draft", async () => {
+    given({ recipe_imports: [{ id: IMPORT, source: "video" }] });
+    expect(await setDraftFrame(form({ import_id: IMPORT, frame: jpeg() }))).toEqual({ saved: true });
+    expect(fake.storage.bucket.upload.mock.calls.map(([path]) => path)).toEqual([`imports/${IMPORT}/frames/1.jpg`, `imports/${IMPORT}/frames/1-thumb.jpg`]);
+  });
+
+  it("refuses a draft that isn't a video's, one that's gone, or a frame that isn't a small JPEG", async () => {
+    given({ recipe_imports: [{ id: IMPORT, source: "images" }] });
+    expect(await setDraftFrame(form({ import_id: IMPORT, frame: jpeg() }))).toEqual({ error: "That draft is gone." });
+    given({ recipe_imports: [{ id: IMPORT, source: "video" }] });
+    expect(await setDraftFrame(form({ import_id: IMPORT, frame: new Blob(["x"], { type: "image/png" }) }))).toEqual({ error: "That frame can't be used." });
+    expect(await setDraftFrame(form({ import_id: IMPORT }))).toEqual({ error: "No frame came with it." });
+    expect(fake.storage.bucket.upload).not.toHaveBeenCalled();
+  });
+
+  it("lets nobody without the permission add one", async () => {
+    given({}, []);
+    await expect(setDraftFrame(form({ import_id: IMPORT, frame: jpeg() }))).rejects.toThrow("REDIRECT:/meal-plans");
   });
 });

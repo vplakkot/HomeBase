@@ -16,13 +16,14 @@
   - A draft's Cancel removes the draft, so Save and Cancel are the only
     actions at its end (a draft still being read keeps "Remove this
     draft").
-- Meal Plans, a video's photo (REQ-156): instead of one random still,
-  the phone takes 12 frames spread through the video and
-  Gemini picks up to 3 that show the finished dish with no one in
-  them. The draft review shows them to pick from, or "No photo"; when
-  none qualify it says so and the card has no photo. Migration:
-  `recipe_imports.source`. A drafted recipe from images no longer shows
-  the BETA label.
+- Meal Plans, a video's photo (REQ-156): instead of a random still,
+  Gemini, while it watches the video for the recipe, names the moment the
+  finished dish is on screen with no one in view, and the phone that sent
+  the video cuts that frame out when the recipe is ready. The draft shows
+  it with "No photo" beside it. If HomeBase wasn't open on that phone
+  until the recipe was ready, or no moment qualified, the card has no
+  photo and the draft says which. Migrations: `recipe_imports.source` and
+  `photo_at`. A recipe drafted from images no longer shows the BETA label.
 - Meal Plans, Add recipe: a new "From images" source. Choose up to 3
   pictures (a picture-only post, screenshots of a recipe); Gemini reads
   them together as one recipe, names it from what they say, and a note

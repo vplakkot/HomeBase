@@ -5,7 +5,6 @@ import {
   genericPrompt,
   openVideoUpload,
   pagePrompt,
-  pickDishFrames,
   readingFrom,
   recipeFromImages,
   recipeFromText,
@@ -209,30 +208,32 @@ describe("reading a recipe from pictures (REQ-157)", () => {
   });
 });
 
-describe("choosing a video's photo from its frames (REQ-156)", () => {
-  const reply = (frames: unknown) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ frames }) }] } }] }));
-  const frames = Array.from({ length: 12 }, (_, i) => ({ mime: "image/jpeg", data: `F${i}` }));
+describe("the photo moment Gemini names while watching a video (REQ-156)", () => {
+  const answer = (extra: object) =>
+    new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ found: true, name: "Test dal", ingredients: [], steps: ["Boil 1 cup dal."], guessed: [], ...extra }) }] } }] }));
+  const file = { uri: "https://files.example/v", mimeType: "video/mp4" };
 
-  it("sends the frames numbered, in order, asking for the finished dish with no person", async () => {
-    fetchMock.mockResolvedValue(reply([]));
-    await pickDishFrames(frames);
-    const parts = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts;
-    expect(parts[0].text).toBe("Frame 1:");
-    expect(parts[24].text).toContain("spread evenly through it");
-    expect(parts[24].text).toContain("Never pick a frame with any part of a person");
+  it("asks for the second of the finished dish with no person in view", async () => {
+    fetchMock.mockResolvedValue(answer({ photo_at: 48 }));
+    await recipeFromVideo("", file);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.generationConfig.responseSchema.properties.photo_at.description).toContain("no person or any part of one");
+    expect(body.contents[0].parts[1].text).toContain("never a moment with any person in view");
   });
 
-  it("returns up to three valid positions, best first, ignoring repeats and nonsense", async () => {
-    fetchMock.mockResolvedValue(reply([7, 2, 7, 0, 13, 4, 1]));
-    expect(await pickDishFrames(frames)).toEqual([6, 1, 3]);
+  it("returns that second with the recipe, or none for -1, a missing or a nonsense answer", async () => {
+    fetchMock.mockResolvedValue(answer({ photo_at: 48.5 }));
+    expect(await recipeFromVideo("", file)).toEqual({ draft: expect.objectContaining({ name: "Test dal" }), photoAt: 48.5 });
+    for (const photo_at of [-1, "48", undefined, null]) {
+      fetchMock.mockResolvedValue(answer({ photo_at }));
+      expect(await recipeFromVideo("", file)).toEqual({ draft: expect.anything(), photoAt: null });
+    }
   });
 
-  it("returns none when none qualify or the answer is unreadable, and fails on a Gemini error", async () => {
-    fetchMock.mockResolvedValue(reply([]));
-    expect(await pickDishFrames(frames)).toEqual([]);
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({ candidates: [] })));
-    expect(await pickDishFrames(frames)).toEqual([]);
+  it("still says so when there is no recipe, and on a Gemini error", async () => {
+    fetchMock.mockResolvedValue(answer({ found: false, photo_at: 3 }));
+    expect(await recipeFromVideo("", file)).toEqual({ error: "Gemini found no recipe in it." });
     fetchMock.mockResolvedValue(new Response("{}", { status: 500 }));
-    await expect(pickDishFrames(frames)).rejects.toThrow("Gemini answered 500.");
+    expect(await recipeFromVideo("", file)).toEqual({ error: "Gemini answered 500." });
   });
 });

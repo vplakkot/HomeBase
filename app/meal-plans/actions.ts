@@ -18,8 +18,8 @@ import {
   uploadProgress,
 } from "../../lib/meal-plans/gemini";
 import { isPublicPage, readImage, readPage, readRecipePage, titleFrom, type SearchResult } from "../../lib/meal-plans/recipe-search";
-import { MAX_FRAMES, MAX_IMAGES, MAX_IMAGES_BYTES, MAX_VIDEO_BYTES, UNNAMED_IMAGES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
-import { framePath, keepDishFrames, removeFrames } from "../../lib/meal-plans/frames";
+import { MAX_IMAGES, MAX_IMAGES_BYTES, MAX_VIDEO_BYTES, UNNAMED_IMAGES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
+import { framePath, removeFrames } from "../../lib/meal-plans/frames";
 import { PROCESSING_GIVES_UP_MS, UPLOAD_GIVES_UP_MS, processImageImport, processVideoImport } from "../../lib/meal-plans/import-job";
 import { RECIPE_PHOTOS, recipePhotoPath } from "../../lib/meal-plans/photos";
 import { linkOrNull, readImports, recipeFieldsFrom, recipeMissing, type RecipeImport } from "../../lib/meal-plans/recipes";
@@ -189,10 +189,8 @@ export async function setDraftPhoto(formData: FormData): Promise<FormState> {
 export type VideoStart = { id: string; uploadUrl: string } | { error: string };
 
 // REQ-112 (BETA): the first half of adding from a video. Keeps the name
-// and link, opens the one-time upload link the phone sends the video to,
-// and (REQ-156) hands Gemini the few frames the phone took, to name the
-// ones that could be the card's photo. The video itself never passes
-// through here.
+// and link and opens the one-time upload link the phone sends the video
+// to. The video itself never passes through here.
 export async function startVideoImport(formData: FormData): Promise<VideoStart> {
   const supabase = await requireMember();
   const name = String(formData.get("name") ?? "").trim() || UNNAMED_RECIPE;
@@ -204,25 +202,11 @@ export async function startVideoImport(formData: FormData): Promise<VideoStart> 
   if (!VIDEO_TYPES[mime]) return { error: "That file isn't a video HomeBase can send." };
   if (!Number.isInteger(size) || size <= 0) return { error: "That video looks empty." };
   if (size > MAX_VIDEO_BYTES) return { error: "That video is over 500 MB. Try a shorter one." };
-  const frames = formData.getAll("frame").filter((item): item is File => item instanceof File && item.size > 0);
-  if (frames.length > MAX_FRAMES || frames.some((frame) => frame.type !== "image/jpeg" || frame.size > MAX_PHOTO_UPLOAD)) {
-    return { error: "The video's frames couldn't be used. Try again." };
-  }
   const id = crypto.randomUUID();
   try {
     const uploadUrl = await openVideoUpload(size, mime, name);
     const { error } = await supabase.from("recipe_imports").insert({ id, name, video_url, source: "video", status: "uploading", upload_url: uploadUrl });
     if (error) throw new Error(error.message);
-    if (frames.length > 0) {
-      after(async () => {
-        try {
-          await keepDishFrames(createAdminClient(), id, frames);
-        } catch (problem) {
-          // No candidates: the draft says so, and the card has no photo.
-          Sentry.captureException(problem);
-        }
-      });
-    }
     return { id, uploadUrl };
   } catch (error) {
     Sentry.captureException(error);
@@ -266,6 +250,30 @@ export async function startImagesImport(formData: FormData): Promise<ImagesStart
     }
   });
   return { id };
+}
+
+// REQ-156: Gemini named the second of the video for the photo; the phone
+// that still has the video cut that frame and sends it here, to wait
+// beside the draft until it's saved.
+export async function setDraftFrame(formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const id = idFrom(formData.get("import_id"));
+  const frame = formData.get("frame");
+  if (!id) return { error: "That draft is gone." };
+  if (!(frame instanceof File) || frame.size === 0) return { error: "No frame came with it." };
+  if (frame.type !== "image/jpeg" || frame.size > MAX_PHOTO_UPLOAD) return { error: "That frame can't be used." };
+  const { data: draft } = await supabase.from("recipe_imports").select("id, source").eq("id", id).maybeSingle();
+  if (!draft || draft.source !== "video") return { error: "That draft is gone." };
+  const bucket = supabase.storage.from(RECIPE_PHOTOS);
+  const path = framePath(id, 1);
+  for (const where of [path, thumbPath(path)]) {
+    const { error } = await bucket.upload(where, frame, { contentType: "image/jpeg", upsert: true });
+    if (error) {
+      Sentry.captureException(error);
+      return { error: "The photo couldn't be kept." };
+    }
+  }
+  return { saved: true };
 }
 
 export type VideoProgress = { done: true } | { received: number } | { error: string };

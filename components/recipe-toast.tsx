@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { markImportSeen, myRecipeImports } from "../app/meal-plans/actions";
+import { cutDraftPhotos } from "../lib/meal-plans/draft-photo";
 import { forgetImports, importsRemembered } from "../lib/meal-plans/import-flag";
 import type { RecipeImport } from "../lib/meal-plans/recipes";
 import { currentUploads, watchUploads, type UploadProgress } from "../lib/meal-plans/video-upload";
@@ -29,6 +30,10 @@ export function RecipeToast() {
       if (!importsRemembered() && currentUploads().length === 0) return;
       const found = await myRecipeImports().catch(() => null);
       if (stopped || !found) return;
+      // REQ-156: the photo Gemini chose is cut out before the note says
+      // the recipe is ready, so the draft opens with it.
+      await cutDraftPhotos(found);
+      if (stopped) return;
       setImports(found);
       const going = found.some((item) => item.status === "uploading" || item.status === "processing") || currentUploads().length > 0;
       if (found.length === 0 && !going) forgetImports();

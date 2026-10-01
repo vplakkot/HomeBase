@@ -1198,9 +1198,7 @@ A video is too big to pass through our server (Vercel takes about
 ```
 Add recipe ──startVideoImport──▶ server: keeps name, link; opens a
    (phone)                        one-time upload link at Google;
-   frames from the video          row = uploading (source = video);
-   ride along                     after(): Gemini names the frames
-                                  that could be the photo (REQ-156)
+                                  row = uploading (source = video)
 phone ──8 MB pieces──▶ Google's upload link (no key; that one file only)
 phone ──videoProgress──▶ server asks Google how much arrived
                          all of it: row = processing, answer, then
@@ -1209,19 +1207,21 @@ phone ──videoProgress──▶ server asks Google how much arrived
 toast (every page) ──myRecipeImports every 15 s──▶ "Recipe ready"
 ```
 
-- REQ-156, the card's photo: before sending, the phone plays the video
-  silently to 12 points spread evenly through it and copies a small
-  picture of each (a few seconds, while the button says
-  "Starting…", so the phone needn't stay on screen afterwards). Those
-  ride along with `startVideoImport`; Gemini is shown them and names up
-  to 3 that show the finished dish with no part of a person in them.
-  Those are kept as `imports/<id>/frames/<n>.jpg` (with small copies) in
-  the `recipe-photos` bucket, no table. The draft review lists them as
-  thumbnails (first picked, or "No photo"); saving copies the chosen one
-  to the card, and removing or saving the draft deletes the rest. None
-  qualifying means no photo, and the review says so; nothing random is
-  used. `recipe_imports.source` ('video' or 'images') says which kind a
-  draft is, for the BETA label and these thumbnails.
+- REQ-156, the card's photo: while Gemini watches the video for the
+  recipe it also names the second where the finished dish is on screen
+  with no person in view (`recipe_imports.photo_at`; it can only say
+  when, in text). Only the phone has the video (Google won't give it
+  back, our server never held it), so that phone keeps the file in this
+  tab's memory (`lib/meal-plans/kept-video.ts`) and, when the toast sees
+  the recipe is ready, cuts that frame out, shrinks it and sends it
+  (`setDraftFrame`) to wait as `imports/<id>/frames/1.jpg` in the
+  `recipe-photos` bucket, no table, before the note says "Recipe ready".
+  The review shows it with "No photo"; saving copies it to the card, and
+  removing or saving the draft deletes it. If HomeBase was closed or
+  reloaded on that phone before the recipe was ready, or no moment
+  qualified, the card has no photo and the review says which. Nothing
+  random is used. `recipe_imports.source` ('video' or 'images') says
+  which kind a draft is, for the BETA label and the photo choice.
 - The phone never reads Google's answer to the last piece: once a video
   sent in pieces is complete, Google's answer lacks the header that
   lets a browser read it (seen 2026-09-26). The server asks instead,

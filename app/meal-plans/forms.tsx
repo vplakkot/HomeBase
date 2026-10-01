@@ -11,7 +11,7 @@ import { MAX_IMAGES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/vi
 import { COOKING_METHODS, MAIN_MEATS, type Ingredient, type Recipe, type RecipeDraft } from "../../lib/meal-plans/recipes";
 import { rememberImports } from "../../lib/meal-plans/import-flag";
 import { sendVideo } from "../../lib/meal-plans/video-upload";
-import { sampleFrames } from "../../lib/meal-plans/video-still";
+import { keepVideo } from "../../lib/meal-plans/kept-video";
 import {
   addRecipe,
   draftFromLink,
@@ -154,8 +154,6 @@ function VideoForm() {
     data.set("video_url", String(form.get("video_url") ?? ""));
     data.set("size", String(file.size));
     data.set("mime", mimeOf(file));
-    // REQ-156: a few frames, for Gemini to pick the card's photo from.
-    for (const frame of await sampleFrames(file)) data.append("frame", frame, "frame.jpg");
     const started = await startVideoImport(data);
     if ("error" in started) {
       setError(started.error);
@@ -163,6 +161,8 @@ function VideoForm() {
       return;
     }
     rememberImports();
+    // REQ-156: kept until the recipe is read, to cut the photo out of.
+    keepVideo(started.id, file);
     upload(started.id, UNNAMED_RECIPE, started.uploadUrl, file);
     router.push("/meal-plans");
   };
@@ -171,7 +171,7 @@ function VideoForm() {
       <label className={cards.field}>
         <span className={styles.labelRow}>
           Link to the video (optional)
-          <Hint text="Gemini reads the video while you do other things, and a note says when the recipe is ready, named from what it shows. Keep HomeBase open until the video has sent." />
+          <Hint text="Gemini reads the video while you do other things, and a note says when the recipe is ready, named from what it shows. Keep HomeBase open until the recipe is ready, so the card can get a photo from the video." />
         </span>
         <input name="video_url" type="url" inputMode="url" placeholder="https://www.instagram.com/reel/…" autoComplete="off" />
       </label>
@@ -547,6 +547,7 @@ export function RecipeForm({
   pageUrl,
   cuisines = [],
   frames,
+  noFrame,
 }: {
   recipe?: Recipe;
   draft?: RecipeDraft;
@@ -557,6 +558,8 @@ export function RecipeForm({
   cuisines?: readonly string[];
   // REQ-156: a video's candidate photos (empty: none qualified).
   frames?: { n: number; url: string }[];
+  // Why there is none, when there are none.
+  noFrame?: string;
 }) {
   const action = importId ? saveDraft : recipe ? updateRecipe : addRecipe;
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -615,7 +618,7 @@ export function RecipeForm({
         <fieldset className={styles.frames}>
           <legend>Photo</legend>
           {frames.length === 0 ? (
-            <p>No frame of the video showed the finished dish clearly, so this card will have no photo. You can add your own after saving.</p>
+            <p>{noFrame ?? "This card will have no photo. You can add your own after saving."}</p>
           ) : (
             <div className={styles.frameRow}>
               {frames.map((frame, index) => (

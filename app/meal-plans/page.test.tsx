@@ -283,6 +283,7 @@ describe("choosing the photo in a video's draft (REQ-156)", () => {
     name: "Test curry",
     video_url: null,
     source: "video",
+    photo_at: null,
     photo: null,
     status: "ready",
     error: null,
@@ -305,11 +306,18 @@ describe("choosing the photo in a video's draft (REQ-156)", () => {
     ]);
   });
 
-  it("says so when no frame qualified, and the card will have no photo", async () => {
+  it("says so when Gemini found no moment showing the dish, and the card will have no photo", async () => {
     given({ recipe_imports: [video], cuisines: [] });
     render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
-    expect(screen.getByRole("group", { name: "Photo" }).textContent).toContain("this card will have no photo");
+    expect(screen.getByRole("group", { name: "Photo" }).textContent).toContain("found no moment in the video");
+    expect(screen.getByRole("group", { name: "Photo" }).textContent).toContain("no photo");
     expect(screen.queryAllByRole("radio")).toEqual([]);
+  });
+
+  it("says plainly when it named a moment but the phone wasn't there to cut it", async () => {
+    given({ recipe_imports: [{ ...video, photo_at: 48 }], cuisines: [] });
+    render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
+    expect(screen.getByRole("group", { name: "Photo" }).textContent).toContain("wasn't open on the phone that sent it");
   });
 
   it("is only for video drafts: a draft read from images (BETA-free) offers no frames", async () => {
