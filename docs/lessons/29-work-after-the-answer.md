@@ -80,3 +80,15 @@ them fit in one request through our server. The row starts at
 processing, `after()` hands the pictures to Gemini directly, and they
 are forgotten once read. Rule of thumb: go around the server only for
 what can't fit through it.
+
+## Choosing a photo from a video we never receive
+
+Gemini watches the video, so it can say *when* the finished dish is on
+screen, but it answers in words: it can't hand back a picture. Cutting
+the picture needs the video file, and the only place that has it is the
+phone that sent it (Google won't give it back, and our server never held
+it). So the phone keeps the file in memory, and once the recipe is ready
+it cuts the frame at the second Gemini named. It's an architect who
+tells you which window to photograph, while only you hold the camera.
+The catch is plain: close HomeBase first and there's no camera, so the
+card gets no photo, and the draft says so.

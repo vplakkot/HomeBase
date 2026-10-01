@@ -11,7 +11,7 @@ import { MAX_IMAGES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/vi
 import { COOKING_METHODS, MAIN_MEATS, type Ingredient, type Recipe, type RecipeDraft } from "../../lib/meal-plans/recipes";
 import { rememberImports } from "../../lib/meal-plans/import-flag";
 import { sendVideo } from "../../lib/meal-plans/video-upload";
-import { stillFromVideo } from "../../lib/meal-plans/video-still";
+import { keepVideo } from "../../lib/meal-plans/kept-video";
 import {
   addRecipe,
   draftFromLink,
@@ -21,6 +21,7 @@ import {
   findRecipePages,
   saveRecipeMissing,
   type PageSearch,
+  dismissImport,
   saveDraft,
   setDraftPhoto,
   setRecipePhoto,
@@ -72,7 +73,7 @@ const WAYS: { value: Way; label: string }[] = [
 // from, and why.
 type TypeIn = { url: string; name: string; why: string };
 
-// Add recipe: from a video (REQ-112, BETA), images (REQ-157), a recipe page link
+// Add recipe: pick a Source (REQ-155, a dropdown): a video (REQ-112, BETA), images (REQ-157), a recipe page link
 // (REQ-150), text in any form (REQ-111), or an empty card to fill in.
 export function AddRecipe() {
   const [way, setWay] = useState<Way>("video");
@@ -87,20 +88,19 @@ export function AddRecipe() {
   };
   return (
     <>
-      <fieldset className={styles.choices}>
-        <legend>How</legend>
-        <div className={styles.choiceRow}>
+      <label className={cards.field}>
+        <span>
+          Source
+          {way === "video" ? <Beta /> : null}
+        </span>
+        <select name="way" value={way} onChange={(event) => choose(event.target.value as Way)}>
           {WAYS.map((option) => (
-            <label key={option.value} className={styles.choice}>
-              <input type="radio" name="way" value={option.value} checked={way === option.value} onChange={() => choose(option.value)} />
-              <span>
-                {option.label}
-                {option.value === "video" ? <Beta /> : null}
-              </span>
-            </label>
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
           ))}
-        </div>
-      </fieldset>
+        </select>
+      </label>
       {way === "video" ? (
         <VideoForm />
       ) : way === "images" ? (
@@ -154,14 +154,6 @@ function VideoForm() {
     data.set("video_url", String(form.get("video_url") ?? ""));
     data.set("size", String(file.size));
     data.set("mime", mimeOf(file));
-    const still = await stillFromVideo(file);
-    if (still) {
-      const photo = await shrinkPhoto(still).catch(() => null);
-      if (photo) {
-        data.set("photo", photo.full, "still.jpg");
-        data.set("photo_thumb", photo.thumb, "still-thumb.jpg");
-      }
-    }
     const started = await startVideoImport(data);
     if ("error" in started) {
       setError(started.error);
@@ -169,6 +161,8 @@ function VideoForm() {
       return;
     }
     rememberImports();
+    // REQ-156: kept until the recipe is read, to cut the photo out of.
+    keepVideo(started.id, file);
     upload(started.id, UNNAMED_RECIPE, started.uploadUrl, file);
     router.push("/meal-plans");
   };
@@ -177,7 +171,7 @@ function VideoForm() {
       <label className={cards.field}>
         <span className={styles.labelRow}>
           Link to the video (optional)
-          <Hint text="Gemini reads the video while you do other things, and a note says when the recipe is ready, named from what it shows. Keep HomeBase open until the video has sent." />
+          <Hint text="Gemini reads the video while you do other things, and a note says when the recipe is ready, named from what it shows. Keep HomeBase open until the recipe is ready, so the card can get a photo from the video." />
         </span>
         <input name="video_url" type="url" inputMode="url" placeholder="https://www.instagram.com/reel/…" autoComplete="off" />
       </label>
@@ -552,6 +546,8 @@ export function RecipeForm({
   videoUrl,
   pageUrl,
   cuisines = [],
+  frames,
+  noFrame,
 }: {
   recipe?: Recipe;
   draft?: RecipeDraft;
@@ -560,6 +556,10 @@ export function RecipeForm({
   videoUrl?: string | null;
   pageUrl?: string | null;
   cuisines?: readonly string[];
+  // REQ-156: a video's candidate photos (empty: none qualified).
+  frames?: { n: number; url: string }[];
+  // Why there is none, when there are none.
+  noFrame?: string;
 }) {
   const action = importId ? saveDraft : recipe ? updateRecipe : addRecipe;
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -614,6 +614,28 @@ export function RecipeForm({
           <input name="servings" inputMode="numeric" defaultValue={v?.servings ?? ""} autoComplete="off" />
         </label>
       </div>
+      {frames ? (
+        <fieldset className={styles.frames}>
+          <legend>Photo</legend>
+          {frames.length === 0 ? (
+            <p>{noFrame ?? "This card will have no photo. You can add your own after saving."}</p>
+          ) : (
+            <div className={styles.frameRow}>
+              {frames.map((frame, index) => (
+                <label key={frame.n} className={styles.frameChoice}>
+                  <input type="radio" name="frame" value={frame.n} defaultChecked={index === 0} />
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a private, short-lived link */}
+                  <img src={frame.url} alt={`Photo choice ${index + 1}`} />
+                </label>
+              ))}
+              <label className={`${styles.frameChoice} ${styles.noFrame}`}>
+                <input type="radio" name="frame" value="" />
+                <span>No photo</span>
+              </label>
+            </div>
+          )}
+        </fieldset>
+      ) : null}
       <Ingredients initial={v?.ingredients ?? []} />
       <label className={cards.field}>
         <span>Steps, one per line</span>
@@ -638,7 +660,15 @@ export function RecipeForm({
         <button type="submit" className={buttonClass} disabled={pending}>
           {pending ? "Saving…" : importId ? "Save recipe" : recipe ? "Save changes" : "Save recipe"}
         </button>
-        <Link href={recipe ? `/meal-plans/${recipe.id}` : "/meal-plans"}>Cancel</Link>
+        {importId ? (
+          // REQ-155: a draft's Cancel throws the draft away, so Save and
+          // Cancel are the only actions at its end.
+          <button type="submit" formAction={dismissImport} formNoValidate name="id" value={importId} className={styles.linkButton}>
+            Cancel
+          </button>
+        ) : (
+          <Link href={recipe ? `/meal-plans/${recipe.id}` : "/meal-plans"}>Cancel</Link>
+        )}
       </div>
     </form>
   );

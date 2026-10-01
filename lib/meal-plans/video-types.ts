@@ -24,3 +24,4 @@ export const UNNAMED_IMAGES = "Recipe from images";
 // 4.5 MB a request (the recipe goes through our server, unlike a video).
 export const MAX_IMAGES = 3;
 export const MAX_IMAGES_BYTES = 2.5 * 1024 * 1024;
+

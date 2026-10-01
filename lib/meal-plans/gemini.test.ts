@@ -207,3 +207,33 @@ describe("reading a recipe from pictures (REQ-157)", () => {
     expect(await recipeFromImages(pictures)).toEqual({ error: "Gemini answered 500." });
   });
 });
+
+describe("the photo moment Gemini names while watching a video (REQ-156)", () => {
+  const answer = (extra: object) =>
+    new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ found: true, name: "Test dal", ingredients: [], steps: ["Boil 1 cup dal."], guessed: [], ...extra }) }] } }] }));
+  const file = { uri: "https://files.example/v", mimeType: "video/mp4" };
+
+  it("asks for the second of the finished dish with no person in view", async () => {
+    fetchMock.mockResolvedValue(answer({ photo_at: 48 }));
+    await recipeFromVideo("", file);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.generationConfig.responseSchema.properties.photo_at.description).toContain("no person or any part of one");
+    expect(body.contents[0].parts[1].text).toContain("never a moment with any person in view");
+  });
+
+  it("returns that second with the recipe, or none for -1, a missing or a nonsense answer", async () => {
+    fetchMock.mockResolvedValue(answer({ photo_at: 48.5 }));
+    expect(await recipeFromVideo("", file)).toEqual({ draft: expect.objectContaining({ name: "Test dal" }), photoAt: 48.5 });
+    for (const photo_at of [-1, "48", undefined, null]) {
+      fetchMock.mockResolvedValue(answer({ photo_at }));
+      expect(await recipeFromVideo("", file)).toEqual({ draft: expect.anything(), photoAt: null });
+    }
+  });
+
+  it("still says so when there is no recipe, and on a Gemini error", async () => {
+    fetchMock.mockResolvedValue(answer({ found: false, photo_at: 3 }));
+    expect(await recipeFromVideo("", file)).toEqual({ error: "Gemini found no recipe in it." });
+    fetchMock.mockResolvedValue(new Response("{}", { status: 500 }));
+    expect(await recipeFromVideo("", file)).toEqual({ error: "Gemini answered 500." });
+  });
+});

@@ -20,18 +20,18 @@ describe("reading an uploaded video after the phone moves on (REQ-112)", () => {
   it("waits for Google, keeps the draft as ready, and deletes the video", async () => {
     const fake = admin();
     const check = vi.fn().mockResolvedValueOnce({ state: "PROCESSING" }).mockResolvedValueOnce({ state: "ACTIVE", uri: "u", mimeType: "video/mp4" });
-    const read = vi.fn(async () => ({ draft: DRAFT }));
+    const read = vi.fn(async () => ({ draft: DRAFT, photoAt: 12.5 }));
     const discard = vi.fn(async () => {});
     await processVideoImport(fake as never, ID, { wait, check, read, discard });
     expect(read).toHaveBeenCalledWith("Test pasta", { uri: "u", mimeType: "video/mp4" });
-    expect(updates(fake)).toEqual([expect.objectContaining({ status: "ready", draft: DRAFT, gemini_file: null })]);
+    expect(updates(fake)).toEqual([expect.objectContaining({ status: "ready", draft: DRAFT, gemini_file: null, photo_at: 12.5 })]);
     expect(discard).toHaveBeenCalledWith("files/abc");
   });
 
   it("names an unnamed video's import from what Gemini read, and doesn't tell Gemini the placeholder", async () => {
     const fake = admin("processing", "files/abc", "Recipe from a video");
     const check = vi.fn().mockResolvedValue({ state: "ACTIVE", uri: "u", mimeType: "video/mp4" });
-    const read = vi.fn(async () => ({ draft: { ...DRAFT, name: "Test tikka" } }));
+    const read = vi.fn(async () => ({ draft: { ...DRAFT, name: "Test tikka" }, photoAt: null }));
     await processVideoImport(fake as never, ID, { wait, check, read, discard: vi.fn(async () => {}) });
     expect(read).toHaveBeenCalledWith("", { uri: "u", mimeType: "video/mp4" });
     expect(updates(fake)).toEqual([expect.objectContaining({ status: "ready", name: "Test tikka" })]);
@@ -59,7 +59,7 @@ describe("reading an uploaded video after the phone moves on (REQ-112)", () => {
   it("only writes its result over a row still processing (not one removed or given up on)", async () => {
     const fake = admin();
     const check = vi.fn(async () => ({ state: "ACTIVE" as const, uri: "u" }));
-    await processVideoImport(fake as never, ID, { wait, check, read: vi.fn(async () => ({ draft: DRAFT })), discard: vi.fn(async () => {}) });
+    await processVideoImport(fake as never, ID, { wait, check, read: vi.fn(async () => ({ draft: DRAFT, photoAt: null })), discard: vi.fn(async () => {}) });
     const query = fake.from.mock.results.map((r) => r.value as Record<string, ReturnType<typeof vi.fn>>).find((q) => q.update.mock.calls.length > 0)!;
     expect(query.eq).toHaveBeenCalledWith("status", "processing");
   });

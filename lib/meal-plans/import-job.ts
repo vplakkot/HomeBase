@@ -66,7 +66,7 @@ export async function processVideoImport(
     const unnamed = row.name === UNNAMED_RECIPE;
     const reading = await (deps.read ?? recipeFromVideo)(unnamed ? "" : row.name, { uri: ready.uri!, mimeType: ready.mimeType ?? "video/mp4" });
     if ("error" in reading) await finish({ status: "failed", error: reading.error });
-    else await finish({ status: "ready", draft: reading.draft, error: null, ...(unnamed && reading.draft.name ? { name: reading.draft.name } : {}) });
+    else await finish({ status: "ready", draft: reading.draft, error: null, photo_at: reading.photoAt, ...(unnamed && reading.draft.name ? { name: reading.draft.name } : {}) });
   } catch (error) {
     await finish({ status: "failed", error: error instanceof Error ? error.message : "Something went wrong." });
   } finally {

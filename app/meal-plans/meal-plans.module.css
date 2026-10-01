@@ -240,33 +240,33 @@
 .summary { composes: summary from "../drinks/drinks.module.css"; }
 
 /* This week's dishes as big photos on the mustard tint. */
-.foodGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--space-3);
+/* REQ-155: what's on the menu: a name and the meal it's for, in rows. */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.foodCard {
+.menu li {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-2);
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   background: var(--module-quiet);
   color: var(--color-ink);
-  text-decoration: none;
+  font-weight: 700;
 }
 
-.foodPhoto {
-  display: block;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  background: var(--module-loud);
+.menuMeal {
+  color: var(--color-ink);
+  font-size: var(--text-body-sm);
+  font-weight: 400;
 }
 
 /* A plain link on a Meal Plans page (Edit, Watch the video, Type it in)
@@ -327,6 +327,12 @@
   padding-left: var(--space-3);
   font-size: var(--text-display-sm);
   font-weight: 700;
+  /* REQ-155: a long name stays in the tile: two lines, then "…". */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .stats a {
@@ -405,5 +411,63 @@
 .missing > p {
   flex-basis: 100%;
   margin: 0;
+  font-weight: 700;
+}
+
+/* REQ-156: a video's candidate photos in the draft review. The picked one
+   is outlined in the module colour. */
+.frames {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.frames legend {
+  padding: 0;
+  font-weight: 700;
+}
+
+.frameRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.frameChoice {
+  position: relative;
+  display: block;
+  border: 3px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.frameChoice:has(input:checked) {
+  border-color: var(--module-loud);
+}
+
+.frameChoice input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+}
+
+.frameChoice img {
+  display: block;
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.noFrame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  background: var(--module-quiet);
+  color: var(--module-quiet-title);
+  font-size: var(--text-body-sm);
   font-weight: 700;
 }

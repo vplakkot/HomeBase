@@ -115,6 +115,19 @@ export function coversThrough(
 }
 
 // "Covers through lunch, Sun, Oct 4"
+// The first meal a recipe is planned for (REQ-155): meals run dinner
+// first, as in coversThrough, and a recipe starts at the meal where the
+// servings of the recipes before it run out.
+export function mealFor(
+  startsOn: string,
+  before: readonly Pick<PlannedRecipe, "servings">[],
+  eaters: number,
+): Covers {
+  const servings = before.reduce((sum, recipe) => sum + recipe.servings, 0);
+  const meal = Math.floor(servings / Math.max(eaters, 1));
+  return meal % 2 === 1 ? { day: addDays(startsOn, (meal + 1) / 2), meal: "lunch" } : { day: addDays(startsOn, meal / 2), meal: "dinner" };
+}
+
 export function coversText(covers: Covers | null, anyPlanned: boolean): string {
   if (covers) return `Covers through ${covers.meal}, ${dayLabel(covers.day)}`;
   return anyPlanned ? "Not a whole meal yet" : "Add recipes to see how long the plan lasts";

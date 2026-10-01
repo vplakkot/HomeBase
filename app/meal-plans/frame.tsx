@@ -22,8 +22,10 @@ export async function mealPlansViewer() {
 
 export type MealPlansViewer = Awaited<ReturnType<typeof mealPlansViewer>>;
 
-// Every Meal Plan screen: the module header with Add recipe (so the tab
-// row doesn't repeat it) and any tools such as the library's search, and
+// Every Meal Plan screen: the module header with any tools such as the
+// library's search, Add recipe only where `addRecipe` says so (REQ-155:
+// the module home and the recipes list; on every other screen it was in
+// the way, even under a draft's Save), and
 // below the top level a breadcrumb back to the recipes (every page that
 // has one is a recipe or a draft, so "Recipes › Test pasta", not "Meal
 // Plans › Test pasta", which read as if the recipe were a plan).
@@ -33,6 +35,7 @@ export function MealPlansScreen({
   crumb,
   tools,
   actions,
+  addRecipe = false,
   children,
 }: {
   viewer: MealPlansViewer;
@@ -40,6 +43,7 @@ export function MealPlansScreen({
   crumb?: string;
   tools?: ReactNode;
   actions?: ReactNode;
+  addRecipe?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -49,15 +53,19 @@ export function MealPlansScreen({
       canManageMembers={viewer.canManageMembers}
       account={viewer.account}
       pinnedInHeader
+      // No pinned bar on a phone either, where Add recipe isn't wanted.
+      pinnedHref={addRecipe ? undefined : null}
       actions={
         actions ?? (
           <div className={styles.tools}>
             {tools}
             {/* A phone has the pinned Add recipe bar; a second button here
                 would be the same thing twice. */}
-            <ButtonLink href="/meal-plans/new" desktopOnly>
-              Add recipe
-            </ButtonLink>
+            {addRecipe ? (
+              <ButtonLink href="/meal-plans/new" desktopOnly>
+                Add recipe
+              </ButtonLink>
+            ) : null}
           </div>
         )
       }

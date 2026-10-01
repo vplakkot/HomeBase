@@ -19,6 +19,7 @@ import {
 } from "../../lib/meal-plans/gemini";
 import { isPublicPage, readImage, readPage, readRecipePage, titleFrom, type SearchResult } from "../../lib/meal-plans/recipe-search";
 import { MAX_IMAGES, MAX_IMAGES_BYTES, MAX_VIDEO_BYTES, UNNAMED_IMAGES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
+import { framePath, removeFrames } from "../../lib/meal-plans/frames";
 import { PROCESSING_GIVES_UP_MS, UPLOAD_GIVES_UP_MS, processImageImport, processVideoImport } from "../../lib/meal-plans/import-job";
 import { RECIPE_PHOTOS, recipePhotoPath } from "../../lib/meal-plans/photos";
 import { linkOrNull, readImports, recipeFieldsFrom, recipeMissing, type RecipeImport } from "../../lib/meal-plans/recipes";
@@ -187,9 +188,9 @@ export async function setDraftPhoto(formData: FormData): Promise<FormState> {
 
 export type VideoStart = { id: string; uploadUrl: string } | { error: string };
 
-// REQ-112 (BETA): the first half of adding from a video. Keeps the name,
-// link and still, and opens the one-time upload link the phone sends the
-// video to. The video itself never passes through here.
+// REQ-112 (BETA): the first half of adding from a video. Keeps the name
+// and link and opens the one-time upload link the phone sends the video
+// to. The video itself never passes through here.
 export async function startVideoImport(formData: FormData): Promise<VideoStart> {
   const supabase = await requireMember();
   const name = String(formData.get("name") ?? "").trim() || UNNAMED_RECIPE;
@@ -201,21 +202,14 @@ export async function startVideoImport(formData: FormData): Promise<VideoStart> 
   if (!VIDEO_TYPES[mime]) return { error: "That file isn't a video HomeBase can send." };
   if (!Number.isInteger(size) || size <= 0) return { error: "That video looks empty." };
   if (size > MAX_VIDEO_BYTES) return { error: "That video is over 500 MB. Try a shorter one." };
-  const still = photoFrom(formData);
-  if (still && "error" in still) return still;
   const id = crypto.randomUUID();
-  let photo: string | null = null;
   try {
     const uploadUrl = await openVideoUpload(size, mime, name);
-    photo = still ? await storePhoto(supabase, `imports/${id}`, still) : null;
-    const { error } = await supabase
-      .from("recipe_imports")
-      .insert({ id, name, video_url, photo, status: "uploading", upload_url: uploadUrl });
+    const { error } = await supabase.from("recipe_imports").insert({ id, name, video_url, source: "video", status: "uploading", upload_url: uploadUrl });
     if (error) throw new Error(error.message);
     return { id, uploadUrl };
   } catch (error) {
     Sentry.captureException(error);
-    await removePhoto(supabase, photo);
     return { error: "The upload couldn't start. Try again." };
   }
 }
@@ -239,7 +233,7 @@ export async function startImagesImport(formData: FormData): Promise<ImagesStart
   if ([...blobs, ...thumbs].some((blob) => blob.type !== "image/jpeg" || blob.size > MAX_PHOTO_UPLOAD)) return { error: "Images are sent as JPEG, under 1 MB each." };
   if ([...blobs, ...thumbs].reduce((sum, blob) => sum + blob.size, 0) > MAX_IMAGES_BYTES) return { error: "Those images are too big together. Try fewer." };
   const id = crypto.randomUUID();
-  const { error } = await supabase.from("recipe_imports").insert({ id, name: UNNAMED_IMAGES, status: "processing" });
+  const { error } = await supabase.from("recipe_imports").insert({ id, name: UNNAMED_IMAGES, source: "images", status: "processing" });
   if (error) {
     Sentry.captureException(error);
     return { error: "The import couldn't start. Try again." };
@@ -256,6 +250,30 @@ export async function startImagesImport(formData: FormData): Promise<ImagesStart
     }
   });
   return { id };
+}
+
+// REQ-156: Gemini named the second of the video for the photo; the phone
+// that still has the video cut that frame and sends it here, to wait
+// beside the draft until it's saved.
+export async function setDraftFrame(formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const id = idFrom(formData.get("import_id"));
+  const frame = formData.get("frame");
+  if (!id) return { error: "That draft is gone." };
+  if (!(frame instanceof File) || frame.size === 0) return { error: "No frame came with it." };
+  if (frame.type !== "image/jpeg" || frame.size > MAX_PHOTO_UPLOAD) return { error: "That frame can't be used." };
+  const { data: draft } = await supabase.from("recipe_imports").select("id, source").eq("id", id).maybeSingle();
+  if (!draft || draft.source !== "video") return { error: "That draft is gone." };
+  const bucket = supabase.storage.from(RECIPE_PHOTOS);
+  const path = framePath(id, 1);
+  for (const where of [path, thumbPath(path)]) {
+    const { error } = await bucket.upload(where, frame, { contentType: "image/jpeg", upsert: true });
+    if (error) {
+      Sentry.captureException(error);
+      return { error: "The photo couldn't be kept." };
+    }
+  }
+  return { saved: true };
 }
 
 export type VideoProgress = { done: true } | { received: number } | { error: string };
@@ -308,11 +326,15 @@ export async function uploadFailed(id: string): Promise<void> {
 
 // What the toast watches: the signed-in person's imports still going or
 // not yet seen. One stuck too long becomes a failure here.
-export async function myRecipeImports(): Promise<RecipeImport[]> {
+// Null when it couldn't be asked (not signed in, or the read failed): not
+// the same as having no imports, which would let the phone drop videos it
+// still needs for their photos (REQ-156).
+export async function myRecipeImports(): Promise<RecipeImport[] | null> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
-  if (!data?.claims) return [];
-  const imports = await readImports(supabase).catch(() => []);
+  if (!data?.claims) return null;
+  const imports = await readImports(supabase).catch(() => null);
+  if (!imports) return null;
   const now = Date.now();
   for (const item of imports) {
     // Age in its current step: processing counts from when the upload
@@ -349,6 +371,7 @@ export async function dismissImport(formData: FormData): Promise<void> {
   await supabase.from("recipe_imports").delete().eq("id", importId);
   if (isGeminiFile(data?.gemini_file)) await deleteVideo(data.gemini_file);
   await removePhoto(supabase, data?.photo ?? null);
+  await removeFrames(supabase, importId);
   refresh();
   if (formData.get("stay") !== "yes") redirect("/meal-plans");
 }
@@ -378,17 +401,37 @@ export async function saveDraft(_prev: FormState, formData: FormData): Promise<F
     if (!card) return { error: "That recipe is gone. Remove this draft." };
     if (!recipeMissing(card)) return { error: "That card has a recipe now. Remove this draft, or edit the card instead." };
   }
+  // REQ-156: the frame chosen at review becomes the card's photo, and no
+  // frame is a card with none.
+  const frame = Number(formData.get("frame"));
+  let photo: string | null = draft.photo ?? null;
+  if (!draft.recipe_id && Number.isInteger(frame) && frame >= 1) {
+    const from = framePath(importId, frame);
+    const to = recipePhotoPath(`imports/${importId}`);
+    const bucket = supabase.storage.from(RECIPE_PHOTOS);
+    const copied = await bucket.copy(from, to);
+    const thumbCopied = copied.error ? copied : await bucket.copy(thumbPath(from), thumbPath(to));
+    if (copied.error || thumbCopied.error) {
+      Sentry.captureException(copied.error ?? thumbCopied.error);
+      await removePhoto(supabase, copied.error ? null : to);
+      return { error: "That photo couldn't be kept. Try again, or choose no photo." };
+    }
+    photo = to;
+  }
   try {
     await keepCuisine(supabase, fields.cuisine);
     const { error } = draft.recipe_id
       ? await supabase.from("recipes").update({ ...fields, ai_generated }).eq("id", id)
-      : await supabase.from("recipes").insert({ id, ...fields, ai_generated, photo: draft.photo ?? null });
+      : await supabase.from("recipes").insert({ id, ...fields, ai_generated, photo });
     if (error) throw new Error(error.message);
   } catch (error) {
     Sentry.captureException(error);
+    // The copy made for this save isn't needed if it didn't happen.
+    if (photo !== (draft.photo ?? null)) await removePhoto(supabase, photo);
     return { error: "The recipe couldn't be saved. Try again." };
   }
   await supabase.from("recipe_imports").delete().eq("id", importId);
+  await removeFrames(supabase, importId);
   refresh();
   redirect(`/meal-plans/${id}`);
 }

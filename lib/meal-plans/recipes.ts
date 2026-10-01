@@ -57,6 +57,10 @@ export type RecipeImport = {
   page_url: string | null;
   recipe_id: string | null;
   ai_generated: boolean;
+  // Read from a video or from pictures; null for any other draft.
+  source: "video" | "images" | null;
+  // REQ-156: the second of a video Gemini chose for the card's photo.
+  photo_at: number | null;
   status: ImportStatus;
   draft: RecipeDraft | null;
   error: string | null;
@@ -200,7 +204,7 @@ export async function readCuisines(supabase: SupabaseClient): Promise<string[]> 
   return (data ?? []).map((row: { name: string }) => row.name);
 }
 
-const IMPORT_COLUMNS = "id, name, video_url, page_url, recipe_id, ai_generated, status, draft, error, photo, seen, created_at, updated_at";
+const IMPORT_COLUMNS = "id, name, video_url, page_url, recipe_id, ai_generated, source, photo_at, status, draft, error, photo, seen, created_at, updated_at";
 
 // The signed-in person's imports (the table only shows each person theirs).
 export async function readImports(supabase: SupabaseClient): Promise<RecipeImport[]> {

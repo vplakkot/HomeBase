@@ -142,11 +142,26 @@ export const CARD_RULES = `Write one recipe card.
 - Steps are short imperative sentences, in order, without numbers.
 - If there is no recipe to read, answer {"found": false, "ingredients": [], "steps": [], "guessed": []}. Never invent a recipe in its place.`;
 
+// REQ-156: Gemini watches the video, so it also says when the finished dish
+// is on screen, as the card's photo. It can only say when (text); the phone
+// cuts the picture out of the video, as only it has the file.
+export const VIDEO_SCHEMA = {
+  ...RECIPE_SCHEMA,
+  properties: {
+    ...RECIPE_SCHEMA.properties,
+    photo_at: {
+      type: "number",
+      description: "The second of the video where the finished, plated dish is shown clearly, with no person or any part of one (face, hands, body) in view; -1 if no moment qualifies.",
+    },
+  },
+};
+
 export function videoPrompt(name: string): string {
   const which = name ? ` for "${name}"` : "";
   const naming = name ? "" : " For name, give the dish's own name as the video calls it or shows it.";
   return `${CARD_RULES}
-Read the recipe${which} from this cooking video only: what is shown, said aloud, and written on screen. Don't add anything the video doesn't show or say.${naming}`;
+Read the recipe${which} from this cooking video only: what is shown, said aloud, and written on screen. Don't add anything the video doesn't show or say.${naming}
+Also give photo_at, as a photo for the recipe card: never a moment with any person in view, a dish still being made, loose ingredients, or text on screen.`;
 }
 
 export function textPrompt(name: string, recipe: string): string {
@@ -229,8 +244,16 @@ function answerFrom(reply: unknown): unknown {
   }
 }
 
-export async function recipeFromVideo(name: string, file: { uri: string; mimeType: string }): Promise<Reading> {
-  return read([{ file_data: { mime_type: file.mimeType, file_uri: file.uri } }, { text: videoPrompt(name) }], 240_000);
+export type VideoReading = { draft: RecipeDraft; photoAt: number | null } | { error: string };
+
+export async function recipeFromVideo(name: string, file: { uri: string; mimeType: string }): Promise<VideoReading> {
+  const response = await generate([{ file_data: { mime_type: file.mimeType, file_uri: file.uri } }, { text: videoPrompt(name) }], 240_000, VIDEO_SCHEMA);
+  if (!(response instanceof Response)) return response;
+  const reply = await response.json();
+  const reading = readingFrom(reply);
+  if ("error" in reading) return reading;
+  const at = (answerFrom(reply) as { photo_at?: unknown })?.photo_at;
+  return { draft: reading.draft, photoAt: typeof at === "number" && Number.isFinite(at) && at >= 0 ? at : null };
 }
 
 // REQ-157: a recipe from pictures (a carousel, screenshots). The pictures

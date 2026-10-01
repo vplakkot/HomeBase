@@ -1,10 +1,12 @@
 "use client";
 
-// REQ-110: a recipe from a video gets a still from it as its photo. The
-// browser plays the video silently to a point near its end and copies that
-// frame, or an earlier one if it comes out black. iPhones
-// play their own HEVC videos, so no conversion is needed. If no frame can
-// be had, the recipe simply has no photo yet, and either of us can add one.
+// REQ-156: Gemini watches a recipe's video and names the second where the
+// finished dish is shown. Only the phone has the video, so it cuts that
+// frame out: the browser plays the file silently to that second and copies
+// a small picture of it. This needs the video still open on this phone
+// (see lib/meal-plans/kept-video.ts); if it isn't, or the frame comes out
+// black, the card simply has no photo. iPhones play their own HEVC videos,
+// so no conversion is needed.
 
 // True when a frame is almost all black, judged on a sample of pixels.
 export function mostlyBlack(context: CanvasRenderingContext2D, width: number, height: number): boolean {
@@ -19,7 +21,9 @@ export function mostlyBlack(context: CanvasRenderingContext2D, width: number, he
   return bright / samples < 0.05;
 }
 
-export async function stillFromVideo(file: Blob, timeoutMs = 10_000): Promise<Blob | null> {
+const FRAME_EDGE = 960;
+
+export async function frameAt(file: Blob, seconds: number, timeoutMs = 10_000): Promise<Blob | null> {
   const url = URL.createObjectURL(file);
   const video = document.createElement("video");
   video.muted = true;
@@ -40,26 +44,19 @@ export async function stillFromVideo(file: Blob, timeoutMs = 10_000): Promise<Bl
     });
   try {
     await event("loadeddata");
+    if (!video.videoWidth || !video.videoHeight) return null;
+    const scale = Math.min(1, FRAME_EDGE / Math.max(video.videoWidth, video.videoHeight));
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    if (!canvas.width || !canvas.height) return null;
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
     const context = canvas.getContext("2d", { willReadFrequently: true })!;
-    // Near the end first, where a cooking video usually shows the plated
-    // dish (a third of the way in was mostly prep: a blender, a hand).
-    // Then earlier frames if that one comes out black (a frame not drawn
-    // yet, or a dark shot).
-    for (const at of [0.92, 0.8, 0.5, 0.33]) {
-      const seeked = event("seeked");
-      video.currentTime = Math.max(0, Math.min(video.duration * at, video.duration - 0.1));
-      await seeked;
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      context.drawImage(video, 0, 0);
-      if (!mostlyBlack(context, canvas.width, canvas.height)) {
-        return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
-      }
-    }
-    return null;
+    const seeked = event("seeked");
+    video.currentTime = Math.max(0, Math.min(seconds, video.duration - 0.1));
+    await seeked;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    if (mostlyBlack(context, canvas.width, canvas.height)) return null;
+    return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.8));
   } catch {
     return null;
   } finally {

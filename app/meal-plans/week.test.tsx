@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
@@ -20,6 +22,8 @@ import {
   startPlan,
   takeOffPlan,
 } from "./plan-actions";
+import DraftPage from "./drafts/[id]/page";
+import NewRecipePage from "./new/page";
 import RecipesPage from "./recipes/page";
 import WeekPage from "./week/page";
 
@@ -381,14 +385,19 @@ describe("suggestions while planning (REQ-117)", () => {
 });
 
 describe("Meal Plans' home (REQ-118)", () => {
-  it("shows the open plan's recipes as photos, and how far they carry us", async () => {
+  // REQ-155: plain rows, a name and the meal it's for; no photos.
+  it("lists the open plan's recipes as text rows with their meals, and how far they carry us", async () => {
     given({ recipes: [RECIPE, SECOND], recipe_imports: [], meal_plans: [openPlan([planned(ID, 4), planned(OTHER, 4)])] });
     render(await MealPlansPage());
     const week = screen.getByRole("region", { name: "This week" });
     expect(within(week).getByText("Covers through lunch, Tue, Sep 29")).toBeTruthy();
-    const dishes = within(within(week).getByRole("list", { name: "Recipes in the plan" })).getAllByRole("link");
-    expect(dishes.map((link) => link.textContent)).toEqual(["Test chicken rice", "Test lentil soup"]);
-    expect(dishes[0].querySelector("img")?.getAttribute("src")).toBe(`https://signed.example/${ID}/1.jpg`);
+    const list = within(week).getByRole("list", { name: "Recipes in the plan" });
+    expect(within(list).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
+      "Test chicken riceDinner, Sun, Sep 27",
+      "Test lentil soupDinner, Mon, Sep 28",
+    ]);
+    expect(within(list).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([`/meal-plans/${ID}`, `/meal-plans/${OTHER}`]);
+    expect(list.querySelector("img")).toBeNull();
     expect(within(week).getByRole("link", { name: "Open the plan" }).getAttribute("href")).toBe("/meal-plans/week");
   });
 
@@ -418,5 +427,67 @@ describe("Meal Plans' home (REQ-118)", () => {
     expect(value("Top rated")).toBe("Test lentil soup ★★★★★");
     expect(value("Recipes")).toBe("3");
     expect(value("Cuisines")).toBe("2");
+  });
+});
+
+// REQ-155: the Add recipe button is on the module home and the recipes list,
+// and nowhere else (header button and phone bar alike).
+describe("where Add recipe shows (REQ-155)", () => {
+  const addRecipe = () => screen.queryAllByRole("link", { name: "Add recipe" });
+
+  it("shows on the module home and on the Recipes list", async () => {
+    given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [] });
+    render(await MealPlansPage());
+    expect(addRecipe().length).toBeGreaterThan(0);
+    cleanup();
+    given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [] });
+    render(await RecipesPage({ searchParams: Promise.resolve({}) }));
+    expect(addRecipe().length).toBeGreaterThan(0);
+  });
+
+  it("is gone from the plan, a recipe card and the Add recipe screen itself", async () => {
+    given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [] });
+    render(await WeekPage());
+    expect(addRecipe()).toEqual([]);
+    cleanup();
+    given({ recipes: [RECIPE] });
+    render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
+    expect(addRecipe()).toEqual([]);
+    cleanup();
+    given({});
+    render(await NewRecipePage());
+    expect(addRecipe()).toEqual([]);
+    cleanup();
+    given({
+      recipe_imports: [{ id: ID, name: "Test curry", video_url: null, source: "video", photo: null, status: "ready", error: null, seen: true, created_at: "2026-09-30T12:00:00Z", draft: null }],
+      cuisines: [],
+    });
+    render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
+    expect(addRecipe()).toEqual([]);
+    expect(screen.getByRole("button", { name: "Save recipe" })).toBeTruthy();
+  });
+});
+
+describe("a card with no photo (REQ-155, REQ-156)", () => {
+  it("shows no empty colour block on the card or in the library", async () => {
+    const bare = { ...RECIPE, photo: null };
+    given({ recipes: [bare] });
+    render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
+    expect(within(screen.getByRole("article", { name: "Test chicken rice" })).queryAllByRole("img")).toEqual([]);
+    cleanup();
+    given({ recipes: [bare], recipe_imports: [], meal_plans: [] });
+    render(await RecipesPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByRole("region", { name: "Recipes" }).querySelector("img")).toBeNull();
+  });
+});
+
+// jsdom doesn't lay anything out, so the tile's two-line limit is checked
+// where it is written.
+describe("a long name in an Our kitchen tile (REQ-155)", () => {
+  it("is held to two lines, then …", () => {
+    const css = readFileSync(join(__dirname, "meal-plans.module.css"), "utf8");
+    const rule = /\.stats dd \{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(rule).toContain("-webkit-line-clamp: 2");
+    expect(rule).toContain("overflow: hidden");
   });
 });

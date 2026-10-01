@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { markImportSeen, myRecipeImports } from "../app/meal-plans/actions";
 import { forgetImports, rememberImports } from "../lib/meal-plans/import-flag";
+import { hasVideo, keepVideo, takeVideo } from "../lib/meal-plans/kept-video";
 import { RecipeToast } from "./recipe-toast";
 
-vi.mock("../app/meal-plans/actions", () => ({ myRecipeImports: vi.fn(), markImportSeen: vi.fn(async () => {}) }));
+vi.mock("../app/meal-plans/actions", () => ({ myRecipeImports: vi.fn(), markImportSeen: vi.fn(async () => {}), setDraftFrame: vi.fn() }));
 
 afterEach(() => {
   cleanup();
@@ -48,5 +49,27 @@ describe("the recipe toast, on any page (REQ-112)", () => {
   it("doesn't ask the server at all when this browser started nothing", () => {
     render(<RecipeToast />);
     expect(myRecipeImports).not.toHaveBeenCalled();
+  });
+});
+
+describe("the video kept for its photo (REQ-156)", () => {
+  const ID = "66666666-6666-4666-8666-666666666666";
+
+  it("is kept when asking after the imports fails, rather than taken for a removed draft", async () => {
+    keepVideo(ID, new Blob(["v"]));
+    rememberImports();
+    vi.mocked(myRecipeImports).mockResolvedValue(null);
+    render(<RecipeToast />);
+    await waitFor(() => expect(myRecipeImports).toHaveBeenCalled());
+    expect(hasVideo(ID)).toBe(true);
+    takeVideo(ID);
+  });
+
+  it("is let go once its draft is gone", async () => {
+    keepVideo(ID, new Blob(["v"]));
+    rememberImports();
+    vi.mocked(myRecipeImports).mockResolvedValue([]);
+    render(<RecipeToast />);
+    await waitFor(() => expect(hasVideo(ID)).toBe(false));
   });
 });
