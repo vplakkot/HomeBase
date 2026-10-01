@@ -1109,8 +1109,8 @@ first time a saved recipe needs it. Photos live in a private
 drink labels. Any member can add, change and remove any recipe.
 
 A recipe arrives three ways: typed in by hand, pasted as text in any
-form, or read from a downloaded video (always marked BETA). The last
-two go through **Gemini** (`gemini-3.8-flash`), Google's AI model, an
+form, read from a downloaded video (always marked BETA), or read from
+pictures (REQ-157). The last three go through **Gemini** (`gemini-3.8-flash`), Google's AI model, an
 outside service with its key in Vercel as `GEMINI_API_KEY`, read only
 on the server. `lib/meal-plans/gemini.ts` calls its web API directly;
 there is no Google library. Nothing is saved as a recipe until someone
@@ -1175,6 +1175,20 @@ screen and the server: the browser shows the scaled card and sends only
 the ratio when saving, and the server scales the stored card itself.
 Why the rule lives in an index and why the counts aren't stored:
 [lesson 30](lessons/30-one-open-plan-and-counting.md).
+
+### Pictures' trip (REQ-157)
+
+Pictures are small enough to pass through our server, so there is no
+upload link: the phone shrinks each one (the drink-label shrinker, a few
+hundred kilobytes) and sends them all, with a small copy of each, in one
+request to `startImagesImport`. Together they can't pass 2.5 MB (Vercel's
+limit is about 4.5 MB; `bodySizeLimit` in `next.config.ts` is 4mb), and
+3 is the most. The row goes straight to `processing`, and `after()`
+hands the pictures to Gemini inline (no file stored at Google), which
+reads them as one recipe and names the one that shows the finished dish,
+or none. That one and its small copy become the
+draft's photo; the pictures themselves are never stored. The same toast
+reports back. No new table or column.
 
 ### A video's trip
 

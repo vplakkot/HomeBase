@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   genericRecipe,
@@ -24,6 +25,7 @@ import {
   saveDraft,
   setDraftPhoto,
   setRecipePhoto,
+  startImagesImport,
   startVideoImport,
   videoProgress,
 } from "./actions";
@@ -106,6 +108,55 @@ describe("adding a recipe from text in any form (REQ-111)", () => {
   it("lets either of us add recipes, and nobody without the permission", async () => {
     given({}, []);
     await expect(draftFromText({}, form({ name: "Test", recipe: "x" }))).rejects.toThrow("REDIRECT:/meal-plans");
+  });
+});
+
+describe("adding a recipe from images (REQ-157)", () => {
+  const pictures = (count: number) => {
+    const data = new FormData();
+    for (let i = 0; i < count; i++) {
+      data.append("image", jpeg(), "image.jpg");
+      data.append("thumb", jpeg(), "thumb.jpg");
+    }
+    return data;
+  };
+
+  it("makes one processing import from all the images, named from what they show, and reads them after answering", async () => {
+    given();
+    const started = await startImagesImport(pictures(3));
+    expect(started).toEqual({ id: expect.stringMatching(/^[0-9a-f-]{36}$/) });
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ name: "Recipe from images", status: "processing" }));
+    expect(after).toHaveBeenCalledTimes(1);
+    expect(openVideoUpload).not.toHaveBeenCalled();
+  });
+
+  it("needs at least one image, and no more than three", async () => {
+    given();
+    expect(await startImagesImport(pictures(0))).toEqual({ error: "Choose at least one image." });
+    expect(await startImagesImport(pictures(4))).toEqual({ error: "Up to 3 images make one recipe." });
+    expect(fake.from).not.toHaveBeenCalledWith("recipe_imports");
+  });
+
+  it("refuses what isn't a JPEG, a missing small copy, or too much together", async () => {
+    given();
+    const png = pictures(1);
+    png.set("image", new Blob(["x"], { type: "image/png" }), "a.png");
+    expect(await startImagesImport(png)).toEqual({ error: "Images are sent as JPEG, under 1 MB each." });
+    const noThumb = new FormData();
+    noThumb.append("image", jpeg(), "image.jpg");
+    expect(await startImagesImport(noThumb)).toEqual({ error: "An image didn't arrive. Try again." });
+    const big = new FormData();
+    for (let i = 0; i < 3; i++) {
+      big.append("image", new Blob([new Uint8Array(900 * 1024)], { type: "image/jpeg" }), "image.jpg");
+      big.append("thumb", jpeg(), "thumb.jpg");
+    }
+    expect(await startImagesImport(big)).toEqual({ error: "Those images are too big together. Try fewer." });
+    expect(fake.from).not.toHaveBeenCalledWith("recipe_imports");
+  });
+
+  it("lets nobody without the permission add from images", async () => {
+    given({}, []);
+    await expect(startImagesImport(pictures(1))).rejects.toThrow("REDIRECT:/meal-plans");
   });
 });
 

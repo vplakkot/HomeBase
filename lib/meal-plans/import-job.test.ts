@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fakeSupabase } from "../../test/fake-supabase";
-import { processVideoImport, waitUntilReady } from "./import-job";
+import { processImageImport, processVideoImport, waitUntilReady } from "./import-job";
 
 const ID = "22222222-2222-4222-8222-222222222222";
 const wait = vi.fn(async () => {});
@@ -84,5 +84,51 @@ describe("reading an uploaded video after the phone moves on (REQ-112)", () => {
     const check = vi.fn(async () => ({ state: "UNKNOWN" as const }));
     expect(await waitUntilReady("files/abc", check, wait, 9000)).toEqual({ error: "Google took too long to process the video." });
     expect(check).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe("reading pictures after the phone moves on (REQ-157)", () => {
+  const images = [{ mime: "image/jpeg", data: "AAAA" }, { mime: "image/jpeg", data: "BBBB" }];
+
+  it("reads all the pictures together, names the import from the recipe, and keeps the picked one as the photo", async () => {
+    const fake = admin("processing", "", "Recipe from images");
+    const read = vi.fn(async () => ({ draft: { ...DRAFT, name: "Test dal" }, photo: 1 }));
+    const keepPhoto = vi.fn(async () => "imports/x/1.jpg");
+    await processImageImport(fake as never, ID, images, { read, keepPhoto });
+    expect(read).toHaveBeenCalledWith(images);
+    expect(keepPhoto).toHaveBeenCalledWith(1);
+    expect(updates(fake)).toEqual([expect.objectContaining({ status: "ready", name: "Test dal", photo: "imports/x/1.jpg" })]);
+  });
+
+  it("saves no photo when no picture shows the dish, and none is made up", async () => {
+    const fake = admin("processing", "", "Recipe from images");
+    const keepPhoto = vi.fn();
+    await processImageImport(fake as never, ID, images, { read: vi.fn(async () => ({ draft: DRAFT, photo: null })), keepPhoto });
+    expect(keepPhoto).not.toHaveBeenCalled();
+    expect(updates(fake)[0]).not.toHaveProperty("photo");
+  });
+
+  it("still gives the draft when the photo can't be kept", async () => {
+    const fake = admin("processing", "", "Recipe from images");
+    await processImageImport(fake as never, ID, images, {
+      read: vi.fn(async () => ({ draft: DRAFT, photo: 0 })),
+      keepPhoto: vi.fn(async () => {
+        throw new Error("storage down");
+      }),
+    });
+    expect(updates(fake)).toEqual([expect.objectContaining({ status: "ready", draft: DRAFT })]);
+  });
+
+  it("fails plainly when there is no recipe in the pictures, keeping no draft", async () => {
+    const fake = admin("processing", "", "Recipe from images");
+    await processImageImport(fake as never, ID, images, { read: vi.fn(async () => ({ error: "Gemini found no recipe in it." })) });
+    expect(updates(fake)).toEqual([expect.objectContaining({ status: "failed", error: "Gemini found no recipe in it." })]);
+    expect(updates(fake)[0]).not.toHaveProperty("draft");
+  });
+
+  it("leaves an import alone that isn't processing any more", async () => {
+    const read = vi.fn();
+    await processImageImport(admin("failed", "") as never, ID, images, { read });
+    expect(read).not.toHaveBeenCalled();
   });
 });

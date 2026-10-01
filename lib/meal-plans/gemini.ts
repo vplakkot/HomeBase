@@ -177,11 +177,11 @@ export function genericPrompt(name: string): string {
 Write a typical home version of "${name}", as a well-known cookbook would give it, with real quantities. Keep it simple enough for a weeknight.`;
 }
 
-type Part = { text: string } | { file_data: { mime_type: string; file_uri: string } };
+type Part = { text: string } | { file_data: { mime_type: string; file_uri: string } } | { inline_data: { mime_type: string; data: string } };
 
 export type Reading = { draft: RecipeDraft } | { error: string };
 
-async function generate(parts: Part[], timeoutMs: number): Promise<Reading> {
+async function generate(parts: Part[], timeoutMs: number, schema: object = RECIPE_SCHEMA): Promise<Response | { error: string }> {
   const response = await call(
     `/v1beta/models/${MODEL}:generateContent`,
     {
@@ -191,7 +191,7 @@ async function generate(parts: Part[], timeoutMs: number): Promise<Reading> {
         contents: [{ parts }],
         generationConfig: {
           responseMimeType: "application/json",
-          responseSchema: RECIPE_SCHEMA,
+          responseSchema: schema,
           // REQ-112: small on-screen quantities need the sharper frames.
           mediaResolution: "MEDIA_RESOLUTION_HIGH",
         },
@@ -199,42 +199,91 @@ async function generate(parts: Part[], timeoutMs: number): Promise<Reading> {
     },
     timeoutMs,
   );
-  if (!response.ok) return { error: `Gemini answered ${response.status}.` };
-  return readingFrom(await response.json());
+  return response.ok ? response : { error: `Gemini answered ${response.status}.` };
+}
+
+async function read(parts: Part[], timeoutMs: number): Promise<Reading> {
+  const response = await generate(parts, timeoutMs);
+  return response instanceof Response ? readingFrom(await response.json()) : response;
 }
 
 // Gemini's reply, turned into a draft. Its thinking comes back as parts
 // marked `thought`; only the answer counts.
 export function readingFrom(reply: unknown): Reading {
+  const parsed = answerFrom(reply);
+  if (parsed === undefined) return { error: "Gemini's answer couldn't be read." };
+  const draft = draftFrom(parsed);
+  return draft ? { draft } : { error: "Gemini found no recipe in it." };
+}
+
+function answerFrom(reply: unknown): unknown {
   const parts = (reply as { candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[] })?.candidates?.[0]?.content?.parts ?? [];
   const answer = parts
     .filter((part) => !part.thought)
     .map((part) => part.text ?? "")
     .join("");
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(answer);
+    return JSON.parse(answer);
   } catch {
-    return { error: "Gemini's answer couldn't be read." };
+    return undefined;
   }
-  const draft = draftFrom(parsed);
-  return draft ? { draft } : { error: "Gemini found no recipe in it." };
 }
 
 export async function recipeFromVideo(name: string, file: { uri: string; mimeType: string }): Promise<Reading> {
-  return generate([{ file_data: { mime_type: file.mimeType, file_uri: file.uri } }, { text: videoPrompt(name) }], 240_000);
+  return read([{ file_data: { mime_type: file.mimeType, file_uri: file.uri } }, { text: videoPrompt(name) }], 240_000);
+}
+
+// REQ-157: a recipe from pictures (a carousel, screenshots). The pictures
+// are numbered so Gemini can name the one that could be the card's photo:
+// the one showing the finished dish, or none (0). A person in it doesn't
+// matter here (Vin, 2026-10-01); that rule is for video frames (REQ-156).
+export const IMAGES_SCHEMA = {
+  ...RECIPE_SCHEMA,
+  properties: {
+    ...RECIPE_SCHEMA.properties,
+    photo_image: {
+      type: "integer",
+      description: "The number of the one image that shows the finished dish as a photo; 0 if none does. Never a screenshot of text.",
+    },
+  },
+};
+
+export function imagesPrompt(count: number): string {
+  return `${CARD_RULES}
+Read the recipe from these ${count} image${count === 1 ? "" : "s"} only: what is written on them and what they show. Together they are one recipe, in any order (a carousel, or a recipe split across screenshots). Don't add anything they don't show or say. For name, give the dish's own name as the images call it or show it.
+Also give photo_image.`;
+}
+
+export type ImageFile = { mime: string; data: string };
+export type ImagesReading = { draft: RecipeDraft; photo: number | null } | { error: string };
+
+// `data` is each image's bytes in base64; nothing is stored at Google.
+export async function recipeFromImages(images: ImageFile[]): Promise<ImagesReading> {
+  const parts: Part[] = images.flatMap((image, index): Part[] => [
+    { text: `Image ${index + 1}:` },
+    { inline_data: { mime_type: image.mime, data: image.data } },
+  ]);
+  parts.push({ text: imagesPrompt(images.length) });
+  const response = await generate(parts, 120_000, IMAGES_SCHEMA);
+  if (!(response instanceof Response)) return response;
+  const reply = await response.json();
+  const reading = readingFrom(reply);
+  if ("error" in reading) return reading;
+  const picked = (answerFrom(reply) as { photo_image?: unknown })?.photo_image;
+  const photo = Number.isInteger(picked) && (picked as number) >= 1 && (picked as number) <= images.length ? (picked as number) - 1 : null;
+  return { draft: reading.draft, photo };
 }
 
 export async function recipeFromText(name: string, recipe: string): Promise<Reading> {
-  return generate([{ text: textPrompt(name, recipe) }], 90_000);
+  return read([{ text: textPrompt(name, recipe) }], 90_000);
 }
 
 export async function recipeFromPage(name: string, page: string): Promise<Reading> {
-  return generate([{ text: pagePrompt(name, page) }], 90_000);
+  return read([{ text: pagePrompt(name, page) }], 90_000);
 }
 
 export async function genericRecipe(name: string): Promise<Reading> {
-  return generate([{ text: genericPrompt(name) }], 90_000);
+  return read([{ text: genericPrompt(name) }], 90_000);
 }
 
 // REQ-112: recipe pages for a dish, from Gemini's Google Search. Only the

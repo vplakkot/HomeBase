@@ -6,6 +6,7 @@ import {
   openVideoUpload,
   pagePrompt,
   readingFrom,
+  recipeFromImages,
   recipeFromText,
   recipeFromVideo,
   searchRecipePages,
@@ -172,5 +173,37 @@ describe("the web flows (REQ-112, flows 2 and 3)", () => {
   it("says so when the search fails", async () => {
     fetchMock.mockResolvedValue(new Response("{}", { status: 503 }));
     expect(await searchRecipePages("Test curry")).toEqual({ error: "Gemini answered 503." });
+  });
+});
+
+describe("reading a recipe from pictures (REQ-157)", () => {
+  const answer = (extra: object) =>
+    new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ found: true, name: "Test dal", ingredients: [], steps: ["Boil 1 cup dal."], guessed: [], ...extra }) }] } }] }));
+  const pictures = [{ mime: "image/jpeg", data: "AAAA" }, { mime: "image/jpeg", data: "BBBB" }];
+
+  it("sends every picture, numbered, with nothing stored at Google", async () => {
+    fetchMock.mockResolvedValue(answer({ photo_image: 2 }));
+    await recipeFromImages(pictures);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const parts = body.contents[0].parts;
+    expect(parts.map((part: Record<string, unknown>) => part.text ?? "image")).toEqual(["Image 1:", "image", "Image 2:", "image", expect.stringContaining("these 2 images")]);
+    expect(parts[1].inline_data).toEqual({ mime_type: "image/jpeg", data: "AAAA" });
+    expect(fetchMock.mock.calls[0][0]).not.toContain("/upload/");
+  });
+
+  it("turns the picture Gemini names into a position, or none", async () => {
+    fetchMock.mockResolvedValue(answer({ photo_image: 2 }));
+    expect(await recipeFromImages(pictures)).toEqual({ draft: expect.objectContaining({ name: "Test dal" }), photo: 1 });
+    for (const photo_image of [0, 3, -1, 1.5, "1", undefined]) {
+      fetchMock.mockResolvedValue(answer({ photo_image }));
+      expect(await recipeFromImages(pictures)).toEqual({ draft: expect.anything(), photo: null });
+    }
+  });
+
+  it("says so when there is no recipe in them, and on a Gemini error", async () => {
+    fetchMock.mockResolvedValue(answer({ found: false }));
+    expect(await recipeFromImages(pictures)).toEqual({ error: "Gemini found no recipe in it." });
+    fetchMock.mockResolvedValue(new Response("{}", { status: 500 }));
+    expect(await recipeFromImages(pictures)).toEqual({ error: "Gemini answered 500." });
   });
 });

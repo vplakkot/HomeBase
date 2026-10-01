@@ -7,7 +7,7 @@ import cards from "../../components/cards.module.css";
 import { buttonClass } from "../../components/button";
 import { Hint } from "../../components/hint";
 import { shrinkPhoto } from "../../lib/drinks/shrink-photo";
-import { UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
+import { MAX_IMAGES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
 import { COOKING_METHODS, MAIN_MEATS, type Ingredient, type Recipe, type RecipeDraft } from "../../lib/meal-plans/recipes";
 import { rememberImports } from "../../lib/meal-plans/import-flag";
 import { sendVideo } from "../../lib/meal-plans/video-upload";
@@ -24,6 +24,7 @@ import {
   saveDraft,
   setDraftPhoto,
   setRecipePhoto,
+  startImagesImport,
   startVideoImport,
   updateRecipe,
   uploadFailed,
@@ -56,10 +57,11 @@ function Check() {
   return <em className={styles.unsure}> · check this</em>;
 }
 
-type Way = "video" | "link" | "web" | "text" | "blank";
+type Way = "video" | "images" | "link" | "web" | "text" | "blank";
 
 const WAYS: { value: Way; label: string }[] = [
   { value: "video", label: "From a video" },
+  { value: "images", label: "From images" },
   { value: "link", label: "From a recipe page link" },
   { value: "web", label: "Find it on the web" },
   { value: "text", label: "Paste or type it" },
@@ -70,7 +72,7 @@ const WAYS: { value: Way; label: string }[] = [
 // from, and why.
 type TypeIn = { url: string; name: string; why: string };
 
-// Add recipe: from a video (REQ-112, BETA), a recipe page link
+// Add recipe: from a video (REQ-112, BETA), images (REQ-157), a recipe page link
 // (REQ-150), text in any form (REQ-111), or an empty card to fill in.
 export function AddRecipe() {
   const [way, setWay] = useState<Way>("video");
@@ -101,6 +103,8 @@ export function AddRecipe() {
       </fieldset>
       {way === "video" ? (
         <VideoForm />
+      ) : way === "images" ? (
+        <ImagesForm />
       ) : way === "link" ? (
         <LinkForm cantRead={cantRead} />
       ) : way === "web" ? (
@@ -184,6 +188,82 @@ function VideoForm() {
         <input ref={picker} name="video" type="file" accept="video/*" className={styles.hidden} aria-label="The downloaded video" onChange={picked} />
         <button type="button" className={styles.linkButton} onClick={() => picker.current?.click()}>
           {chosen ?? "Choose the video"}
+        </button>
+      </div>
+      {error ? (
+        <p role="alert" className={cards.error}>
+          {error}
+        </p>
+      ) : null}
+      <button type="submit" className={buttonClass} disabled={busy}>
+        {busy ? "Starting…" : "Read the recipe"}
+      </button>
+    </form>
+  );
+}
+
+// REQ-157: one or more pictures that make one recipe (a carousel,
+// screenshots). Each is shrunk here and sent with this request; Gemini
+// reads them while we do other things, like a video.
+function ImagesForm() {
+  const router = useRouter();
+  const picker = useRef<HTMLInputElement>(null);
+  const [chosen, setChosen] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const files = Array.from(picker.current?.files ?? []);
+    if (files.length === 0) {
+      setError("Choose the images.");
+      return;
+    }
+    if (files.length > MAX_IMAGES) {
+      setError(`Up to ${MAX_IMAGES} images make one recipe.`);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const data = new FormData();
+    try {
+      for (const file of files) {
+        const shrunk = await shrinkPhoto(file);
+        data.append("image", shrunk.full, "image.jpg");
+        data.append("thumb", shrunk.thumb, "thumb.jpg");
+      }
+    } catch {
+      setError("One of those couldn't be read as an image.");
+      setBusy(false);
+      return;
+    }
+    const started = await startImagesImport(data);
+    if ("error" in started) {
+      setError(started.error);
+      setBusy(false);
+      return;
+    }
+    rememberImports();
+    router.push("/meal-plans");
+  };
+  return (
+    <form onSubmit={submit} className={cards.form}>
+      <div className={cards.field}>
+        <span className={styles.labelRow}>
+          The images
+          <Hint text="Gemini reads the images together as one recipe while you do other things, and a note says when it is ready. The images aren't kept. If one shows the finished dish, it becomes the card's photo." />
+        </span>
+        <input
+          ref={picker}
+          name="images"
+          type="file"
+          accept="image/*"
+          multiple
+          className={styles.hidden}
+          aria-label="The images"
+          onChange={() => setChosen(picker.current?.files?.length ?? 0)}
+        />
+        <button type="button" className={styles.linkButton} onClick={() => picker.current?.click()}>
+          {chosen === 0 ? "Choose the images" : chosen === 1 ? "1 image chosen" : `${chosen} images chosen`}
         </button>
       </div>
       {error ? (
