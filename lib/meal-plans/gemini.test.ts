@@ -211,19 +211,19 @@ describe("reading a recipe from pictures (REQ-157)", () => {
 
 describe("choosing a video's photo from its frames (REQ-156)", () => {
   const reply = (frames: unknown) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ frames }) }] } }] }));
-  const frames = Array.from({ length: 8 }, (_, i) => ({ mime: "image/jpeg", data: `F${i}` }));
+  const frames = Array.from({ length: 12 }, (_, i) => ({ mime: "image/jpeg", data: `F${i}` }));
 
-  it("sends the frames numbered, start ones first, asking for the finished dish with no person", async () => {
+  it("sends the frames numbered, in order, asking for the finished dish with no person", async () => {
     fetchMock.mockResolvedValue(reply([]));
     await pickDishFrames(frames);
     const parts = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts;
     expect(parts[0].text).toBe("Frame 1:");
-    expect(parts[16].text).toContain("first half from near its start");
-    expect(parts[16].text).toContain("Never pick a frame with any part of a person");
+    expect(parts[24].text).toContain("spread evenly through it");
+    expect(parts[24].text).toContain("Never pick a frame with any part of a person");
   });
 
   it("returns up to three valid positions, best first, ignoring repeats and nonsense", async () => {
-    fetchMock.mockResolvedValue(reply([7, 2, 7, 0, 9, 4, 1]));
+    fetchMock.mockResolvedValue(reply([7, 2, 7, 0, 13, 4, 1]));
     expect(await pickDishFrames(frames)).toEqual([6, 1, 3]);
   });
 

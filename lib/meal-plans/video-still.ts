@@ -1,10 +1,9 @@
 "use client";
 
 // REQ-156: a recipe from a video may get one of its frames as its photo.
-// Before the video is sent, the browser plays it silently to a few points
-// near its start and a few near its end (where creators show the finished
-// dish) and copies a small picture of each, skipping any that come out
-// black. Gemini then names the ones that qualify. This happens while the
+// Before the video is sent, the browser plays it silently to 12 points
+// spread through it and copies a small picture of each, skipping any that
+// come out black. Gemini then names the ones that qualify. This happens while the
 // button says "Starting…", a few seconds, so the phone needn't stay on
 // screen afterwards. iPhones play their own HEVC videos, so no conversion
 // is needed. If no frame can be had, the card simply has no photo.
@@ -22,9 +21,10 @@ export function mostlyBlack(context: CanvasRenderingContext2D, width: number, he
   return bright / samples < 0.05;
 }
 
-// Where in the video to look, as fractions of its length: first the
-// start, then the end.
-export const FRAME_POINTS = [0.03, 0.08, 0.13, 0.18, 0.82, 0.87, 0.92, 0.97];
+// Where in the video to look, as fractions of its length: evenly through
+// all of it, since the finished dish can be anywhere (the end is often a
+// thank-you card, not the plate).
+export const FRAME_POINTS = Array.from({ length: 12 }, (_, i) => 0.04 + (i * 0.92) / 11);
 const FRAME_EDGE = 960;
 
 export async function sampleFrames(file: Blob, points: readonly number[] = FRAME_POINTS, timeoutMs = 10_000): Promise<Blob[]> {

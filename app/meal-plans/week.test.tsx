@@ -22,6 +22,8 @@ import {
   startPlan,
   takeOffPlan,
 } from "./plan-actions";
+import DraftPage from "./drafts/[id]/page";
+import NewRecipePage from "./new/page";
 import RecipesPage from "./recipes/page";
 import WeekPage from "./week/page";
 
@@ -451,6 +453,18 @@ describe("where Add recipe shows (REQ-155)", () => {
     given({ recipes: [RECIPE] });
     render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
     expect(addRecipe()).toEqual([]);
+    cleanup();
+    given({});
+    render(await NewRecipePage());
+    expect(addRecipe()).toEqual([]);
+    cleanup();
+    given({
+      recipe_imports: [{ id: ID, name: "Test curry", video_url: null, source: "video", photo: null, status: "ready", error: null, seen: true, created_at: "2026-09-30T12:00:00Z", draft: null }],
+      cuisines: [],
+    });
+    render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
+    expect(addRecipe()).toEqual([]);
+    expect(screen.getByRole("button", { name: "Save recipe" })).toBeTruthy();
   });
 });
 

@@ -185,15 +185,15 @@ describe("adding a recipe from a video (REQ-112, BETA)", () => {
   it("hands the phone's frames to Gemini after answering, to name the photo candidates", async () => {
     given();
     const data = form({ name: "", size: "1000", mime: "video/mp4" });
-    for (let i = 0; i < 8; i++) data.append("frame", jpeg(), "frame.jpg");
+    for (let i = 0; i < 12; i++) data.append("frame", jpeg(), "frame.jpg");
     expect(await startVideoImport(data)).toHaveProperty("uploadUrl");
     expect(after).toHaveBeenCalledTimes(1);
   });
 
-  it("refuses more than eight frames, or ones that aren't JPEG", async () => {
+  it("refuses more than twelve frames, or ones that aren't JPEG", async () => {
     given();
     const many = form({ name: "", size: "1000", mime: "video/mp4" });
-    for (let i = 0; i < 9; i++) many.append("frame", jpeg(), "frame.jpg");
+    for (let i = 0; i < 13; i++) many.append("frame", jpeg(), "frame.jpg");
     expect(await startVideoImport(many)).toEqual({ error: "The video's frames couldn't be used. Try again." });
     const png = form({ name: "", size: "1000", mime: "video/mp4" });
     png.append("frame", new Blob(["x"], { type: "image/png" }), "frame.png");

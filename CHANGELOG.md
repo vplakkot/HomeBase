@@ -14,7 +14,7 @@
     list, no longer under a draft's Save or on the plan, a card or the
     Add recipe screen.
 - Meal Plans, a video's photo (REQ-156): instead of one random still,
-  the phone takes a few frames from the start and end of the video and
+  the phone takes 12 frames spread through the video and
   Gemini picks up to 3 that show the finished dish with no one in
   them. The draft review shows them to pick from, or "No photo"; when
   none qualify it says so and the card has no photo. Migration:

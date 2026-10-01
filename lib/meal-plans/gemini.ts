@@ -1,4 +1,5 @@
 import { pagesFrom, searchPrompt, suggestionsFrom, type SearchResult } from "./recipe-search";
+import { MAX_KEPT_FRAMES } from "./video-types";
 import { COOKING_METHODS, MAIN_MEATS, draftFrom, type RecipeDraft } from "./recipes";
 
 // Reading recipes with Google's Gemini (REQ-111, REQ-112). Plain web
@@ -275,9 +276,9 @@ export async function recipeFromImages(images: ImageFile[]): Promise<ImagesReadi
 }
 
 // REQ-156: which frames of a cooking video could be the card's photo. The
-// phone takes a few from near the start and a few from near the end, in
-// that order; Gemini names up to three that show the finished dish with no
-// part of a person in it, best first. None is a fine answer.
+// phone takes 12, evenly through the video, in order; Gemini names up to
+// three that show the finished dish with no part of a person in it, best
+// first. None is a fine answer.
 export const FRAMES_SCHEMA = {
   type: "object",
   properties: {
@@ -287,7 +288,7 @@ export const FRAMES_SCHEMA = {
 };
 
 export function framesPrompt(count: number): string {
-  return `These ${count} frames come from one cooking video, in order: the first half from near its start, the rest from near its end, where creators usually show the finished dish.
+  return `These ${count} frames come from one cooking video, in order, spread evenly through it. The finished dish can be anywhere in it.
 Pick up to 3 frames that show the finished, plated dish clearly as the main subject, as a photo for its recipe card. Never pick a frame with any part of a person in it (face, hands, arms, body), a dish still being made, loose ingredients, or text. Best first. If no frame qualifies, answer an empty list.`;
 }
 
@@ -302,7 +303,7 @@ export async function pickDishFrames(images: ImageFile[]): Promise<number[]> {
   const picked = (answerFrom(await response.json()) as { frames?: unknown })?.frames;
   if (!Array.isArray(picked)) return [];
   const valid = picked.filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= images.length);
-  return [...new Set(valid)].slice(0, 3).map((n) => n - 1);
+  return [...new Set(valid)].slice(0, MAX_KEPT_FRAMES).map((n) => n - 1);
 }
 
 export async function recipeFromText(name: string, recipe: string): Promise<Reading> {

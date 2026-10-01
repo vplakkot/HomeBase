@@ -1210,8 +1210,8 @@ toast (every page) ──myRecipeImports every 15 s──▶ "Recipe ready"
 ```
 
 - REQ-156, the card's photo: before sending, the phone plays the video
-  silently to 4 points near its start and 4 near its end and copies a
-  small picture of each (a few seconds, while the button says
+  silently to 12 points spread evenly through it and copies a small
+  picture of each (a few seconds, while the button says
   "Starting…", so the phone needn't stay on screen afterwards). Those
   ride along with `startVideoImport`; Gemini is shown them and names up
   to 3 that show the finished dish with no part of a person in them.

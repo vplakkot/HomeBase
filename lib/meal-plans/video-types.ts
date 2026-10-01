@@ -27,5 +27,5 @@ export const MAX_IMAGES_BYTES = 2.5 * 1024 * 1024;
 
 // REQ-156: frames the phone takes from a video for its photo, and the most
 // Gemini may keep as candidates.
-export const MAX_FRAMES = 8;
+export const MAX_FRAMES = 12;
 export const MAX_KEPT_FRAMES = 3;
