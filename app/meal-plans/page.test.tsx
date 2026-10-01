@@ -61,6 +61,7 @@ const RECIPE = {
 function given(tables: Record<string, unknown[]>) {
   const fake = fakeSupabase({ permissions: ["use_modules"], tables });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+  return fake;
 }
 
 describe("a recipe card (REQ-110)", () => {
@@ -91,18 +92,34 @@ describe("where you are, under the module's name", () => {
   });
 });
 
+const chooseSource = (name: string) => {
+  const select = screen.getByRole("combobox", { name: /Source/ }) as HTMLSelectElement;
+  const option = Array.from(select.options).find((item) => item.text === name)!;
+  fireEvent.change(select, { target: { value: option.value } });
+};
+
 describe("adding a recipe (REQ-111, REQ-112)", () => {
   it("offers a video (marked BETA), text in any form, or an empty card", async () => {
     given({});
     render(await NewRecipePage());
     expect(screen.getByRole("heading", { level: 1 }).nextElementSibling?.textContent).toBe("Recipes");
-    const video = screen.getByRole("radio", { name: /From a video/ });
-    expect(video.closest("label")?.textContent).toContain("BETA");
-    fireEvent.click(screen.getByRole("radio", { name: "From images" }));
+    // REQ-155: the source is a dropdown, with a video (BETA) first.
+    const source = screen.getByRole("combobox", { name: /Source/ }) as HTMLSelectElement;
+    expect(source.closest("label")?.textContent).toContain("BETA");
+    expect(Array.from(source.options).map((option) => option.text)).toEqual([
+      "From a video",
+      "From images",
+      "From a recipe page link",
+      "Find it on the web",
+      "Paste or type it",
+      "Fill in the card",
+    ]);
+    expect(screen.queryByRole("radio", { name: "Paste or type it" })).toBeNull();
+    chooseSource("From images");
     expect(screen.getByRole("button", { name: "Choose the images" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("radio", { name: "Paste or type it" }));
+    chooseSource("Paste or type it");
     expect(screen.getByRole("textbox", { name: "The recipe" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("radio", { name: "Fill in the card" }));
+    chooseSource("Fill in the card");
     expect(screen.getByRole("button", { name: "Save recipe" })).toBeTruthy();
   });
 });
@@ -184,7 +201,7 @@ describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
       suggestions: "<div>chips</div>",
     });
     render(await NewRecipePage());
-    fireEvent.click(screen.getByRole("radio", { name: "Find it on the web" }));
+    chooseSource("Find it on the web");
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Test curry" } });
     fireEvent.click(screen.getByRole("button", { name: "Search the web" }));
     const pages = await screen.findByRole("group", { name: "Recipe pages for “Test curry”" });
@@ -202,7 +219,7 @@ describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
   it("adds from a recipe page link: the link alone, read by Gemini (REQ-150)", async () => {
     given({});
     render(await NewRecipePage());
-    fireEvent.click(screen.getByRole("radio", { name: "From a recipe page link" }));
+    chooseSource("From a recipe page link");
     expect(screen.getByRole("textbox", { name: /Link to the recipe page/ }).getAttribute("type")).toBe("url");
     expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
     expect(screen.getByRole("button", { name: "Read the recipe" })).toBeTruthy();
@@ -212,7 +229,7 @@ describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
     given({});
     vi.mocked(readRecipePage).mockRejectedValue(new Error("The page answered 403"));
     render(await NewRecipePage());
-    fireEvent.click(screen.getByRole("radio", { name: "From a recipe page link" }));
+    chooseSource("From a recipe page link");
     fireEvent.change(screen.getByRole("textbox", { name: /Link to the recipe page/ }), {
       target: { value: "https://recipes.example.com/lemon-test-chicken/" },
     });
@@ -220,7 +237,7 @@ describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
     expect((await screen.findByRole("alert")).textContent).toBe(
       "That page couldn't be read. Copy the recipe from the site and paste it here.",
     );
-    expect((screen.getByRole("radio", { name: "Paste or type it" }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("combobox", { name: /Source/ }) as HTMLSelectElement).selectedOptions[0].text).toBe("Paste or type it");
     expect((screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement).value).toBe("Lemon test chicken");
     expect(screen.getByRole("textbox", { name: "The recipe" })).toBeTruthy();
     const kept = document.querySelector('input[type="hidden"][name="page_url"]') as HTMLInputElement;
@@ -232,7 +249,7 @@ describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
     given({});
     vi.mocked(searchRecipePages).mockResolvedValue({ pages: [], suggestions: null });
     render(await NewRecipePage());
-    fireEvent.click(screen.getByRole("radio", { name: "Find it on the web" }));
+    chooseSource("Find it on the web");
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Test curry" } });
     fireEvent.click(screen.getByRole("button", { name: "Search the web" }));
     await waitFor(() => expect(screen.getByText("No recipe pages came up for “Test curry”.")).toBeTruthy());
@@ -253,5 +270,49 @@ describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
     render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
     expect(screen.getByRole("heading", { name: /Test pasta/ }).textContent).toBe("Test pastaAI-generated");
     expect(screen.queryByRole("region", { name: "Recipe missing" })).toBeNull();
+  });
+});
+
+// REQ-156: a video's candidate photos, in the draft review.
+describe("choosing the photo in a video's draft (REQ-156)", () => {
+  const video = {
+    id: ID,
+    name: "Test curry",
+    video_url: null,
+    source: "video",
+    photo: null,
+    status: "ready",
+    error: null,
+    seen: true,
+    created_at: "2026-09-30T12:00:00Z",
+    draft: { name: "", cuisine: null, main_meat: null, cooking_method: null, cook_minutes: null, servings: null, ingredients: [], steps: ["Fry 200 g chicken."], notes: null, guessed: [] },
+  };
+
+  it("offers the candidates as thumbnails, the first picked, and 'No photo'", async () => {
+    const fake = given({ recipe_imports: [video], cuisines: [] });
+    fake.storage.bucket.list.mockResolvedValue({ data: [{ name: "1.jpg" }, { name: "2.jpg" }, { name: "1-thumb.jpg" }], error: null });
+    render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
+    const photo = screen.getByRole("group", { name: "Photo" });
+    const choices = within(photo).getAllByRole("radio") as HTMLInputElement[];
+    expect(choices.map((choice) => choice.value)).toEqual(["1", "2", ""]);
+    expect(choices.map((choice) => choice.checked)).toEqual([true, false, false]);
+    expect(within(photo).getAllByRole("img").map((img) => img.getAttribute("src"))).toEqual([
+      `https://signed.example/imports/${ID}/frames/1.jpg`,
+      `https://signed.example/imports/${ID}/frames/2.jpg`,
+    ]);
+  });
+
+  it("says so when no frame qualified, and the card will have no photo", async () => {
+    given({ recipe_imports: [video], cuisines: [] });
+    render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
+    expect(screen.getByRole("group", { name: "Photo" }).textContent).toContain("this card will have no photo");
+    expect(screen.queryAllByRole("radio")).toEqual([]);
+  });
+
+  it("is only for video drafts: a draft read from images (BETA-free) offers no frames", async () => {
+    given({ recipe_imports: [{ ...video, source: "images", photo: `imports/${ID}/1.jpg` }], cuisines: [] });
+    render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
+    expect(screen.queryByRole("group", { name: "Photo" })).toBeNull();
+    expect(screen.getByRole("heading", { name: /Test curry/ }).textContent).toBe("Test curry");
   });
 });

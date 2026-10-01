@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Meal Plans, phone layout tidied (REQ-155):
+  - "On the menu" on the module home is plain rows: a recipe name and
+    the meal it's for ("Dinner, Sun, Sep 27"), no photos or colour
+    blocks.
+  - A long name in an Our kitchen tile stays inside it, at most two
+    lines, then "…".
+  - Add recipe's "How" buttons are a "Source" dropdown with the same
+    choices (and From images).
+  - The Add recipe button shows only on the module home and the Recipes
+    list, no longer under a draft's Save or on the plan, a card or the
+    Add recipe screen.
+- Meal Plans, a video's photo (REQ-156): instead of one random still,
+  the phone takes a few frames from the start and end of the video and
+  Gemini picks up to 3 that show the finished dish with no one in
+  them. The draft review shows them to pick from, or "No photo"; when
+  none qualify it says so and the card has no photo. Migration:
+  `recipe_imports.source`. A drafted recipe from images no longer shows
+  the BETA label.
 - Meal Plans, Add recipe: a new "From images" source. Choose up to 3
   pictures (a picture-only post, screenshots of a recipe); Gemini reads
   them together as one recipe, names it from what they say, and a note

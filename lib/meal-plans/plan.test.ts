@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coversText, coversThrough, dayLabel, isPlanServings, planTile } from "./plan";
+import { coversText, coversThrough, dayLabel, isPlanServings, mealFor, planTile } from "./plan";
 
 const dishes = (count: number, servings: 4 | 2 = 4) => Array.from({ length: count }, () => ({ servings }));
 
@@ -63,5 +63,18 @@ describe("Home's Meal Plans tile", () => {
 
   it("is calm: no action items", () => {
     expect(planTile(plan([4]), 2).actionItems).toEqual([]);
+  });
+});
+
+describe("the meal a recipe is planned for (REQ-155)", () => {
+  const four = { servings: 4 as const };
+  it("starts the first recipe at the first dinner", () => {
+    expect(mealFor("2026-09-27", [], 2)).toEqual({ day: "2026-09-27", meal: "dinner" });
+  });
+  it("starts each after the servings before it, dinner then next day's lunch", () => {
+    // Two eaters: a 4-serving recipe is two meals.
+    expect(mealFor("2026-09-27", [four], 2)).toEqual({ day: "2026-09-28", meal: "dinner" });
+    expect(mealFor("2026-09-27", [{ servings: 2 }], 2)).toEqual({ day: "2026-09-28", meal: "lunch" });
+    expect(mealFor("2026-09-27", [{ servings: 2 }, four], 2)).toEqual({ day: "2026-09-29", meal: "lunch" });
   });
 });

@@ -5,6 +5,7 @@ import {
   genericPrompt,
   openVideoUpload,
   pagePrompt,
+  pickDishFrames,
   readingFrom,
   recipeFromImages,
   recipeFromText,
@@ -205,5 +206,33 @@ describe("reading a recipe from pictures (REQ-157)", () => {
     expect(await recipeFromImages(pictures)).toEqual({ error: "Gemini found no recipe in it." });
     fetchMock.mockResolvedValue(new Response("{}", { status: 500 }));
     expect(await recipeFromImages(pictures)).toEqual({ error: "Gemini answered 500." });
+  });
+});
+
+describe("choosing a video's photo from its frames (REQ-156)", () => {
+  const reply = (frames: unknown) => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ frames }) }] } }] }));
+  const frames = Array.from({ length: 8 }, (_, i) => ({ mime: "image/jpeg", data: `F${i}` }));
+
+  it("sends the frames numbered, start ones first, asking for the finished dish with no person", async () => {
+    fetchMock.mockResolvedValue(reply([]));
+    await pickDishFrames(frames);
+    const parts = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts;
+    expect(parts[0].text).toBe("Frame 1:");
+    expect(parts[16].text).toContain("first half from near its start");
+    expect(parts[16].text).toContain("Never pick a frame with any part of a person");
+  });
+
+  it("returns up to three valid positions, best first, ignoring repeats and nonsense", async () => {
+    fetchMock.mockResolvedValue(reply([7, 2, 7, 0, 9, 4, 1]));
+    expect(await pickDishFrames(frames)).toEqual([6, 1, 3]);
+  });
+
+  it("returns none when none qualify or the answer is unreadable, and fails on a Gemini error", async () => {
+    fetchMock.mockResolvedValue(reply([]));
+    expect(await pickDishFrames(frames)).toEqual([]);
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ candidates: [] })));
+    expect(await pickDishFrames(frames)).toEqual([]);
+    fetchMock.mockResolvedValue(new Response("{}", { status: 500 }));
+    await expect(pickDishFrames(frames)).rejects.toThrow("Gemini answered 500.");
   });
 });

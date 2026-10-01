@@ -1,11 +1,9 @@
 import { OVERVIEW } from "../../components/module-frame";
 import Link from "next/link";
 import { readPeople } from "../../lib/drinks/drinks";
-import { signedPhotoLinks } from "../../lib/drinks/photos";
 import { householdToday } from "../../lib/finances/budget-year";
 import { homeStats } from "../../lib/meal-plans/home";
-import { RECIPE_PHOTOS } from "../../lib/meal-plans/photos";
-import { coversText, coversThrough, planStats, readOpenPlan, readPlanRows } from "../../lib/meal-plans/plan";
+import { coversText, coversThrough, dayLabel, mealFor, planStats, readOpenPlan, readPlanRows } from "../../lib/meal-plans/plan";
 import { averageRatings, readRatingPrompts, readRatings, starsText } from "../../lib/meal-plans/ratings";
 import { readImports, readRecipes } from "../../lib/meal-plans/recipes";
 import { dismissImport } from "./actions";
@@ -23,8 +21,9 @@ const STATUS: Record<string, string> = {
 };
 
 // REQ-118: Meal Plans' home is about food, not paperwork: this week's
-// dishes as big photos, how long they last, and a few fun numbers. Above
-// them, anything to rate (REQ-116) and recipes on their way in.
+// dishes, how long they last, and a few fun numbers. Above them, anything
+// to rate (REQ-116) and recipes on their way in. REQ-155: the dishes are
+// plain rows, a name and the meal it's for, with no photos.
 export default async function MealPlansPage() {
   const viewer = await mealPlansViewer();
   const [all, imports, plan, prompts, rows, ratings, people] = await Promise.all([
@@ -37,17 +36,15 @@ export default async function MealPlansPage() {
     readPeople(viewer.supabase),
   ]);
   const byId = new Map(all.map((recipe) => [recipe.id, recipe]));
-  const planned = plan?.recipes.flatMap((entry) => byId.get(entry.recipe_id) ?? []) ?? [];
-  const through = plan ? coversThrough(plan.starts_on, plan.recipes.filter((entry) => byId.has(entry.recipe_id)), people.length) : null;
-  const photos = await signedPhotoLinks(
-    viewer.supabase,
-    planned.flatMap((recipe) => (recipe.photo ? [recipe.photo] : [])),
-    60 * 60,
-    RECIPE_PHOTOS,
-  );
+  const entries = plan?.recipes.filter((entry) => byId.has(entry.recipe_id)) ?? [];
+  const planned = entries.map((entry, index) => ({
+    recipe: byId.get(entry.recipe_id)!,
+    meal: mealFor(plan!.starts_on, entries.slice(0, index), people.length),
+  }));
+  const through = plan ? coversThrough(plan.starts_on, entries, people.length) : null;
   const numbers = homeStats(all, planStats(rows), averageRatings(ratings));
   return (
-    <MealPlansScreen viewer={viewer} section={OVERVIEW}>
+    <MealPlansScreen viewer={viewer} section={OVERVIEW} addRecipe>
       <RatePrompts recipes={prompts.flatMap((id) => (byId.has(id) ? [{ id, name: byId.get(id)?.name ?? "" }] : []))} />
       {imports.length > 0 ? (
         <section className={styles.section} aria-label="On their way">
@@ -86,23 +83,15 @@ export default async function MealPlansPage() {
           <>
             <p className={styles.summary}>{through || planned.length > 0 ? coversText(through, planned.length > 0) : "An empty plate so far"}</p>
             {planned.length > 0 ? (
-              <ul className={styles.foodGrid} aria-label="Recipes in the plan">
-                {planned.map((recipe) => {
-                  const photo = recipe.photo ? photos.get(recipe.photo) : undefined;
-                  return (
-                    <li key={recipe.id}>
-                      <Link href={`/meal-plans/${recipe.id}`} className={styles.foodCard}>
-                        {photo ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- a private, short-lived link
-                          <img src={photo} alt="" className={styles.foodPhoto} />
-                        ) : (
-                          <span className={styles.foodPhoto} aria-hidden="true" />
-                        )}
-                        <span className={styles.cardTitle}>{recipe.name}</span>
-                      </Link>
-                    </li>
-                  );
-                })}
+              <ul className={styles.menu} aria-label="Recipes in the plan">
+                {planned.map(({ recipe, meal }) => (
+                  <li key={recipe.id}>
+                    <Link href={`/meal-plans/${recipe.id}`}>{recipe.name}</Link>
+                    <span className={styles.menuMeal}>
+                      {meal.meal === "dinner" ? "Dinner" : "Lunch"}, {dayLabel(meal.day)}
+                    </span>
+                  </li>
+                ))}
               </ul>
             ) : (
               <Link href="/meal-plans/week" className={styles.textLink}>

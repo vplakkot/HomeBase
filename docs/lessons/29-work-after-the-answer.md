@@ -80,3 +80,13 @@ them fit in one request through our server. The row starts at
 processing, `after()` hands the pictures to Gemini directly, and they
 are forgotten once read. Rule of thumb: go around the server only for
 what can't fit through it.
+
+## Choosing a photo from a video we never receive
+
+The video goes from the phone straight to Google, so our server never has
+a frame to show anyone. Instead the phone takes a handful of small
+snapshots before sending (it's the only place the file is), and they ride
+along with the first request. After the answer, Gemini looks at them and
+names the ones that qualify. It's choosing a postcard from a few photos
+the traveller brought, not asking the traveller to describe the trip.
+Candidates sit in storage until you choose one at review.

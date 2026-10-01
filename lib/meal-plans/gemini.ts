@@ -274,6 +274,37 @@ export async function recipeFromImages(images: ImageFile[]): Promise<ImagesReadi
   return { draft: reading.draft, photo };
 }
 
+// REQ-156: which frames of a cooking video could be the card's photo. The
+// phone takes a few from near the start and a few from near the end, in
+// that order; Gemini names up to three that show the finished dish with no
+// part of a person in it, best first. None is a fine answer.
+export const FRAMES_SCHEMA = {
+  type: "object",
+  properties: {
+    frames: { type: "array", items: { type: "integer" }, description: "Frame numbers, best first. Empty if no frame qualifies." },
+  },
+  required: ["frames"],
+};
+
+export function framesPrompt(count: number): string {
+  return `These ${count} frames come from one cooking video, in order: the first half from near its start, the rest from near its end, where creators usually show the finished dish.
+Pick up to 3 frames that show the finished, plated dish clearly as the main subject, as a photo for its recipe card. Never pick a frame with any part of a person in it (face, hands, arms, body), a dish still being made, loose ingredients, or text. Best first. If no frame qualifies, answer an empty list.`;
+}
+
+export async function pickDishFrames(images: ImageFile[]): Promise<number[]> {
+  const parts: Part[] = images.flatMap((image, index): Part[] => [
+    { text: `Frame ${index + 1}:` },
+    { inline_data: { mime_type: image.mime, data: image.data } },
+  ]);
+  parts.push({ text: framesPrompt(images.length) });
+  const response = await generate(parts, 60_000, FRAMES_SCHEMA);
+  if (!(response instanceof Response)) throw new Error(response.error);
+  const picked = (answerFrom(await response.json()) as { frames?: unknown })?.frames;
+  if (!Array.isArray(picked)) return [];
+  const valid = picked.filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= images.length);
+  return [...new Set(valid)].slice(0, 3).map((n) => n - 1);
+}
+
 export async function recipeFromText(name: string, recipe: string): Promise<Reading> {
   return read([{ text: textPrompt(name, recipe) }], 90_000);
 }
