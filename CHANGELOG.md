@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Home, Action items: on a phone the counter and swipe now cover every
+  item ("1 / 5"), not just the first three; the arrow still lists them
+  all one under another, and a desktop still shows three to a row until
+  the arrow opens the rest.
+- Meal Plans, a video's photo: the draft shows the photo with a "Use this
+  photo" tick-box instead of a second "No photo" block that looked like
+  an empty placeholder.
 - Meal Plans: Gemini is now required to answer which moment of a video
   (or which image) is the card's photo; before, it could skip the
   question, so the first two videos came back with no photo.

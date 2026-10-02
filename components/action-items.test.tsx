@@ -112,16 +112,18 @@ describe("on a phone, with two or three items", () => {
   });
 });
 
-// Vin, 2026-09-29: three show, a down arrow opens the rest in cards the
-// same size as the others.
+// Vin, 2026-09-29: three show on a desktop, a down arrow opens the rest in
+// cards the same size as the others. 2026-10-01: on a phone the swipe and
+// its counter cover all of them.
 describe("with more than three items", () => {
   const MANY = [...ITEMS, item("drinks", "Fourth", "d4", 4), item("storage", "Fifth", "d5", 5)];
   const many = () => render(<ActionItems labelId="action-items" items={MANY} />);
 
-  it("shows three, and an arrow that says how many more", () => {
+  it("counts every item on a phone (1 / 5), swipes through them all, and has an arrow that says how many more", () => {
     const { container } = many();
-    expect(container.querySelectorAll(`.${styles.card}`)).toHaveLength(3);
-    expect(screen.getByText("1 / 3")).toBeDefined();
+    expect(container.querySelectorAll(`.${styles.card}`)).toHaveLength(5);
+    expect(container.querySelectorAll(`.${styles.dot}`)).toHaveLength(5);
+    expect(screen.getByText("1 / 5")).toBeDefined();
     const arrow = screen.getByRole("button", { name: "Show 2 more action items" });
     expect(arrow.getAttribute("aria-expanded")).toBe("false");
   });
@@ -135,7 +137,16 @@ describe("with more than three items", () => {
     expect(container.querySelector(`.${styles.dots}`)).toBeNull();
     expect(container.querySelector(`.${styles.opened}`)).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Show fewer action items" }));
-    expect(container.querySelectorAll(`.${styles.card}`)).toHaveLength(3);
+    expect(screen.getByText("1 / 5")).toBeDefined();
+  });
+
+  it("keeps the ones past the third out of a desktop's row until the arrow opens them", () => {
+    const { container } = many();
+    expect([...container.querySelectorAll("li")].map((li) => li.classList.contains(styles.beyond))).toEqual([false, false, false, true, true]);
+    expect(styleOf(css, "beyond", true).get("display")).toBe("none");
+    expect(styleOf(css, "beyond", false).get("display")).toBeUndefined();
+    fireEvent.click(screen.getByRole("button", { name: "Show 2 more action items" }));
+    expect(container.querySelector(`.${styles.beyond}`)).toBeNull();
   });
 
   it("has no arrow with three or fewer", () => {

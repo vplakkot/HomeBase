@@ -573,6 +573,13 @@ describe("saving a video draft with the photo chosen at review (REQ-156)", () =>
     expect(fake.storage.bucket.remove).toHaveBeenCalledWith([fake.storage.bucket.copy.mock.calls[0][1], fake.storage.bucket.copy.mock.calls[1][1]]);
   });
 
+  it("saves the card with no photo when the photo's tick-box is cleared (nothing is sent)", async () => {
+    given({ recipe_imports: [draftRow] });
+    await expect(saveDraft({}, form({ ...fields, import_id: IMPORT }))).rejects.toThrow(/^REDIRECT:/);
+    expect(fake.storage.bucket.copy).not.toHaveBeenCalled();
+    expect(on("recipes")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ photo: null }));
+  });
+
   it("saves the card with no photo when 'No photo' is chosen, nothing random in its place", async () => {
     given({ recipe_imports: [draftRow] });
     await expect(saveDraft({}, form({ ...fields, import_id: IMPORT, frame: "" }))).rejects.toThrow(/^REDIRECT:/);

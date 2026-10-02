@@ -12,15 +12,17 @@ import styles from "./action-items.module.css";
 export type HomeActionItem = { module: Module; item: ActionItem };
 
 // The things that need someone, at the top of Home (docs/design/DESIGN.md
-// §5), most urgent first. Three show; with more, a down arrow in the
-// corner opens the rest below, in cards the same size (Vin, 2026-09-29).
-// None: the All clear row.
+// §5), most urgent first. On a desktop three show; with more, a down arrow
+// in the corner opens the rest below, in cards the same size (Vin,
+// 2026-09-29). None: the All clear row.
 //
-// The screen width lays it out. On a phone the three scroll sideways and
-// snap to one card at a time, so a swipe moves between them; the "1 / 3"
-// counter, the dots and the stacked edges follow whichever card is
+// The screen width lays it out. On a phone every item scrolls sideways and
+// snaps to one card at a time, so a swipe moves between them; the
+// "1 / 5" counter (all of them, Vin 2026-10-01: it used to stop at 3 even
+// with more), the dots and the stacked edges follow whichever card is
 // showing. Opened, the phone lists every card one under the other. On a
-// desktop the cards sit three to a row either way. Nothing moves unless
+// desktop the cards sit three to a row, and the ones past the third wait
+// for the arrow. Nothing moves unless
 // someone swipes or taps: the card never rotates on its own.
 //
 // A card with somewhere to go is a link to the exact screen where the
@@ -31,7 +33,7 @@ export function ActionItems({ labelId, items }: { labelId: string; items: HomeAc
   const [current, setCurrent] = useState(0);
   const [open, setOpen] = useState(false);
   const hidden = Math.max(items.length - SHOWN_ITEMS, 0);
-  const listed = open ? items : items.slice(0, SHOWN_ITEMS);
+  const listed = items;
   const count = listed.length;
   const stacked = count > 1 && !open;
   const behind = stacked ? Math.min(count - 1 - current, 2) : 0;
@@ -88,8 +90,11 @@ export function ActionItems({ labelId, items }: { labelId: string; items: HomeAc
               tabIndex={stacked ? 0 : undefined}
               aria-labelledby={labelId}
             >
-              {listed.map(({ module, item }) => (
-                <li key={`${module.slug}-${item.rank}-${item.text}`} className={styles.item}>
+              {listed.map(({ module, item }, index) => (
+                <li
+                  key={`${module.slug}-${item.rank}-${item.text}`}
+                  className={!open && index >= SHOWN_ITEMS ? `${styles.item} ${styles.beyond}` : styles.item}
+                >
                   <Card module={module} item={item} />
                 </li>
               ))}

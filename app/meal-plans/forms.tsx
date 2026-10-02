@@ -556,7 +556,7 @@ export function RecipeForm({
   videoUrl?: string | null;
   pageUrl?: string | null;
   cuisines?: readonly string[];
-  // REQ-156: a video's candidate photos (empty: none qualified).
+  // REQ-156: a video's photo, if one was cut (empty: none).
   frames?: { n: number; url: string }[];
   // Why there is none, when there are none.
   noFrame?: string;
@@ -621,17 +621,16 @@ export function RecipeForm({
             <p>{noFrame ?? "This card will have no photo. You can add your own after saving."}</p>
           ) : (
             <div className={styles.frameRow}>
-              {frames.map((frame, index) => (
-                <label key={frame.n} className={styles.frameChoice}>
-                  <input type="radio" name="frame" value={frame.n} defaultChecked={index === 0} />
+              {frames.map((frame) => (
+                <div key={frame.n} className={styles.frameChoice}>
                   {/* eslint-disable-next-line @next/next/no-img-element -- a private, short-lived link */}
-                  <img src={frame.url} alt={`Photo choice ${index + 1}`} />
-                </label>
+                  <img src={frame.url} alt="The photo for this card" />
+                  <label className={styles.useFrame}>
+                    <input type="checkbox" name="frame" value={frame.n} defaultChecked />
+                    <span>Use this photo</span>
+                  </label>
+                </div>
               ))}
-              <label className={`${styles.frameChoice} ${styles.noFrame}`}>
-                <input type="radio" name="frame" value="" />
-                <span>No photo</span>
-              </label>
             </div>
           )}
         </fieldset>
