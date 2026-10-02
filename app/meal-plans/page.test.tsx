@@ -292,18 +292,17 @@ describe("choosing the photo in a video's draft (REQ-156)", () => {
     draft: { name: "", cuisine: null, main_meat: null, cooking_method: null, cook_minutes: null, servings: null, ingredients: [], steps: ["Fry 200 g chicken."], notes: null, guessed: [] },
   };
 
-  it("offers the candidates as thumbnails, the first picked, and 'No photo'", async () => {
+  it("shows the photo with a tick-box to use it, ticked, and no second block", async () => {
     const fake = given({ recipe_imports: [video], cuisines: [] });
-    fake.storage.bucket.list.mockResolvedValue({ data: [{ name: "1.jpg" }, { name: "2.jpg" }, { name: "1-thumb.jpg" }], error: null });
+    fake.storage.bucket.list.mockResolvedValue({ data: [{ name: "1.jpg" }, { name: "1-thumb.jpg" }], error: null });
     render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
     const photo = screen.getByRole("group", { name: "Photo" });
-    const choices = within(photo).getAllByRole("radio") as HTMLInputElement[];
-    expect(choices.map((choice) => choice.value)).toEqual(["1", "2", ""]);
-    expect(choices.map((choice) => choice.checked)).toEqual([true, false, false]);
-    expect(within(photo).getAllByRole("img").map((img) => img.getAttribute("src"))).toEqual([
-      `https://signed.example/imports/${ID}/frames/1.jpg`,
-      `https://signed.example/imports/${ID}/frames/2.jpg`,
-    ]);
+    const use = within(photo).getByRole("checkbox", { name: "Use this photo" }) as HTMLInputElement;
+    expect(use.checked).toBe(true);
+    expect(use.value).toBe("1");
+    expect(within(photo).getAllByRole("img").map((img) => img.getAttribute("src"))).toEqual([`https://signed.example/imports/${ID}/frames/1.jpg`]);
+    expect(within(photo).queryAllByRole("radio")).toEqual([]);
+    expect(photo.textContent).not.toContain("No photo");
   });
 
   it("says so when Gemini found no moment showing the dish, and the card will have no photo", async () => {

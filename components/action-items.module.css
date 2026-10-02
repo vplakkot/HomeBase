@@ -230,6 +230,11 @@
     flex: none;
   }
 
+  /* Past the third, until the arrow opens them. */
+  .beyond {
+    display: none;
+  }
+
   .card {
     padding: var(--space-4) var(--space-5);
   }
