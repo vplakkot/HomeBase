@@ -31,7 +31,8 @@ create policy "members clear proposed recipes"
   using ((select public.has_permission('use_modules')));
 
 -- Two entries on one meal, in one plan: a 2-meal dish also covers the meal
--- after it. Shared by the steps that write a layout.
+-- after it. Used by `push_plan_back` below; `set_plan_layout` keeps its own
+-- copy of the same check.
 create function public.plan_has_overlap(p_plan uuid)
 returns boolean
 language sql

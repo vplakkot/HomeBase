@@ -766,7 +766,11 @@ describe("Eating out pushes dishes back (REQ-169)", () => {
     expect(suggestions.getAllByRole("listitem")[0].textContent).toMatch(/Test lentil soupCarried over/);
     const fake = given({ meal_plans: [PLAN_ROW] });
     await addToPlan({}, form({ plan_id: PLAN, recipe_id: OTHER, meals: "2" }));
-    expect(fake.from.mock.calls.some(([name]) => name === "meal_plan_proposed_next")).toBe(true);
+    const index = fake.from.mock.calls.findIndex(([name]) => name === "meal_plan_proposed_next");
+    expect(index).toBeGreaterThan(-1);
+    const query = fake.from.mock.results[index].value;
+    expect(query.delete).toHaveBeenCalled();
+    expect(query.eq).toHaveBeenCalledWith("recipe_id", OTHER);
   });
 });
 
