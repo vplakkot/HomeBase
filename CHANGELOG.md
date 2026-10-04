@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Admin console, new "This app" card: the release tag (or "untagged"), the
+  short commit linked to GitHub, the environment and when it was built, for
+  the installed copy you are looking at. It stays the same after a newer
+  build is deployed, until you refresh.
+- Admin console, notification log: 25 rows to a page with Previous and
+  Next; the summary still covers all 7 days. Times now show in your
+  device's time zone (they were UTC), and each person in Notifications
+  shows how many devices they have registered.
+
 - Process: CLAUDE.md now starts each batch from the lowest-numbered Ready
   requirement in the lowest milestone, still grouping related ones, so
   older requirements are never passed over for newer ones.
