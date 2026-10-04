@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Process: CLAUDE.md now starts each batch from the lowest-numbered Ready
+  requirement in the lowest milestone, still grouping related ones, so
+  older requirements are never passed over for newer ones.
+
 - Meal Plan, the week by meal: the plan page shows a card per dish in meal
   order, each with its meals ("Dinner Mon · Lunch Tue"). A 4-serving dish
   takes a dinner and the next lunch, a 2-serving dish one meal. "Eating
