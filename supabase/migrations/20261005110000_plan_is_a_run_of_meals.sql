@@ -14,10 +14,12 @@
 -- entries on one meal" refusal in `set_plan_layout` (and the app's own
 -- check beside it).
 --
--- This migration only ADDS and fills. The old `position` and `servings`
--- columns stay until a later migration, once the new code is live: a
--- migration reaches Supabase before the code reaches main, so dropping
--- them here would break the running app in between.
+-- This migration only ADDS and fills (plus replacing `start_meal_plan` with a
+-- version whose new argument has a default). The old `position` and
+-- `servings` columns stay until a later migration, once the new code is
+-- live: a migration reaches Supabase before the code reaches main, so
+-- dropping them here would break the running app in between. The old app
+-- still reading and writing them is expected, not proven for every call.
 
 alter table public.meal_plans
   add column starts_meal text not null default 'dinner' check (starts_meal in ('lunch', 'dinner'));
@@ -115,7 +117,9 @@ $$;
 -- different plans: the plan's start, and where each entry now sits
 -- (`[{"id", "meal_on", "meal", "meals"}, ...]`). It runs as the person
 -- asking, so the policies still decide who may change a plan. Two entries
--- on the same meal are refused, whatever the app asked for.
+-- on the same meal are refused when a layout is saved this way; an insert
+-- or a size change doesn't go through here, so two people saving at the
+-- same instant could still overlap (only an exclusion constraint closes that).
 create function public.set_plan_layout(p_plan uuid, p_starts_on date, p_starts_meal text, p_layout jsonb)
 returns void
 language plpgsql

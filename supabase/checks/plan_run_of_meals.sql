@@ -16,6 +16,7 @@ declare
   recipe_two uuid;
   entry_one uuid;
   entry_two uuid;
+  entry_three uuid;
   v_text text;
 begin
   select hm.user_id into member_id
@@ -55,13 +56,16 @@ begin
       jsonb_build_object('id', entry_two, 'meal_on', '2030-01-06', 'meal', 'dinner', 'meals', 1)));
   report := report || format(E'3. layout saved: %s\n', (select meal_on = date '2030-01-07' from public.meal_plan_recipes where id = entry_one));
 
-  -- 4. Two entries on one meal are refused (a 2-meal dish also covers the next).
+  -- 4. Two entries on one meal are refused. entry_one is a 2-meal dish from
+  -- Sun 01-07 dinner, so Mon 01-08 lunch is its leftovers; a 1-meal dish
+  -- moved there overlaps it (and nothing else is wrong with that move).
+  insert into public.meal_plan_recipes (plan_id, recipe_id, meals, meal_on, meal) values (current_plan, recipe_two, 1, '2030-01-09', 'dinner') returning id into entry_three;
   begin
     perform public.set_plan_layout(current_plan, '2030-01-05', 'dinner',
-      jsonb_build_array(jsonb_build_object('id', entry_two, 'meal_on', '2030-01-07', 'meal', 'lunch', 'meals', 1)));
+      jsonb_build_array(jsonb_build_object('id', entry_three, 'meal_on', '2030-01-08', 'meal', 'lunch', 'meals', 1)));
     report := report || E'4. overlap: NOT refused (BAD)\n';
   exception when check_violation then
-    report := report || E'4. overlap refused: true\n';
+    report := report || format(E'4. overlap refused by the layout rule: %s\n', sqlerrm = 'Two entries are on the same meal');
   end;
 
   -- 5. Days off can be marked and taken back by a member, and go with the plan.

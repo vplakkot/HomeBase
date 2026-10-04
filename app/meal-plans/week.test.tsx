@@ -676,14 +676,18 @@ describe("a plan is a run of meals (REQ-168)", () => {
 
   it("changing the start day slides the dishes by the same days and settles them", async () => {
     // A plan from Sunday lunch: A (a 2-meal dish at a weekend lunch) and B (dinner Mon). Starting a day later,
-    // A lands on a weekday lunch and goes to that day's dinner; B follows. The plan keeps its lunch start.
+    // A lands on a weekday lunch and goes to that day's dinner; B follows. A lunch start belongs to a weekend
+    // day, so the plan now starts at dinner; moved to a Saturday it keeps its lunch start.
     const lunchStart = { ...PLAN_ROW, starts_meal: "lunch" };
     const fake = given({ meal_plans: [lunchStart], meal_plan_recipes: [planned(ID, 2, "2026-09-27", "lunch"), planned(OTHER, 2, "2026-09-28", "dinner", false, false, E2)] });
     expect(await changePlanStart({}, form({ plan_id: PLAN, starts_on: "2026-09-28" }))).toEqual({});
     const saved = savedLayout(fake);
     expect(saved?.p_starts_on).toBe("2026-09-28");
-    expect(saved?.p_starts_meal).toBe("lunch");
+    expect(saved?.p_starts_meal).toBe("dinner");
     expect(saved?.at).toEqual({ [E1]: "dinner 2026-09-28", [E2]: "dinner 2026-09-29" });
+    const weekend = given({ meal_plans: [lunchStart], meal_plan_recipes: [planned(OTHER, 1, "2026-09-28", "dinner", false, false, E2)] });
+    await changePlanStart({}, form({ plan_id: PLAN, starts_on: "2026-10-03" }));
+    expect(savedLayout(weekend)?.p_starts_meal).toBe("lunch");
   });
 });
 

@@ -163,8 +163,10 @@ export async function changePlanStart(_prev: PlanFormState, formData: FormData):
   try {
     const plan = await loadPlan(supabase, id);
     if (!plan) return { error: "That plan is gone." };
-    // The dishes go with the start: every entry moves by the same days, then settles.
-    await saveLayout(supabase, id, startsOn, plan.starts_meal, slide(plan.recipes, daysBetween(plan.starts_on, startsOn), plan.daysOff));
+    // The dishes go with the start: every dish moves by the same days, then settles.
+    // A lunch start belongs to a weekend day or a Day off; on any other day the plan starts at dinner.
+    const startsMeal: MealKind = plan.starts_meal === "lunch" && isWeekendDay(startsOn, plan.daysOff) ? "lunch" : "dinner";
+    await saveLayout(supabase, id, startsOn, startsMeal, slide(plan.recipes, daysBetween(plan.starts_on, startsOn), plan.daysOff));
   } catch (error) {
     Sentry.captureException(error);
     return { error: "The start day couldn't be changed. Try again." };
