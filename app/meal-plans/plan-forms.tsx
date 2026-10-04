@@ -97,9 +97,13 @@ export function ChangeStartForm({ planId, startsOn }: { planId: string; startsOn
   );
 }
 
+// The key is the saved size, on purpose (REQ-176): a select left to itself
+// only reads defaultValue when it first appears, and React puts a form back
+// to those first values after it saves. Without the key the picker went back
+// to the size it started with while the plan showed the new one.
 function SizeSelect({ defaultValue, name = "meals", onChange }: { defaultValue: EntrySize; name?: string; onChange?: typeof submitForm }) {
   return (
-    <select name={name} defaultValue={String(defaultValue)} onChange={onChange}>
+    <select key={defaultValue} name={name} defaultValue={String(defaultValue)} onChange={onChange}>
       {PLAN_SIZES.map((size) => (
         <option key={size} value={size}>
           {size === 2 ? "2 meals" : "1 meal"}

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Meal Plan, fix: the "2 meals / 1 meal" picker now shows the size that was
+  saved. It used to snap back to the size it started with after saving, so
+  choosing the other size looked like it did nothing.
+
 - Meal Plan, a plan is a run of meals: each dish now sits on a meal you
   choose (lunch, dinner, lunch, dinner...), so a plan can have empty meals.
   A dish is "2 meals" (its dinner plus the leftovers at the next lunch) or
