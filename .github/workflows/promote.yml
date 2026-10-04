@@ -10,6 +10,54 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Check out the tagged commit with all tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Check the version tag is allowed
+        run: |
+          # Runs before any Vercel step, so a refused tag leaves production
+          # exactly as it was.
+          tag="$GITHUB_REF_NAME"
+          version="${tag#v}"
+
+          pkg=$(jq -r .version package.json)
+          if [ "$pkg" != "$version" ]; then
+            echo "::error::Tag $tag says $version but package.json at the" \
+              "tagged commit says $pkg. Bump package.json in the release" \
+              "pull request, merge it, then tag. Production is unchanged." >&2
+            exit 1
+          fi
+
+          # Every other vX.Y.Z tag, so the tag being promoted is not
+          # compared with itself.
+          others=$(git tag --list 'v[0-9]*' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            | grep -vxF "$tag" || true)
+          highest=$(printf '%s\n' "$others" | sort -V | tail -n 1)
+          if [ -n "$highest" ] \
+            && [ "$(printf '%s\n%s\n' "$highest" "$tag" | sort -V | tail -n 1)" != "$tag" ]; then
+            echo "::error::Tag $tag is not higher than the existing tag" \
+              "$highest. Releases only go forward. Production is" \
+              "unchanged." >&2
+            exit 1
+          fi
+
+          # A patch release fixes the minor release already live, so that
+          # minor release (vX.Y.0) must exist first.
+          patch="${version##*.}"
+          minor_tag="v${version%.*}.0"
+          if [ "$patch" -gt 0 ] && ! printf '%s\n' "$others" | grep -qxF "$minor_tag"; then
+            echo "::error::Tag $tag is a patch release but $minor_tag has" \
+              "not shipped yet. Release $minor_tag first. Production is" \
+              "unchanged." >&2
+            exit 1
+          fi
+
+          echo "Tag $tag matches package.json and is allowed."
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 

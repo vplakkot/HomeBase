@@ -70,7 +70,9 @@ automatically point the production domain at that build — that's a
 deliberate setting ("Auto-assign Custom Production Domains" is disabled).
 A separate GitHub Actions workflow
 ([`.github/workflows/promote.yml`](../.github/workflows/promote.yml)) only
-assigns the production domain when a version tag (`v*`) is pushed, by
+assigns the production domain when a version tag (`v*`) is pushed. It first
+refuses a tag that doesn't match `package.json`, isn't higher than every
+earlier tag, or is a patch whose minor release hasn't shipped. Then it works by
 finding the build made from the exact commit the tag points to and running
 the Vercel CLI's `promote` command on it — not just whatever Vercel
 considers the latest build, since `main` may have moved on since the tag

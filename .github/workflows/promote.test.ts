@@ -217,3 +217,126 @@ describe("promote.yml waits for the tagged commit's build", () => {
     expect(run.output).toContain("ended in CANCELED");
   });
 });
+
+// The first step refuses a tag that should never reach production, before
+// any Vercel step runs (see docs/lessons/03-tags-releases-promote.md, "Hard
+// checks before promoting"). These run its real script inside a throwaway
+// git repository holding made-up tags and a made-up package.json.
+
+function versionScript(): string {
+  const workflow = readFileSync(join(__dirname, "promote.yml"), "utf-8");
+  const step = workflow
+    .split("\n      - name: ")
+    .find((s) => s.startsWith("Check the version tag is allowed"));
+  if (!step) throw new Error("Could not find the version step in promote.yml");
+  return step
+    .split("run: |\n")[1]
+    .split("\n")
+    .map((line) => line.replace(/^ {10}/, ""))
+    .join("\n");
+}
+
+function runVersionCheck(tag: string, existing: string[], pkgVersion: string) {
+  const dir = mkdtempSync(join(tmpdir(), "promote-git-"));
+  const git = (...args: string[]) =>
+    execFileSync("git", args, { cwd: dir, stdio: "ignore" });
+  git("init", "-q");
+  writeFileSync(
+    join(dir, "package.json"),
+    JSON.stringify({ version: pkgVersion }),
+  );
+  git("add", ".");
+  git(
+    "-c",
+    "user.name=t",
+    "-c",
+    "user.email=t@example.com",
+    "commit",
+    "-q",
+    "-m",
+    "x",
+  );
+  [...existing, tag].forEach((t) => git("tag", t));
+  let output = "";
+  let exitCode = 0;
+  try {
+    output = execFileSync(
+      "bash",
+      ["--noprofile", "--norc", "-eo", "pipefail", "-c", versionScript()],
+      {
+        cwd: dir,
+        env: { ...process.env, GITHUB_REF_NAME: tag },
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+  } catch (e) {
+    const err = e as { status: number; stdout: string; stderr: string };
+    exitCode = err.status;
+    output = err.stdout + err.stderr;
+  }
+  return { exitCode, output };
+}
+
+describe("promote.yml version checks", () => {
+  it("runs before any Vercel step", () => {
+    const workflow = readFileSync(join(__dirname, "promote.yml"), "utf-8");
+    expect(workflow.indexOf("Check the version tag is allowed")).toBeLessThan(
+      workflow.indexOf("Install Vercel CLI"),
+    );
+  });
+
+  it("checks out full history and tags", () => {
+    const workflow = readFileSync(join(__dirname, "promote.yml"), "utf-8");
+    expect(workflow).toContain("fetch-depth: 0");
+    expect(workflow).toContain("fetch-tags: true");
+  });
+
+  describe("tag must equal package.json's version", () => {
+    it("allows a match", () => {
+      expect(runVersionCheck("v1.2.0", [], "1.2.0").exitCode).toBe(0);
+    });
+    it("blocks a mismatch", () => {
+      const run = runVersionCheck("v1.3.0", ["v1.2.0"], "1.2.0");
+      expect(run.exitCode).toBe(1);
+      expect(run.output).toContain("::error::Tag v1.3.0 says 1.3.0");
+      expect(run.output).toContain(
+        "package.json at the tagged commit says 1.2.0",
+      );
+    });
+  });
+
+  describe("tag must be higher than every other tag", () => {
+    it.each([
+      ["v3.1.0", ["v3.0.0", "v2.1.0"]],
+      ["v10.0.0", ["v9.9.9"]], // numeric, not alphabetical
+      ["v1.0.0", []], // the first tag has nothing to be lower than
+    ])("allows %s after %j", (tag, existing) => {
+      expect(runVersionCheck(tag, existing, tag.slice(1)).exitCode).toBe(0);
+    });
+
+    it.each([
+      ["v2.0.0", ["v3.0.0"]],
+      ["v3.0.1", ["v3.0.0", "v3.1.0"]],
+      ["v9.0.0", ["v10.0.0"]],
+    ])("blocks %s when %j exists", (tag, existing) => {
+      const run = runVersionCheck(tag, existing, tag.slice(1));
+      expect(run.exitCode).toBe(1);
+      expect(run.output).toContain("is not higher than");
+    });
+  });
+
+  describe("a patch tag needs its minor release first", () => {
+    it("allows v3.1.1 once v3.1.0 has shipped", () => {
+      expect(runVersionCheck("v3.1.1", ["v3.1.0"], "3.1.1").exitCode).toBe(0);
+    });
+    it("blocks v3.1.1 before v3.1.0 has shipped", () => {
+      const run = runVersionCheck("v3.1.1", ["v3.0.0"], "3.1.1");
+      expect(run.exitCode).toBe(1);
+      expect(run.output).toContain("v3.1.0 has not shipped yet");
+    });
+    it("does not ask a minor release (Z = 0) for anything", () => {
+      expect(runVersionCheck("v3.2.0", ["v3.1.0"], "3.2.0").exitCode).toBe(0);
+    });
+  });
+});

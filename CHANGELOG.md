@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Releases: the promote workflow now refuses a tag before touching Vercel
+  if it differs from package.json's version, isn't higher than every
+  earlier tag, or is a patch (vX.Y.Z, Z above 0) whose vX.Y.0 hasn't
+  shipped. Production stays unchanged when it refuses.
+
 ## 3.0.0 - 2026-10-04
 
 Meal Plans learns to read more: a recipe from a page link, from images,

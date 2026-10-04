@@ -305,3 +305,33 @@ tag that already exists a second time.
 tested against made-up Vercel answers, not Vercel itself. The first real
 proof is the next release: its promote run's log should show "checking
 again" lines if the tag beats the build, then promote.
+
+## Hard checks before promoting
+
+Until now the only gate on a release was the tag's shape (`vX.Y.Z`). Nothing
+stopped a tag that lied. Think of a ticket inspector at the platform gate,
+before the train is even brought out: the promote job now starts with a
+step that checks three things and refuses with a red `::error::` if any
+fails, before a single Vercel step runs, so production stays as it was.
+
+- **The tag equals `package.json`'s version** at the tagged commit.
+  `v3.1.0` on code that still says `3.0.0` is a release nobody bumped.
+- **The tag is higher than every other `vX.Y.Z` tag.** Compared with
+  `sort -V`, which sorts by number (`v10.0.0` is above `v9.9.9`; plain
+  alphabetical sorting gets that wrong). The tag itself is left out of the
+  list, or it would be compared with itself.
+- **A patch tag needs its minor release first.** `v3.1.1` is blocked until
+  `v3.1.0` exists: a patch fixes a release that is already live.
+
+**Rolling back.** Because tags only go forward, re-running an older tag's
+promote job (say v3.0.0 after v3.1.0) is refused. To put an older build
+back on production, use Vercel's dashboard (Deployments, then Promote on
+the older build) or ship a new, higher tag with the fix.
+
+To see all tags, the job checks out with `fetch-depth: 0` and
+`fetch-tags: true`; the default checkout only brings the one commit.
+
+The tests run the step's real script in a throwaway git repository with
+made-up tags. **Not yet proven:** that GitHub's checkout really brings every
+tag on a tag-push run. The next release's promote log, which prints "Tag
+vX.Y.Z matches package.json and is allowed.", is the first real proof.
