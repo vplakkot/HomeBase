@@ -10,7 +10,20 @@ export function rememberImports() {
   } catch {}
 }
 
+// REQ-166: notes dismissed in this tab, remembered across pages (each page
+// has its own toast) until the tab has nothing left to show.
+const dismissed = new Set<string>();
+
+export function dismissNote(id: string) {
+  dismissed.add(id);
+}
+
+export function noteDismissed(id: string): boolean {
+  return dismissed.has(id);
+}
+
 export function forgetImports() {
+  dismissed.clear();
   try {
     localStorage.removeItem(KEY);
   } catch {}

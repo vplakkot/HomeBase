@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Meal Plan, the week by meal: the plan page shows a card per dish in meal
+  order, each with its meals ("Dinner Mon · Lunch Tue"). A 4-serving dish
+  takes a dinner and the next lunch, a 2-serving dish one meal. "Eating
+  out" is an entry that takes one dinner. A dish goes to the next free
+  meal, or the meal you pick; "Move to…" and Up/Down change its place.
+  A lunch left free says "Not planned". How far the plan reaches no longer
+  depends on how many of us eat.
+- Meal Plan, plan ahead: while a plan runs you can set up the next one. It
+  starts at the first dinner after the running plan's last meal and moves with it.
+  Starting a plan no longer closes the open one. The button reads "New
+  meal plan", "Plan ahead", or is gone, on Home, the module home and the
+  plan page alike.
+- Meal Plan home: Add recipe and the plan button sit side by side with equal
+  weight. Suggestions show at most three.
+- Fix: the "Save recipe" note opened the draft but stayed on screen until
+  tapped again. The page you land on asked the server before it had heard
+  the note was seen, and showed it again; this tab now remembers what you
+  dismissed. (Reproduced in a test; not tried on an iPhone.)
+
 - Releases: CLAUDE.md now has a requirements gate. A vX.Y.0 release stops
   if any requirement on Milestone vX.Y is not Done, and a patch release
   carries only Done bugs from the live minor. Milestones are never moved

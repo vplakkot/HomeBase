@@ -7,6 +7,7 @@ import { PLAN_SERVINGS, type PlanServings } from "../../lib/meal-plans/plan";
 import {
   addToPlan,
   changePlanStart,
+  moveEntry,
   rateRecipe,
   setCarryOver,
   setCooked,
@@ -28,8 +29,8 @@ function Outcome({ state }: { state: PlanFormState }) {
 
 const submitForm = (event: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => event.currentTarget.form?.requestSubmit();
 
-// REQ-115: any day will do, usually a Sunday. With a plan open, starting
-// the next one closes it (REQ-116).
+// REQ-115: any day will do, usually a Sunday. Only offered while there is
+// no plan; with one running, "Plan ahead" below sets up the next (REQ-162).
 export function StartPlanForm({
   today,
   label = "Start a plan",
@@ -51,6 +52,21 @@ export function StartPlanForm({
       </label>
       <button type="submit" className={buttonClass} disabled={pending}>
         {label}
+      </button>
+      <Outcome state={state} />
+    </form>
+  );
+}
+
+// REQ-162: the next plan, queued behind the current one. It starts the day
+// after the current plan's last meal, so there is no day to choose.
+export function PlanAheadForm({ thenWeek = false }: { thenWeek?: boolean }) {
+  const [state, formAction, pending] = useActionState(startPlan, initialState);
+  return (
+    <form action={formAction} className={styles.inline}>
+      {thenWeek ? <input type="hidden" name="then" value="week" /> : null}
+      <button type="submit" className={buttonClass} disabled={pending}>
+        Plan ahead
       </button>
       <Outcome state={state} />
     </form>
@@ -83,31 +99,60 @@ function ServingsSelect({ defaultValue, onChange }: { defaultValue: PlanServings
   );
 }
 
-export function AddToPlanForm({ planId, recipes }: { planId: string; recipes: readonly { id: string; name: string }[] }) {
+// REQ-164: the next free meal unless one is chosen; an evening out is one
+// dinner with no recipe.
+export function AddToPlanForm({
+  planId,
+  recipes,
+  meals,
+}: {
+  planId: string;
+  recipes: readonly { id: string; name: string }[];
+  meals: readonly { slot: number; label: string }[];
+}) {
   const [state, formAction, pending] = useActionState(addToPlan, initialState);
-  if (recipes.length === 0) return null;
   return (
-    <form action={formAction} className={styles.inline} aria-label="Add a recipe to the plan">
+    <form action={formAction} className={styles.inline} aria-label="Add to the plan">
       <input type="hidden" name="plan_id" value={planId} />
+      {recipes.length > 0 ? (
+        <>
+          <label className={styles.control}>
+            <span>Recipe</span>
+            <select name="recipe_id" defaultValue="">
+              <option value="" disabled>
+                Choose a recipe
+              </option>
+              {recipes.map((recipe) => (
+                <option key={recipe.id} value={recipe.id}>
+                  {recipe.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.control}>
+            <span>Servings</span>
+            <ServingsSelect defaultValue={4} />
+          </label>
+        </>
+      ) : null}
       <label className={styles.control}>
-        <span>Recipe</span>
-        <select name="recipe_id" required defaultValue="">
-          <option value="" disabled>
-            Choose a recipe
-          </option>
-          {recipes.map((recipe) => (
-            <option key={recipe.id} value={recipe.id}>
-              {recipe.name}
+        <span>Meal</span>
+        <select name="slot" defaultValue="">
+          <option value="">Next free meal</option>
+          {meals.map((meal) => (
+            <option key={meal.slot} value={meal.slot}>
+              {meal.label}
             </option>
           ))}
         </select>
       </label>
-      <label className={styles.control}>
-        <span>Servings</span>
-        <ServingsSelect defaultValue={4} />
-      </label>
-      <button type="submit" className={buttonClass} disabled={pending}>
-        Add to plan
+      {recipes.length > 0 ? (
+        <button type="submit" name="intent" value="recipe" className={buttonClass} disabled={pending}>
+          Add to plan
+        </button>
+      ) : null}
+      <button type="submit" name="intent" value="eating_out" className={buttonClass} disabled={pending}>
+        Eating out
       </button>
       <Outcome state={state} />
     </form>
@@ -118,14 +163,14 @@ export function AddToPlanForm({ planId, recipes }: { planId: string; recipes: re
 // soon as it changes.
 export function PlannedControls({
   planId,
-  recipeId,
+  entryId,
   name,
   servings,
   cooked,
   carryOver,
 }: {
   planId: string;
-  recipeId: string;
+  entryId: string;
   name: string;
   servings: PlanServings;
   cooked: boolean;
@@ -135,7 +180,7 @@ export function PlannedControls({
     <>
       <form action={setPlanServings}>
         <input type="hidden" name="plan_id" value={planId} />
-        <input type="hidden" name="recipe_id" value={recipeId} />
+        <input type="hidden" name="entry_id" value={entryId} />
         <label>
           <span className={styles.hidden}>Servings of {name}</span>
           <ServingsSelect defaultValue={servings} onChange={submitForm} />
@@ -143,7 +188,7 @@ export function PlannedControls({
       </form>
       <form action={setCooked}>
         <input type="hidden" name="plan_id" value={planId} />
-        <input type="hidden" name="recipe_id" value={recipeId} />
+        <input type="hidden" name="entry_id" value={entryId} />
         <input type="hidden" name="cooked" value={cooked ? "no" : "yes"} />
         <label>
           <input type="checkbox" checked={cooked} onChange={submitForm} aria-label={`${name} cooked`} /> Cooked
@@ -151,12 +196,62 @@ export function PlannedControls({
       </form>
       <form action={setCarryOver}>
         <input type="hidden" name="plan_id" value={planId} />
-        <input type="hidden" name="recipe_id" value={recipeId} />
+        <input type="hidden" name="entry_id" value={entryId} />
         <input type="hidden" name="carry_over" value={carryOver ? "no" : "yes"} />
         <label>
           <input type="checkbox" checked={carryOver} onChange={submitForm} aria-label={`Carry ${name} over`} /> Carry over
         </label>
       </form>
+    </>
+  );
+}
+
+// REQ-164: where an entry sits. "Move to..." picks a meal; the arrows go
+// one place up or down. No dragging.
+export function MoveControls({
+  planId,
+  entryId,
+  name,
+  meals,
+  first,
+  last,
+}: {
+  planId: string;
+  entryId: string;
+  name: string;
+  meals: readonly { slot: number; label: string }[];
+  first: boolean;
+  last: boolean;
+}) {
+  return (
+    <>
+      <form action={moveEntry}>
+        <input type="hidden" name="plan_id" value={planId} />
+        <input type="hidden" name="entry_id" value={entryId} />
+        <label>
+          <span className={styles.hidden}>Move {name} to</span>
+          <select name="slot" defaultValue="" onChange={submitForm}>
+            <option value="" disabled>
+              Move to…
+            </option>
+            {meals.map((meal) => (
+              <option key={meal.slot} value={meal.slot}>
+                {meal.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </form>
+      {(["up", "down"] as const).map((step) => (
+        <form key={step} action={moveEntry}>
+          <input type="hidden" name="plan_id" value={planId} />
+          <input type="hidden" name="entry_id" value={entryId} />
+          <input type="hidden" name="step" value={step} />
+          <button type="submit" className={styles.linkButton} disabled={step === "up" ? first : last} aria-label={`Move ${name} ${step}`}>
+            {step === "up" ? "Up" : "Down"}
+          </button>
+        </form>
+      ))}
     </>
   );
 }

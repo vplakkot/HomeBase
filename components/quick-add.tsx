@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
-import { StartPlanForm } from "../app/meal-plans/plan-forms";
+import { PlanAheadForm, StartPlanForm } from "../app/meal-plans/plan-forms";
 import { moduleBySlug, moduleColours } from "../lib/modules";
 import { BottomSheet } from "./bottom-sheet";
 import { PlusIcon } from "./icons";
@@ -10,8 +10,11 @@ import styles from "./quick-add.module.css";
 // Adding the day's most common things without leaving Home
 // (docs/design/DESIGN.md §4). A phone gets a bar fixed to the bottom of
 // the screen; a desktop gets buttons at the top right. Each opens a sheet.
-// New meal plan starts a plan there (REQ-118); the others say the
+// New meal plan starts a plan there (REQ-118), or plans ahead while one
+// is running (REQ-162) and is gone once both exist; the others say the
 // feature is coming.
+export type PlanAction = "new" | "ahead" | null;
+
 const ACTIONS = [
   { label: "Expense", title: "Add an expense", module: "finances" },
   { label: "Event", title: "Add an event", module: "calendar" },
@@ -24,13 +27,17 @@ export function QuickAdd({
   variant,
   today,
   off = [],
+  planAction = "new",
 }: {
   variant: "bar" | "buttons";
   today: string;
   off?: readonly string[];
+  planAction?: PlanAction;
 }) {
   const [openLabel, setOpenLabel] = useState<string | null>(null);
-  const actions = ACTIONS.filter((action) => !off.includes(action.module));
+  const actions = ACTIONS.filter((action) => !off.includes(action.module) && (action.module !== "meal-plans" || planAction !== null)).map((action) =>
+    action.module === "meal-plans" && planAction === "ahead" ? { ...action, label: "Plan ahead", title: "Plan the next week" } : action,
+  );
 
   return (
     <>
@@ -62,8 +69,8 @@ export function QuickAdd({
           title={action.title}
         >
           {action.module === "meal-plans" ? (
-            // Starting a plan closes any open one (REQ-116).
-            <StartPlanForm today={today} thenWeek />
+            // With a plan running this queues the next one behind it.
+            planAction === "ahead" ? <PlanAheadForm thenWeek /> : <StartPlanForm today={today} label="New meal plan" thenWeek />
           ) : (
             <p className={styles.soon}>
               Coming soon. Adding from Home arrives with the {moduleBySlug(action.module).name} module.
