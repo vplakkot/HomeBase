@@ -540,9 +540,9 @@ describe("a plan is a run of meals (REQ-168)", () => {
     const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
     expect(rows.map((row) => row.textContent?.replace(/(Size|Move|Take|Cooked|Carry|Up|Down|Remove|Eating out Move).*/, "").slice(0, 60))).toEqual([
       "Dinner SunTest chicken rice",
-      "Lunch Mon · On your own",
+      "Lunch MonOn your own",
       "Dinner MonEating out",
-      "Lunch Tue · On your own",
+      "Lunch TueOn your own",
       "Dinner Tue · Lunch Wed (leftovers)Test lentil soup",
     ]);
     expect(screen.getByText("Covers through lunch, Wed, Sep 30")).toBeTruthy();
@@ -556,8 +556,8 @@ describe("a plan is a run of meals (REQ-168)", () => {
     const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
     expect(rows.map((row) => row.textContent?.slice(0, 32))).toEqual([
       "Dinner Sun · Lunch Mon (leftover",
-      "Dinner Mon · Not planned",
-      "Lunch Tue · On your own",
+      "Dinner MonNot planned",
+      "Lunch TueOn your own",
       "Dinner Tue · Lunch Wed (leftover",
     ]);
   });
