@@ -25,11 +25,17 @@ When I say "next batch" (or "next requirement"):
    acceptance criterion is now met, set it to Done. One whose remaining
    criteria wait on a later batch stays In progress.
 2. Pick the next batch, and add any open bug issues to it: they ride
-   along in its pull request and count toward its limit of four. Follow
-   the milestone's batch plan if one exists (in Notion or in your
-   memory); otherwise group the Ready requirements yourself, in
-   dependency order rather than by ID, and say which you picked and why
-   before building.
+   along in its pull request and count toward its limit of four. Work
+   the oldest first: take the lowest-numbered Ready requirement in the
+   lowest milestone that still has one, and make it the batch's anchor.
+   Fill the batch with the Ready requirements in that milestone that
+   belong with the anchor (same screen, same tables, or one can't be
+   tested without another), lowest numbers first. A requirement the
+   anchor depends on goes in before it. Never skip an older Ready
+   requirement for a newer one; if the anchor is blocked or unclear,
+   say so and ask rather than moving on. A milestone's batch plan (in
+   Notion or in your memory) only orders the batches after that rule
+   is met. Say which batch you picked and why before building.
 3. Create one GitHub issue for the batch: title = what the batch
    delivers, body = each requirement's ID, name and Notion link, and any
    criteria you already know wait for a later batch; milestone = the
