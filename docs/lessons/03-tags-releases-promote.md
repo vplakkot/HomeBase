@@ -323,6 +323,11 @@ fails, before a single Vercel step runs, so production stays as it was.
 - **A patch tag needs its minor release first.** `v3.1.1` is blocked until
   `v3.1.0` exists: a patch fixes a release that is already live.
 
+**Rolling back.** Because tags only go forward, re-running an older tag's
+promote job (say v3.0.0 after v3.1.0) is refused. To put an older build
+back on production, use Vercel's dashboard (Deployments, then Promote on
+the older build) or ship a new, higher tag with the fix.
+
 To see all tags, the job checks out with `fetch-depth: 0` and
 `fetch-tags: true`; the default checkout only brings the one commit.
 
