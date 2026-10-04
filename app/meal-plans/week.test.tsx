@@ -691,6 +691,85 @@ describe("a plan is a run of meals (REQ-168)", () => {
   });
 });
 
+describe("Eating out pushes dishes back (REQ-169)", () => {
+  // The plan runs from Sunday 2026-09-27, so it reaches dinner on Saturday 2026-10-03.
+  const pushCall = (fake: ReturnType<typeof fakeSupabase>) =>
+    fake.rpc.mock.calls.find(([name]) => name === "push_plan_back")?.[1] as
+      | { p_plan: string; p_layout: { id: string; meal_on: string; meal: string; meals: number }[]; p_drop: string[]; p_eating_out: { id: string; meal_on: string } | null }
+      | undefined;
+  const at = (call: NonNullable<ReturnType<typeof pushCall>>) => Object.fromEntries(call.p_layout.map((entry) => [entry.id, `${entry.meal} ${entry.meal_on}`]));
+
+  it("pushes the dish on that dinner, and every later dish, back a day in one step on the database", async () => {
+    // Chilli chicken on Tue dinner (leftovers Wed lunch), another dish on Thu dinner.
+    const fake = given({
+      meal_plans: [PLAN_ROW],
+      meal_plan_recipes: [planned(ID, 2, "2026-09-29", "dinner"), planned(OTHER, 2, "2026-10-01", "dinner", false, false, E2)],
+    });
+    expect(await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-09-29:dinner" }))).toEqual({});
+    const call = pushCall(fake);
+    expect(call).toBeDefined();
+    expect(at(call!)).toEqual({ [E1]: "dinner 2026-09-30", [E2]: "dinner 2026-10-02" });
+    expect(call?.p_drop).toEqual([]);
+    expect(call?.p_eating_out).toMatchObject({ meal_on: "2026-09-29" });
+    // The Eating out went in through the same step, not a separate insert.
+    expect(sent(fake, "meal_plan_recipes", "insert")).toBeUndefined();
+  });
+
+  it("takes off a dish pushed past dinner on the first Saturday, and says so", async () => {
+    const fake = given({
+      meal_plans: [PLAN_ROW],
+      recipes: [SECOND],
+      meal_plan_recipes: [planned(ID, 1, "2026-09-29", "dinner"), planned(OTHER, 1, "2026-10-03", "dinner", false, false, E2)],
+    });
+    const state = await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-09-29:dinner" }));
+    expect(pushCall(fake)?.p_drop).toEqual([E2]);
+    expect(state).toEqual({ notice: "Test lentil soup didn't fit this week and was taken off the plan. It'll be suggested first next week." });
+  });
+
+  it("refuses Eating out on a dinner that already is Eating out, and still refuses a dish moved onto a taken meal", async () => {
+    let fake = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(null, 1, "2026-09-29", "dinner", false, false, E3)] });
+    expect(await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-09-29:dinner" }))).toEqual({ error: "Dinner Tue is taken by Eating out." });
+    expect(pushCall(fake)).toBeUndefined();
+    fake = given({ meal_plans: [PLAN_ROW], recipes: [RECIPE], meal_plan_recipes: [planned(ID, 2, "2026-09-29", "dinner"), planned(OTHER, 1, "2026-10-01", "dinner", false, false, E2)] });
+    expect(await moveEntry({}, form({ plan_id: PLAN, entry_id: E2, meal: "2026-09-29:dinner" }))).toEqual({ error: "Dinner Tue is taken by Test chicken rice." });
+    expect(pushCall(fake)).toBeUndefined();
+  });
+
+  it("pushes the dish when an Eating out already in the plan is moved onto its dinner", async () => {
+    const fake = given({
+      meal_plans: [PLAN_ROW],
+      meal_plan_recipes: [planned(ID, 2, "2026-09-29", "dinner"), planned(null, 1, "2026-10-02", "dinner", false, false, E3)],
+    });
+    expect(await moveEntry({}, form({ plan_id: PLAN, entry_id: E3, meal: "2026-09-29:dinner" }))).toEqual({});
+    const call = pushCall(fake);
+    // The Eating out is already in the plan, so it is moved, not added.
+    expect(call?.p_eating_out).toBeNull();
+    expect(at(call!)).toEqual({ [E3]: "dinner 2026-09-29", [E1]: "dinner 2026-09-30" });
+  });
+
+  it("just adds Eating out when no dish is on that dinner, and leaves the lunch after it free", async () => {
+    const fake = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(ID, 2, "2026-09-27", "dinner")] });
+    expect(await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-09-29:dinner" }))).toEqual({});
+    expect(pushCall(fake)).toBeUndefined();
+    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ eating_out: true, meal_on: "2026-09-29", meal: "dinner" });
+  });
+
+  it("proposes a recipe taken off a plan first among the suggestions, and forgets it once it is planned again", async () => {
+    given({
+      meal_plans: [openPlan([planned(ID, 2)])],
+      recipes: [RECIPE, SECOND],
+      meal_plan_proposed_next: [{ recipe_id: OTHER }],
+      meal_plan_recipes: [],
+    });
+    render(await WeekPage());
+    const suggestions = within(screen.getByRole("region", { name: "Suggestions" }));
+    expect(suggestions.getAllByRole("listitem")[0].textContent).toMatch(/Test lentil soupCarried over/);
+    const fake = given({ meal_plans: [PLAN_ROW] });
+    await addToPlan({}, form({ plan_id: PLAN, recipe_id: OTHER, meals: "2" }));
+    expect(fake.from.mock.calls.some(([name]) => name === "meal_plan_proposed_next")).toBe(true);
+  });
+});
+
 describe("planning ahead (REQ-162)", () => {
   it("queues the next plan at the dinner after the current plan's last meal, and never closes anything", async () => {
     const fake = given({ meal_plans: [openPlan([planned(ID, 2), planned(OTHER, 1, "2026-09-28", "dinner")])] });

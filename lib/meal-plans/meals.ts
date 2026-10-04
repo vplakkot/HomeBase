@@ -193,6 +193,31 @@ export function swapWithNeighbour<T extends Sited>(entries: readonly T[], id: st
   return reflow(placed, daysOff);
 }
 
+// REQ-169: Eating out on a dinner that has a dish pushes that dish and
+// every later dish back one day. Dishes keep their meal type (a dinner
+// stays a dinner) and settle by the reflow rule round any Eating out; the
+// Eating out entries already in the plan stay put. A dish pushed past the
+// cap (dinner on the first Saturday after the plan's start day) leaves the
+// plan: it is returned as `dropped`. `eatingOut` is the entry going onto
+// `at`: new, or an existing one being moved there. Returns null when no
+// dish is on that dinner, so nothing needs pushing.
+export type Pushed<T> = { entries: T[]; dropped: T[] };
+
+export function pushBack<T extends Sited>(plan: Pick<PlanStart, "starts_on">, entries: readonly T[], eatingOut: T, at: Meal, daysOff: ReadonlySet<string>): Pushed<T> | null {
+  const rest = entries.filter((entry) => entry.id !== eatingOut.id);
+  const on = occupant(rest, at);
+  if (!on || on.eating_out) return null;
+  const first = startOf(on);
+  const pushed = new Set(rest.filter((entry) => !entry.eating_out && startOf(entry) >= first).map((entry) => entry.id));
+  const shifted = rest.map((entry) => (pushed.has(entry.id) ? { ...entry, meal_on: addDays(entry.meal_on, 1) } : entry));
+  const placed = { ...eatingOut, meal_on: at.day, meal: "dinner" as const, meals: 1 as const };
+  const settled = reflow([...shifted, placed], daysOff);
+  const last = mealIndex(capMeal(plan.starts_on));
+  const dropped = settled.filter((entry) => pushed.has(entry.id) && startOf(entry) + entry.meals - 1 > last);
+  const gone = new Set(dropped.map((entry) => entry.id));
+  return { entries: settled.filter((entry) => !gone.has(entry.id)), dropped };
+}
+
 export type PlanRowLaid<T> = { kind: "entry"; entry: T; meals: Meal[] } | { kind: "empty"; meal: Meal; label: "On your own" | "Not planned" };
 export type PlanLayout<T> = { rows: PlanRowLaid<T>[]; end: Meal | null };
 

@@ -1182,7 +1182,14 @@ meal. Placement lives on the entry and says nothing about its recipe, so
 a later change can give an entry several recipes. Removing a plan removes
 its rows. `position` and `servings` are left from the earlier model and
 are dropped by a later migration. Days before today (ET) are locked in a
-plan that has started; a plan ahead never is. A recipe's "times planned" and "last planned" aren't stored: they're
+plan that has started; a plan ahead never is. Eating out on a dinner
+with a dish (REQ-169) pushes that dish and every later dish back a day
+(`pushBack` in `meals.ts`) and the app sends the whole result to
+`push_plan_back`: dishes that no longer fit the week are taken off and
+remembered in `meal_plan_proposed_next` (a recipe once; the app clears it
+when the recipe is planned again), the others are rewritten, and a new
+Eating out is added, all in one step. The plan page's suggestions put
+those recipes first. A recipe's "times planned" and "last planned" aren't stored: they're
 counted from these rows each time (`lib/meal-plans/plan.ts`), so taking
 a recipe off a plan can't leave a stale count. `recipes.hidden` keeps a
 recipe out of the library without deleting it.

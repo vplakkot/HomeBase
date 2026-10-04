@@ -13,6 +13,7 @@ import {
   nextFreeMeal,
   parseMealKey,
   planEnd,
+  pushBack,
   reflow,
   slide,
   startChoices,
@@ -232,5 +233,58 @@ describe("swapping with the next dish (REQ-168)", () => {
     const entries = [dish("A", MON, "dinner"), out("X", TUE), dish("B", WED, "dinner")];
     const swapped = swapWithNeighbour(entries, "A", 1, NONE) ?? [];
     expect(where(swapped)).toEqual({ X: "dinner 2026-10-06", B: "dinner 2026-10-05", A: "dinner 2026-10-07" });
+  });
+});
+
+describe("Eating out pushes dishes back (REQ-169)", () => {
+  const plan = { starts_on: SUN };
+  const x = out("X", TUE);
+  const push = (entries: Sited[], eatingOut: Sited, at: { day: string; meal: MealKind }) => pushBack(plan, entries, eatingOut, at, NONE);
+
+  it("moves a dish and every later dish back a day, keeping the meal type: the requirement's example", () => {
+    // Chilli chicken on Tue dinner (leftovers Wed lunch), another dish after it on Thu dinner.
+    const result = push([dish("chicken", TUE, "dinner"), dish("later", THU, "dinner")], x, { day: TUE, meal: "dinner" });
+    expect(where(result?.entries ?? [])).toEqual({ X: "dinner 2026-10-06", chicken: "dinner 2026-10-07", later: "dinner 2026-10-09" });
+    expect(result?.dropped).toEqual([]);
+    // Wed lunch is the chicken's no more: it is empty, so a 1-meal dish can go there.
+    expect(blockerAt(result?.entries ?? [], { id: "new", eating_out: false, meals: 1 }, { day: WED, meal: "lunch" })).toBeNull();
+  });
+
+  it("leaves dishes before the dinner where they are", () => {
+    const result = push([dish("early", MON, "dinner"), dish("chicken", TUE, "dinner")], x, { day: TUE, meal: "dinner" });
+    expect(where(result?.entries ?? [])).toEqual({ X: "dinner 2026-10-06", early: "dinner 2026-10-05", chicken: "dinner 2026-10-07" });
+  });
+
+  it("goes round Eating out already in the plan, which stays fixed", () => {
+    // The chicken would land on Wed dinner, where Eating out already is, so it goes to Thu.
+    const result = push([dish("chicken", TUE, "dinner"), out("Y", WED)], x, { day: TUE, meal: "dinner" });
+    expect(where(result?.entries ?? [])).toEqual({ X: "dinner 2026-10-06", Y: "dinner 2026-10-07", chicken: "dinner 2026-10-08" });
+  });
+
+  it("pushes the dish whose leftovers are on that dinner, and settles a weekend-lunch dish that lands on a weekday", () => {
+    // A plan from Saturday Oct 3. A 2-meal dish from Sat lunch covers Sat dinner; pushed to Sun lunch, still a weekend.
+    const saturday = { starts_on: "2026-10-03" };
+    const result = pushBack(saturday, [dish("weekend", "2026-10-03", "lunch")], out("X", "2026-10-03"), { day: "2026-10-03", meal: "dinner" }, NONE);
+    expect(where(result?.entries ?? [])).toEqual({ X: "dinner 2026-10-03", weekend: "lunch 2026-10-04" });
+    // From a Sunday lunch, pushed to Monday lunch (a weekday): it starts at Monday's dinner instead.
+    const sunday = pushBack(saturday, [dish("sun", SUN, "lunch")], out("X", SUN), { day: SUN, meal: "dinner" }, NONE);
+    expect(where(sunday?.entries ?? [])).toEqual({ X: "dinner 2026-10-04", sun: "dinner 2026-10-05" });
+  });
+
+  it("drops a dish pushed past dinner on the first Saturday, and hands it back", () => {
+    // Dinner Sat (the cap) is taken by the last dish; pushing it a day passes the cap.
+    const result = push([dish("a", TUE, "dinner", 1), dish("last", SAT, "dinner", 1)], x, { day: TUE, meal: "dinner" });
+    expect(result?.dropped.map((entry) => entry.id)).toEqual(["last"]);
+    expect(where(result?.entries ?? [])).toEqual({ X: "dinner 2026-10-06", a: "dinner 2026-10-07" });
+  });
+
+  it("moves an Eating out already in the plan onto the dinner, and nothing is added twice", () => {
+    const result = push([dish("chicken", TUE, "dinner"), out("X", THU)], out("X", THU), { day: TUE, meal: "dinner" });
+    expect(where(result?.entries ?? [])).toEqual({ X: "dinner 2026-10-06", chicken: "dinner 2026-10-07" });
+  });
+
+  it("does nothing when no dish is on that dinner, or another Eating out is", () => {
+    expect(push([dish("chicken", WED, "dinner")], x, { day: TUE, meal: "dinner" })).toBeNull();
+    expect(push([out("Y", TUE)], x, { day: TUE, meal: "dinner" })).toBeNull();
   });
 });

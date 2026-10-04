@@ -23,11 +23,14 @@ import styles from "./meal-plans.module.css";
 const initialState: PlanFormState = {};
 
 function Outcome({ state }: { state: PlanFormState }) {
-  return state.error ? (
-    <p role="alert" className={cards.error}>
-      {state.error}
-    </p>
-  ) : null;
+  if (state.error) {
+    return (
+      <p role="alert" className={cards.error}>
+        {state.error}
+      </p>
+    );
+  }
+  return state.notice ? <p role="status">{state.notice}</p> : null;
 }
 
 const submitForm = (event: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => event.currentTarget.form?.requestSubmit();

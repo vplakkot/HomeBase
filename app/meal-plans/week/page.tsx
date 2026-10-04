@@ -8,6 +8,7 @@ import {
   readLastClosedPlan,
   readPlans,
   readPlanRows,
+  readProposed,
   type MealPlan,
 } from "../../../lib/meal-plans/plan";
 import { averageRatings, readRatingPrompts, readRatings } from "../../../lib/meal-plans/ratings";
@@ -138,13 +139,14 @@ function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: re
 export default async function WeekPage({ searchParams }: { searchParams?: Promise<{ skip?: string }> } = {}) {
   const viewer = await mealPlansViewer();
   const query = (await searchParams) ?? {};
-  const [{ current: plan, ahead }, lastClosed, recipes, rows, ratings, prompts] = await Promise.all([
+  const [{ current: plan, ahead }, lastClosed, recipes, rows, ratings, prompts, proposed] = await Promise.all([
     readPlans(viewer.supabase),
     readLastClosedPlan(viewer.supabase),
     readRecipes(viewer.supabase),
     readPlanRows(viewer.supabase),
     readRatings(viewer.supabase),
     readRatingPrompts(viewer.supabase, viewer.userId),
+    readProposed(viewer.supabase),
   ]);
   const names = new Map(recipes.map((recipe) => [recipe.id, recipe.name]));
   const toRate = prompts.flatMap((id) => (names.has(id) ? [{ id, name: names.get(id) ?? "" }] : []));
@@ -174,7 +176,8 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
     recipes,
     stats: planStats(rows),
     averages: averageRatings(ratings),
-    carried: carriedOver(rows, lastClosed),
+    // Carried over, or taken off a plan by a push (REQ-169): proposed first.
+    carried: [...carriedOver(rows, lastClosed), ...proposed],
     inPlan,
     dismissed: new Set(skipped),
     today,
