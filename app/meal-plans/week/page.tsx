@@ -50,8 +50,9 @@ function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: re
           {layout.rows.map((row) => {
             if (row.kind === "empty") {
               return (
-                <li key={`empty-${mealKey(row.meal)}`} className={styles.planGap}>
-                  {mealName(row.meal)} · {row.label}
+                <li key={`empty-${mealKey(row.meal)}`} className={styles.planRow}>
+                  <span className={styles.planMeals}>{mealName(row.meal)}</span>
+                  <span className={styles.planEmpty}>{row.label}</span>
                 </li>
               );
             }
