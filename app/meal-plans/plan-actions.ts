@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasPermission } from "../../lib/auth/permissions";
-import { isPlanServings } from "../../lib/meal-plans/plan";
+import { ENTRY_COLUMNS, isPlanServings, nextPlanStart, orderedFor, readStoredPlans, syncAheadStart, type PlannedRecipe } from "../../lib/meal-plans/plan";
 import { readRecipe } from "../../lib/meal-plans/recipes";
 import { isFactor, scaleRecipe } from "../../lib/meal-plans/scale";
 import { createClient } from "../../lib/supabase/server";
@@ -70,21 +70,24 @@ export async function setHidden(formData: FormData): Promise<void> {
   refresh();
 }
 
-// REQ-115: either of us starts a plan on any day. REQ-116: starting one
-// closes the open plan first, in the same step on the database.
+// REQ-115: either of us starts a plan on any day. REQ-162: with one open,
+// the new plan goes behind it and starts the day after its last meal, so
+// the day asked for is ignored; it never closes anything.
 export async function startPlan(_prev: PlanFormState, formData: FormData): Promise<PlanFormState> {
   const supabase = await requireMember();
-  const startsOn = dayFrom(formData.get("starts_on"));
+  const { current, ahead } = await readStoredPlans(supabase);
+  if (ahead) return { error: "There's already a plan ahead." };
+  const startsOn = current ? nextPlanStart(current) : dayFrom(formData.get("starts_on"));
   if (!startsOn) return { error: "Choose the day the plan starts." };
   const { error } = await supabase.rpc("start_meal_plan", { p_starts_on: startsOn });
-  // The database allows one open plan; the other person may have just started it.
+  // The database allows one current plan and one ahead; the other person may have just started it.
   if (error?.code === "23505") return { error: "A plan was just started. Refresh to see it." };
   if (error) {
     Sentry.captureException(new Error(error.message));
     return { error: "The plan couldn't be started. Try again." };
   }
   refresh();
-  // From Home's quick add (REQ-118): straight to the new plan.
+  // From Home's quick add (REQ-118): straight to the plan.
   if (formData.get("then") === "week") redirect("/meal-plans/week");
   return {};
 }
@@ -100,6 +103,7 @@ export async function changePlanStart(_prev: PlanFormState, formData: FormData):
     Sentry.captureException(new Error(error.message));
     return { error: "The start day couldn't be changed. Try again." };
   }
+  await syncAhead(supabase);
   refresh();
   return {};
 }
@@ -111,6 +115,8 @@ export async function removePlan(formData: FormData): Promise<void> {
   if (!id) return;
   const { error } = await supabase.from("meal_plans").delete().eq("id", id);
   if (error) Sentry.captureException(new Error(error.message));
+  // Taking the current plan away leaves the one behind it as the current plan.
+  else await supabase.from("meal_plans").update({ ahead: false }).eq("ahead", true).is("closed_at", null);
   refresh();
 }
 
@@ -135,40 +141,93 @@ export async function reopenPlan(formData: FormData): Promise<void> {
   refresh();
 }
 
+// The plan ahead's start follows the current plan's last meal (REQ-162).
+async function syncAhead(supabase: Awaited<ReturnType<typeof createClient>>) {
+  try {
+    await syncAheadStart(supabase);
+  } catch (error) {
+    Sentry.captureException(error);
+  }
+}
+
+async function readEntries(supabase: Awaited<ReturnType<typeof createClient>>, planId: string) {
+  const { data } = await supabase.from("meal_plan_recipes").select(ENTRY_COLUMNS).eq("plan_id", planId).order("position");
+  return ((data ?? []) as PlannedRecipe[]).filter((entry) => entry.id);
+}
+
+// A plan's start day, for working out where an entry lands.
+async function startOf(supabase: Awaited<ReturnType<typeof createClient>>, planId: string): Promise<string | null> {
+  const { data } = await supabase.from("meal_plans").select("starts_on").eq("id", planId).maybeSingle();
+  return (data as { starts_on: string } | null)?.starts_on ?? null;
+}
+
+function slotFrom(value: unknown): number | null {
+  const text = String(value ?? "").trim();
+  return /^\d{1,3}$/.test(text) ? Number(text) : null;
+}
+
+// Put the entries in this order (one step on the database).
+async function setOrder(supabase: Awaited<ReturnType<typeof createClient>>, planId: string, ids: string[]) {
+  const { error } = await supabase.rpc("set_plan_order", { p_plan: planId, p_order: ids });
+  if (error) throw new Error(error.message);
+}
+
 // Adding a recipe is what counts it as planned (REQ-115): its times
-// planned and date last planned are read from these rows.
+// planned and date last planned are read from these rows. REQ-164: it goes
+// to the next free meal unless a meal is chosen; "Eating out" is an entry
+// that takes one dinner and has no recipe.
 export async function addToPlan(_prev: PlanFormState, formData: FormData): Promise<PlanFormState> {
   const supabase = await requireMember();
   const planId = idFrom(formData.get("plan_id"));
-  const recipeId = idFrom(formData.get("recipe_id"));
-  const servings = Number(formData.get("servings") ?? 4);
+  const eatingOut = formData.get("intent") === "eating_out";
+  const recipeId = eatingOut ? null : idFrom(formData.get("recipe_id"));
+  const servings = eatingOut ? 2 : Number(formData.get("servings") ?? 4);
+  const slot = slotFrom(formData.get("slot"));
   if (!planId) return { error: "Start a plan first." };
-  if (!recipeId) return { error: "Choose a recipe to add." };
+  if (!eatingOut && !recipeId) return { error: "Choose a recipe to add." };
   if (!isPlanServings(servings)) return { error: "A recipe is 4 servings or 2." };
-  const { error } = await supabase.from("meal_plan_recipes").insert({ plan_id: planId, recipe_id: recipeId, servings });
-  if (error?.code === "23505") return { error: "That recipe is already in the plan." };
-  if (error) {
-    Sentry.captureException(new Error(error.message));
-    return { error: "The recipe couldn't be added. Try again." };
+  try {
+    const entries = await readEntries(supabase, planId);
+    const entry = {
+      id: crypto.randomUUID(),
+      plan_id: planId,
+      recipe_id: recipeId,
+      eating_out: eatingOut,
+      servings,
+      position: entries.reduce((most, item) => Math.max(most, item.position), 0) + 1,
+    };
+    const { error } = await supabase.from("meal_plan_recipes").insert(entry);
+    if (error?.code === "23505") return { error: "That recipe is already in the plan." };
+    if (error) throw new Error(error.message);
+    const startsOn = slot === null ? null : await startOf(supabase, planId);
+    if (slot !== null && startsOn) {
+      const added = { ...entry, cooked: false, carry_over: false, added_at: "" };
+      await setOrder(supabase, planId, orderedFor(startsOn, entries, added, slot).map((item) => item.id));
+    }
+  } catch (error) {
+    Sentry.captureException(error);
+    return { error: "It couldn't be added. Try again." };
   }
+  await syncAhead(supabase);
   refresh();
   return {};
 }
 
-function plannedFrom(formData: FormData) {
+function entryFrom(formData: FormData) {
   const planId = idFrom(formData.get("plan_id"));
-  const recipeId = idFrom(formData.get("recipe_id"));
-  return planId && recipeId ? { planId, recipeId } : null;
+  const entryId = idFrom(formData.get("entry_id"));
+  return planId && entryId ? { planId, entryId } : null;
 }
 
 async function changePlanned(formData: FormData, change: { servings?: number; cooked?: boolean; carry_over?: boolean } | "remove") {
   const supabase = await requireMember();
-  const row = plannedFrom(formData);
+  const row = entryFrom(formData);
   if (!row) return;
   const table = supabase.from("meal_plan_recipes");
   const query = change === "remove" ? table.delete() : table.update(change);
-  const { error } = await query.eq("plan_id", row.planId).eq("recipe_id", row.recipeId);
+  const { error } = await query.eq("plan_id", row.planId).eq("id", row.entryId);
   if (error) Sentry.captureException(new Error(error.message));
+  await syncAhead(supabase);
   refresh();
 }
 
@@ -192,6 +251,38 @@ export async function setCarryOver(formData: FormData): Promise<void> {
 
 export async function takeOffPlan(formData: FormData): Promise<void> {
   await changePlanned(formData, "remove");
+}
+
+// REQ-164: "Move to..." a chosen meal, or one place up or down. The others
+// shift to fill, and the plan's end (and the plan ahead's start) follow.
+export async function moveEntry(formData: FormData): Promise<void> {
+  const supabase = await requireMember();
+  const row = entryFrom(formData);
+  if (!row) return;
+  try {
+    const entries = await readEntries(supabase, row.planId);
+    const index = entries.findIndex((entry) => entry.id === row.entryId);
+    if (index === -1) return;
+    const slot = slotFrom(formData.get("slot"));
+    const step = formData.get("step") === "up" ? -1 : formData.get("step") === "down" ? 1 : 0;
+    let order: PlannedRecipe[];
+    if (slot !== null) {
+      const startsOn = await startOf(supabase, row.planId);
+      if (!startsOn) return;
+      order = orderedFor(startsOn, entries.filter((entry) => entry.id !== row.entryId), entries[index], slot);
+    } else if (step !== 0 && entries[index + step]) {
+      order = [...entries];
+      [order[index], order[index + step]] = [order[index + step], order[index]];
+    } else {
+      return;
+    }
+    await setOrder(supabase, row.planId, order.map((entry) => entry.id));
+  } catch (error) {
+    Sentry.captureException(error);
+    return;
+  }
+  await syncAhead(supabase);
+  refresh();
 }
 
 async function signedInId(supabase: Awaited<ReturnType<typeof createClient>>): Promise<string> {

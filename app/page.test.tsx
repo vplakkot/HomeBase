@@ -38,7 +38,7 @@ vi.mock("../lib/restaurants/restaurants", async (original) => ({
 }));
 vi.mock("../lib/meal-plans/plan", async (original) => ({
   ...(await original<typeof import("../lib/meal-plans/plan")>()),
-  readOpenPlan: vi.fn(async () => null),
+  readPlans: vi.fn(async () => ({ current: null, ahead: null })),
 }));
 
 // Finances before setup: no split, no bills, nothing to do.

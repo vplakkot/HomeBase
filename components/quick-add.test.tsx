@@ -12,6 +12,7 @@ vi.mock("../app/meal-plans/plan-actions", () => ({
   setCarryOver: vi.fn(),
   setCooked: vi.fn(),
   setPlanServings: vi.fn(),
+  moveEntry: vi.fn(),
 }));
 
 beforeAll(installDialogStandIn);
@@ -52,7 +53,24 @@ describe.each(["bar", "buttons"] as const)("Quick add as %s", (variant) => {
     const [sheet] = openSheets();
     expect(within(sheet).getByRole("heading").textContent).toBe("Start a meal plan");
     expect((within(sheet).getByLabelText("Starts on") as HTMLInputElement).value).toBe("2026-09-27");
-    expect(within(sheet).getByRole("button", { name: "Start a plan" })).toBeTruthy();
+    expect(within(sheet).getByRole("button", { name: "New meal plan" })).toBeTruthy();
     expect((sheet.querySelector('input[name="then"]') as HTMLInputElement).value).toBe("week");
+  });
+
+  // REQ-162: with a plan running the button plans ahead, with no day to pick.
+  it("offers Plan ahead while a plan is running", () => {
+    render(<QuickAdd variant={variant} today="2026-09-27" planAction="ahead" />);
+    expect(screen.queryByRole("button", { name: "New meal plan" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Plan ahead" }));
+    const [sheet] = openSheets();
+    expect(within(sheet).queryByLabelText("Starts on")).toBeNull();
+    expect(within(sheet).getByRole("button", { name: "Plan ahead" })).toBeTruthy();
+    expect((sheet.querySelector('input[name="then"]') as HTMLInputElement).value).toBe("week");
+  });
+
+  it("offers neither once a plan and the one after it both exist", () => {
+    render(<QuickAdd variant={variant} today="2026-09-27" planAction={null} />);
+    const group = screen.getByRole("group", { name: "Quick add" });
+    expect(within(group).getAllByRole("button").map((button) => button.textContent)).toEqual(["Expense", "Event"]);
   });
 });
