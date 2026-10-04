@@ -1138,7 +1138,7 @@ that card and sets `recipes.ai_generated`, which any edit clears. See
 `meal_plans` holds one plan per week, started on any day. Two partial
 unique indexes allow one open plan that is current and one open plan
 `ahead` (REQ-162), so two people starting a plan at once can't make two
-of either. The plan ahead is queued behind the current one: it starts
+of either. The plan ahead is queued behind the current one: it starts at
 the first dinner after the current plan's last meal, and `syncAheadStart`
 (`lib/meal-plans/plan.ts`) rewrites its stored start whenever the
 current plan's entries or start day change; reading also works the
