@@ -10,7 +10,7 @@
   A lunch left free says "Not planned". How far the plan reaches no longer
   depends on how many of us eat.
 - Meal Plan, plan ahead: while a plan runs you can set up the next one. It
-  starts the day after the running plan's last meal and moves with it.
+  starts at the first dinner after the running plan's last meal and moves with it.
   Starting a plan no longer closes the open one. The button reads "New
   meal plan", "Plan ahead", or is gone, on Home, the module home and the
   plan page alike.

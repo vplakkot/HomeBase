@@ -43,7 +43,7 @@ export async function readStoredPlans(supabase: SupabaseClient): Promise<{ curre
   return { current: plans.find((plan) => !plan.ahead) ?? null, ahead: plans.find((plan) => plan.ahead) ?? null };
 }
 
-// What we show: the plan ahead starts the day after the current plan's last
+// What we show: the plan ahead starts at the first dinner after the current plan's last
 // meal, wherever that has moved to (REQ-162).
 export async function readPlans(supabase: SupabaseClient): Promise<{ current: MealPlan | null; ahead: MealPlan | null }> {
   const { current, ahead } = await readStoredPlans(supabase);
@@ -198,10 +198,14 @@ export function planEnd(startsOn: string, entries: readonly Laid[]): Covers | nu
   return layoutPlan(startsOn, entries).end;
 }
 
-// REQ-162: the plan ahead starts the day after the current plan's last meal.
-// A current plan with nothing in it yet counts as its start day.
+// REQ-162: the plan ahead starts at the first dinner after the current
+// plan's last meal (Vin, 2026-10-04): the same day when that meal is a
+// lunch, the next day when it is a dinner. A current plan with nothing in
+// it yet counts as its start day.
 export function nextPlanStart(plan: Pick<MealPlan, "starts_on" | "recipes">): string {
-  return addDays(planEnd(plan.starts_on, plan.recipes)?.day ?? plan.starts_on, 1);
+  const end = planEnd(plan.starts_on, plan.recipes);
+  if (!end) return addDays(plan.starts_on, 1);
+  return end.meal === "lunch" ? end.day : addDays(end.day, 1);
 }
 
 export function coversText(covers: Covers | null, anyPlanned: boolean): string {

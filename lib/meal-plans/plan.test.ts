@@ -85,19 +85,21 @@ describe("moving an entry to a meal (REQ-164)", () => {
   });
 });
 
-// REQ-162: the plan ahead starts the day after the current plan's last meal.
+// REQ-162: the plan ahead starts at the first dinner after the current plan's last meal.
 describe("where the plan ahead starts (REQ-162)", () => {
   const plan = (starts_on: string, entries: Entry[]) => ({ starts_on, recipes: entries.map((entry) => ({ ...entry, recipe_id: "r", cooked: false, carry_over: false, position: 0, added_at: "" })) });
 
-  it("starts the day after the last meal, whichever meal it is", () => {
+  it("starts that same day's dinner when the last meal is a lunch, and the next day when it is a dinner", () => {
+    // Ends Tuesday lunch: Tuesday dinner is next.
+    expect(nextPlanStart(plan(MONDAY, [four("a")]))).toBe("2026-09-29");
+    // Ends Tuesday dinner: Wednesday.
     expect(nextPlanStart(plan(MONDAY, [four("a"), two("b")]))).toBe("2026-09-30");
-    expect(nextPlanStart(plan(MONDAY, [four("a"), four("b")]))).toBe("2026-10-01");
+    expect(nextPlanStart(plan(MONDAY, [four("a"), four("b")]))).toBe("2026-09-30");
   });
 
   it("moves with the plan's last meal", () => {
-    expect(nextPlanStart(plan(MONDAY, [four("a")]))).toBe("2026-09-30");
     expect(nextPlanStart(plan(MONDAY, [four("a"), out("b")]))).toBe("2026-09-30");
-    expect(nextPlanStart(plan(MONDAY, [four("a"), two("b"), two("c")]))).toBe("2026-10-01");
+    expect(nextPlanStart(plan(MONDAY, [four("a"), two("b"), two("c")]))).toBe("2026-09-30");
     expect(nextPlanStart(plan("2026-09-29", [four("a"), out("b")]))).toBe("2026-10-01");
   });
 

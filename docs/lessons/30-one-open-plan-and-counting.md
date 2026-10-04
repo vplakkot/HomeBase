@@ -83,7 +83,7 @@ carry a day. It carries a `position` (1, 2, 3...), and the code lays the
 entries out from dinner on the start day: a 4-serving dish takes a
 dinner and the next lunch, a 2-serving dish one meal. Move a dish and
 only the positions change; every day and the plan's end follow. The
-plan ahead's start (the day after the last meal) is derived the same
+plan ahead's start (the first dinner after the last meal) is derived the same
 way, and is also written down after each change so other code can read
 it. It is the "count, don't keep a tally" idea again: the order is the
 record, the days are counted from it.

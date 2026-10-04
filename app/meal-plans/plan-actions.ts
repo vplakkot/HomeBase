@@ -71,7 +71,7 @@ export async function setHidden(formData: FormData): Promise<void> {
 }
 
 // REQ-115: either of us starts a plan on any day. REQ-162: with one open,
-// the new plan goes behind it and starts the day after its last meal, so
+// the new plan goes behind it and starts at the first dinner after its last meal, so
 // the day asked for is ignored; it never closes anything.
 export async function startPlan(_prev: PlanFormState, formData: FormData): Promise<PlanFormState> {
   const supabase = await requireMember();

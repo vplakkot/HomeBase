@@ -584,7 +584,7 @@ describe("the plan laid out by meal (REQ-164)", () => {
 });
 
 describe("planning ahead (REQ-162)", () => {
-  it("queues the next plan on the day after the current plan's last meal, and never closes anything", async () => {
+  it("queues the next plan at the dinner after the current plan's last meal, and never closes anything", async () => {
     const fake = given({ meal_plans: [openPlan([planned(ID, 4), planned(OTHER, 2)])] });
     expect(await startPlan({}, form({ starts_on: "2030-01-01" }))).toEqual({});
     // Dinner Sun · Lunch Mon, then Dinner Mon: the last meal is on Monday.
@@ -598,14 +598,14 @@ describe("planning ahead (REQ-162)", () => {
     expect(fake.rpc).not.toHaveBeenCalledWith("start_meal_plan", expect.anything());
   });
 
-  it("shows the plan ahead under the current plan, starting the day after its last meal, and offers no second", async () => {
+  it("shows the plan ahead under the current plan, starting at the dinner after its last meal, and offers no second", async () => {
     given({ meal_plans: [openPlan([planned(ID, 4)]), aheadPlan([planned(OTHER, 4, false, false, E3, 1)])], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
-    // The stored start (Sep 30) is not used: the current plan ends Monday lunch, so the next starts Tuesday.
-    expect(screen.getByRole("heading", { name: "Next plan, from Tue, Sep 29" })).toBeTruthy();
+    // The stored start (Sep 30) is not used: the current plan ends Monday lunch, so the next starts Monday dinner.
+    expect(screen.getByRole("heading", { name: "Next plan, from Mon, Sep 28" })).toBeTruthy();
     const next = within(screen.getByRole("region", { name: "Next plan" }));
     expect(next.getByRole("list", { name: "Entries in the next plan" })).toBeTruthy();
-    expect(next.getByText("Covers through lunch, Wed, Sep 30")).toBeTruthy();
+    expect(next.getByText("Covers through lunch, Tue, Sep 29")).toBeTruthy();
     // Its start isn't ours to change, and it can't be closed before it begins.
     expect(next.queryByText("Change the start day")).toBeNull();
     expect(next.queryByRole("button", { name: "Close this plan" })).toBeNull();
