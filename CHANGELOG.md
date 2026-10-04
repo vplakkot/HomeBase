@@ -7,7 +7,7 @@
   keeping its meal (a dinner stays a dinner). The lunch it leaves behind
   reads "On your own". Eating out already in the plan stays put and dishes
   go round it. A dish pushed past dinner on the first Saturday comes off
-  the plan with a message, and is suggested first. Moving an Eating out
+  the plan ("<recipe> dropped") and is suggested first. Moving an Eating out
   onto a dish's dinner does the same.
 
 - Meal Plan, fix: the "2 meals / 1 meal" picker now shows the size that was

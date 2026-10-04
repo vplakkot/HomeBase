@@ -723,7 +723,7 @@ describe("Eating out pushes dishes back (REQ-169)", () => {
     });
     const state = await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-09-29:dinner" }));
     expect(pushCall(fake)?.p_drop).toEqual([E2]);
-    expect(state).toEqual({ notice: "Test lentil soup didn't fit this week and was taken off the plan. It'll be suggested first next week." });
+    expect(state).toEqual({ notice: "Test lentil soup dropped" });
   });
 
   it("refuses Eating out on a dinner that already is Eating out, and still refuses a dish moved onto a taken meal", async () => {

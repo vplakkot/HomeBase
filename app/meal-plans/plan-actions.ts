@@ -146,7 +146,7 @@ const PASSED = "That day has passed.";
 
 // REQ-169: Eating out on a dinner a dish is on pushes that dish and every
 // later dish back a day, in one step on the database. A dish that no longer
-// fits the week leaves the plan; the answer says which, in words.
+// fits the week leaves the plan; the answer says which ("Chilli chicken dropped").
 async function pushForEatingOut(supabase: Supabase, plan: MealPlan, eatingOut: PlannedRecipe, at: Meal, isNew: boolean): Promise<string | undefined> {
   const pushed = pushBack(plan, plan.recipes, eatingOut, at, plan.daysOff);
   if (!pushed) return undefined;
@@ -161,7 +161,7 @@ async function pushForEatingOut(supabase: Supabase, plan: MealPlan, eatingOut: P
   if (pushed.dropped.length === 0) return undefined;
   const names = await Promise.all(pushed.dropped.map((entry) => entryName(supabase, entry)));
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
-  return `${list} didn't fit this week and ${names.length > 1 ? "were" : "was"} taken off the plan. ${names.length > 1 ? "They'll" : "It'll"} be suggested first next week.`;
+  return `${list} dropped`;
 }
 
 async function entryName(supabase: Supabase, entry: Pick<PlannedRecipe, "eating_out" | "recipe_id">): Promise<string> {
