@@ -3,7 +3,8 @@ import Link from "next/link";
 import { ButtonLink } from "../../components/button";
 import { householdToday } from "../../lib/finances/budget-year";
 import { homeStats } from "../../lib/meal-plans/home";
-import { coversText, entryMeals, layoutPlan, planStats, readPlans, readPlanRows } from "../../lib/meal-plans/plan";
+import { entryMeals, layoutPlan } from "../../lib/meal-plans/meals";
+import { coversText, planStats, readPlans, readPlanRows } from "../../lib/meal-plans/plan";
 import { averageRatings, readRatingPrompts, readRatings, starsText } from "../../lib/meal-plans/ratings";
 import { readImports, readRecipes } from "../../lib/meal-plans/recipes";
 import { dismissImport } from "./actions";
@@ -39,7 +40,7 @@ export default async function MealPlansPage() {
   ]);
   const byId = new Map(all.map((recipe) => [recipe.id, recipe]));
   const entries = plan?.recipes.filter((entry) => entry.eating_out || (entry.recipe_id && byId.has(entry.recipe_id))) ?? [];
-  const layout = layoutPlan(plan?.starts_on ?? "", entries);
+  const layout = plan ? layoutPlan(plan, entries) : { rows: [], end: null };
   const planned = layout.rows.flatMap((row) => (row.kind === "entry" ? [{ entry: row.entry, meals: row.meals }] : []));
   const numbers = homeStats(all, planStats(rows), averageRatings(ratings));
   return (

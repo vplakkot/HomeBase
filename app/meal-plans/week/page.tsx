@@ -1,13 +1,9 @@
 import Link from "next/link";
 import { householdToday } from "../../../lib/finances/budget-year";
+import { dayLabel, entryMeals, layoutPlan, mealKey, mealName, mealPlace, startChoices, startOf, type Meal } from "../../../lib/meal-plans/meals";
 import {
   carriedOver,
   coversText,
-  dayLabel,
-  entryMeals,
-  layoutPlan,
-  mealChoices,
-  mealName,
   planStats,
   readLastClosedPlan,
   readPlans,
@@ -18,23 +14,31 @@ import { averageRatings, readRatingPrompts, readRatings } from "../../../lib/mea
 import { readRecipes, type Recipe } from "../../../lib/meal-plans/recipes";
 import { suggestions } from "../../../lib/meal-plans/suggest";
 import { MealPlansScreen, mealPlansViewer } from "../frame";
-import { AddToPlanForm, AddToWeekButton, ChangeStartForm, MoveControls, PlanAheadForm, PlannedControls, StartPlanForm } from "../plan-forms";
+import { AddToPlanForm, AddToWeekButton, ChangeStartForm, DaysOffForm, MoveControls, PlanAheadForm, PlannedControls, StartPlanForm } from "../plan-forms";
 import { closePlan, removePlan, reopenPlan, takeOffPlan } from "../plan-actions";
 import { RatePrompts } from "../rate-prompts";
 import styles from "../meal-plans.module.css";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
-// One plan, laid out by meal (REQ-164): a card per entry in meal order,
-// each with the meals it covers, and "Not planned" where a lunch is left
-// free. `ahead` is the plan queued behind the current one (REQ-162): its
-// start isn't ours to change, it follows the current plan's last meal.
+const asOption = (meal: Meal) => ({ value: mealKey(meal), label: mealPlace(meal) });
+
+// One plan, laid out by meal (REQ-168): a card per entry in meal order,
+// each with the meals it covers, and what an empty meal is called ("On
+// your own", "Not planned"). `ahead` is the plan queued behind the current
+// one (REQ-162): its start isn't ours to change, it follows the current
+// plan's last meal.
 function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: readonly Recipe[]; names: Map<string, string>; ahead: boolean }) {
   const entries = plan.recipes.filter((entry) => entry.eating_out || (entry.recipe_id && names.has(entry.recipe_id)));
-  const layout = layoutPlan(plan.starts_on, entries);
-  const meals = mealChoices(plan.starts_on, entries);
+  const layout = layoutPlan(plan, entries);
+  // Days before today are locked once a plan has started; a plan ahead hasn't.
+  const locked = ahead ? null : householdToday();
+  const choicesFor = (shape: { eating_out: boolean; meals: 1 | 2 }) => startChoices(plan, shape, plan.daysOff, locked).map(asOption);
+  const choices = { one: choicesFor({ eating_out: false, meals: 1 }), two: choicesFor({ eating_out: false, meals: 2 }) };
+  const dishes = entries.filter((entry) => !entry.eating_out).sort((a, b) => startOf(a) - startOf(b));
   const inPlan = new Set(entries.flatMap((entry) => (entry.recipe_id ? [entry.recipe_id] : [])));
   const addable = recipes.filter((recipe) => !recipe.hidden && !inPlan.has(recipe.id));
+  const daysOff = [...plan.daysOff].sort().map((day) => ({ day, label: dayLabel(day) }));
   return (
     <section className={styles.formCard} aria-label={ahead ? "Next plan" : "This week"}>
       <div className={styles.fileHead}>
@@ -44,16 +48,16 @@ function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: re
       {layout.rows.length > 0 ? (
         <ul className={styles.planList} aria-label={ahead ? "Entries in the next plan" : "Recipes in the plan"}>
           {layout.rows.map((row) => {
-            if (row.kind === "gap") {
+            if (row.kind === "empty") {
               return (
-                <li key={`gap-${row.slot}`} className={styles.planGap}>
-                  {mealName(row.meal)} · Not planned
+                <li key={`empty-${mealKey(row.meal)}`} className={styles.planGap}>
+                  {mealName(row.meal)} · {row.label}
                 </li>
               );
             }
             const { entry } = row;
             const name = entry.eating_out ? "Eating out" : (names.get(entry.recipe_id ?? "") ?? "");
-            const position = entries.indexOf(entry);
+            const place = dishes.indexOf(entry);
             return (
               <li key={entry.id} className={styles.planRow}>
                 <span className={styles.planMeals}>{entryMeals(row.meals)}</span>
@@ -65,16 +69,16 @@ function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: re
                   </Link>
                 )}
                 {entry.eating_out ? null : (
-                  <PlannedControls
-                    planId={plan.id}
-                    entryId={entry.id}
-                    name={name}
-                    servings={entry.servings}
-                    cooked={entry.cooked}
-                    carryOver={entry.carry_over}
-                  />
+                  <PlannedControls planId={plan.id} entryId={entry.id} name={name} meals={entry.meals} cooked={entry.cooked} carryOver={entry.carry_over} />
                 )}
-                <MoveControls planId={plan.id} entryId={entry.id} name={name} meals={meals} first={position === 0} last={position === entries.length - 1} />
+                <MoveControls
+                  planId={plan.id}
+                  entryId={entry.id}
+                  name={name}
+                  meals={choicesFor(entry)}
+                  canMoveUp={place > 0}
+                  canMoveDown={place !== -1 && place < dishes.length - 1}
+                />
                 <form action={takeOffPlan}>
                   <input type="hidden" name="plan_id" value={plan.id} />
                   <input type="hidden" name="entry_id" value={entry.id} />
@@ -96,7 +100,11 @@ function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: re
           first.
         </p>
       ) : null}
-      <AddToPlanForm planId={plan.id} recipes={addable} meals={meals} />
+      <AddToPlanForm planId={plan.id} recipes={addable} choices={choices} />
+      <details className={styles.startDay}>
+        <summary className={styles.linkButton}>Days off</summary>
+        <DaysOffForm planId={plan.id} days={daysOff} />
+      </details>
       {ahead ? null : (
         <>
           <details className={styles.startDay}>

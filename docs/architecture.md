@@ -1165,17 +1165,24 @@ the first dinner after the current plan's last meal, and `syncAheadStart`
 (`lib/meal-plans/plan.ts`) rewrites its stored start whenever the
 current plan's entries or start day change; reading also works the
 start out, so a page is right even if a write was missed.
-`meal_plan_recipes` holds a plan's entries (REQ-164): each has its own
-`id` and a `position` giving the order, and is either a recipe at 4
-servings or 2 (once per plan) or an evening out (`eating_out`, no
-recipe), with an optional cooked tick; removing a plan removes its
-rows. Which meal an entry lands on isn't stored: `layoutPlan` works it
-out from the order and servings, from dinner on the start day (a
-4-serving recipe takes a dinner and the next lunch, a 2-serving one
-the next meal, an evening out one dinner, with a free lunch left
-"Not planned" before anything that needs a dinner). Reordering goes
-through `set_plan_order`, one step on the database, run as the person
-asking so the same row rules apply. A recipe's "times planned" and "last planned" aren't stored: they're
+`meal_plan_recipes` holds a plan's entries (REQ-168): each has its own
+`id` and is either a dish (once per plan) or an evening out
+(`eating_out`, no recipe), with an optional cooked tick. Each entry is
+written onto the meal it starts at (`meal_on`, a day, and `meal`, lunch
+or dinner) with a size of `meals` 1 or 2; a 2-meal dish also covers the
+meal after, its leftovers. A plan stores its `starts_meal` (dinner, or
+lunch on a weekend day when we choose), and `meal_plan_days_off` holds the
+days we marked as a Day off, which count as weekend days for it. The rules
+(where an entry can start, the next free meal, the reflow when a start
+slides or a dish is swapped, how far a plan reaches) are plain code in
+`lib/meal-plans/meals.ts`, which never touches the database. Writes go
+through `set_plan_layout`, one step on the database, run as the person
+asking so the same row rules apply; it also refuses two entries on one
+meal. Placement lives on the entry and says nothing about its recipe, so
+a later change can give an entry several recipes. Removing a plan removes
+its rows. `position` and `servings` are left from the earlier model and
+are dropped by a later migration. Days before today (ET) are locked in a
+plan that has started; a plan ahead never is. A recipe's "times planned" and "last planned" aren't stored: they're
 counted from these rows each time (`lib/meal-plans/plan.ts`), so taking
 a recipe off a plan can't leave a stale count. `recipes.hidden` keeps a
 recipe out of the library without deleting it.
@@ -1187,8 +1194,8 @@ is one step no matter who else is using the app: `close_meal_plan`
 marks every recipe cooked except those with `carry_over`, writes a
 rating question into `recipe_rating_prompts` for every household member
 for each dish cooked for the first time, and sets `closed_at`.
-`start_meal_plan` starts a plan; with one current it becomes the plan
-ahead and nothing is closed (REQ-162), and closing the current plan
+`start_meal_plan` starts a plan, at dinner or a chosen weekend lunch;
+with one current it becomes the plan ahead and nothing is closed (REQ-162), and closing the current plan
 makes the plan ahead current. An evening out is never rated.
 `reopen_meal_plan` opens the last plan closed again, while no other is
 open, and takes back its unanswered questions. `recipe_ratings` holds

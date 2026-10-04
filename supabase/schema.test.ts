@@ -808,6 +808,53 @@ describe("meal plan: by meal, and planning ahead (REQ-162, REQ-164)", () => {
   });
 });
 
+describe("meal plan: a plan is a run of meals (REQ-168)", () => {
+  const meals = readMigration("20261005110000");
+
+  it("only adds columns, so the running app keeps working until the new code is live", () => {
+    expect(meals).not.toMatch(/drop column/);
+    expect(meals).toMatch(/add column starts_meal text not null default 'dinner' check \(starts_meal in \('lunch', 'dinner'\)\)/);
+    expect(meals).toMatch(/add column meal_on date,/);
+    expect(meals).toMatch(/add column meals integer check \(meals in \(1, 2\)\)/);
+  });
+
+  it("puts an entry on a whole meal, and an evening out only on one dinner", () => {
+    expect(meals).toMatch(/check \(\(meal_on is null\) = \(meal is null\) and \(meal is null\) = \(meals is null\)\)/);
+    expect(meals).toMatch(/check \(not eating_out or meal is null or \(meal = 'dinner' and meals = 1\)\)/);
+  });
+
+  it("keeps a plan's days off in their own table that members read, mark and unmark, and nobody signed out sees", () => {
+    expect(meals).toMatch(/create table public\.meal_plan_days_off/);
+    expect(meals).toMatch(/primary key \(plan_id, day\)/);
+    expect(meals).toMatch(/alter table public\.meal_plan_days_off enable row level security;/);
+    expect(meals).toMatch(/revoke all on public\.meal_plan_days_off from anon;/);
+    for (const action of ["select", "insert", "delete"]) {
+      expect(meals).toMatch(new RegExp(`on public\\.meal_plan_days_off for ${action} to authenticated`));
+    }
+    expect(meals).not.toMatch(/meal_plan_days_off for update/);
+  });
+
+  it("converts every plan with the old counting rule, so each dish keeps the meal it shows", () => {
+    expect(meals).toMatch(/if \(e\.eating_out or e\.servings = 4\) and slot % 2 = 1 then/);
+    expect(meals).toMatch(/taken := case when not e\.eating_out and e\.servings = 4 then 2 else 1 end;/);
+    expect(meals).toMatch(/order by position, added_at, id/);
+  });
+
+  it("writes a layout as the person asking and refuses two entries on one meal", () => {
+    expect(meals).toMatch(/function public\.set_plan_layout\(p_plan uuid, p_starts_on date, p_starts_meal text, p_layout jsonb\)[\s\S]*security invoker/);
+    expect(meals).toMatch(/revoke all on function public\.set_plan_layout\(uuid, date, text, jsonb\) from public, anon;/);
+    expect(meals).toMatch(/grant execute on function public\.set_plan_layout\(uuid, date, text, jsonb\) to authenticated;/);
+    expect(meals).toMatch(/raise exception 'Two entries are on the same meal' using errcode = 'check_violation';/);
+  });
+
+  it("starts a plan at dinner unless told otherwise, for members only, without closing anything", () => {
+    expect(meals).toMatch(/drop function public\.start_meal_plan\(date\);/);
+    expect(meals).toMatch(/function public\.start_meal_plan\(p_starts_on date, p_starts_meal text default 'dinner'\)/);
+    expect(meals).toMatch(/if not public\.has_permission\('use_modules'\) then/);
+    expect(meals).not.toMatch(/close_meal_plan/);
+  });
+});
+
 describe("restaurants migration (REQ-90, REQ-129)", () => {
   const restaurants = readMigration("20260929100000");
 

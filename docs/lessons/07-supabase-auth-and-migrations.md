@@ -239,6 +239,16 @@ every statement. A check that closes three plans gets three identical
 closing times, so "the last one closed" becomes a tie. Set the times
 apart by hand in the check.
 
+### Add first, remove later
+
+A migration reaches the live project before its code reaches `main`. For
+a few minutes the old app is running against the new database. So a
+change that replaces a column (REQ-168 replaced "order and servings" with
+"which meal and how many meals") goes in two steps: the first migration
+only adds the new columns and fills them; a later one, after the new code
+is live, removes the old ones. Like moving house: carry the new
+furniture in first, and only take the old out once everyone has moved.
+
 ## The data model
 
 ```mermaid
