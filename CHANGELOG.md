@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 3.0.0 - 2026-10-04
+
+Meal Plans learns to read more: a recipe from a page link, from images,
+and from a video that now gets a photo of the finished dish chosen by
+Gemini. Its phone screens are tidied. Modules can be switched off for the
+household or just for you. Finances can fill in earlier months of the
+budget year. Home's action items count every item and every module's
+band spans its card.
+
 - Home, Action items: on a phone the counter and swipe now cover every
   item ("1 / 5"), not just the first three; the arrow still lists them
   all one under another, and a desktop still shows three to a row until
