@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Releases: CLAUDE.md now has a requirements gate. A vX.Y.0 release stops
+  if any requirement on Milestone vX.Y is not Done, and a patch release
+  carries only Done bugs from the live minor. Milestones are never moved
+  to get a release through.
+
 - Releases: the promote workflow now refuses a tag before touching Vercel
   if it differs from package.json's version, isn't higher than every
   earlier tag, or is a patch (vX.Y.Z, Z above 0) whose vX.Y.0 hasn't
