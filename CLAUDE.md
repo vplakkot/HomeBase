@@ -71,7 +71,18 @@ When I say "next batch" (or "next requirement"):
 - Releases: bump package.json's version and add its CHANGELOG.md section
   in the pull request itself, merge to main, then push the matching
   vX.Y.Z tag. The tag never gets created before the code it points to
-  already states that version.
+  already states that version. promote.yml also refuses a tag that fails
+  its version checks, so a wrong tag cannot go live.
+- Release requirements gate: before opening a release pull request for
+  vX.Y.0, query the Notion Requirements database for every requirement
+  with Milestone "vX.Y". If any is not Done (Draft counts as not Done),
+  stop: don't bump the version, and list the open requirements and their
+  statuses for me.
+- Patch releases: vX.Y.Z (Z above 0) is for bug fixes on the live vX.Y
+  only. Every requirement it ships must be a Done bug on Milestone
+  "vX.Y". Anything else waits for the next minor release.
+- If a requirement's Milestone doesn't match the release being cut, stop
+  and ask. Never change a Milestone yourself to get a release through.
 - Merging: once every Definition of Done item is satisfied and the
   pr-reviewer agent's verdict on the pull request is "Ready to merge",
   merge it without asking me, then tell me what was merged. A "Needs
