@@ -97,11 +97,17 @@ describe("suggestions while planning (REQ-117)", () => {
     const recipes = Array.from({ length: 7 }, (_, i) => recipe(`r${i}`, { cook_minutes: 20 + i }));
     const stats: [string, PlanStats][] = recipes.map((r) => [r.id, planned("2026-09-01")]);
     const before = ids(suggest(recipes, stats));
-    expect(before).toHaveLength(5);
+    expect(before).toHaveLength(3);
     const after = ids(suggest(recipes, stats, { dismissed: new Set([before[0]]) }));
     expect(after).not.toContain(before[0]);
-    expect(after).toHaveLength(5);
-    expect(after).toContain("r5");
+    expect(after).toHaveLength(3);
+    // The two that stayed are still there, and one more took the empty place.
+    expect(before.slice(1).every((id) => after.includes(id))).toBe(true);
+  });
+
+  it("shows at most 3 in all, even with more carried over (REQ-165)", () => {
+    const recipes = Array.from({ length: 6 }, (_, i) => recipe(`c${i}`));
+    expect(ids(suggest(recipes, [], { carried: recipes.map((r) => r.id) }))).toHaveLength(3);
   });
 
   it("labels a well-rated recipe not planned in a long time a Forgotten gem, and a never-planned one New to try", () => {

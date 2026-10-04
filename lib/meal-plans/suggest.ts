@@ -8,8 +8,9 @@ import type { Recipe } from "./recipes";
 export type SuggestionLabel = "Carried over" | "Try something new" | "Forgotten gem" | "New to try";
 export type Suggestion = { recipe: Recipe; label: SuggestionLabel | null };
 
-// How many ranked suggestions to show, after anything carried over.
-export const SUGGESTIONS = 5;
+// How many suggestions to show in all (REQ-165): anything carried over
+// first, then "Try something new", then the best ranked.
+export const SUGGESTIONS = 3;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const UNKNOWN_COOK_MINUTES = 45;
@@ -90,7 +91,7 @@ export function suggestions({
     .filter((recipe) => recipe !== fresh)
     .map((recipe) => ({ recipe, score: score(recipe, stats.get(recipe.id), averages.get(recipe.id), today) }))
     .sort((a, b) => b.score - a.score || a.recipe.name.localeCompare(b.recipe.name))
-    .slice(0, SUGGESTIONS - (fresh ? 1 : 0));
+    .slice(0, Math.max(0, SUGGESTIONS - out.length));
   for (const { recipe } of ranked) out.push({ recipe, label: labelFor(recipe, stats.get(recipe.id), averages.get(recipe.id), today) });
-  return out;
+  return out.slice(0, SUGGESTIONS);
 }

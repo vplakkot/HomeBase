@@ -202,6 +202,27 @@
   color: var(--color-ink);
 }
 
+/* REQ-164: the meals an entry covers, first on its row. */
+.planMeals {
+  flex: 1 0 100%;
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.planRow > span:not(.planMeals):not(.tag) {
+  flex: 1 1 160px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+/* A lunch left free: quiet, not a card of its own. */
+.planGap {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
+}
+
 .cooked {
   text-decoration: line-through;
   color: var(--color-muted);
@@ -453,4 +474,17 @@
   align-items: center;
   gap: var(--space-2);
   cursor: pointer;
+}
+
+/* REQ-165: Add recipe and the plan action, side by side and equal. */
+.homeActions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.homeActions > *,
+.homeActions form,
+.homeActions form button {
+  width: 100%;
 }

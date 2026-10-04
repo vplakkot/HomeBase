@@ -1,14 +1,14 @@
 import { OVERVIEW } from "../../components/module-frame";
 import Link from "next/link";
-import { readPeople } from "../../lib/drinks/drinks";
+import { ButtonLink } from "../../components/button";
 import { householdToday } from "../../lib/finances/budget-year";
 import { homeStats } from "../../lib/meal-plans/home";
-import { coversText, coversThrough, dayLabel, mealFor, planStats, readOpenPlan, readPlanRows } from "../../lib/meal-plans/plan";
+import { coversText, entryMeals, layoutPlan, planStats, readPlans, readPlanRows } from "../../lib/meal-plans/plan";
 import { averageRatings, readRatingPrompts, readRatings, starsText } from "../../lib/meal-plans/ratings";
 import { readImports, readRecipes } from "../../lib/meal-plans/recipes";
 import { dismissImport } from "./actions";
 import { MealPlansScreen, mealPlansViewer } from "./frame";
-import { StartPlanForm } from "./plan-forms";
+import { PlanAheadForm, StartPlanForm } from "./plan-forms";
 import { RatePrompts } from "./rate-prompts";
 import styles from "./meal-plans.module.css";
 import band from "../../components/band.module.css";
@@ -23,28 +23,31 @@ const STATUS: Record<string, string> = {
 // REQ-118: Meal Plans' home is about food, not paperwork: this week's
 // dishes, how long they last, and a few fun numbers. Above them, anything
 // to rate (REQ-116) and recipes on their way in. REQ-155: the dishes are
-// plain rows, a name and the meal it's for, with no photos.
+// plain rows, a name and the meal it's for, with no photos. REQ-165: Add
+// recipe and the plan action (New meal plan, or Plan ahead while one runs)
+// sit side by side with equal weight; REQ-164: the meals come from the
+// plan's layout.
 export default async function MealPlansPage() {
   const viewer = await mealPlansViewer();
-  const [all, imports, plan, prompts, rows, ratings, people] = await Promise.all([
+  const [all, imports, { current: plan, ahead }, prompts, rows, ratings] = await Promise.all([
     readRecipes(viewer.supabase),
     readImports(viewer.supabase),
-    readOpenPlan(viewer.supabase),
+    readPlans(viewer.supabase),
     readRatingPrompts(viewer.supabase, viewer.userId),
     readPlanRows(viewer.supabase),
     readRatings(viewer.supabase),
-    readPeople(viewer.supabase),
   ]);
   const byId = new Map(all.map((recipe) => [recipe.id, recipe]));
-  const entries = plan?.recipes.filter((entry) => byId.has(entry.recipe_id)) ?? [];
-  const planned = entries.map((entry, index) => ({
-    recipe: byId.get(entry.recipe_id)!,
-    meal: mealFor(plan!.starts_on, entries.slice(0, index), people.length),
-  }));
-  const through = plan ? coversThrough(plan.starts_on, entries, people.length) : null;
+  const entries = plan?.recipes.filter((entry) => entry.eating_out || (entry.recipe_id && byId.has(entry.recipe_id))) ?? [];
+  const layout = layoutPlan(plan?.starts_on ?? "", entries);
+  const planned = layout.rows.flatMap((row) => (row.kind === "entry" ? [{ entry: row.entry, meals: row.meals }] : []));
   const numbers = homeStats(all, planStats(rows), averageRatings(ratings));
   return (
-    <MealPlansScreen viewer={viewer} section={OVERVIEW} addRecipe>
+    <MealPlansScreen viewer={viewer} section={OVERVIEW}>
+      <div className={styles.homeActions} role="group" aria-label="Start something">
+        <ButtonLink href="/meal-plans/new">Add recipe</ButtonLink>
+        {!plan ? <ButtonLink href="/meal-plans/week">New meal plan</ButtonLink> : !ahead ? <PlanAheadForm thenWeek /> : null}
+      </div>
       <RatePrompts recipes={prompts.flatMap((id) => (byId.has(id) ? [{ id, name: byId.get(id)?.name ?? "" }] : []))} />
       {imports.length > 0 ? (
         <section className={styles.section} aria-label="On their way">
@@ -81,15 +84,13 @@ export default async function MealPlansPage() {
         </div>
         {plan ? (
           <>
-            <p className={styles.summary}>{through || planned.length > 0 ? coversText(through, planned.length > 0) : "An empty plate so far"}</p>
+            <p className={styles.summary}>{layout.end || planned.length > 0 ? coversText(layout.end, planned.length > 0) : "An empty plate so far"}</p>
             {planned.length > 0 ? (
               <ul className={styles.menu} aria-label="Recipes in the plan">
-                {planned.map(({ recipe, meal }) => (
-                  <li key={recipe.id}>
-                    <Link href={`/meal-plans/${recipe.id}`}>{recipe.name}</Link>
-                    <span className={styles.menuMeal}>
-                      {meal.meal === "dinner" ? "Dinner" : "Lunch"}, {dayLabel(meal.day)}
-                    </span>
+                {planned.map(({ entry, meals }) => (
+                  <li key={entry.id}>
+                    {entry.eating_out ? "Eating out" : <Link href={`/meal-plans/${entry.recipe_id}`}>{byId.get(entry.recipe_id ?? "")?.name}</Link>}
+                    <span className={styles.menuMeal}>{entryMeals(meals)}</span>
                   </li>
                 ))}
               </ul>
@@ -102,7 +103,7 @@ export default async function MealPlansPage() {
         ) : (
           <>
             <p className={styles.summary}>What are we eating this week?</p>
-            <StartPlanForm today={householdToday()} thenWeek />
+            <StartPlanForm today={householdToday()} label="New meal plan" thenWeek />
           </>
         )}
       </section>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { markImportSeen, myRecipeImports } from "../app/meal-plans/actions";
 import { cutDraftPhotos } from "../lib/meal-plans/draft-photo";
-import { forgetImports, importsRemembered } from "../lib/meal-plans/import-flag";
+import { dismissNote, forgetImports, importsRemembered, noteDismissed } from "../lib/meal-plans/import-flag";
 import type { RecipeImport } from "../lib/meal-plans/recipes";
 import { currentUploads, watchUploads, type UploadProgress } from "../lib/meal-plans/video-upload";
 import styles from "./recipe-toast.module.css";
@@ -18,6 +18,11 @@ import styles from "./recipe-toast.module.css";
 const CHECK_MS = 15_000;
 
 const NO_UPLOADS: UploadProgress[] = [];
+
+// REQ-166: tapping "Save recipe" opens the draft, and a new toast is born
+// on that page; it asks the server what is waiting before the server has
+// heard "seen", so the note came back and needed a second tap. The tab
+// remembers what it dismissed (import-flag.ts) and doesn't show it again.
 
 export function RecipeToast() {
   const uploads = useSyncExternalStore(watchUploads, currentUploads, () => NO_UPLOADS);
@@ -34,7 +39,7 @@ export function RecipeToast() {
       // the recipe is ready, so the draft opens with it.
       await cutDraftPhotos(found);
       if (stopped) return;
-      setImports(found);
+      setImports(found.filter((item) => !noteDismissed(item.id)));
       const going = found.some((item) => item.status === "uploading" || item.status === "processing") || currentUploads().length > 0;
       if (found.length === 0 && !going) forgetImports();
       if (going) timer = setTimeout(check, CHECK_MS);
@@ -54,6 +59,7 @@ export function RecipeToast() {
   }, [uploads.length]);
 
   const dismiss = (id: string) => {
+    dismissNote(id);
     setImports((list) => list.filter((item) => item.id !== id));
     void markImportSeen(id);
   };

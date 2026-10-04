@@ -66,3 +66,24 @@ it sends only the ratio ("1.5 times"). The server reads the stored card
 and scales it again with the same code (`lib/meal-plans/scale.ts`). The
 browser never gets to write amounts the server didn't work out itself,
 so there's one source for the numbers, not two to keep in step.
+
+## Update (REQ-162, REQ-164): two kinds of "open", and a position instead of a date
+
+Two later changes reuse the same ideas.
+
+**One current plan, one plan ahead.** The rule became "one plan we're
+on, and one queued behind it". One index can't say that, so there are
+two, each with its own `where`: `closed_at is null and not ahead` and
+`closed_at is null and ahead`. Each allows one row, which together say
+"at most one of each". Think of two hooks for two keys: the one for the
+current plan and the one for the plan ahead.
+
+**Order is stored; days are worked out.** An entry in a plan doesn't
+carry a day. It carries a `position` (1, 2, 3...), and the code lays the
+entries out from dinner on the start day: a 4-serving dish takes a
+dinner and the next lunch, a 2-serving dish one meal. Move a dish and
+only the positions change; every day and the plan's end follow. The
+plan ahead's start (the first dinner after the last meal) is derived the same
+way, and is also written down after each change so other code can read
+it. It is the "count, don't keep a tally" idea again: the order is the
+record, the days are counted from it.

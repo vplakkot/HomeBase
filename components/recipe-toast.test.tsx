@@ -73,3 +73,21 @@ describe("the video kept for its photo (REQ-156)", () => {
     await waitFor(() => expect(hasVideo(ID)).toBe(false));
   });
 });
+
+// REQ-166: tapping "Save recipe" opens the draft, and the toast on the next
+// page asks the server before the server has heard "seen". It must not
+// bring the note back.
+describe("the note goes at the first tap (REQ-166)", () => {
+  it("stays gone on the next page even when the server still lists it as unseen", async () => {
+    rememberImports();
+    vi.mocked(myRecipeImports).mockResolvedValue([item("ready", { id: "77777777-7777-4777-8777-777777777777" })] as never);
+    const first = render(<RecipeToast />);
+    fireEvent.click(await screen.findByRole("link", { name: "Save recipe" }));
+    expect(screen.queryByText("Recipe ready: Test pasta")).toBeNull();
+    // The next page mounts a new toast; the server hasn't recorded "seen" yet.
+    first.unmount();
+    render(<RecipeToast />);
+    await waitFor(() => expect(myRecipeImports).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText("Recipe ready: Test pasta")).toBeNull();
+  });
+});

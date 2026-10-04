@@ -767,6 +767,47 @@ describe("meal plan: closing a week and rating (REQ-116)", () => {
   });
 });
 
+describe("meal plan: by meal, and planning ahead (REQ-162, REQ-164)", () => {
+  const ahead = readMigration("20261005100000");
+
+  it("allows one current plan and one plan ahead, never two of either", () => {
+    expect(ahead).toMatch(/add column ahead boolean not null default false;/);
+    expect(ahead).toMatch(/drop index public\.meal_plans_one_open;/);
+    expect(ahead).toMatch(/create unique index meal_plans_one_current on public\.meal_plans \(\(true\)\) where closed_at is null and not ahead;/);
+    expect(ahead).toMatch(/create unique index meal_plans_one_ahead on public\.meal_plans \(\(true\)\) where closed_at is null and ahead;/);
+  });
+
+  it("starts a plan without closing another: a second one goes ahead", () => {
+    const start = ahead.slice(ahead.indexOf("function public.start_meal_plan"), ahead.indexOf("function public.close_meal_plan"));
+    expect(start).not.toMatch(/close_meal_plan/);
+    expect(start).toMatch(/current_plan is not null/);
+  });
+
+  it("gives an entry its own id and place, and lets an evening out have no recipe", () => {
+    expect(ahead).toMatch(/drop constraint meal_plan_recipes_pkey;/);
+    expect(ahead).toMatch(/add column id uuid not null default gen_random_uuid\(\);/);
+    expect(ahead).toMatch(/unique \(plan_id, recipe_id\)/);
+    expect(ahead).toMatch(/alter column recipe_id drop not null;/);
+    expect(ahead).toMatch(/check \(eating_out = \(recipe_id is null\)\)/);
+    expect(ahead).toMatch(/add column position integer not null default 0;/);
+  });
+
+  it("reorders as the person asking, so the policies still decide who may", () => {
+    expect(ahead).toMatch(/function public\.set_plan_order\(p_plan uuid, p_order uuid\[\]\)[\s\S]*security invoker/);
+    expect(ahead).toMatch(/revoke all on function public\.set_plan_order\(uuid, uuid\[\]\) from public, anon;/);
+    expect(ahead).toMatch(/grant execute on function public\.set_plan_order\(uuid, uuid\[\]\) to authenticated;/);
+  });
+
+  it("never asks for a rating of an evening out, and promotes the plan ahead when the current plan closes", () => {
+    expect(ahead).toMatch(/and mpr\.recipe_id is not null/);
+    expect(ahead).toMatch(/update public\.meal_plans set ahead = false where closed_at is null and ahead;/);
+  });
+
+  it("keeps who may close and start plans: members only", () => {
+    expect(ahead.match(/if not public\.has_permission\('use_modules'\) then/g)).toHaveLength(2);
+  });
+});
+
 describe("restaurants migration (REQ-90, REQ-129)", () => {
   const restaurants = readMigration("20260929100000");
 

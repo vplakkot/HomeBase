@@ -17,8 +17,8 @@ import { paperworkTile } from "../lib/paperwork/action-items";
 import { countUnfiled } from "../lib/paperwork/paperwork";
 import { readRestaurantsSummary, restaurantsTile } from "../lib/restaurants/restaurants";
 import { countEntries, storageTile } from "../lib/storage/storage";
-import { countDrinks, drinksTile, readPeople } from "../lib/drinks/drinks";
-import { planTile, readOpenPlan } from "../lib/meal-plans/plan";
+import { countDrinks, drinksTile } from "../lib/drinks/drinks";
+import { planTile, readPlans } from "../lib/meal-plans/plan";
 import { MODULES, modulesOn } from "../lib/modules";
 import { modulesChosen } from "../lib/module-switches";
 import { createClient } from "../lib/supabase/server";
@@ -64,16 +64,18 @@ export default async function HomePage({
   // (REQ-97), and Restaurants' go-again (REQ-133); Storage (REQ-87) and
   // Drinks (REQ-30) only say how much is logged. The example
   // needs none of it read.
+  // Home's Meal Plan button says what's next: New meal plan, Plan ahead, or
+  // nothing while a plan and the one after it both exist (REQ-162).
+  const plans = demo === null ? await readPlans(supabase) : null;
+  const planAction = !plans ? "new" : !plans.current ? "new" : !plans.ahead ? "ahead" : null;
   const live =
     demo === null
       ? await (async () => {
-          const [snapshot, unfiled, stored, drinks, plan, people, restaurants] = await Promise.all([
+          const [snapshot, unfiled, stored, drinks, restaurants] = await Promise.all([
             readFinanceSnapshot(supabase, householdToday()),
             countUnfiled(supabase),
             countEntries(supabase),
             countDrinks(supabase),
-            readOpenPlan(supabase),
-            readPeople(supabase),
             readRestaurantsSummary(supabase, data.claims.sub),
           ]);
           return {
@@ -81,7 +83,7 @@ export default async function HomePage({
             paperwork: paperworkTile(unfiled),
             storage: storageTile(stored),
             drinks: drinksTile(drinks),
-            "meal-plans": planTile(plan, people.length),
+            "meal-plans": planTile(plans?.current ?? null),
             restaurants: restaurantsTile(restaurants),
           };
         })()
@@ -100,7 +102,7 @@ export default async function HomePage({
       current="home"
       canAdminister={canManageMembers}
       account={account}
-      phoneBar={<QuickAdd variant="bar" today={householdToday()} off={account.modules.off} />}
+      phoneBar={<QuickAdd variant="bar" today={householdToday()} off={account.modules.off} planAction={planAction} />}
     >
       <header className={styles.header}>
         <BrandLockup />
@@ -111,7 +113,7 @@ export default async function HomePage({
       <div className={styles.intro}>
         <Greeting name={account.name?.split(/\s+/)[0] ?? null} />
         <div className={styles.desktopQuickAdd}>
-          <QuickAdd variant="buttons" today={householdToday()} off={account.modules.off} />
+          <QuickAdd variant="buttons" today={householdToday()} off={account.modules.off} planAction={planAction} />
         </div>
       </div>
 
