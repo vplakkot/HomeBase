@@ -387,6 +387,19 @@ built with, the page offers a refresh. Pull to refresh (REQ-127) asks
 the service worker to update, then reloads. See
 [lesson 13](lessons/13-installing-on-the-iphone.md).
 
+The admin console's "This app" card (REQ-123) says which build **this
+installed copy** is running: release tag, short commit linked to GitHub,
+environment and build time. `next.config.ts` writes the version, commit,
+branch, Vercel environment and build time into the app's own code when it
+is built (`NEXT_PUBLIC_BUILD_*`), so a copy loaded last week still says
+last week's build after a newer one is deployed; a value read on the
+server per request would say the newest. A build can't know its release
+tag, because a release is tagged after its commit has been built, so the
+card asks GitHub's public API from the browser whether the tag named by
+the build's version points at the build's commit
+(`lib/build-info.ts`); when GitHub can't be reached it says "Couldn't
+check", never "untagged".
+
 ## Sending the test notification
 
 [`lib/notifications/send.ts`](../lib/notifications/send.ts) is the only
@@ -485,6 +498,15 @@ that arrives before its row exists would be lost.
 ([`lib/notifications/log.ts`](../lib/notifications/log.ts)), not stored,
 so the rule lives in one place and can be tightened without a migration.
 A daily `pg_cron` job deletes entries older than 30 days.
+
+The console reads the whole 7-day window and shows it 25 rows to a page
+(`?page=N`, REQ-126), so the summary line always covers the window, not
+the page. Times are drawn in UTC on the server and turned into the
+viewer's own time zone once the page is in the browser
+(`app/admin/local-time.tsx`). Beside each person in the Notifications
+card the console says how many devices they have registered
+(`countDevices`, counts only, read with the secret key): an empty
+`push_subscriptions` table explains an empty "arrived" column.
 
 ```mermaid
 sequenceDiagram

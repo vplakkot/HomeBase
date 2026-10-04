@@ -6,10 +6,12 @@ import { ChevronLeftIcon } from "../../components/icons";
 import { SWITCHES, moduleColours } from "../../lib/modules";
 import { readAccount } from "../../lib/account";
 import { listMembers, listRoles } from "../../lib/auth/members";
-import { listRecentLog, SHOW_DAYS } from "../../lib/notifications/log";
+import { countDevices, listRecentLog, SHOW_DAYS } from "../../lib/notifications/log";
+import { createAdminClient } from "../../lib/supabase/admin";
 import { hasPermission } from "../../lib/auth/permissions";
 import { createClient } from "../../lib/supabase/server";
 import { AddPerson } from "./add-person";
+import { BuildCard } from "./build-card";
 import { ModuleSwitchForm } from "./module-switch-form";
 import { NotificationLog } from "./notification-log";
 import { NotificationsForm } from "./notifications-form";
@@ -20,7 +22,14 @@ import { SendTestForm } from "./send-test-form";
 import { RoleForm } from "./role-form";
 import styles from "./page.module.css";
 
-export default async function AdminPage() {
+// REQ-126: the log is shown 25 rows to a page, newest first; ?page=2 and so on.
+function deviceText(count: number): string {
+  return count === 0 ? "No device" : count === 1 ? "1 device" : `${count} devices`;
+}
+
+export default async function AdminPage({ searchParams }: { searchParams?: Promise<{ page?: string }> } = {}) {
+  const query = (await searchParams) ?? {};
+  const page = Number.isInteger(Number(query.page)) && Number(query.page) >= 1 ? Number(query.page) : 1;
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) {
@@ -46,6 +55,14 @@ export default async function AdminPage() {
       "Could not read the notification log",
       reason instanceof Error ? reason.message : reason,
     );
+  }
+  // REQ-125: how many devices each person has registered. Only counts are
+  // read (never the addresses), and losing them loses only the note.
+  let devices: Map<string, number> | null = null;
+  try {
+    devices = await countDevices(createAdminClient());
+  } catch (reason) {
+    console.error("Could not count the devices", reason instanceof Error ? reason.message : reason);
   }
   const names = new Map(
     members.map((member) => [member.user_id, member.name ?? member.email]),
@@ -151,6 +168,11 @@ export default async function AdminPage() {
               <li key={member.user_id} className={styles.row}>
                 <div className={styles.rowMain}>
                   {person(member)}
+                  {devices ? (
+                    <span className={styles.rowNote}>
+                      {deviceText(devices.get(member.user_id) ?? 0)}
+                    </span>
+                  ) : null}
                   <button type="button" className={styles.button} disabled title="Coming soon">
                     Send test
                   </button>
@@ -220,22 +242,30 @@ export default async function AdminPage() {
               Notification log
             </h2>
             <p className={styles.cardNote}>
-              The last {SHOW_DAYS} days. A send counts as missing once five
-              minutes have passed with no word from the device. Entries older
-              than 30 days are deleted on their own.
+              The last {SHOW_DAYS} days, in your device&apos;s time. A send counts
+              as missing once five minutes have passed with no word from the
+              device. Entries older than 30 days are deleted on their own.
             </p>
           </div>
         </div>
         <div className={styles.log}>
-          <NotificationLog rows={log} names={names} now={Date.now()} />
+          <NotificationLog rows={log} names={names} now={Date.now()} page={page} />
         </div>
       </section>
 
-      {/* REQ-127: which build this device is running, to tell after a
-          pull to refresh whether the newest one arrived. */}
-      <p data-testid="admin-build" className={styles.cardNote}>
-        Running {account.build}
-      </p>
+      {/* REQ-123: the build this installed app is running, read from its
+          own code, so two installed copies can be told apart. */}
+      <section className={styles.card} aria-labelledby="build-heading">
+        <div className={styles.cardHead}>
+          <div>
+            <h2 id="build-heading" className={styles.cardTitle}>
+              This app
+            </h2>
+            <p className={styles.cardNote}>The build this installed copy is running</p>
+          </div>
+        </div>
+        <BuildCard />
+      </section>
     </AppFrame>
   );
 }

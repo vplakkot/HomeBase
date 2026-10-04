@@ -2,7 +2,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  countDevices,
   listRecentLog,
+  LOG_PAGE_SIZE,
+  pageOf,
   MISSING_AFTER_MS,
   statusOf,
   summarise,
@@ -165,5 +168,35 @@ describe("listRecentLog", () => {
       })),
     } as unknown as SupabaseClient;
     await expect(listRecentLog(supabase)).rejects.toThrow("denied");
+  });
+});
+
+describe("how many devices each person has (REQ-125)", () => {
+  it("counts the rows per person, and reads nothing but who they belong to", async () => {
+    const select = vi.fn().mockResolvedValue({ data: [{ user_id: "u1" }, { user_id: "u1" }, { user_id: "u2" }], error: null });
+    const admin = { from: vi.fn(() => ({ select })) } as unknown as SupabaseClient;
+    expect(await countDevices(admin)).toEqual(new Map([["u1", 2], ["u2", 1]]));
+    expect(select).toHaveBeenCalledWith("user_id");
+  });
+
+  it("throws when the table can't be read, so nobody is told they have no device", async () => {
+    const admin = { from: () => ({ select: async () => ({ data: null, error: { message: "boom" } }) }) } as unknown as SupabaseClient;
+    await expect(countDevices(admin)).rejects.toThrow("boom");
+  });
+});
+
+describe("paging the log (REQ-126)", () => {
+  const rowsOf = (count: number) => Array.from({ length: count }, (_, i) => i);
+
+  it("gives 25 to a page and keeps the order", () => {
+    expect(LOG_PAGE_SIZE).toBe(25);
+    expect(pageOf(rowsOf(60), 1)).toEqual({ rows: rowsOf(25), page: 1, pages: 3 });
+    expect(pageOf(rowsOf(60), 3).rows).toEqual(rowsOf(60).slice(50));
+  });
+
+  it("is one empty page for an empty log, and stays inside the pages for a wild page number", () => {
+    expect(pageOf([], 1)).toEqual({ rows: [], page: 1, pages: 1 });
+    expect(pageOf(rowsOf(30), 99).page).toBe(2);
+    expect(pageOf(rowsOf(30), -4).page).toBe(1);
   });
 });

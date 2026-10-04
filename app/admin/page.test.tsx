@@ -7,10 +7,16 @@ import { createClient } from "../../lib/supabase/server";
 import { REPO_ROOT, styleOf } from "../../test/css";
 import { installDialogStandIn } from "../../test/dialog";
 import { switchTable } from "../../test/module-switches";
-import { version } from "../../package.json";
 import AdminPage from "./page";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
+// REQ-125: the device counts come through the secret key; here, a fixed answer.
+const deviceCounts = new Map<string, number>([["u2", 2]]);
+vi.mock("../../lib/supabase/admin", () => ({ createAdminClient: vi.fn(() => ({})) }));
+vi.mock("../../lib/notifications/log", async (original) => ({
+  ...(await original<typeof import("../../lib/notifications/log")>()),
+  countDevices: vi.fn(async () => deviceCounts),
+}));
 vi.mock("./send-test-form", () => ({
   SendTestForm: () => <button type="button">Send test now</button>,
 }));
@@ -113,13 +119,40 @@ describe("AdminPage", () => {
     await expect(AdminPage()).rejects.toThrow("REDIRECT:/");
   });
 
-  it("says which release and commit this device is running (REQ-127)", async () => {
+  it("says how many devices each person has registered (REQ-125)", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
-    vi.stubEnv("VERCEL_GIT_COMMIT_REF", "main");
-    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "abcdef1234567890");
     render(await AdminPage());
-    expect(screen.getByTestId("admin-build").textContent).toBe(`Running v${version} · main · abcdef1`);
-    vi.unstubAllEnvs();
+    const card = screen.getByRole("region", { name: "Notifications" });
+    expect(within(card).getByText("No device")).toBeTruthy();
+    expect(within(card).getByText("2 devices")).toBeTruthy();
+  });
+
+  it("pages the notification log from the address (REQ-126)", async () => {
+    const rows = Array.from({ length: 30 }, (_, i) => ({
+      id: `r${i}`,
+      sent_at: new Date(Date.UTC(2026, 9, 4, 12, 0) - i * 60_000).toISOString(),
+      trigger: "manual",
+      user_id: "u2",
+      device: "abc123def456",
+      delivered_at: null,
+      tapped_at: null,
+      accepted: true,
+      failure_code: null,
+    }));
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-04T13:00:00Z"));
+    given({ signedIn: true, permissions: ["manage_members"], log: rows });
+    render(await AdminPage({ searchParams: Promise.resolve({ page: "2" }) }));
+    vi.useRealTimers();
+    expect(screen.getByText("Page 2 of 2")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Previous" }).getAttribute("href")).toBe("/admin?page=1");
+  });
+
+  it("has a card for the build this installed app is running (REQ-123)", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    const card = screen.getByRole("region", { name: "This app" });
+    expect(within(card).getByTestId("admin-build")).toBeTruthy();
   });
 
   // DESIGN.md §8: on a phone the console is reached from Home's Admin pill

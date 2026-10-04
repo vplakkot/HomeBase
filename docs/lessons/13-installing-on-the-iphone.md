@@ -157,3 +157,23 @@ release bumps it (lesson 03).
 What only a phone can prove: that iOS lets our pull start at the top
 without its own bounce getting in the way, and that the check gets
 the newest commit from Vercel and not a stored copy.
+
+## Update (REQ-123): a number baked in, and a number asked for
+
+There are two ways for a page to know "which build is this".
+
+- **Asked for:** the server is asked at the moment you look. That is how
+  "New version ready" works: it asks what the server runs *now*.
+- **Baked in:** the answer is written into the app's own code when it is
+  built (`NEXT_PUBLIC_BUILD_*` in `next.config.ts`). It never changes
+  afterwards, so an app loaded last week keeps saying last week's build.
+
+The admin console's "This app" card needs the second kind, because its
+whole job is to tell two installed copies apart, and the first kind would
+tell both copies the same, newest, answer. Think of a book's printed
+edition number against a phone call to the publisher asking for the
+latest edition: you want the number printed inside your copy.
+
+The one thing a build can't print is its own release tag: the tag is
+pushed after the build exists. So that single fact is asked for, from
+GitHub, and "couldn't ask" is shown as that, never as "no tag".

@@ -83,3 +83,28 @@ export function summarise(rows: LogRow[], now: number) {
     reliability: settled === 0 ? null : Math.round((arrived / settled) * 100),
   };
 }
+
+// REQ-125: how many devices each person has registered, so "0 arrived"
+// can be told apart from "nothing was ever sent to anyone". Counts only;
+// the addresses are never read. Needs the secret key, as the sender does:
+// each person's devices are readable only by them.
+export async function countDevices(admin: SupabaseClient): Promise<Map<string, number>> {
+  const { data, error } = await admin.from("push_subscriptions").select("user_id");
+  if (error) {
+    throw new Error(`Could not count the devices: ${error.message}`);
+  }
+  const counts = new Map<string, number>();
+  for (const row of (data ?? []) as { user_id: string }[]) {
+    counts.set(row.user_id, (counts.get(row.user_id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+// REQ-126: rows to a page.
+export const LOG_PAGE_SIZE = 25;
+
+export function pageOf<T>(rows: readonly T[], page: number): { rows: T[]; page: number; pages: number } {
+  const pages = Math.max(1, Math.ceil(rows.length / LOG_PAGE_SIZE));
+  const current = Math.min(Math.max(1, page), pages);
+  return { rows: rows.slice((current - 1) * LOG_PAGE_SIZE, current * LOG_PAGE_SIZE), page: current, pages };
+}
