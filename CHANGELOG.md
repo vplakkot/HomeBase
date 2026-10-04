@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Meal Plan, a plan is a run of meals: each dish now sits on a meal you
+  choose (lunch, dinner, lunch, dinner...), so a plan can have empty meals.
+  A dish is "2 meals" (its dinner plus the leftovers at the next lunch) or
+  "1 meal". A 2-meal dish starts at a dinner, or at a lunch on a weekend;
+  empty meals read "On your own" (a lunch) or "Not planned" (a dinner).
+  "Move to…" lists the meals a dish can start at up to the first Saturday;
+  moving onto a taken meal is refused and says which dish is there. The
+  arrows swap a dish with its neighbour, and a dish that can't start where
+  it lands moves to the next meal it can. Days before today are locked.
+  You can mark a Day off, a plan can start at lunch on a weekend, and
+  changing the start day slides the dishes. Existing plans were converted
+  so every dish keeps the meal it showed.
+
 - Admin console, new "This app" card: the release tag (or "untagged"), the
   short commit linked to GitHub, the environment and when it was built, for
   the installed copy you are looking at. It stays the same after a newer

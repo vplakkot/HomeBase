@@ -87,3 +87,22 @@ plan ahead's start (the first dinner after the last meal) is derived the same
 way, and is also written down after each change so other code can read
 it. It is the "count, don't keep a tally" idea again: the order is the
 record, the days are counted from it.
+
+## Update (REQ-168): the opposite choice, because the plan changed
+
+Counting suited a plan where order decided everything. It stopped suiting
+once we wanted empty meals ("not planned tonight") and moving a dish
+past the end: a pile can't have a hole in it. So each entry now stores
+the meal it sits on, a day plus lunch or dinner, and a size of 1 or 2
+meals, like a planner page with labelled boxes instead of a stack.
+
+The rules didn't go away, they moved: "a 2-meal dish can't start at a
+weekday lunch" and "what happens when a dish no longer fits" are plain
+code in `lib/meal-plans/meals.ts`, tested without a database. The
+database keeps the one rule that must never break whatever the code does:
+two entries can't be on the same meal.
+
+Converting the old plans was a one-time loop in the migration that ran
+the old counting rule and wrote down what it produced, so no dish moved.
+It was tried first on the live data inside a transaction that was undone
+(lesson 07).

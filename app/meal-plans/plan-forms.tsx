@@ -1,18 +1,21 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import cards from "../../components/cards.module.css";
 import { buttonClass } from "../../components/button";
-import { PLAN_SERVINGS, type PlanServings } from "../../lib/meal-plans/plan";
+import type { EntrySize } from "../../lib/meal-plans/meals";
+import { PLAN_SIZES } from "../../lib/meal-plans/plan";
 import {
   addToPlan,
   changePlanStart,
+  markDayOff,
   moveEntry,
   rateRecipe,
   setCarryOver,
   setCooked,
-  setPlanServings,
+  setPlanMeals,
   startPlan,
+  unmarkDayOff,
   type PlanFormState,
 } from "./plan-actions";
 import styles from "./meal-plans.module.css";
@@ -49,6 +52,13 @@ export function StartPlanForm({
       <label className={styles.control}>
         <span>{dateLabel}</span>
         <input type="date" name="starts_on" defaultValue={today} required />
+      </label>
+      <label className={styles.control}>
+        <span>First meal</span>
+        <select name="starts_meal" defaultValue="dinner">
+          <option value="dinner">Dinner</option>
+          <option value="lunch">Lunch (weekends)</option>
+        </select>
       </label>
       <button type="submit" className={buttonClass} disabled={pending}>
         {label}
@@ -87,30 +97,34 @@ export function ChangeStartForm({ planId, startsOn }: { planId: string; startsOn
   );
 }
 
-function ServingsSelect({ defaultValue, onChange }: { defaultValue: PlanServings; onChange?: typeof submitForm }) {
+function SizeSelect({ defaultValue, name = "meals", onChange }: { defaultValue: EntrySize; name?: string; onChange?: typeof submitForm }) {
   return (
-    <select name="servings" defaultValue={String(defaultValue)} onChange={onChange}>
-      {PLAN_SERVINGS.map((servings) => (
-        <option key={servings} value={servings}>
-          {servings === 4 ? "4 servings" : "2 servings"}
+    <select name={name} defaultValue={String(defaultValue)} onChange={onChange}>
+      {PLAN_SIZES.map((size) => (
+        <option key={size} value={size}>
+          {size === 2 ? "2 meals" : "1 meal"}
         </option>
       ))}
     </select>
   );
 }
 
-// REQ-164: the next free meal unless one is chosen; an evening out is one
-// dinner with no recipe.
+export type MealOption = { value: string; label: string };
+
+// REQ-168: the next free meal it can start at unless one is chosen; an
+// evening out is one dinner with no recipe. Which meals a dish can start at
+// depends on its size, so the list follows the size picked.
 export function AddToPlanForm({
   planId,
   recipes,
-  meals,
+  choices,
 }: {
   planId: string;
   recipes: readonly { id: string; name: string }[];
-  meals: readonly { slot: number; label: string }[];
+  choices: { one: readonly MealOption[]; two: readonly MealOption[] };
 }) {
   const [state, formAction, pending] = useActionState(addToPlan, initialState);
+  const [size, setSize] = useState<EntrySize>(2);
   return (
     <form action={formAction} className={styles.inline} aria-label="Add to the plan">
       <input type="hidden" name="plan_id" value={planId} />
@@ -130,17 +144,17 @@ export function AddToPlanForm({
             </select>
           </label>
           <label className={styles.control}>
-            <span>Servings</span>
-            <ServingsSelect defaultValue={4} />
+            <span>Size</span>
+            <SizeSelect defaultValue={2} onChange={(event) => setSize(Number(event.currentTarget.value) as EntrySize)} />
           </label>
         </>
       ) : null}
       <label className={styles.control}>
         <span>Meal</span>
-        <select name="slot" defaultValue="">
+        <select key={size} name="meal" defaultValue="">
           <option value="">Next free meal</option>
-          {meals.map((meal) => (
-            <option key={meal.slot} value={meal.slot}>
+          {(size === 2 ? choices.two : choices.one).map((meal) => (
+            <option key={meal.value} value={meal.value}>
               {meal.label}
             </option>
           ))}
@@ -159,32 +173,34 @@ export function AddToPlanForm({
   );
 }
 
-// One recipe's servings, cooked tick and carry-over tick, each saved as
-// soon as it changes.
+// One dish's size, cooked tick and carry-over tick, each saved as soon as
+// it changes.
 export function PlannedControls({
   planId,
   entryId,
   name,
-  servings,
+  meals,
   cooked,
   carryOver,
 }: {
   planId: string;
   entryId: string;
   name: string;
-  servings: PlanServings;
+  meals: EntrySize;
   cooked: boolean;
   carryOver: boolean;
 }) {
+  const [state, formAction] = useActionState(setPlanMeals, initialState);
   return (
     <>
-      <form action={setPlanServings}>
+      <form action={formAction}>
         <input type="hidden" name="plan_id" value={planId} />
         <input type="hidden" name="entry_id" value={entryId} />
         <label>
-          <span className={styles.hidden}>Servings of {name}</span>
-          <ServingsSelect defaultValue={servings} onChange={submitForm} />
+          <span className={styles.hidden}>Size of {name}</span>
+          <SizeSelect defaultValue={meals} onChange={submitForm} />
         </label>
+        <Outcome state={state} />
       </form>
       <form action={setCooked}>
         <input type="hidden" name="plan_id" value={planId} />
@@ -206,48 +222,51 @@ export function PlannedControls({
   );
 }
 
-// REQ-164: where an entry sits. "Move to..." picks a meal; the arrows go
-// one place up or down. No dragging.
+// REQ-168: where an entry sits. "Move to..." picks a meal it can start at;
+// the arrows swap a dish with the dish next to it. No dragging. Eating out
+// is fixed in place: it has no arrows, and dishes settle round it.
 export function MoveControls({
   planId,
   entryId,
   name,
   meals,
-  first,
-  last,
+  canMoveUp,
+  canMoveDown,
 }: {
   planId: string;
   entryId: string;
   name: string;
-  meals: readonly { slot: number; label: string }[];
-  first: boolean;
-  last: boolean;
+  meals: readonly MealOption[];
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }) {
+  const [state, formAction] = useActionState(moveEntry, initialState);
   return (
     <>
-      <form action={moveEntry}>
+      <form action={formAction}>
         <input type="hidden" name="plan_id" value={planId} />
         <input type="hidden" name="entry_id" value={entryId} />
         <label>
           <span className={styles.hidden}>Move {name} to</span>
-          <select name="slot" defaultValue="" onChange={submitForm}>
+          <select name="meal" defaultValue="" onChange={submitForm}>
             <option value="" disabled>
               Move to…
             </option>
             {meals.map((meal) => (
-              <option key={meal.slot} value={meal.slot}>
+              <option key={meal.value} value={meal.value}>
                 {meal.label}
               </option>
             ))}
           </select>
         </label>
+        <Outcome state={state} />
       </form>
       {(["up", "down"] as const).map((step) => (
-        <form key={step} action={moveEntry}>
+        <form key={step} action={formAction}>
           <input type="hidden" name="plan_id" value={planId} />
           <input type="hidden" name="entry_id" value={entryId} />
           <input type="hidden" name="step" value={step} />
-          <button type="submit" className={styles.linkButton} disabled={step === "up" ? first : last} aria-label={`Move ${name} ${step}`}>
+          <button type="submit" className={styles.linkButton} disabled={step === "up" ? !canMoveUp : !canMoveDown} aria-label={`Move ${name} ${step}`}>
             {step === "up" ? "Up" : "Down"}
           </button>
         </form>
@@ -256,14 +275,54 @@ export function MoveControls({
   );
 }
 
-// On a recipe's card or a suggestion: straight into the open plan, at 4 servings.
+// REQ-168: days we marked as a Day off in this plan (a holiday, a day taken
+// off). Either of us can mark one; it lets a 2-meal dish start at that
+// day's lunch, like a weekend.
+export function DaysOffForm({ planId, days }: { planId: string; days: readonly { day: string; label: string }[] }) {
+  const [state, formAction, pending] = useActionState(markDayOff, initialState);
+  const [removed, removeAction] = useActionState(unmarkDayOff, initialState);
+  return (
+    <>
+      <form action={formAction} className={styles.inline}>
+        <input type="hidden" name="plan_id" value={planId} />
+        <label className={styles.control}>
+          <span>Day off</span>
+          <input type="date" name="day" required />
+        </label>
+        <button type="submit" className={buttonClass} disabled={pending}>
+          Mark as a day off
+        </button>
+        <Outcome state={state} />
+      </form>
+      {days.length > 0 ? (
+        <ul className={styles.planList} aria-label="Days off">
+          {days.map(({ day, label }) => (
+            <li key={day} className={styles.planRow}>
+              <span>{label}</span>
+              <form action={removeAction}>
+                <input type="hidden" name="plan_id" value={planId} />
+                <input type="hidden" name="day" value={day} />
+                <button type="submit" className={styles.linkButton} aria-label={`Not a day off: ${label}`}>
+                  Remove
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <Outcome state={removed} />
+    </>
+  );
+}
+
+// On a recipe's card or a suggestion: straight into the open plan, as a 2-meal dish.
 export function AddToWeekButton({ planId, recipeId, label = "Add to this week" }: { planId: string; recipeId: string; label?: string }) {
   const [state, formAction, pending] = useActionState(addToPlan, initialState);
   return (
     <form action={formAction}>
       <input type="hidden" name="plan_id" value={planId} />
       <input type="hidden" name="recipe_id" value={recipeId} />
-      <input type="hidden" name="servings" value="4" />
+      <input type="hidden" name="meals" value="2" />
       <button type="submit" className={styles.linkButton} disabled={pending}>
         {label}
       </button>
