@@ -97,11 +97,13 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 export async function startPlan(_prev: PlanFormState, formData: FormData): Promise<PlanFormState> {
   const supabase = await requireMember();
   const { current, ahead } = await readStoredPlans(supabase);
-  if (ahead) return { error: "There's already a plan ahead." };
-  const startsOn = current ? nextPlanStart(current) : dayFrom(formData.get("starts_on"));
+  if (ahead) return { error: "Next week is already planned." };
+  // Next week's plan starts where the current one leaves off (REQ-170), so there is no day to choose.
+  const next = current ? nextPlanStart(current) : null;
+  const startsOn = next ? next.day : dayFrom(formData.get("starts_on"));
   if (!startsOn) return { error: "Choose the day the plan starts." };
-  const startsMeal: MealKind = !current && formData.get("starts_meal") === "lunch" ? "lunch" : "dinner";
-  if (startsMeal === "lunch" && !isWeekendDay(startsOn, new Set())) return { error: "A plan starts at lunch only on a Saturday or Sunday." };
+  const startsMeal: MealKind = next ? next.meal : formData.get("starts_meal") === "lunch" ? "lunch" : "dinner";
+  if (!next && startsMeal === "lunch" && !isWeekendDay(startsOn, new Set())) return { error: "A plan starts at lunch only on a Saturday or Sunday." };
   const { error } = await supabase.rpc("start_meal_plan", { p_starts_on: startsOn, p_starts_meal: startsMeal });
   // The database allows one current plan and one ahead; the other person may have just started it.
   if (error?.code === "23505") return { error: "A plan was just started. Refresh to see it." };

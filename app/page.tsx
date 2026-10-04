@@ -64,7 +64,7 @@ export default async function HomePage({
   // (REQ-97), and Restaurants' go-again (REQ-133); Storage (REQ-87) and
   // Drinks (REQ-30) only say how much is logged. The example
   // needs none of it read.
-  // Home's Meal Plan button says what's next: New meal plan, Plan ahead, or
+  // Home's Meal Plan button says what's next: New meal plan, Plan next week, or
   // nothing while a plan and the one after it both exist (REQ-162).
   const plans = demo === null ? await readPlans(supabase) : null;
   const planAction = !plans ? "new" : !plans.current ? "new" : !plans.ahead ? "ahead" : null;

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Meal Plan, plan next week: "Plan ahead" is now "Plan next week" on Home,
+  the module home and the plan page. Next week's plan starts at the meal
+  right after the current plan's last filled meal (leftovers count) when
+  that is a lunch on a weekend day; otherwise at the next dinner. A 2-meal
+  dish on Friday dinner puts the start at Saturday dinner; a 1-meal dish
+  there, at Saturday lunch. It moves with the current plan. Dishes a push
+  took off a plan now show as "Proposed for next week" once next week's plan
+  exists, instead of in this week's suggestions.
+
 - Meal Plan, Eating out pushes dishes back: marking Eating out on a dinner
   that has a dish pushes that dish, and every later dish, back a day, each
   keeping its meal (a dinner stays a dinner). The lunch it leaves behind

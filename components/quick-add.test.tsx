@@ -58,13 +58,13 @@ describe.each(["bar", "buttons"] as const)("Quick add as %s", (variant) => {
   });
 
   // REQ-162: with a plan running the button plans ahead, with no day to pick.
-  it("offers Plan ahead while a plan is running", () => {
+  it("offers Plan next week while a plan is running", () => {
     render(<QuickAdd variant={variant} today="2026-09-27" planAction="ahead" />);
     expect(screen.queryByRole("button", { name: "New meal plan" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Plan ahead" }));
+    fireEvent.click(screen.getByRole("button", { name: "Plan next week" }));
     const [sheet] = openSheets();
     expect(within(sheet).queryByLabelText("Starts on")).toBeNull();
-    expect(within(sheet).getByRole("button", { name: "Plan ahead" })).toBeTruthy();
+    expect(within(sheet).getByRole("button", { name: "Plan next week" })).toBeTruthy();
     expect((sheet.querySelector('input[name="then"]') as HTMLInputElement).value).toBe("week");
   });
 

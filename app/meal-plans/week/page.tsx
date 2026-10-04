@@ -171,13 +171,14 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
     );
   }
   const inPlan = new Set([...plan.recipes, ...(ahead?.recipes ?? [])].flatMap((entry) => (entry.recipe_id ? [entry.recipe_id] : [])));
+  // REQ-169: dishes a push took off a plan, proposed first for next week's plan.
+  const proposedFirst = recipes.filter((recipe) => proposed.includes(recipe.id) && !recipe.hidden && !inPlan.has(recipe.id));
   const skipped = (query.skip ?? "").split(",").filter((id) => UUID.test(id));
   const suggested = suggestions({
     recipes,
     stats: planStats(rows),
     averages: averageRatings(ratings),
-    // Carried over, or taken off a plan by a push (REQ-169): proposed first.
-    carried: [...carriedOver(rows, lastClosed), ...proposed],
+    carried: carriedOver(rows, lastClosed),
     inPlan,
     dismissed: new Set(skipped),
     today,
@@ -200,6 +201,21 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
                 <Link href={`/meal-plans/week?skip=${[...skipped, recipe.id].join(",")}`} className={styles.linkButton} aria-label={`Not now: ${recipe.name}`}>
                   Not now
                 </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {ahead && proposedFirst.length > 0 ? (
+        <section className={styles.section} aria-label="Proposed for next week">
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>Proposed for next week</h2>
+          </div>
+          <ul className={styles.planList}>
+            {proposedFirst.map((recipe) => (
+              <li key={recipe.id} className={styles.planRow}>
+                <Link href={`/meal-plans/${recipe.id}`}>{recipe.name}</Link>
+                <AddToWeekButton planId={ahead.id} recipeId={recipe.id} label="Add" />
               </li>
             ))}
           </ul>

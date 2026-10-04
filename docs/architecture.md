@@ -1161,7 +1161,8 @@ that card and sets `recipes.ai_generated`, which any edit clears. See
 unique indexes allow one open plan that is current and one open plan
 `ahead` (REQ-162), so two people starting a plan at once can't make two
 of either. The plan ahead is queued behind the current one: it starts at
-the first dinner after the current plan's last meal, and `syncAheadStart`
+the meal after the current plan's last filled meal (a weekend lunch, else
+the next dinner; `nextWeekStart` in `meals.ts`, REQ-170), and `syncAheadStart`
 (`lib/meal-plans/plan.ts`) rewrites its stored start whenever the
 current plan's entries or start day change; reading also works the
 start out, so a page is right even if a write was missed.
@@ -1188,8 +1189,8 @@ with a dish (REQ-169) pushes that dish and every later dish back a day
 `push_plan_back`: dishes that no longer fit the week are taken off and
 remembered in `meal_plan_proposed_next` (a recipe once; the app clears it
 when the recipe is planned again), the others are rewritten, and a new
-Eating out is added, all in one step. The plan page's suggestions put
-those recipes first. A recipe's "times planned" and "last planned" aren't stored: they're
+Eating out is added, all in one step. Once next week's plan exists the
+plan page proposes those recipes first, to add to it. A recipe's "times planned" and "last planned" aren't stored: they're
 counted from these rows each time (`lib/meal-plans/plan.ts`), so taking
 a recipe off a plan can't leave a stale count. `recipes.hidden` keeps a
 recipe out of the library without deleting it.

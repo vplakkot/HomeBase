@@ -312,11 +312,11 @@ describe("closing a week and rating (REQ-116)", () => {
     expect(screen.getByRole("button", { name: "Close this plan" })).toBeTruthy();
   });
 
-  it("offers Plan ahead, with no day to choose, while one is open", async () => {
+  it("offers Plan next week, with no day to choose, while one is open", async () => {
     given({ meal_plans: [openPlan([])], recipes: [RECIPE] });
     render(await WeekPage());
     expect(screen.queryByLabelText("Next plan starts on")).toBeNull();
-    expect(screen.getByRole("button", { name: "Plan ahead" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Plan next week" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "New meal plan" })).toBeNull();
   });
 
@@ -754,16 +754,21 @@ describe("Eating out pushes dishes back (REQ-169)", () => {
     expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ eating_out: true, meal_on: "2026-09-29", meal: "dinner" });
   });
 
-  it("proposes a recipe taken off a plan first among the suggestions, and forgets it once it is planned again", async () => {
-    given({
-      meal_plans: [openPlan([planned(ID, 2)])],
-      recipes: [RECIPE, SECOND],
-      meal_plan_proposed_next: [{ recipe_id: OTHER }],
-      meal_plan_recipes: [],
-    });
+  it("proposes a recipe taken off a plan first when next week's plan is built, not in this week's suggestions, and forgets it once it is planned again", async () => {
+    // With no plan for next week yet, nothing is proposed this week.
+    given({ meal_plans: [openPlan([planned(ID, 2)])], recipes: [RECIPE, SECOND], meal_plan_proposed_next: [{ recipe_id: OTHER }], meal_plan_recipes: [] });
     render(await WeekPage());
-    const suggestions = within(screen.getByRole("region", { name: "Suggestions" }));
-    expect(suggestions.getAllByRole("listitem")[0].textContent).toMatch(/Test lentil soupCarried over/);
+    expect(screen.queryByRole("region", { name: "Proposed for next week" })).toBeNull();
+    expect(screen.queryByText("Carried over")).toBeNull();
+    cleanup();
+    // Once next week's plan exists the dropped dish is proposed first, to add to it.
+    given({ meal_plans: [openPlan([planned(ID, 2)]), aheadPlan()], recipes: [RECIPE, SECOND], meal_plan_proposed_next: [{ recipe_id: OTHER }], meal_plan_recipes: [] });
+    render(await WeekPage());
+    const proposed = within(screen.getByRole("region", { name: "Proposed for next week" }));
+    expect(proposed.getAllByRole("listitem")).toHaveLength(1);
+    expect(proposed.getByRole("link", { name: "Test lentil soup" })).toBeTruthy();
+    expect(proposed.getByRole("button", { name: "Add" })).toBeTruthy();
+    expect((proposed.getByRole("button", { name: "Add" }).closest("form")?.querySelector('input[name="plan_id"]') as HTMLInputElement).value).toBe(AHEAD);
     const fake = given({ meal_plans: [PLAN_ROW] });
     await addToPlan({}, form({ plan_id: PLAN, recipe_id: OTHER, meals: "2" }));
     const index = fake.from.mock.calls.findIndex(([name]) => name === "meal_plan_proposed_next");
@@ -783,9 +788,33 @@ describe("planning ahead (REQ-162)", () => {
     expect(fake.rpc).not.toHaveBeenCalledWith("close_meal_plan", expect.anything());
   });
 
-  it("allows only one plan ahead", async () => {
+  it("starts next week at Saturday lunch when the plan ends with a 1-meal dish on Friday dinner, and at dinner when it ends on a weekday", async () => {
+    // The plan runs from Sunday 2026-09-27; Friday is 2026-10-02.
+    let fake = given({ meal_plans: [openPlan([planned(ID, 1, "2026-10-02", "dinner")])] });
+    await startPlan({}, form({}));
+    expect(fake.rpc).toHaveBeenCalledWith("start_meal_plan", { p_starts_on: "2026-10-03", p_starts_meal: "lunch" });
+    // A 2-meal dish on Friday dinner has its leftovers at Saturday lunch, so next week starts at Saturday dinner.
+    fake = given({ meal_plans: [openPlan([planned(ID, 2, "2026-10-02", "dinner")])] });
+    await startPlan({}, form({}));
+    expect(fake.rpc).toHaveBeenCalledWith("start_meal_plan", { p_starts_on: "2026-10-03", p_starts_meal: "dinner" });
+  });
+
+  it("shows next week's plan from the meal it starts at, and moves its start meal with the current plan", async () => {
+    given({ meal_plans: [openPlan([planned(ID, 1, "2026-10-02", "dinner")]), aheadPlan()], recipes: [RECIPE, SECOND] });
+    render(await WeekPage());
+    expect(screen.getByRole("heading", { name: "Next plan, from Sat, Oct 3" })).toBeTruthy();
+    // The stored plan was set up when it started at dinner on Sep 30: the start day and meal are both rewritten.
+    const fake = given({
+      meal_plans: [openPlan([planned(ID, 1, "2026-10-02", "dinner")]), aheadPlan([planned(OTHER, 2, "2026-10-01", "dinner", false, false, E3)])],
+      meal_plan_recipes: [planned(ID, 2, "2026-10-02", "dinner")],
+    });
+    await setPlanMeals({}, form({ plan_id: PLAN, entry_id: E1, meals: "1" }));
+    expect(savedLayout(fake)).toMatchObject({ p_plan: AHEAD, p_starts_on: "2026-10-03", p_starts_meal: "lunch" });
+  });
+
+  it("allows only one next week's plan", async () => {
     const fake = given({ meal_plans: [openPlan([]), aheadPlan()] });
-    expect(await startPlan({}, form({}))).toEqual({ error: "There's already a plan ahead." });
+    expect(await startPlan({}, form({}))).toEqual({ error: "Next week is already planned." });
     expect(fake.rpc).not.toHaveBeenCalledWith("start_meal_plan", expect.anything());
   });
 
@@ -800,7 +829,7 @@ describe("planning ahead (REQ-162)", () => {
     // Its start isn't ours to change, and it can't be closed before it begins.
     expect(next.queryByText("Change the start day")).toBeNull();
     expect(next.queryByRole("button", { name: "Close this plan" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Plan ahead" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Plan next week" })).toBeNull();
     expect(screen.queryByRole("button", { name: "New meal plan" })).toBeNull();
   });
 
@@ -834,19 +863,19 @@ describe("module home actions and suggestions (REQ-165)", () => {
     expect(actions.getByRole("link", { name: "New meal plan" }).getAttribute("href")).toBe("/meal-plans/week");
   });
 
-  it("swaps New meal plan for Plan ahead while a plan runs, and drops it once one is ahead", async () => {
+  it("swaps New meal plan for Plan next week while a plan runs, and drops it once one is ahead", async () => {
     given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [openPlan([planned(ID, 2)])] });
     render(await MealPlansPage());
     let actions = within(screen.getByRole("group", { name: "Start something" }));
     expect(actions.getByRole("link", { name: "Add recipe" })).toBeTruthy();
-    expect(actions.getByRole("button", { name: "Plan ahead" })).toBeTruthy();
+    expect(actions.getByRole("button", { name: "Plan next week" })).toBeTruthy();
     expect(actions.queryByRole("link", { name: "New meal plan" })).toBeNull();
     cleanup();
     given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [openPlan([planned(ID, 2)]), aheadPlan()] });
     render(await MealPlansPage());
     actions = within(screen.getByRole("group", { name: "Start something" }));
     expect(actions.getByRole("link", { name: "Add recipe" })).toBeTruthy();
-    expect(actions.queryByRole("button", { name: "Plan ahead" })).toBeNull();
+    expect(actions.queryByRole("button", { name: "Plan next week" })).toBeNull();
   });
 
   it("shows at most 3 suggestions", async () => {
