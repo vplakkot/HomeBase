@@ -136,6 +136,14 @@ export async function readPlanStats(supabase: SupabaseClient): Promise<Map<strin
   return planStats(await readPlanRows(supabase));
 }
 
+// REQ-169: recipes a push took off a plan because the week ran out,
+// to propose first.
+export async function readProposed(supabase: SupabaseClient): Promise<string[]> {
+  const { data, error } = await supabase.from("meal_plan_proposed_next").select("recipe_id");
+  if (error) throw new Error(`Could not read the proposed recipes: ${error.message}`);
+  return ((data ?? []) as { recipe_id: string }[]).map((row) => row.recipe_id);
+}
+
 // REQ-116: what the last plan closed carried over, to propose first.
 export function carriedOver(rows: readonly PlanRow[], lastClosed: string | null): string[] {
   return rows.flatMap((row) => (row.carry_over && row.plan_id === lastClosed && row.recipe_id ? [row.recipe_id] : []));

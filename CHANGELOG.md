@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Meal Plan, Eating out pushes dishes back: marking Eating out on a dinner
+  that has a dish pushes that dish, and every later dish, back a day, each
+  keeping its meal (a dinner stays a dinner). The lunch it leaves behind
+  reads "On your own". Eating out already in the plan stays put and dishes
+  go round it. A dish pushed past dinner on the first Saturday comes off
+  the plan ("<recipe> dropped") and is suggested first. Moving an Eating out
+  onto a dish's dinner does the same.
+
 - Meal Plan, fix: the "2 meals / 1 meal" picker now shows the size that was
   saved. It used to snap back to the size it started with after saving, so
   choosing the other size looked like it did nothing.

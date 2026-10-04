@@ -106,3 +106,14 @@ Converting the old plans was a one-time loop in the migration that ran
 the old counting rule and wrote down what it produced, so no dish moved.
 It was tried first on the live data inside a transaction that was undone
 (lesson 07).
+
+## Update (REQ-169): one change that touches many rows
+
+Putting "Eating out" on a dinner can move several dishes, drop one, and add
+an entry. Done as separate steps, a failure half way leaves a plan that
+makes no sense: dishes moved but no Eating out. So the app works out the
+whole result (plain code, tested), then hands it to one database function,
+`push_plan_back`, which makes every change or none. It is the same idea as
+`set_plan_layout`: the code decides, the database writes it in one go, and
+refuses the one thing that must never happen, two entries on one meal.
+

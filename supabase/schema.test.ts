@@ -855,6 +855,38 @@ describe("meal plan: a plan is a run of meals (REQ-168)", () => {
   });
 });
 
+describe("meal plan: Eating out pushes dishes back (REQ-169)", () => {
+  const push = readMigration("20261006100000");
+
+  it("only adds: a table of recipes waiting to be proposed, and two functions", () => {
+    expect(push).not.toMatch(/drop (column|table|function)/);
+    expect(push).toMatch(/create table public\.meal_plan_proposed_next/);
+    expect(push).toMatch(/recipe_id uuid primary key references public\.recipes \(id\) on delete cascade/);
+  });
+
+  it("lets members read, add and clear proposed recipes, and nobody signed out see them", () => {
+    expect(push).toMatch(/alter table public\.meal_plan_proposed_next enable row level security;/);
+    expect(push).toMatch(/revoke all on public\.meal_plan_proposed_next from anon;/);
+    for (const action of ["select", "insert", "delete"]) {
+      expect(push).toMatch(new RegExp(`on public\\.meal_plan_proposed_next for ${action} to authenticated`));
+    }
+    expect(push).not.toMatch(/meal_plan_proposed_next for update/);
+  });
+
+  it("makes the whole push in one step, as the person asking, and refuses two entries on one meal", () => {
+    expect(push).toMatch(/function public\.push_plan_back\(p_plan uuid, p_layout jsonb, p_drop uuid\[\], p_eating_out jsonb\)[\s\S]*security invoker/);
+    expect(push).toMatch(/revoke all on function public\.push_plan_back\(uuid, jsonb, uuid\[\], jsonb\) from public, anon;/);
+    expect(push).toMatch(/grant execute on function public\.push_plan_back\(uuid, jsonb, uuid\[\], jsonb\) to authenticated;/);
+    expect(push).toMatch(/raise exception 'Two entries are on the same meal' using errcode = 'check_violation';/);
+  });
+
+  it("remembers a dropped dish before taking it off the plan", () => {
+    expect(push.indexOf("insert into public.meal_plan_proposed_next")).toBeGreaterThan(-1);
+    expect(push.indexOf("insert into public.meal_plan_proposed_next")).toBeLessThan(push.indexOf("delete from public.meal_plan_recipes"));
+    expect(push).toMatch(/select recipe_id, 'dropped'/);
+  });
+});
+
 describe("restaurants migration (REQ-90, REQ-129)", () => {
   const restaurants = readMigration("20260929100000");
 

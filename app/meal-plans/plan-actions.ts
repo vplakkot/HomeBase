@@ -14,6 +14,7 @@ import {
   mealPlace,
   nextFreeMeal,
   parseMealKey,
+  pushBack,
   slide,
   startOf,
   swapWithNeighbour,
@@ -30,7 +31,7 @@ import { createClient } from "../../lib/supabase/server";
 // (REQ-114), and the week's plan (REQ-115). Batch 3: closing a week,
 // carrying a recipe over and rating (REQ-116).
 
-export type PlanFormState = { error?: string };
+export type PlanFormState = { error?: string; notice?: string };
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -143,6 +144,26 @@ function lockedBefore(plan: MealPlan): string | null {
 
 const PASSED = "That day has passed.";
 
+// REQ-169: Eating out on a dinner a dish is on pushes that dish and every
+// later dish back a day, in one step on the database. A dish that no longer
+// fits the week leaves the plan; the answer says which ("Chilli chicken dropped").
+async function pushForEatingOut(supabase: Supabase, plan: MealPlan, eatingOut: PlannedRecipe, at: Meal, isNew: boolean): Promise<string | undefined> {
+  const pushed = pushBack(plan, plan.recipes, eatingOut, at, plan.daysOff);
+  if (!pushed) return undefined;
+  const layout = pushed.entries.filter((entry) => !(isNew && entry.id === eatingOut.id)).map((entry) => ({ id: entry.id, meal_on: entry.meal_on, meal: entry.meal, meals: entry.meals }));
+  const { error } = await supabase.rpc("push_plan_back", {
+    p_plan: plan.id,
+    p_layout: layout,
+    p_drop: pushed.dropped.map((entry) => entry.id),
+    p_eating_out: isNew ? { id: eatingOut.id, meal_on: at.day } : null,
+  });
+  if (error) throw new Error(error.message);
+  if (pushed.dropped.length === 0) return undefined;
+  const names = await Promise.all(pushed.dropped.map((entry) => entryName(supabase, entry)));
+  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
+  return `${list} dropped`;
+}
+
 async function entryName(supabase: Supabase, entry: Pick<PlannedRecipe, "eating_out" | "recipe_id">): Promise<string> {
   if (entry.eating_out || !entry.recipe_id) return "Eating out";
   const { data } = await supabase.from("recipes").select("name").eq("id", entry.recipe_id).maybeSingle();
@@ -229,6 +250,7 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
   const recipeId = eatingOut ? null : idFrom(formData.get("recipe_id"));
   const size = eatingOut ? 1 : Number(formData.get("meals") ?? 2);
   const chosen = String(formData.get("meal") ?? "").trim();
+  let notice: string | undefined;
   if (!planId) return { error: "Start a plan first." };
   if (!eatingOut && !recipeId) return { error: "Choose a recipe to add." };
   if (!isPlanSize(size)) return { error: "A dish is 2 meals or 1 meal." };
@@ -244,17 +266,26 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
     if (cant) return { error: cant };
     if (locked && at.day < locked) return { error: PASSED };
     const taken = blockerAt(plan.recipes, entry, at);
-    if (taken) return { error: await takenMessage(supabase, taken) };
-    const { error } = await supabase.from("meal_plan_recipes").insert({ ...entry, plan_id: planId, recipe_id: recipeId, meal_on: at.day, meal: at.meal });
-    if (error?.code === "23505") return { error: "That recipe is already in the plan." };
-    if (error) throw new Error(error.message);
+    if (taken && eatingOut && !taken.by.eating_out) {
+      // Eating out on a dinner that has a dish pushes the dish back (REQ-169).
+      const added: PlannedRecipe = { ...entry, recipe_id: null, meal_on: at.day, meal: "dinner", meals: 1, cooked: false, carry_over: false, added_at: new Date().toISOString() };
+      notice = await pushForEatingOut(supabase, plan, added, at, true);
+    } else if (taken) {
+      return { error: await takenMessage(supabase, taken) };
+    } else {
+      const { error } = await supabase.from("meal_plan_recipes").insert({ ...entry, plan_id: planId, recipe_id: recipeId, meal_on: at.day, meal: at.meal });
+      if (error?.code === "23505") return { error: "That recipe is already in the plan." };
+      if (error) throw new Error(error.message);
+      // Planned again: no longer waiting to be proposed.
+      if (recipeId) await supabase.from("meal_plan_proposed_next").delete().eq("recipe_id", recipeId);
+    }
   } catch (error) {
     Sentry.captureException(error);
     return { error: "It couldn't be added. Try again." };
   }
   await syncAhead(supabase);
   refresh();
-  return {};
+  return notice ? { notice } : {};
 }
 
 function entryFrom(formData: FormData) {
@@ -337,13 +368,14 @@ export async function moveEntry(_prev: PlanFormState, formData: FormData): Promi
   if (!row) return { error: "That dish is gone." };
   const target = String(formData.get("meal") ?? "").trim();
   const step = formData.get("step") === "up" ? -1 : formData.get("step") === "down" ? 1 : 0;
+  let notice: string | undefined;
   try {
     const plan = await loadPlan(supabase, row.planId);
     const entry = plan?.recipes.find((item) => item.id === row.entryId);
     if (!plan || !entry) return { error: "That dish is gone." };
     const locked = lockedBefore(plan);
     const passed = (day: string) => locked !== null && day < locked;
-    let moved: Sited[];
+    let moved: Sited[] | null;
     if (target) {
       const at = parseMealKey(target);
       if (!at) return { error: "Choose a meal from the list." };
@@ -351,8 +383,15 @@ export async function moveEntry(_prev: PlanFormState, formData: FormData): Promi
       const cant = cantStartBecause(entry, at, plan.daysOff);
       if (cant) return { error: cant };
       const taken = blockerAt(plan.recipes, entry, at);
-      if (taken) return { error: await takenMessage(supabase, taken) };
-      moved = plan.recipes.map((item) => (item.id === entry.id ? { ...item, meal_on: at.day, meal: at.meal } : item));
+      if (taken && entry.eating_out && !taken.by.eating_out) {
+        // An Eating out moved onto a dinner that has a dish pushes the dish back (REQ-169).
+        notice = await pushForEatingOut(supabase, plan, entry, at, false);
+        moved = null;
+      } else if (taken) {
+        return { error: await takenMessage(supabase, taken) };
+      } else {
+        moved = plan.recipes.map((item) => (item.id === entry.id ? { ...item, meal_on: at.day, meal: at.meal } : item));
+      }
     } else if (step !== 0) {
       const swapped = swapWithNeighbour(plan.recipes, entry.id, step, plan.daysOff);
       if (!swapped) return {};
@@ -365,14 +404,14 @@ export async function moveEntry(_prev: PlanFormState, formData: FormData): Promi
     } else {
       return {};
     }
-    await saveLayout(supabase, plan.id, plan.starts_on, plan.starts_meal, moved);
+    if (moved) await saveLayout(supabase, plan.id, plan.starts_on, plan.starts_meal, moved);
   } catch (error) {
     Sentry.captureException(error);
     return { error: "It couldn't be moved. Try again." };
   }
   await syncAhead(supabase);
   refresh();
-  return {};
+  return notice ? { notice } : {};
 }
 
 // REQ-168: a Day off turns a weekday into a weekend day for this plan, so
