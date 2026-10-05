@@ -64,6 +64,8 @@ describe("what the schedule decides (REQ-163)", () => {
     expect(startPromptDue({ ...dinner, start_prompted_on: "2026-10-04" }, "2026-10-04", 18)).toBe(false);
     expect(startPromptDue(dinner, "2026-10-05", 18)).toBe(false);
     expect(startPromptDue(plan({ status: "started" }), "2026-10-04", 18)).toBe(false);
+    // Nobody is asked to start a plan with no dish in it.
+    expect(startPromptDue(plan({ status: "new", recipes: [] }), "2026-10-04", 18)).toBe(false);
   });
 });
 

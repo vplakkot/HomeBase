@@ -2,6 +2,7 @@ import Link from "next/link";
 import { householdToday } from "../../../lib/finances/budget-year";
 import { dayLabel, entryMeals, layoutPlan, mealKey, mealName, mealPlace, planStartMeal, startChoices, startOf, type Meal } from "../../../lib/meal-plans/meals";
 import {
+  hasDishes,
   planStats,
   readClosedPlan,
   readLastClosedPlan,
@@ -54,12 +55,14 @@ function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: re
       {!ahead && plan.status === "new" ? (
         <div className={styles.inline}>
           <p>Not started. First meal: {mealPlace(planStartMeal(plan))}</p>
-          <form action={startPlanNow}>
-            <input type="hidden" name="plan_id" value={plan.id} />
-            <button type="submit" className={buttonClass}>
-              Start
-            </button>
-          </form>
+          {hasDishes(plan) ? (
+            <form action={startPlanNow}>
+              <input type="hidden" name="plan_id" value={plan.id} />
+              <button type="submit" className={buttonClass}>
+                Start
+              </button>
+            </form>
+          ) : null}
         </div>
       ) : null}
       {layout.rows.length > 0 ? (
