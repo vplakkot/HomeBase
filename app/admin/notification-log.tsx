@@ -18,6 +18,7 @@ const TRIGGERS: Record<LogRow["trigger"], string> = {
   hourly: "Hourly test",
   manual: "By hand",
   finances: "Finances",
+  "meal-plan": "Meal Plan",
 };
 
 export function NotificationLog({

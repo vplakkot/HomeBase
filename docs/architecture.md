@@ -1195,6 +1195,31 @@ counted from these rows each time (`lib/meal-plans/plan.ts`), so taking
 a recipe off a plan can't leave a stale count. `recipes.hidden` keeps a
 recipe out of the library without deleting it.
 
+### The plan lifecycle (REQ-163)
+
+A plan has a `status`: `new` until someone presses Start (a plan ahead is
+always new), `started` while it runs, `closed` after. Locking by day
+applies only to a started plan; a new one slides instead. Three things run
+without anyone signed in, in `lib/meal-plans/schedule.ts`, called every
+hour at twenty past by a `pg_cron` job (`meal-plan-schedule`) that posts to
+`/api/notifications/meal-plan` with the same shared secret as the Finances
+job: it closes a started plan the day after its last filled meal
+(`close_meal_plan_system`, callable only by the server's own key), slides a
+new plan whose start day is over (its dishes move with it by the reflow
+rule, and next week's plan follows), and sends "Start this week's plan?" to
+everyone switched on, at 11:00 AM for a lunch start and 6:00 PM for a
+dinner start (ET, once per plan per day: `start_prompted_on` claims it).
+When a plan closes, every dish counts as cooked (`cooked`) unless it was
+marked `didnt_cook`, and each of us gets a rating question for a dish cooked
+for the first time. `set_didnt_cook` changes the mark after closing too:
+the dish stops counting and its questions go, or counts again and the
+first-time question comes back. The closing cards on the plan page are the
+last closed plan's dishes (for a week); a dish we didn't cook is offered
+"Add to next week", or, with no plan for next week yet, is stored in
+`meal_plan_proposed_next` and proposed first when one is created. The old
+`carry_over` and `cooked` ticks are gone from the screen; the columns stay
+until the later migration that drops the old model.
+
 ### Closing a week, rating and suggestions (REQ-116, REQ-117)
 
 Closing and starting plans happen in three database functions, so each

@@ -16,10 +16,10 @@ import {
   removePlan,
   reopenPlan,
   saveScaled,
-  setCarryOver,
-  setCooked,
   setHidden,
   setPlanMeals,
+  setDidntCook,
+  startPlanNow,
   markDayOff,
   unmarkDayOff,
   changePlanStart,
@@ -223,7 +223,7 @@ describe("the week's plan (REQ-115)", () => {
     expect(await startPlan({}, form({ starts_on: "2026-09-29" }))).toEqual({ error: "A plan was just started. Refresh to see it." });
   });
 
-  it("shows the shared plan's recipes, their sizes and cooked ticks, and how far they carry us", async () => {
+  it("shows the shared plan's recipes and their sizes, with no cooked or carry-over ticks, and how far they carry us", async () => {
     given({ meal_plans: [openPlan([planned(ID, 2, "2026-09-27", "dinner", true), planned(OTHER, 1, "2026-09-28", "dinner")])], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
     expect(screen.getByRole("heading", { name: "From Sun, Sep 27" })).toBeTruthy();
@@ -237,8 +237,8 @@ describe("the week's plan (REQ-115)", () => {
     expect(rows[1].textContent).toMatch(/^Dinner MonTest lentil soup/);
     expect((screen.getByRole("combobox", { name: "Size of Test chicken rice" }) as HTMLSelectElement).value).toBe("2");
     expect((screen.getByRole("combobox", { name: "Size of Test lentil soup" }) as HTMLSelectElement).value).toBe("1");
-    expect((screen.getByRole("checkbox", { name: "Test chicken rice cooked" }) as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByRole("checkbox", { name: "Test lentil soup cooked" }) as HTMLInputElement).checked).toBe(false);
+    // Closing cards and "Didn't cook this" replaced the ticks (REQ-163).
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
   });
 
   it("adds a dish as 2 meals by default, or 1, and never twice", async () => {
@@ -279,13 +279,10 @@ describe("the week's plan (REQ-115)", () => {
     expect(screen.getByText("Last planned").nextElementSibling?.textContent).toBe("Never");
   });
 
-  it("changes size, ticks cooked and takes a recipe off", async () => {
+  it("changes size and takes a recipe off, which simply leaves the plan", async () => {
     let fake = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(ID, 2)] });
     expect(await setPlanMeals({}, form({ plan_id: PLAN, entry_id: E1, meals: "1" }))).toEqual({});
     expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ meals: 1 });
-    fake = given({});
-    await setCooked(form({ plan_id: PLAN, entry_id: E1, cooked: "yes" }));
-    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ cooked: true, carry_over: false });
     fake = given({});
     await takeOffPlan(form({ plan_id: PLAN, entry_id: E1 }));
     expect(fake.from.mock.results.some((result) => vi.mocked(result.value.delete).mock.calls.length > 0)).toBe(true);
@@ -299,17 +296,11 @@ describe("closing a week and rating (REQ-116)", () => {
     expect(fake.rpc).toHaveBeenCalledWith("close_meal_plan", { p_plan: PLAN });
   });
 
-  it("marks a recipe carry over, which un-ticks cooked, and ticking cooked un-marks it", async () => {
-    let fake = given({});
-    await setCarryOver(form({ plan_id: PLAN, entry_id: E1, carry_over: "yes" }));
-    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ carry_over: true, cooked: false });
-    fake = given({});
-    await setCarryOver(form({ plan_id: PLAN, entry_id: E1, carry_over: "no" }));
-    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ carry_over: false });
-    given({ meal_plans: [openPlan([planned(ID, 2, "2026-09-27", "dinner", false, true)])], recipes: [RECIPE] });
+  it("offers Close plan on a started plan, and no carry-over tick", async () => {
+    given({ meal_plans: [openPlan([planned(ID, 2)])], recipes: [RECIPE] });
     render(await WeekPage());
-    expect((screen.getByRole("checkbox", { name: "Carry Test chicken rice over" }) as HTMLInputElement).checked).toBe(true);
-    expect(screen.getByRole("button", { name: "Close this plan" })).toBeTruthy();
+    expect(screen.queryByRole("checkbox", { name: "Carry Test chicken rice over" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Close plan" })).toBeTruthy();
   });
 
   it("offers Plan next week, with no day to choose, while one is open", async () => {
@@ -786,6 +777,105 @@ describe("Eating out pushes dishes back (REQ-169)", () => {
     const query = fake.from.mock.results[index].value;
     expect(query.delete).toHaveBeenCalled();
     expect(query.eq).toHaveBeenCalledWith("recipe_id", OTHER);
+  });
+});
+
+describe("the plan lifecycle (REQ-163)", () => {
+  const newPlan = (recipes: unknown[] = []) => ({ ...openPlan(recipes), status: "new" });
+  const closedPlan = (cards: unknown[], closed_at = "2026-09-26T12:00:00Z") => ({
+    id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    starts_on: "2026-09-20",
+    starts_meal: "dinner",
+    ahead: false,
+    status: "closed",
+    closed_at,
+    meal_plan_recipes: cards,
+  });
+  const card = (id: string, recipe_id: string, didnt_cook = false) => ({ id, recipe_id, didnt_cook, meal_on: "2026-09-27", meal: "dinner" });
+
+  it("shows a new plan with its first meal and a Start button, and no Close plan", async () => {
+    given({ meal_plans: [newPlan([planned(ID, 2)])], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.getByText("Not started. First meal: Dinner Sun, Sep 27")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Start" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Close plan" })).toBeNull();
+  });
+
+  it("shows a started plan with Close plan and no Start", async () => {
+    given({ meal_plans: [openPlan([planned(ID, 2)])], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Close plan" })).toBeTruthy();
+  });
+
+  it("starts the plan we're on, and closes it, in one step each on the database", async () => {
+    let fake = given({});
+    await startPlanNow(form({ plan_id: PLAN }));
+    expect(fake.rpc).toHaveBeenCalledWith("begin_meal_plan", { p_plan: PLAN });
+    fake = given({});
+    await closePlan(form({ plan_id: PLAN }));
+    expect(fake.rpc).toHaveBeenCalledWith("close_meal_plan", { p_plan: PLAN });
+  });
+
+  it("never locks a new plan: its past days can still be edited, because it slides instead", async () => {
+    vi.setSystemTime(new Date("2026-09-30T15:00:00Z"));
+    const fake = given({ meal_plans: [{ ...PLAN_ROW, status: "new" }], meal_plan_recipes: [planned(ID, 2)] });
+    expect(await moveEntry({}, form({ plan_id: PLAN, entry_id: E1, meal: "2026-09-29:dinner" }))).toEqual({});
+    expect(savedLayout(fake)?.at).toEqual({ [E1]: "dinner 2026-09-29" });
+  });
+
+  it("gives every dish of the plan closed last a closing card, to mark Didn't cook this or take that back", async () => {
+    given({
+      meal_plans: [closedPlan([card(E1, ID), card(E2, OTHER, true)])],
+      recipes: [RECIPE, SECOND],
+      meal_plan_proposed_next: [{ recipe_id: OTHER }],
+    });
+    // The plan closed a day ago, and none is open.
+    render(await WeekPage());
+    const cards = within(screen.getByRole("region", { name: "Closing cards" })).getAllByRole("listitem");
+    expect(cards.map((item) => item.textContent)).toEqual([
+      "Test chicken riceDidn't cook this",
+      "Test lentil soupDidn't cookCooked after allProposed for next week",
+    ]);
+  });
+
+  it("offers Add to next week on a dish we didn't cook when next week's plan exists, and not before", async () => {
+    given({ meal_plans: [closedPlan([card(E2, OTHER, true)]), openPlan([]), aheadPlan()], recipes: [RECIPE, SECOND], meal_plan_proposed_next: [{ recipe_id: OTHER }] });
+    render(await WeekPage());
+    const closing = within(screen.getByRole("region", { name: "Closing cards" }));
+    expect(closing.getByRole("button", { name: "Add to next week" })).toBeTruthy();
+    expect(closing.queryByText("Proposed for next week")).toBeNull();
+  });
+
+  it("shows no closing cards for a plan closed more than a week ago, or one with no dishes", async () => {
+    given({ meal_plans: [closedPlan([card(E1, ID)], "2026-09-10T12:00:00Z")], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.queryByRole("region", { name: "Closing cards" })).toBeNull();
+    cleanup();
+    given({ meal_plans: [closedPlan([])], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.queryByRole("region", { name: "Closing cards" })).toBeNull();
+  });
+
+  it("marks Didn't cook this on the database, and proposes the dish first when there's no plan for next week", async () => {
+    const fake = given({ meal_plans: [PLAN_ROW] });
+    await setDidntCook(form({ entry_id: E1, recipe_id: ID, didnt_cook: "yes" }));
+    expect(fake.rpc).toHaveBeenCalledWith("set_didnt_cook", { p_entry: E1, p_value: true });
+    const proposed = fake.from.mock.calls.findIndex(([name]) => name === "meal_plan_proposed_next");
+    expect(proposed).toBeGreaterThan(-1);
+    expect(fake.from.mock.results[proposed].value.upsert).toHaveBeenCalledWith({ recipe_id: ID, reason: "didnt_cook" }, { onConflict: "recipe_id", ignoreDuplicates: true });
+  });
+
+  it("doesn't propose it when next week's plan exists (the card offers Add to next week), and takes the proposal back with the mark", async () => {
+    let fake = given({ meal_plans: [PLAN_ROW, { ...PLAN_ROW, id: AHEAD, ahead: true, status: "new" }] });
+    await setDidntCook(form({ entry_id: E1, recipe_id: ID, didnt_cook: "yes" }));
+    expect(fake.from.mock.calls.some(([name]) => name === "meal_plan_proposed_next")).toBe(false);
+    fake = given({});
+    await setDidntCook(form({ entry_id: E1, recipe_id: ID, didnt_cook: "no" }));
+    expect(fake.rpc).toHaveBeenCalledWith("set_didnt_cook", { p_entry: E1, p_value: false });
+    const proposed = fake.from.mock.calls.findIndex(([name]) => name === "meal_plan_proposed_next");
+    expect(fake.from.mock.results[proposed].value.delete).toHaveBeenCalled();
+    expect(fake.from.mock.results[proposed].value.eq).toHaveBeenCalledWith("reason", "didnt_cook");
   });
 });
 

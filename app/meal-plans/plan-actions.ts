@@ -22,7 +22,7 @@ import {
   type MealKind,
   type Sited,
 } from "../../lib/meal-plans/meals";
-import { ENTRY_COLUMNS, isPlanSize, nextPlanStart, readStoredPlans, saveLayout, syncAheadStart, type MealPlan, type PlannedRecipe } from "../../lib/meal-plans/plan";
+import { ENTRY_COLUMNS, isPlanSize, nextPlanStart, readStoredPlans, saveLayout, syncAheadStart, type MealPlan, type PlannedRecipe, type PlanStatus } from "../../lib/meal-plans/plan";
 import { readRecipe } from "../../lib/meal-plans/recipes";
 import { isFactor, scaleRecipe } from "../../lib/meal-plans/scale";
 import { createClient } from "../../lib/supabase/server";
@@ -119,8 +119,8 @@ export async function startPlan(_prev: PlanFormState, formData: FormData): Promi
 
 // A plan as the rules see it: its start, its entries and its days off.
 async function loadPlan(supabase: Supabase, planId: string): Promise<MealPlan | null> {
-  const { data } = await supabase.from("meal_plans").select("id, starts_on, starts_meal, ahead").eq("id", planId).is("closed_at", null).maybeSingle();
-  const plan = data as { id: string; starts_on: string; starts_meal: MealKind; ahead: boolean | null } | null;
+  const { data } = await supabase.from("meal_plans").select("id, starts_on, starts_meal, ahead, status, start_prompted_on").eq("id", planId).is("closed_at", null).maybeSingle();
+  const plan = data as { id: string; starts_on: string; starts_meal: MealKind; ahead: boolean | null; status: PlanStatus | null; start_prompted_on: string | null } | null;
   if (!plan) return null;
   const [entries, off] = await Promise.all([
     supabase.from("meal_plan_recipes").select(ENTRY_COLUMNS).eq("plan_id", planId),
@@ -132,16 +132,19 @@ async function loadPlan(supabase: Supabase, planId: string): Promise<MealPlan | 
     starts_on: plan.starts_on,
     starts_meal: plan.starts_meal ?? "dinner",
     ahead: plan.ahead === true,
+    status: plan.status ?? (plan.ahead === true ? "new" : "started"),
+    start_prompted_on: plan.start_prompted_on ?? null,
     recipes,
     daysOff: new Set(((off.data ?? []) as { day: string }[]).map((row) => row.day)),
   };
 }
 
 // Days before today are locked in a plan that has started: nothing is
-// added to, moved to or moved from them. A plan ahead hasn't started, so
-// it never locks. No cut-off times within a day (REQ-168).
+// added to, moved to or moved from them. A new plan hasn't started, so it
+// never locks; it slides instead (REQ-163). No cut-off times within a day
+// (REQ-168).
 function lockedBefore(plan: MealPlan): string | null {
-  return plan.ahead ? null : householdToday();
+  return plan.status === "started" ? householdToday() : null;
 }
 
 const PASSED = "That day has passed.";
@@ -270,7 +273,7 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
     const taken = blockerAt(plan.recipes, entry, at);
     if (taken && eatingOut && !taken.by.eating_out) {
       // Eating out on a dinner that has a dish pushes the dish back (REQ-169).
-      const added: PlannedRecipe = { ...entry, recipe_id: null, meal_on: at.day, meal: "dinner", meals: 1, cooked: false, carry_over: false, added_at: new Date().toISOString() };
+      const added: PlannedRecipe = { ...entry, recipe_id: null, meal_on: at.day, meal: "dinner", meals: 1, cooked: false, carry_over: false, didnt_cook: false, added_at: new Date().toISOString() };
       notice = await pushForEatingOut(supabase, plan, added, at, true);
     } else if (taken) {
       return { error: await takenMessage(supabase, taken) };
@@ -294,18 +297,6 @@ function entryFrom(formData: FormData) {
   const planId = idFrom(formData.get("plan_id"));
   const entryId = idFrom(formData.get("entry_id"));
   return planId && entryId ? { planId, entryId } : null;
-}
-
-async function changePlanned(formData: FormData, change: { cooked?: boolean; carry_over?: boolean } | "remove") {
-  const supabase = await requireMember();
-  const row = entryFrom(formData);
-  if (!row) return;
-  const table = supabase.from("meal_plan_recipes");
-  const query = change === "remove" ? table.delete() : table.update(change);
-  const { error } = await query.eq("plan_id", row.planId).eq("id", row.entryId);
-  if (error) Sentry.captureException(new Error(error.message));
-  await syncAhead(supabase);
-  refresh();
 }
 
 // REQ-168: a dish is 2 meals or 1. From 2 to 1 frees its second meal; from
@@ -342,21 +333,59 @@ export async function setPlanMeals(_prev: PlanFormState, formData: FormData): Pr
   return {};
 }
 
-// REQ-115: ticking a recipe cooked is optional. Cooked and carried over
-// rule each other out.
-export async function setCooked(formData: FormData): Promise<void> {
-  const cooked = formData.get("cooked") === "yes";
-  await changePlanned(formData, cooked ? { cooked, carry_over: false } : { cooked });
+// REQ-163: press Start on the plan we're on.
+export async function startPlanNow(formData: FormData): Promise<void> {
+  const supabase = await requireMember();
+  const id = idFrom(formData.get("plan_id"));
+  if (!id) return;
+  const { error } = await supabase.rpc("begin_meal_plan", { p_plan: id });
+  if (error) Sentry.captureException(new Error(error.message));
+  refresh();
 }
 
-// REQ-116: a recipe we didn't get to moves to the next plan.
-export async function setCarryOver(formData: FormData): Promise<void> {
-  const carry = formData.get("carry_over") === "yes";
-  await changePlanned(formData, carry ? { carry_over: true, cooked: false } : { carry_over: false });
-}
-
+// A dish removed from a plan simply leaves it: no closing card, not counted
+// as cooked (REQ-163).
 export async function takeOffPlan(formData: FormData): Promise<void> {
-  await changePlanned(formData, "remove");
+  const supabase = await requireMember();
+  const row = entryFrom(formData);
+  if (!row) return;
+  const { error } = await supabase.from("meal_plan_recipes").delete().eq("plan_id", row.planId).eq("id", row.entryId);
+  if (error) Sentry.captureException(new Error(error.message));
+  await syncAhead(supabase);
+  refresh();
+}
+
+// REQ-163: "Didn't cook this" on a closing card, and taking it back. The
+// dish stops counting as cooked and its rating questions go. Groceries are
+// usually bought, so the card offers "Add to next week"; with no plan for
+// next week yet the dish is proposed first when one is created.
+export async function setDidntCook(formData: FormData): Promise<void> {
+  const supabase = await requireMember();
+  const entryId = idFrom(formData.get("entry_id"));
+  const recipeId = idFrom(formData.get("recipe_id"));
+  const didnt = formData.get("didnt_cook") === "yes";
+  if (!entryId) return;
+  const { error } = await supabase.rpc("set_didnt_cook", { p_entry: entryId, p_value: didnt });
+  if (error) {
+    Sentry.captureException(new Error(error.message));
+    refresh();
+    return;
+  }
+  if (recipeId) {
+    try {
+      if (didnt) {
+        const { ahead } = await readStoredPlans(supabase);
+        if (!ahead) {
+          await supabase.from("meal_plan_proposed_next").upsert({ recipe_id: recipeId, reason: "didnt_cook" }, { onConflict: "recipe_id", ignoreDuplicates: true });
+        }
+      } else {
+        await supabase.from("meal_plan_proposed_next").delete().eq("recipe_id", recipeId).eq("reason", "didnt_cook");
+      }
+    } catch (failure) {
+      Sentry.captureException(failure);
+    }
+  }
+  refresh();
 }
 
 // REQ-168: "Move to..." a chosen meal, or one place up or down. A dish

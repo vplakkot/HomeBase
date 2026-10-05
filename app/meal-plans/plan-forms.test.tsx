@@ -10,8 +10,6 @@ vi.mock("./plan-actions", () => ({
   markDayOff: vi.fn(),
   moveEntry: vi.fn(),
   rateRecipe: vi.fn(),
-  setCarryOver: vi.fn(),
-  setCooked: vi.fn(),
   setPlanMeals: vi.fn(async () => ({})),
   startPlan: vi.fn(),
   unmarkDayOff: vi.fn(),
@@ -19,7 +17,7 @@ vi.mock("./plan-actions", () => ({
 
 afterEach(cleanup);
 
-const controls = (meals: 1 | 2) => <PlannedControls planId="p" entryId="e" name="Chilli" meals={meals} cooked={false} carryOver={false} />;
+const controls = (meals: 1 | 2) => <PlannedControls planId="p" entryId="e" name="Chilli" meals={meals} />;
 const picker = () => screen.getByRole("combobox", { name: "Size of Chilli" }) as HTMLSelectElement;
 
 // REQ-176: the picker has to show what was saved, and a different pick has to save.

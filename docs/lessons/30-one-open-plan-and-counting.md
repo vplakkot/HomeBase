@@ -117,3 +117,19 @@ whole result (plain code, tested), then hands it to one database function,
 `set_plan_layout`: the code decides, the database writes it in one go, and
 refuses the one thing that must never happen, two entries on one meal.
 
+## Update (REQ-163): a status, and work that happens while nobody is looking
+
+"Open or closed" became three states, so the plan stores one word:
+`new`, `started` or `closed`. Think of a hotel booking: reserved, checked in,
+checked out. Each word turns things on and off: only a started plan locks
+past days, only a started plan can close.
+
+Some changes have no person pressing a button: a plan nobody closed
+should close, a plan nobody started should slide. The database's clock
+(`pg_cron`) calls the app every hour, and the app decides what is due, using
+the household's New York time. Two jobs overlapping must not send the same
+question twice, so a run first writes "asked today" on the plan, and only the
+run whose write went in sends. The closer that needs nobody signed in is a
+separate database function, callable only by the server's own key, so a
+signed-in member can't run it by hand on a plan that isn't finished.
+

@@ -21,21 +21,36 @@ export type PlannedRecipe = {
   meal: MealKind;
   cooked: boolean;
   carry_over: boolean;
+  didnt_cook: boolean;
   added_at: string;
 };
-export type MealPlan = { id: string; starts_on: string; starts_meal: MealKind; ahead: boolean; recipes: PlannedRecipe[]; daysOff: Set<string> };
+// REQ-163: new until someone presses Start (or the plan we're on is the one
+// ahead), started until it is closed, then closed.
+export type PlanStatus = "new" | "started" | "closed";
+export type MealPlan = {
+  id: string;
+  starts_on: string;
+  starts_meal: MealKind;
+  ahead: boolean;
+  status: PlanStatus;
+  start_prompted_on: string | null;
+  recipes: PlannedRecipe[];
+  daysOff: Set<string>;
+};
 
 export function isPlanSize(value: number): value is EntrySize {
   return value === 1 || value === 2;
 }
 
-export const ENTRY_COLUMNS = "id, recipe_id, eating_out, meals, meal_on, meal, cooked, carry_over, added_at";
+export const ENTRY_COLUMNS = "id, recipe_id, eating_out, meals, meal_on, meal, cooked, carry_over, didnt_cook, added_at";
 
 type PlanRowFromDb = {
   id: string;
   starts_on: string;
   starts_meal: MealKind;
   ahead: boolean | null;
+  status: PlanStatus | null;
+  start_prompted_on: string | null;
   meal_plan_recipes: PlannedRecipe[] | null;
   meal_plan_days_off: { day: string }[] | null;
 };
@@ -46,14 +61,18 @@ type PlanRowFromDb = {
 export async function readStoredPlans(supabase: SupabaseClient): Promise<{ current: MealPlan | null; ahead: MealPlan | null }> {
   const { data, error } = await supabase
     .from("meal_plans")
-    .select(`id, starts_on, starts_meal, ahead, meal_plan_recipes(${ENTRY_COLUMNS}), meal_plan_days_off(day)`)
+    .select(`id, starts_on, starts_meal, ahead, status, start_prompted_on, meal_plan_recipes(${ENTRY_COLUMNS}), meal_plan_days_off(day)`)
     .is("closed_at", null);
   if (error) throw new Error(`Could not read the plan: ${error.message}`);
-  const plans = ((data ?? []) as PlanRowFromDb[]).map((row) => ({
+  // An open plan is never closed; the filter is the database's, this keeps a closed row out whatever it sent.
+  const plans = ((data ?? []) as PlanRowFromDb[]).filter((row) => row.status !== "closed").map((row) => ({
     id: row.id,
     starts_on: row.starts_on,
     starts_meal: row.starts_meal ?? "dinner",
     ahead: row.ahead === true,
+    // A plan the previous app version wrote has no status of its own: it was running.
+    status: row.status ?? (row.ahead === true ? ("new" as const) : ("started" as const)),
+    start_prompted_on: row.start_prompted_on ?? null,
     recipes: (row.meal_plan_recipes ?? []).filter((entry) => entry.meal_on && entry.meal && entry.meals).sort((a, b) => startOf(a) - startOf(b) || a.added_at.localeCompare(b.added_at)),
     daysOff: new Set((row.meal_plan_days_off ?? []).map((off) => off.day)),
   }));
@@ -89,6 +108,29 @@ export async function syncAheadStart(supabase: SupabaseClient): Promise<void> {
   const start = nextPlanStart(current);
   if (ahead.starts_on === start.day && ahead.starts_meal === start.meal) return;
   await saveLayout(supabase, ahead.id, start.day, start.meal, slide(ahead.recipes, daysBetween(ahead.starts_on, start.day), ahead.daysOff));
+}
+
+// REQ-163: the plan closed last, with its dishes, for the closing cards. A
+// card is there to be answered, so it goes after a week.
+export type ClosingCard = { entryId: string; recipeId: string; didntCook: boolean };
+export type ClosedPlan = { id: string; closedAt: string; cards: ClosingCard[] };
+
+export async function readClosedPlan(supabase: SupabaseClient, today: string): Promise<ClosedPlan | null> {
+  const { data, error } = await supabase
+    .from("meal_plans")
+    .select("id, closed_at, meal_plan_recipes(id, recipe_id, didnt_cook, meal_on, meal)")
+    .not("closed_at", "is", null)
+    .order("closed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Could not read the last plan: ${error.message}`);
+  const plan = data as { id: string; closed_at: string; meal_plan_recipes: { id: string; recipe_id: string | null; didnt_cook: boolean; meal_on: string; meal: MealKind }[] | null } | null;
+  if (!plan?.closed_at || daysBetween(plan.closed_at.slice(0, 10), today) > 7) return null;
+  const cards = (plan.meal_plan_recipes ?? [])
+    .filter((entry) => entry.recipe_id !== null)
+    .sort((a, b) => startOf(a as unknown as Sited) - startOf(b as unknown as Sited))
+    .map((entry) => ({ entryId: entry.id, recipeId: entry.recipe_id as string, didntCook: entry.didnt_cook === true }));
+  return { id: plan.id, closedAt: plan.closed_at, cards };
 }
 
 // The plan closed last, which can be reopened while no other is open.
