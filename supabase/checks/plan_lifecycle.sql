@@ -42,7 +42,7 @@ begin
   perform public.begin_meal_plan(ahead_plan);
   report := report || format(E'2. Start on the plan ahead does nothing: %s\n', (select status = 'new' from public.meal_plans where id = ahead_plan));
 
-  -- 3. A member's Close works on a new plan too (the running app offers it on any), and closing it leaves the current plan alone.
+  -- 3. A member's Close works on a new plan too (the running app offers it on any).
   insert into public.meal_plan_recipes (plan_id, recipe_id, meals, meal_on, meal) values (current_plan, recipe_one, 2, '2030-01-06', 'dinner') returning id into entry_one;
   insert into public.meal_plan_recipes (plan_id, recipe_id, meals, meal_on, meal) values (current_plan, recipe_two, 1, '2030-01-08', 'dinner') returning id into entry_two;
   perform public.close_meal_plan(ahead_plan);
