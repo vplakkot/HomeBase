@@ -242,12 +242,13 @@ No address comes from the link.
   takes a fresh token that carries it, and lands on the existing
   `/set-password` step.
 - **Change your own email** (Profile): `updateUser({ email })`. With
-  Supabase's "Secure email change" off, only the new address is emailed,
-  and the change takes effect once it confirms.
+  Supabase's "Secure email change" off, only the new address should be
+  emailed, and the change should take effect once it confirms (unproven
+  until a real send).
 - **Admin changes a member's email** (admin console, People card). For
   someone who has signed in before, the server briefly acts as them to ask
   Supabase for the same confirmation: `generateLink` (a one-time link that
-  sends nothing) → `verifyOtp` on a client that keeps no session
+  should send nothing: unproven) → `verifyOtp` on a client that keeps no session
   (`lib/supabase/ephemeral.ts`) → `updateUser` → sign that session out.
   For someone who never has, the address changes at once, their temporary
   password is replaced with a random one, `must_set_password` is set, and a

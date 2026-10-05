@@ -303,9 +303,15 @@ export async function changeMemberEmail(
       console.error("changeMemberEmail: could not act as them", verifyError.message);
       return { error: "Couldn't start the change. Try again." };
     }
-    ({ error: failure } = await asThem.auth.updateUser({ email }, { emailRedirectTo: redirectTo }));
-    // That short sign-in was only for this request.
-    await asThem.auth.signOut({ scope: "local" }).catch(() => {});
+    try {
+      ({ error: failure } = await asThem.auth.updateUser({ email }, { emailRedirectTo: redirectTo }));
+    } catch (reason) {
+      console.error("changeMemberEmail: the change threw", reason);
+      failure = { message: "threw" };
+    } finally {
+      // That short sign-in was only for this request.
+      await asThem.auth.signOut({ scope: "local" }).catch(() => {});
+    }
   }
   if (failure) {
     console.error("changeMemberEmail failed", failure.code, failure.message);

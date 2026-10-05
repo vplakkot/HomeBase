@@ -61,7 +61,7 @@ export async function setModuleHidden(_previous: HiddenState, formData: FormData
 
 // REQ-158: changing your own email from Profile. Supabase emails a
 // confirmation to the new address only, and the change takes effect once
-// it's followed (the old address is told nothing). Same account, so
+// it's followed. (Expected: the old address is told nothing. Unproven until a real send.) Same account, so
 // nothing else about you changes.
 export async function changeMyEmail(_previous: EmailChangeState, formData: FormData): Promise<EmailChangeState> {
   const email = cleanEmail(formData.get("email"));

@@ -51,6 +51,12 @@ export async function GET(request: NextRequest) {
     await supabase.auth.signOut();
     return go(request, "/sign-in?link=invalid");
   }
-  await supabase.auth.refreshSession();
+  const { error: refreshError } = await supabase.auth.refreshSession();
+  if (refreshError) {
+    // Without the flag in the token, /set-password would bounce them Home
+    // and they'd never be asked for a password.
+    await supabase.auth.signOut();
+    return go(request, "/sign-in?link=invalid");
+  }
   return go(request, "/set-password");
 }

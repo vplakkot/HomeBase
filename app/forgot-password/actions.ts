@@ -8,8 +8,9 @@ export type ForgotPasswordState = { error?: string; sent?: boolean };
 
 // #80: someone locked out asks for a link to choose a new password. The
 // answer is the same whether or not the address has an account, so this
-// page can't be used to find out who is in the household. Supabase sends
-// the email only for an address that has one.
+// page can't be used to find out who is in the household. Supabase is
+// expected to send the email only for an address that has one, and to report
+// no error for one that doesn't (unproven until a real run).
 export async function requestPasswordReset(
   _previous: ForgotPasswordState,
   formData: FormData,
