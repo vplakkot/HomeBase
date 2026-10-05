@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { planStats, type PlanRow, type PlanStats } from "./plan";
 import type { Recipe } from "./recipes";
 import { naturalGapDays, suggestions } from "./suggest";
+import { ratingText } from "./home";
 
 // Invented recipes and plans; nothing here is real.
 function recipe(id: string, extra: Partial<Recipe> = {}): Recipe {
@@ -162,3 +163,13 @@ describe("the fun numbers on Meal Plans' home (REQ-118)", async () => {
     expect(homeStats([recipe("a")], new Map(), new Map())).toEqual({ mostCooked: null, topRated: null, recipes: 1, cuisines: 1 });
   });
 });
+
+describe("the top rated number (REQ-173)", () => {
+  it("is the average with one star, one decimal, and no decimal for a whole number", () => {
+    expect(ratingText(4.5)).toBe("★ 4.5");
+    expect(ratingText(5)).toBe("★ 5");
+    expect(ratingText(4.96)).toBe("★ 5");
+    expect(ratingText(4.333)).toBe("★ 4.3");
+  });
+});
+
