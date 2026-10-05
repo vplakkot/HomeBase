@@ -152,16 +152,17 @@ export async function readLastClosedPlan(supabase: SupabaseClient): Promise<stri
   return (data as { id: string } | null)?.id ?? null;
 }
 
-// A recipe's times planned and date last planned (REQ-115, shown on the
-// card and sorted by in the library), counted from every plan it's in.
-// A recipe carried over (REQ-116) wasn't really planned that week, so it
-// counts once it's in a plan again. `first` is the day it was first
-// planned, for "Try something new" (REQ-117).
+// A recipe's times cooked and date last cooked (REQ-175, shown on the card
+// and sorted by in the library, and the ranking of suggestions), counted
+// from the closed plans it was cooked in: a dish counts once its plan has
+// closed, unless it was marked "Didn't cook this" (REQ-163). `last` is the
+// day it was last cooked; `first` the day it was first, for "Try something
+// new" (REQ-117). A recipe in a plan that hasn't closed has no counts yet.
 export type PlanStats = { times: number; last: string | null; first: string | null };
-export type PlanRow = { plan_id: string; recipe_id: string | null; carry_over: boolean; meal_plans: { starts_on: string; closed_at: string | null } | null };
+export type PlanRow = { recipe_id: string | null; cooked: boolean; meal_on: string | null; meal_plans: { closed_at: string | null } | null };
 
 export async function readPlanRows(supabase: SupabaseClient): Promise<PlanRow[]> {
-  const { data, error } = await supabase.from("meal_plan_recipes").select("plan_id, recipe_id, carry_over, meal_plans(starts_on, closed_at)");
+  const { data, error } = await supabase.from("meal_plan_recipes").select("recipe_id, cooked, meal_on, meal_plans(closed_at)");
   if (error) throw new Error(`Could not read planned recipes: ${error.message}`);
   // An evening out is no recipe: it counts toward nothing.
   return ((data ?? []) as unknown as PlanRow[]).filter((row) => row.recipe_id !== null);
@@ -170,8 +171,10 @@ export async function readPlanRows(supabase: SupabaseClient): Promise<PlanRow[]>
 export function planStats(rows: readonly PlanRow[]): Map<string, PlanStats> {
   const stats = new Map<string, PlanStats>();
   for (const row of rows) {
-    if (row.carry_over || row.recipe_id === null) continue;
-    const day = row.meal_plans?.starts_on ?? null;
+    // Cooked, in a plan that has closed. (Existing plans: closing wrote `cooked` for
+    // every dish but the carried-over ones, which is exactly the rule for old data.)
+    if (row.recipe_id === null || !row.cooked || !row.meal_plans?.closed_at) continue;
+    const day = row.meal_on;
     const now = stats.get(row.recipe_id) ?? { times: 0, last: null, first: null };
     stats.set(row.recipe_id, {
       times: now.times + 1,
@@ -192,11 +195,6 @@ export async function readProposed(supabase: SupabaseClient): Promise<string[]> 
   const { data, error } = await supabase.from("meal_plan_proposed_next").select("recipe_id");
   if (error) throw new Error(`Could not read the proposed recipes: ${error.message}`);
   return ((data ?? []) as { recipe_id: string }[]).map((row) => row.recipe_id);
-}
-
-// REQ-116: what the last plan closed carried over, to propose first.
-export function carriedOver(rows: readonly PlanRow[], lastClosed: string | null): string[] {
-  return rows.flatMap((row) => (row.carry_over && row.plan_id === lastClosed && row.recipe_id ? [row.recipe_id] : []));
 }
 
 // REQ-170: next week's plan starts at the meal right after the current

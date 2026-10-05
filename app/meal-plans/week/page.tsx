@@ -151,7 +151,7 @@ function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: re
 // cooked unless we say "Didn't cook this" (and can take that back). A dish
 // we didn't cook can go straight into next week's plan; with no plan for next
 // week yet it is proposed first when one is created.
-function ClosingCards({ closed, names, ahead, proposed, toRate }: { closed: ClosedPlan | null; names: Map<string, string>; ahead: MealPlan | null; proposed: ReadonlySet<string>; toRate: ReadonlySet<string> }) {
+function ClosingCards({ closed, names, ahead, toRate }: { closed: ClosedPlan | null; names: Map<string, string>; ahead: MealPlan | null; toRate: ReadonlySet<string> }) {
   const cards = closed?.cards.filter((card) => names.has(card.recipeId)) ?? [];
   if (cards.length === 0) return null;
   return (
@@ -183,12 +183,11 @@ function ClosingCards({ closed, names, ahead, proposed, toRate }: { closed: Clos
                 <input type="hidden" name="entry_id" value={card.entryId} />
                 <input type="hidden" name="recipe_id" value={card.recipeId} />
                 <input type="hidden" name="didnt_cook" value={card.didntCook ? "no" : "yes"} />
-                <button type="submit" className={styles.linkButton} aria-label={`${card.didntCook ? "Cooked after all" : "Didn't cook this"}: ${name}`}>
-                  {card.didntCook ? "Cooked after all" : "Didn't cook this"}
+                <button type="submit" className={styles.linkButton} aria-label={`${card.didntCook ? "Cooked" : "Didn't cook"}: ${name}`}>
+                  {card.didntCook ? "Cooked" : "Didn't cook"}
                 </button>
               </form>
               {card.didntCook && ahead && !inNextWeek ? <AddToWeekButton planId={ahead.id} recipeId={card.recipeId} label="Add to next week" /> : null}
-              {card.didntCook && !ahead && proposed.has(card.recipeId) ? <span className={styles.tag}>Proposed for next week</span> : null}
             </li>
           );
         })}
@@ -227,7 +226,7 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
     return (
       <MealPlansScreen viewer={viewer} section="This week">
         <RatePrompts recipes={rateElsewhere} />
-        <ClosingCards closed={closed} names={names} ahead={null} proposed={new Set(proposed)} toRate={rateOnCards} />
+        <ClosingCards closed={closed} names={names} ahead={null} toRate={rateOnCards} />
         <section className={styles.formCard} aria-label="This week">
           <h2 className={styles.title}>No plan yet</h2>
           <StartPlanForm today={today} label="New meal plan" />
@@ -265,7 +264,7 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
     <MealPlansScreen viewer={viewer} section="This week">
       {startedNotice ? <p role="status">{startedNotice}</p> : null}
       <RatePrompts recipes={rateElsewhere} />
-      <ClosingCards closed={closed} names={names} ahead={ahead} proposed={new Set(proposed)} toRate={rateOnCards} />
+      <ClosingCards closed={closed} names={names} ahead={ahead} toRate={rateOnCards} />
       <PlanCard plan={plan} recipes={recipes} names={names} ahead={false} />
       {suggested.length > 0 ? (
         <section className={styles.section} aria-label="Suggestions">

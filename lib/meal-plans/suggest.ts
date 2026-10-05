@@ -31,7 +31,7 @@ export function daysBetween(from: string, to: string): number {
 
 // Higher is sooner. Rating counts as a share of 5 stars; "due" is how far
 // through its natural gap the dish is, capped so one long-forgotten dish
-// can't outrank every favourite by distance alone. Never planned counts
+// can't outrank every favourite by distance alone. Never cooked counts
 // as a little overdue.
 export function score(recipe: Recipe, stats: PlanStats | undefined, average: number | undefined, today: string): number {
   const rating = (average ?? UNRATED) / 5;
@@ -41,7 +41,7 @@ export function score(recipe: Recipe, stats: PlanStats | undefined, average: num
 
 function labelFor(recipe: Recipe, stats: PlanStats | undefined, average: number | undefined, today: string): SuggestionLabel | null {
   if (!stats || stats.times === 0) return "New to try";
-  // Well rated and not planned in a long time: twice its natural gap, and
+  // Well rated and not cooked in a long time: twice its natural gap, and
   // at least two months.
   const long = Math.max(60, 2 * naturalGapDays(recipe.cook_minutes));
   if (average !== undefined && average >= 4 && stats.last && daysBetween(stats.last, today) >= long) return "Forgotten gem";
@@ -71,9 +71,9 @@ export function suggestions({
   const out: Suggestion[] = open.filter((recipe) => carriedSet.has(recipe.id)).map((recipe) => ({ recipe, label: "Carried over" }));
   const rest = open.filter((recipe) => !carriedSet.has(recipe.id));
 
-  // "Try something new": when nothing new to us was planned in the last
-  // 30 days, one recipe we've never planned, from a cuisine we haven't
-  // planned in those 30 days either.
+  // "Try something new": when nothing new to us was cooked in the last
+  // 30 days, one recipe we've never cooked, from a cuisine we haven't
+  // cooked in those 30 days either.
   const monthAgo = addDays(today, -30);
   const tried = [...stats.values()].some((stat) => stat.first !== null && stat.first >= monthAgo);
   let fresh: Recipe | undefined;

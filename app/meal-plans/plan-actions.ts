@@ -245,10 +245,10 @@ async function syncAhead(supabase: Supabase) {
   }
 }
 
-// Adding a recipe is what counts it as planned (REQ-115): its times
-// planned and date last planned are read from these rows. REQ-168: it goes
-// to the next free meal it can start at unless a meal is chosen; "Eating
-// out" is an entry that takes one dinner and has no recipe.
+// Adding a recipe puts it in the plan (REQ-115); it counts as cooked only
+// once the plan closes (REQ-175). REQ-168: it goes to the next free meal it
+// can start at unless a meal is chosen; "Eating out" is an entry that takes
+// one dinner and has no recipe.
 export async function addToPlan(_prev: PlanFormState, formData: FormData): Promise<PlanFormState> {
   const supabase = await requireMember();
   const planId = idFrom(formData.get("plan_id"));

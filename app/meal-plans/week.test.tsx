@@ -256,19 +256,22 @@ describe("the week's plan (REQ-115)", () => {
     expect((screen.getByRole("combobox", { name: "Size" }) as HTMLSelectElement).value).toBe("2");
   });
 
-  it("counts a planned recipe on its card: times planned and date last planned", async () => {
+  it("counts a cooked recipe on its card: times cooked and date last cooked, from closed plans only", async () => {
     given({
       recipes: [RECIPE],
       meal_plans: [openPlan([planned(ID, 2)])],
       meal_plan_recipes: [
-        { recipe_id: ID, meal_plans: { starts_on: "2026-09-13" } },
-        { recipe_id: ID, meal_plans: { starts_on: "2026-09-27" } },
+        { recipe_id: ID, cooked: true, meal_on: "2026-09-13", meal_plans: { closed_at: "2026-09-19T20:00:00Z" } },
+        { recipe_id: ID, cooked: true, meal_on: "2026-09-20", meal_plans: { closed_at: "2026-09-26T20:00:00Z" } },
+        // Not counted: marked Didn't cook this, and in a plan that is still open.
+        { recipe_id: ID, cooked: false, meal_on: "2026-09-21", meal_plans: { closed_at: "2026-09-26T20:00:00Z" } },
+        { recipe_id: ID, cooked: false, meal_on: "2026-09-27", meal_plans: { closed_at: null } },
       ],
     });
     render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
     const card = screen.getByRole("article", { name: "Test chicken rice" });
-    expect(within(card).getByText("Times planned").nextElementSibling?.textContent).toBe("2");
-    expect(within(card).getByText("Last planned").nextElementSibling?.textContent).toBe("Sun, Sep 27");
+    expect(within(card).getByText("Times cooked").nextElementSibling?.textContent).toBe("2");
+    expect(within(card).getByText("Last cooked").nextElementSibling?.textContent).toBe("Sun, Sep 20");
     expect(within(card).getByRole("link", { name: "In this week's plan" })).toBeTruthy();
   });
 
@@ -276,7 +279,7 @@ describe("the week's plan (REQ-115)", () => {
     given({ recipes: [RECIPE], meal_plans: [openPlan([])], meal_plan_recipes: [] });
     render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
     expect(screen.getByRole("button", { name: "Add to this week" })).toBeTruthy();
-    expect(screen.getByText("Last planned").nextElementSibling?.textContent).toBe("Never");
+    expect(screen.getByText("Last cooked").nextElementSibling?.textContent).toBe("Never");
   });
 
   it("changes size and takes a recipe off, which simply leaves the plan", async () => {
@@ -429,21 +432,24 @@ describe("Meal Plans' home (REQ-118)", () => {
     expect(within(week).getByRole("button", { name: "New meal plan" })).toBeTruthy();
   });
 
-  it("shows the most planned and top rated recipes, total recipes and number of cuisines", async () => {
+  it("shows the most cooked and top rated recipes, total recipes and number of cuisines", async () => {
     given({
       recipes: [RECIPE, SECOND, { ...SECOND, id: "88888888-8888-4888-8888-888888888888", name: "Test pho", cuisine: "Vietnamese" }],
       recipe_imports: [],
       meal_plans: [],
       meal_plan_recipes: [
-        { plan_id: PLAN, recipe_id: ID, carry_over: false, meal_plans: { starts_on: "2026-09-13", closed_at: "2026-09-19T20:00:00Z" } },
-        { plan_id: PLAN, recipe_id: ID, carry_over: false, meal_plans: { starts_on: "2026-09-20", closed_at: "2026-09-26T20:00:00Z" } },
+        { recipe_id: ID, cooked: true, meal_on: "2026-09-13", meal_plans: { closed_at: "2026-09-19T20:00:00Z" } },
+        { recipe_id: ID, cooked: true, meal_on: "2026-09-20", meal_plans: { closed_at: "2026-09-26T20:00:00Z" } },
+        // Planned three times but not cooked: it doesn't count.
+        { recipe_id: OTHER, cooked: false, meal_on: "2026-09-20", meal_plans: { closed_at: "2026-09-26T20:00:00Z" } },
+        { recipe_id: OTHER, cooked: false, meal_on: "2026-09-27", meal_plans: { closed_at: null } },
       ],
       recipe_ratings: [{ recipe_id: OTHER, user_id: "user-1", stars: 5 }],
     });
     render(await MealPlansPage());
     const kitchen = screen.getByRole("region", { name: "Our kitchen" });
     const value = (label: string) => within(kitchen).getByText(label).nextElementSibling?.textContent;
-    expect(value("Most planned")).toBe("Test chicken rice (2)");
+    expect(value("Most cooked")).toBe("Test chicken rice (2)");
     expect(value("Top rated")).toBe("Test lentil soup ★★★★★");
     expect(value("Recipes")).toBe("3");
     expect(value("Cuisines")).toBe("2");
@@ -834,8 +840,8 @@ describe("the plan lifecycle (REQ-163)", () => {
     render(await WeekPage());
     const cards = within(screen.getByRole("region", { name: "Closing cards" })).getAllByRole("listitem");
     expect(cards.map((item) => item.textContent)).toEqual([
-      "Test chicken riceDidn't cook this",
-      "Test lentil soupDidn't cookCooked after allProposed for next week",
+      "Test chicken riceDidn't cook",
+      "Test lentil soupDidn't cookCooked",
     ]);
   });
 
@@ -844,7 +850,6 @@ describe("the plan lifecycle (REQ-163)", () => {
     render(await WeekPage());
     const closing = within(screen.getByRole("region", { name: "Closing cards" }));
     expect(closing.getByRole("button", { name: "Add to next week" })).toBeTruthy();
-    expect(closing.queryByText("Proposed for next week")).toBeNull();
   });
 
   it("shows no closing cards for a plan closed more than a week ago, or one with no dishes", async () => {
@@ -902,7 +907,7 @@ describe("the closing cards and the start notification (REQ-163)", () => {
     const row = within(screen.getByRole("region", { name: "Closing cards" })).getByRole("listitem");
     expect(within(row).getAllByRole("radio")).toHaveLength(5);
     expect(within(row).getByRole("button", { name: "Skip rating Test chicken rice" })).toBeTruthy();
-    expect(within(row).getByRole("button", { name: /Didn't cook this/ })).toBeTruthy();
+    expect(within(row).getByRole("button", { name: /Didn't cook/ })).toBeTruthy();
   });
 
   it("keeps a separate Rate these tile only for dishes that aren't on a closing card, and asks no rating for a dish we didn't cook", async () => {

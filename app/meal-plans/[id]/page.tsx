@@ -19,7 +19,7 @@ import styles from "../meal-plans.module.css";
 const UUID = /^[0-9a-f-]{36}$/i;
 
 // REQ-110: one recipe as one card: photo, links, the facts, ingredients
-// with quantities, steps and notes, how often we've planned it (REQ-115)
+// with quantities, steps and notes, how often we've cooked it (REQ-175)
 // and each person's rating, which its owner changes here (REQ-116).
 export default async function RecipePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -36,7 +36,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   const starsBy = new Map(ratings.filter((rating) => rating.recipe_id === recipe.id).map((rating) => [rating.user_id, rating.stars]));
   const mine = starsBy.get(viewer.userId) ?? null;
   const others = people.filter((person) => person.user_id !== viewer.userId);
-  const planned = stats.get(recipe.id) ?? { times: 0, last: null };
+  const cooked = stats.get(recipe.id) ?? { times: 0, last: null };
   const inPlan = plan?.recipes.some((entry) => entry.recipe_id === recipe.id) ?? false;
   const photo = recipe.photo ? (await signedPhotoLinks(viewer.supabase, [recipe.photo], 60 * 60, RECIPE_PHOTOS)).get(recipe.photo) : undefined;
   const facts = [
@@ -45,8 +45,8 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
     ["Cooking method", recipe.cooking_method],
     ["Cook time", cookTimeText(recipe.cook_minutes)],
     ["Servings", recipe.servings ? String(recipe.servings) : null],
-    ["Times planned", String(planned.times)],
-    ["Last planned", planned.last ? dayLabel(planned.last) : "Never"],
+    ["Times cooked", String(cooked.times)],
+    ["Last cooked", cooked.last ? dayLabel(cooked.last) : "Never"],
   ] as const;
   return (
     <MealPlansScreen viewer={viewer} section="Recipes" crumb={recipe.name}>
