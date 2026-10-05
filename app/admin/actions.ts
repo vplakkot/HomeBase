@@ -271,8 +271,8 @@ export async function sendTestToMember(
   }
 }
 
-// REQ-160: the admin removing any member's device. Only someone in this
-// household's list can be reached: the id must be a device of a member.
+// REQ-160: the admin removing any member's device. Only a manage_members
+// holder gets this far; the table itself only holds members' devices.
 export async function removeMemberDevice(deviceId: string): Promise<{ error?: string; done?: string }> {
   await requireManageMembers();
   try {

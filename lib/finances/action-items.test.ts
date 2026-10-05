@@ -346,7 +346,7 @@ describe("Finances action items (REQ-93)", () => {
   // Vin, 2026-09-29: the tile named only the top item of several.
   it("names the item on Finances' tile when there is one, and says 'Multiple action items' for several", () => {
     const one = { text: "Rent overdue" } as FinanceItem;
-    const two = { text: "April isn't finished" } as FinanceItem;
+    const two = { text: "April ended, not squared" } as FinanceItem;
     expect(financeTile(snapshot({}), [one]).status).toBe("Rent overdue");
     expect(financeTile(snapshot({}), [one, two]).status).toBe("Multiple action items");
     expect(financeTile(snapshot({}), [one, two]).headline).toBe("Multiple action items");
@@ -475,5 +475,27 @@ describe("a month added later", () => {
     expect(financeItems(s, ALEX).filter((item) => item.key === "ended:2026-06-01").every((item) => item.push === null)).toBe(true);
     const plain = snapshot({ today: "2026-09-10", months: [{ ...ended, added_later: false }] });
     expect(financeItems(plain, ALEX).find((item) => item.key === "ended:2026-06-01")?.push).not.toBeNull();
+  });
+});
+
+// Vin, 2026-09-28: Finances home on April shows April's items only.
+describe("items for the month on screen", () => {
+  const item = (href: string) => ({ href }) as FinanceItem;
+  const items = [
+    item("/finances/log-payment?month=2026-09&bill=b-1"),
+    item("/finances/monthly-entry?month=2026-04"),
+    item("/finances/budget-year"),
+    item("/finances?month=2026-04"),
+  ];
+
+  it("reads an item's month from its link", () => {
+    expect(itemMonth(items[0])).toBe("2026-09-01");
+    expect(itemMonth(items[2])).toBeNull();
+  });
+
+  it("shows a month gone by only its own items, and the month now running all of them", () => {
+    expect(itemsForMonth(items, "2026-04-01", "2026-09-28")).toEqual([items[1], items[3]]);
+    expect(itemsForMonth(items, "2026-05-01", "2026-09-28")).toEqual([]);
+    expect(itemsForMonth(items, "2026-09-01", "2026-09-28")).toEqual(items);
   });
 });
