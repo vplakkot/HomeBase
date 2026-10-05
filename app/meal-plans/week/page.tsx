@@ -16,8 +16,9 @@ import { averageRatings, readRatingPrompts, readRatings } from "../../../lib/mea
 import { readRecipes, type Recipe } from "../../../lib/meal-plans/recipes";
 import { suggestions } from "../../../lib/meal-plans/suggest";
 import { MealPlansScreen, mealPlansViewer } from "../frame";
-import { AddToPlanForm, AddToWeekButton, ChangeStartForm, DaysOffForm, MoveControls, PlanAheadForm, PlannedControls, StartPlanForm } from "../plan-forms";
-import { closePlan, removePlan, reopenPlan, setDidntCook, startPlanNow, takeOffPlan } from "../plan-actions";
+import { AddToPlanForm, AddToWeekButton, ChangeStartForm, DaysOffForm, MoveControls, PlanAheadForm, PlannedControls, RateRecipeForm, StartPlanForm } from "../plan-forms";
+import { closePlan, removePlan, reopenPlan, setDidntCook, skipRating, startPlanNow, takeOffPlan } from "../plan-actions";
+import { readPeople } from "../../../lib/drinks/drinks";
 import { buttonClass } from "../../../components/button";
 import { RatePrompts } from "../rate-prompts";
 import styles from "../meal-plans.module.css";
@@ -150,7 +151,7 @@ function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: re
 // cooked unless we say "Didn't cook this" (and can take that back). A dish
 // we didn't cook can go straight into next week's plan; with no plan for next
 // week yet it is proposed first when one is created.
-function ClosingCards({ closed, names, ahead, proposed }: { closed: ClosedPlan | null; names: Map<string, string>; ahead: MealPlan | null; proposed: ReadonlySet<string> }) {
+function ClosingCards({ closed, names, ahead, proposed, toRate }: { closed: ClosedPlan | null; names: Map<string, string>; ahead: MealPlan | null; proposed: ReadonlySet<string>; toRate: ReadonlySet<string> }) {
   const cards = closed?.cards.filter((card) => names.has(card.recipeId)) ?? [];
   if (cards.length === 0) return null;
   return (
@@ -166,6 +167,18 @@ function ClosingCards({ closed, names, ahead, proposed }: { closed: ClosedPlan |
             <li key={card.entryId} className={styles.planRow}>
               <Link href={`/meal-plans/${card.recipeId}`}>{name}</Link>
               {card.didntCook ? <span className={styles.tag}>Didn&apos;t cook</span> : null}
+              {/* A dish cooked for the first time asks each of us for a rating, on the same card. */}
+              {!card.didntCook && toRate.has(card.recipeId) ? (
+                <>
+                  <RateRecipeForm recipeId={card.recipeId} name={name} stars={null} />
+                  <form action={skipRating}>
+                    <input type="hidden" name="recipe_id" value={card.recipeId} />
+                    <button type="submit" className={styles.linkButton} aria-label={`Skip rating ${name}`}>
+                      Skip
+                    </button>
+                  </form>
+                </>
+              ) : null}
               <form action={setDidntCook}>
                 <input type="hidden" name="entry_id" value={card.entryId} />
                 <input type="hidden" name="recipe_id" value={card.recipeId} />
@@ -189,10 +202,10 @@ function ClosingCards({ closed, names, ahead, proposed }: { closed: ClosedPlan |
 // REQ-116: closing it, and rating what we cooked. REQ-117: suggestions
 // while we plan; "Not now" drops one for this visit (it's kept in the
 // address).
-export default async function WeekPage({ searchParams }: { searchParams?: Promise<{ skip?: string }> } = {}) {
+export default async function WeekPage({ searchParams }: { searchParams?: Promise<{ skip?: string; start?: string }> } = {}) {
   const viewer = await mealPlansViewer();
   const query = (await searchParams) ?? {};
-  const [{ current: plan, ahead }, lastClosed, recipes, rows, ratings, prompts, proposed, closed] = await Promise.all([
+  const [{ current: plan, ahead }, lastClosed, recipes, rows, ratings, prompts, proposed, closed, people] = await Promise.all([
     readPlans(viewer.supabase),
     readLastClosedPlan(viewer.supabase),
     readRecipes(viewer.supabase),
@@ -201,15 +214,20 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
     readRatingPrompts(viewer.supabase, viewer.userId),
     readProposed(viewer.supabase),
     readClosedPlan(viewer.supabase, householdToday()),
+    readPeople(viewer.supabase),
   ]);
   const names = new Map(recipes.map((recipe) => [recipe.id, recipe.name]));
   const toRate = prompts.flatMap((id) => (names.has(id) ? [{ id, name: names.get(id) ?? "" }] : []));
+  // A dish on the last plan's closing cards is rated on its card; "Rate these" keeps only the rest.
+  const onCards = new Set(closed?.cards.map((card) => card.recipeId) ?? []);
+  const rateElsewhere = toRate.filter((recipe) => !onCards.has(recipe.id));
+  const rateOnCards = new Set(toRate.map((recipe) => recipe.id));
   const today = householdToday();
   if (!plan) {
     return (
       <MealPlansScreen viewer={viewer} section="This week">
-        <RatePrompts recipes={toRate} />
-        <ClosingCards closed={closed} names={names} ahead={null} proposed={new Set(proposed)} />
+        <RatePrompts recipes={rateElsewhere} />
+        <ClosingCards closed={closed} names={names} ahead={null} proposed={new Set(proposed)} toRate={rateOnCards} />
         <section className={styles.formCard} aria-label="This week">
           <h2 className={styles.title}>No plan yet</h2>
           <StartPlanForm today={today} label="New meal plan" />
@@ -228,6 +246,10 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
   const inPlan = new Set([...plan.recipes, ...(ahead?.recipes ?? [])].flatMap((entry) => (entry.recipe_id ? [entry.recipe_id] : [])));
   // REQ-169: dishes a push took off a plan, proposed first for next week's plan.
   const proposedFirst = recipes.filter((recipe) => proposed.includes(recipe.id) && !recipe.hidden && !inPlan.has(recipe.id));
+  // Opened from the "Start this week's plan?" notification after the other person already pressed Start (REQ-163).
+  const starter = plan.began_by ? people.find((person) => person.user_id === plan.began_by) : null;
+  const startedNotice =
+    query.start === plan.id && plan.status === "started" && plan.began_by !== viewer.userId ? `${starter?.name ?? "Someone"} already started this plan` : null;
   const skipped = (query.skip ?? "").split(",").filter((id) => UUID.test(id));
   const suggested = suggestions({
     recipes,
@@ -241,8 +263,9 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
   });
   return (
     <MealPlansScreen viewer={viewer} section="This week">
-      <RatePrompts recipes={toRate} />
-      <ClosingCards closed={closed} names={names} ahead={ahead} proposed={new Set(proposed)} />
+      {startedNotice ? <p role="status">{startedNotice}</p> : null}
+      <RatePrompts recipes={rateElsewhere} />
+      <ClosingCards closed={closed} names={names} ahead={ahead} proposed={new Set(proposed)} toRate={rateOnCards} />
       <PlanCard plan={plan} recipes={recipes} names={names} ahead={false} />
       {suggested.length > 0 ? (
         <section className={styles.section} aria-label="Suggestions">

@@ -1201,14 +1201,16 @@ A plan has a `status`: `new` until someone presses Start (a plan ahead is
 always new), `started` while it runs, `closed` after. Locking by day
 applies only to a started plan; a new one slides instead. Three things run
 without anyone signed in, in `lib/meal-plans/schedule.ts`, called every
-hour at twenty past by a `pg_cron` job (`meal-plan-schedule`) that posts to
+hour, on the hour, by a `pg_cron` job (`meal-plan-schedule`) that posts to
 `/api/notifications/meal-plan` with the same shared secret as the Finances
 job: it closes a started plan the day after its last filled meal
 (`close_meal_plan_system`, callable only by the server's own key), slides a
 new plan whose start day is over (its dishes move with it by the reflow
 rule, and next week's plan follows), and sends "Start this week's plan?" to
 everyone switched on, at 11:00 AM for a lunch start and 6:00 PM for a
-dinner start (ET, once per plan per day: `start_prompted_on` claims it).
+dinner start (ET, once per plan per day: `start_prompted_on` claims it). The
+notification opens the plan page with the plan in the link; `began_by` records
+who pressed Start, so a second person who opens it late is told who did.
 When a plan closes, every dish counts as cooked (`cooked`) unless it was
 marked `didnt_cook`, and each of us gets a rating question for a dish cooked
 for the first time. `set_didnt_cook` changes the mark after closing too:

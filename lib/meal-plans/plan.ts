@@ -35,6 +35,8 @@ export type MealPlan = {
   ahead: boolean;
   status: PlanStatus;
   start_prompted_on: string | null;
+  // Who pressed Start (REQ-163), to tell the other person who opens the start notification late.
+  began_by: string | null;
   recipes: PlannedRecipe[];
   daysOff: Set<string>;
 };
@@ -52,6 +54,7 @@ type PlanRowFromDb = {
   ahead: boolean | null;
   status: PlanStatus | null;
   start_prompted_on: string | null;
+  began_by: string | null;
   meal_plan_recipes: PlannedRecipe[] | null;
   meal_plan_days_off: { day: string }[] | null;
 };
@@ -62,7 +65,7 @@ type PlanRowFromDb = {
 export async function readStoredPlans(supabase: SupabaseClient): Promise<{ current: MealPlan | null; ahead: MealPlan | null }> {
   const { data, error } = await supabase
     .from("meal_plans")
-    .select(`id, starts_on, starts_meal, ahead, status, start_prompted_on, meal_plan_recipes(${ENTRY_COLUMNS}), meal_plan_days_off(day)`)
+    .select(`id, starts_on, starts_meal, ahead, status, start_prompted_on, began_by, meal_plan_recipes(${ENTRY_COLUMNS}), meal_plan_days_off(day)`)
     .is("closed_at", null);
   if (error) throw new Error(`Could not read the plan: ${error.message}`);
   // An open plan is never closed; the filter is the database's, this keeps a closed row out whatever it sent.
@@ -74,6 +77,7 @@ export async function readStoredPlans(supabase: SupabaseClient): Promise<{ curre
     // A plan the previous app version wrote has no status of its own: it was running.
     status: row.status ?? (row.ahead === true ? ("new" as const) : ("started" as const)),
     start_prompted_on: row.start_prompted_on ?? null,
+    began_by: row.began_by ?? null,
     recipes: (row.meal_plan_recipes ?? []).filter((entry) => entry.meal_on && entry.meal && entry.meals).sort((a, b) => startOf(a) - startOf(b) || a.added_at.localeCompare(b.added_at)),
     daysOff: new Set((row.meal_plan_days_off ?? []).map((off) => off.day)),
   }));

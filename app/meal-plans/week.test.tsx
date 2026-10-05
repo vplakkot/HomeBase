@@ -328,14 +328,14 @@ describe("closing a week and rating (REQ-116)", () => {
       recipe_imports: [],
     });
     render(await MealPlansPage());
-    const prompts = screen.getByRole("region", { name: "Rate what we cooked" });
+    const prompts = screen.getByRole("region", { name: "Rate these" });
     expect(within(prompts).getByRole("link", { name: "Test chicken rice" })).toBeTruthy();
     expect(within(prompts).getAllByRole("radio")).toHaveLength(5);
     expect(within(prompts).getByRole("button", { name: "Skip rating Test chicken rice" })).toBeTruthy();
     cleanup();
     given({ meal_plans: [], recipes: [RECIPE], recipe_rating_prompts: [] });
     render(await WeekPage());
-    expect(screen.queryByRole("region", { name: "Rate what we cooked" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Rate these" })).toBeNull();
   });
 
   it("saves a rating of 1 to 5 as the signed-in person's own, and skipping removes only their question", async () => {
@@ -879,6 +879,69 @@ describe("the plan lifecycle (REQ-163)", () => {
   });
 });
 
+describe("the closing cards and the start notification (REQ-163)", () => {
+  const closedRow = (cards: unknown[]) => ({
+    id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    starts_on: "2026-09-20",
+    starts_meal: "dinner",
+    ahead: false,
+    status: "closed",
+    closed_at: "2026-09-26T12:00:00Z",
+    meal_plan_recipes: cards,
+  });
+  const card = (id: string, recipe_id: string) => ({ id, recipe_id, didnt_cook: false, meal_on: "2026-09-27", meal: "dinner" });
+
+  it("puts the rating on the dish's closing card, not in a second tile", async () => {
+    given({
+      meal_plans: [closedRow([card(E1, ID)])],
+      recipes: [RECIPE, SECOND],
+      recipe_rating_prompts: [{ recipe_id: ID, created_at: "2026-09-27T20:00:00Z" }],
+    });
+    render(await WeekPage());
+    expect(screen.queryByRole("region", { name: "Rate these" })).toBeNull();
+    const row = within(screen.getByRole("region", { name: "Closing cards" })).getByRole("listitem");
+    expect(within(row).getAllByRole("radio")).toHaveLength(5);
+    expect(within(row).getByRole("button", { name: "Skip rating Test chicken rice" })).toBeTruthy();
+    expect(within(row).getByRole("button", { name: /Didn't cook this/ })).toBeTruthy();
+  });
+
+  it("keeps a separate Rate these tile only for dishes that aren't on a closing card, and asks no rating for a dish we didn't cook", async () => {
+    given({
+      meal_plans: [closedRow([{ ...card(E1, ID), didnt_cook: true }])],
+      recipes: [RECIPE, SECOND],
+      recipe_rating_prompts: [{ recipe_id: ID }, { recipe_id: OTHER }],
+    });
+    render(await WeekPage());
+    // The dish we didn't cook shows no rating on its card; the other prompt isn't on a card, so it keeps its own tile.
+    expect(within(screen.getByRole("region", { name: "Closing cards" })).queryAllByRole("radio")).toHaveLength(0);
+    const rate = within(screen.getByRole("region", { name: "Rate these" }));
+    expect(rate.getByRole("link", { name: "Test lentil soup" })).toBeTruthy();
+  });
+
+  it("tells whoever opens the start notification after the other person pressed Start who did, and no one else", async () => {
+    const started = { ...openPlan([planned(ID, 2)]), status: "started", began_by: "user-2" };
+    given({ meal_plans: [started], recipes: [RECIPE] });
+    render(await WeekPage({ searchParams: Promise.resolve({ start: PLAN }) }));
+    expect(screen.getByRole("status").textContent).toBe("Test Sam already started this plan");
+    cleanup();
+    // The person who pressed Start sees nothing, and neither does anyone opening the page without the notification's link.
+    given({ meal_plans: [{ ...started, began_by: "user-1" }], recipes: [RECIPE] });
+    render(await WeekPage({ searchParams: Promise.resolve({ start: PLAN }) }));
+    expect(screen.queryByRole("status")).toBeNull();
+    cleanup();
+    given({ meal_plans: [started], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("says nothing when the plan opened from the notification still needs Start", async () => {
+    given({ meal_plans: [{ ...openPlan([planned(ID, 2)]), status: "new" }], recipes: [RECIPE] });
+    render(await WeekPage({ searchParams: Promise.resolve({ start: PLAN }) }));
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("button", { name: "Start" })).toBeTruthy();
+  });
+});
+
 describe("planning ahead (REQ-162)", () => {
   it("queues the next plan at the dinner after the current plan's last meal, and never closes anything", async () => {
     const fake = given({ meal_plans: [openPlan([planned(ID, 2), planned(OTHER, 1, "2026-09-28", "dinner")])] });
@@ -960,7 +1023,12 @@ describe("module home actions and suggestions (REQ-165)", () => {
     render(await MealPlansPage());
     const actions = within(screen.getByRole("group", { name: "Start something" }));
     expect(actions.getByRole("link", { name: "Add recipe" }).getAttribute("href")).toBe("/meal-plans/new");
-    expect(actions.getByRole("link", { name: "New meal plan" }).getAttribute("href")).toBe("/meal-plans/week");
+    // One press makes the plan and goes straight to it: a button that posts, not a link to a page that asks again.
+    const button = actions.getByRole("button", { name: "New meal plan" });
+    expect(actions.queryByRole("link", { name: "New meal plan" })).toBeNull();
+    const form = button.closest("form") as HTMLFormElement;
+    expect((form.querySelector('input[name="then"]') as HTMLInputElement).value).toBe("week");
+    expect((form.querySelector('input[name="starts_on"]') as HTMLInputElement).value).toBe("2026-09-27");
   });
 
   it("swaps New meal plan for Plan next week while a plan runs, and drops it once one is ahead", async () => {

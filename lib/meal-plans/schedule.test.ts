@@ -24,6 +24,7 @@ const plan = (over: Partial<MealPlan> = {}): MealPlan => ({
   ahead: false,
   status: "started",
   start_prompted_on: null,
+  began_by: null,
   daysOff: new Set(),
   recipes: [{ id: "e1", recipe_id: "r1", eating_out: false, meals: 2, meal_on: "2026-10-04", meal: "dinner", cooked: false, carry_over: false, didnt_cook: false, added_at: "" }],
   ...over,
@@ -89,7 +90,7 @@ describe("running the schedule (REQ-163)", () => {
       subject: "https://homebase.example",
       trigger: "meal-plan",
       to: null,
-      message: { title: "Meal Plan", body: "Start this week's plan?", url: "/meal-plans/week" },
+      message: { title: "Meal Plan", body: "Start this week's plan?", url: "/meal-plans/week?start=p1" },
     });
   });
 

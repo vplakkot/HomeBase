@@ -83,7 +83,8 @@ export async function runMealPlanSchedule({ subject, now = new Date() }: { subje
     subject,
     trigger: "meal-plan",
     to: null,
-    message: { title: "Meal Plan", body: "Start this week's plan?", url: "/meal-plans/week" },
+    // The plan is in the link, so whoever opens it after the other person pressed Start is told so.
+    message: { title: "Meal Plan", body: "Start this week's plan?", url: `/meal-plans/week?start=${current.id}` },
   });
   return { closed, slid, sent: summary.delivered, quiet: false };
 }

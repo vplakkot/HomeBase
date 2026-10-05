@@ -26,7 +26,7 @@ begin
     raise exception 'Need a Member to test with';
   end if;
 
-  report := report || format(E'0. the hourly job is scheduled: %s\n', exists (select 1 from cron.job where jobname = 'meal-plan-schedule'));
+  report := report || format(E'0. the job is scheduled on the hour: %s\n', exists (select 1 from cron.job where jobname = 'meal-plan-schedule' and schedule = '0 * * * *'));
   update public.meal_plans set closed_at = now() - interval '1 day', status = 'closed' where closed_at is null;
 
   perform set_config('request.jwt.claims', json_build_object('sub', member_id, 'role', 'authenticated')::text, true);
@@ -51,7 +51,7 @@ begin
 
   -- 4. Start it; the system closer isn't ours to call.
   perform public.begin_meal_plan(current_plan);
-  report := report || format(E'4. started: %s\n', (select status = 'started' from public.meal_plans where id = current_plan));
+  report := report || format(E'4. started, by the member who pressed Start: %s\n', (select status = 'started' and began_by = member_id from public.meal_plans where id = current_plan));
   begin
     perform public.close_meal_plan_system(current_plan, true);
     report := report || E'5. member calls the system closer: NOT refused (BAD)\n';

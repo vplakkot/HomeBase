@@ -942,6 +942,22 @@ describe("meal plan: plan lifecycle (REQ-163)", () => {
   });
 });
 
+describe("meal plan: lifecycle follow-ups (REQ-163)", () => {
+  const follow = readMigration("20261006120000");
+
+  it("remembers who pressed Start, set to the person asking, only on a new plan we're on", () => {
+    expect(follow).toMatch(/add column began_by uuid references auth\.users \(id\) on delete set null;/);
+    expect(follow).toMatch(/set status = 'started', began_by = \(select auth\.uid\(\)\)/);
+    expect(follow).toMatch(/where id = p_plan and closed_at is null and not ahead and status = 'new';/);
+    expect(follow).toMatch(/if not public\.has_permission\('use_modules'\) then/);
+  });
+
+  it("moves the schedule to the hour, as the same job", () => {
+    expect(follow).toMatch(/'meal-plan-schedule',\s+'0 \* \* \* \*'/);
+    expect(follow).toMatch(/\|\| '\/api\/notifications\/meal-plan'/);
+  });
+});
+
 describe("restaurants migration (REQ-90, REQ-129)", () => {
   const restaurants = readMigration("20260929100000");
 

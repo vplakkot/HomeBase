@@ -119,8 +119,8 @@ export async function startPlan(_prev: PlanFormState, formData: FormData): Promi
 
 // A plan as the rules see it: its start, its entries and its days off.
 async function loadPlan(supabase: Supabase, planId: string): Promise<MealPlan | null> {
-  const { data } = await supabase.from("meal_plans").select("id, starts_on, starts_meal, ahead, status, start_prompted_on").eq("id", planId).is("closed_at", null).maybeSingle();
-  const plan = data as { id: string; starts_on: string; starts_meal: MealKind; ahead: boolean | null; status: PlanStatus | null; start_prompted_on: string | null } | null;
+  const { data } = await supabase.from("meal_plans").select("id, starts_on, starts_meal, ahead, status, start_prompted_on, began_by").eq("id", planId).is("closed_at", null).maybeSingle();
+  const plan = data as { id: string; starts_on: string; starts_meal: MealKind; ahead: boolean | null; status: PlanStatus | null; start_prompted_on: string | null; began_by: string | null } | null;
   if (!plan) return null;
   const [entries, off] = await Promise.all([
     supabase.from("meal_plan_recipes").select(ENTRY_COLUMNS).eq("plan_id", planId),
@@ -134,6 +134,7 @@ async function loadPlan(supabase: Supabase, planId: string): Promise<MealPlan | 
     ahead: plan.ahead === true,
     status: plan.status ?? (plan.ahead === true ? "new" : "started"),
     start_prompted_on: plan.start_prompted_on ?? null,
+    began_by: plan.began_by ?? null,
     recipes,
     daysOff: new Set(((off.data ?? []) as { day: string }[]).map((row) => row.day)),
   };

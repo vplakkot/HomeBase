@@ -69,6 +69,22 @@ export function StartPlanForm({
   );
 }
 
+// The module home's "New meal plan": one press makes the plan (today, at
+// dinner) and goes straight to it, instead of to a page that asks again.
+export function NewPlanForm({ today }: { today: string }) {
+  const [state, formAction, pending] = useActionState(startPlan, initialState);
+  return (
+    <form action={formAction} className={styles.inline}>
+      <input type="hidden" name="then" value="week" />
+      <input type="hidden" name="starts_on" value={today} />
+      <button type="submit" className={buttonClass} disabled={pending}>
+        New meal plan
+      </button>
+      <Outcome state={state} />
+    </form>
+  );
+}
+
 // REQ-162: the next plan, queued behind the current one. It starts the day
 // after the current plan's last meal, so there is no day to choose.
 export function PlanAheadForm({ thenWeek = false }: { thenWeek?: boolean }) {

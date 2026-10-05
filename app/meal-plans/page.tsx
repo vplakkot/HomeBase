@@ -9,7 +9,7 @@ import { averageRatings, readRatingPrompts, readRatings, starsText } from "../..
 import { readImports, readRecipes } from "../../lib/meal-plans/recipes";
 import { dismissImport } from "./actions";
 import { MealPlansScreen, mealPlansViewer } from "./frame";
-import { PlanAheadForm, StartPlanForm } from "./plan-forms";
+import { NewPlanForm, PlanAheadForm, StartPlanForm } from "./plan-forms";
 import { RatePrompts } from "./rate-prompts";
 import styles from "./meal-plans.module.css";
 import band from "../../components/band.module.css";
@@ -47,7 +47,7 @@ export default async function MealPlansPage() {
     <MealPlansScreen viewer={viewer} section={OVERVIEW}>
       <div className={styles.homeActions} role="group" aria-label="Start something">
         <ButtonLink href="/meal-plans/new">Add recipe</ButtonLink>
-        {!plan ? <ButtonLink href="/meal-plans/week">New meal plan</ButtonLink> : !ahead ? <PlanAheadForm thenWeek /> : null}
+        {!plan ? <NewPlanForm today={householdToday()} /> : !ahead ? <PlanAheadForm thenWeek /> : null}
       </div>
       <RatePrompts recipes={prompts.flatMap((id) => (byId.has(id) ? [{ id, name: byId.get(id)?.name ?? "" }] : []))} />
       {imports.length > 0 ? (

@@ -12,6 +12,7 @@ describe("where next week's plan starts (REQ-170)", () => {
     ahead: false,
     status: "started",
     start_prompted_on: null,
+    began_by: null,
     daysOff: new Set(),
     recipes: entries.map((entry, index) => ({ id: `e${index}`, recipe_id: "r", eating_out: false, meals: entry.size, meal_on: entry.day, meal: entry.meal, cooked: false, carry_over: false, didnt_cook: false, added_at: "" })),
   });
@@ -49,6 +50,7 @@ describe("Home's Meal Plans tile", () => {
     ahead: false,
     status: "started",
     start_prompted_on: null,
+    began_by: null,
     daysOff: new Set(),
     recipes: sizes.map((size, index) => ({
       id: `e${index}`,
