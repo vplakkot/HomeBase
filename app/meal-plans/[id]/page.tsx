@@ -19,7 +19,7 @@ import styles from "../meal-plans.module.css";
 const UUID = /^[0-9a-f-]{36}$/i;
 
 // REQ-110: one recipe as one card: photo, links, the facts, ingredients
-// with quantities, steps and notes, how often we've planned it (REQ-115)
+// with quantities, steps and notes, how often we've cooked it (REQ-175)
 // and each person's rating, which its owner changes here (REQ-116).
 export default async function RecipePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
