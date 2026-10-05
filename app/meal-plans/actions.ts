@@ -110,13 +110,20 @@ export async function saveForNow(_prev: FormState, formData: FormData): Promise<
   const supabase = await requireMember();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Give the recipe a name." };
+  // What was typed so far is kept too: a recipe page link and a video link.
+  const videoText = String(formData.get("video_url") ?? "").trim();
+  const video_url = linkOrNull(videoText);
+  if (videoText && !video_url) return { error: "The video link should start with https://." };
+  const pageText = String(formData.get("page_url") ?? "").trim();
+  const page_url = pageText && isPublicPage(pageText) ? pageText : null;
+  if (pageText && !page_url) return { error: "The recipe page link should start with https://." };
   const known = await readCuisines(supabase).catch(() => [] as string[]);
   const cuisine = await cuisineFromName(name, known).catch((error: unknown) => {
     Sentry.captureException(error);
     return null;
   });
   const id = crypto.randomUUID();
-  const { error } = await supabase.from("recipes").insert({ id, name, cuisine });
+  const { error } = await supabase.from("recipes").insert({ id, name, cuisine, video_url, page_url });
   if (error) {
     Sentry.captureException(new Error(error.message));
     return { error: "The card couldn't be saved. Try again." };

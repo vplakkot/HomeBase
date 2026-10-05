@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Meal Plan, name-first recipes: Add recipe starts with the name, and Save
-  for now keeps it as a "Recipe missing" card at once, with no review. Gemini
+  for now keeps it as a "Recipe missing" card at once, with no review, and keeps a recipe page link or video link you had typed in. Gemini
   fills in the cuisine from the name only when it is sure ("Tacos" is
   Mexican), otherwise it stays blank, and it never writes a recipe there. A
   "Recipe missing" card can be planned like any other, and its Add details

@@ -657,6 +657,21 @@ describe("saving a recipe by name alone (REQ-174)", () => {
     expect(on("recipes")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ name: "Test tacos", cuisine: null }));
   });
 
+  it("keeps a recipe page link and a video link that were typed in, and refuses ones that aren't links", async () => {
+    given();
+    vi.mocked(cuisineFromName).mockResolvedValue(null);
+    await expect(
+      saveForNow({}, form({ name: "Test pasta", page_url: "https://recipes.example.com/pasta/", video_url: "https://www.instagram.com/reel/x" })),
+    ).rejects.toThrow(/^REDIRECT:/);
+    expect(on("recipes")[0].insert).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Test pasta", page_url: "https://recipes.example.com/pasta/", video_url: "https://www.instagram.com/reel/x" }),
+    );
+    given();
+    expect(await saveForNow({}, form({ name: "Test pasta", page_url: "not a link" }))).toEqual({ error: "The recipe page link should start with https://." });
+    expect(await saveForNow({}, form({ name: "Test pasta", video_url: "not a link" }))).toEqual({ error: "The video link should start with https://." });
+    expect(fake.from).not.toHaveBeenCalledWith("recipes");
+  });
+
   it("wants a name, and a member", async () => {
     given();
     expect(await saveForNow({}, form({ name: "  " }))).toEqual({ error: "Give the recipe a name." });

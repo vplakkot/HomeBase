@@ -85,6 +85,14 @@ export function AddRecipe({ fill }: { fill?: { id: string; name: string } }) {
   const [way, setWay] = useState<Way>("video");
   const [name, setName] = useState("");
   const [saved, saveAction, saving] = useActionState(saveForNow, initialState);
+  // Save for now keeps what is given so far: a recipe page link or a video link typed into the method below goes with the name.
+  const keepNow = (data: FormData) => {
+    for (const field of ["page_url", "video_url"]) {
+      const typed = document.querySelector<HTMLInputElement>(`input[name="${field}"]`)?.value ?? "";
+      if (typed.trim()) data.set(field, typed);
+    }
+    startTransition(() => saveAction(data));
+  };
   const ways = fill ? [...WAYS.filter((option) => option.value !== "blank"), { value: "generic" as Way, label: "Have Gemini write one" }] : WAYS;
   const [typeIn, setTypeIn] = useState<TypeIn | null>(null);
   const choose = (next: Way) => {
@@ -100,7 +108,7 @@ export function AddRecipe({ fill }: { fill?: { id: string; name: string } }) {
   return (
     <>
       {fill ? null : (
-        <form action={saveAction} className={cards.form}>
+        <form action={keepNow} className={cards.form}>
           <label className={cards.field}>
             <span>Name</span>
             <input name="name" required value={name} onChange={(event) => setName(event.target.value)} placeholder="What the dish is called" autoComplete="off" />
