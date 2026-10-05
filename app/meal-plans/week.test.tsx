@@ -445,12 +445,14 @@ describe("Meal Plans' home (REQ-118)", () => {
     expect(next.getByText("Next week")).toBeTruthy();
   });
 
-  it("still shows the card when there is no plan, empty, with New meal plan", async () => {
+  it("still shows the card when there is no plan, empty", async () => {
     given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [] });
     render(await MealPlansPage());
     const card = within(screen.getByRole("region", { name: "On the menu" }));
-    expect(card.getByRole("button", { name: "New meal plan" })).toBeTruthy();
+    expect(card.getByText("No plan yet")).toBeTruthy();
     expect(card.queryByRole("list")).toBeNull();
+    // The plan button is the one at the top, not a second one in the card.
+    expect(card.queryByRole("button", { name: "New meal plan" })).toBeNull();
   });
 
   it("shows the most cooked and top rated recipes, total recipes and number of cuisines", async () => {
@@ -1046,16 +1048,14 @@ describe("planning ahead (REQ-162)", () => {
 });
 
 describe("module home actions and suggestions (REQ-165)", () => {
-  it("shows Add recipe at the top while there is no plan, and New meal plan in the empty card instead of a second button", async () => {
+  it("shows Add recipe and New meal plan side by side at the top while there is no plan", async () => {
     given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [] });
     render(await MealPlansPage());
     const actions = within(screen.getByRole("group", { name: "Start something" }));
     expect(actions.getByRole("link", { name: "Add recipe" }).getAttribute("href")).toBe("/meal-plans/new");
-    expect(actions.queryByRole("button", { name: "New meal plan" })).toBeNull();
     // One press makes the plan and goes straight to it: a button that posts, not a link to a page that asks again.
-    const card = within(screen.getByRole("region", { name: "On the menu" }));
-    const button = card.getByRole("button", { name: "New meal plan" });
-    expect(card.queryByRole("link", { name: "New meal plan" })).toBeNull();
+    const button = actions.getByRole("button", { name: "New meal plan" });
+    expect(actions.queryByRole("link", { name: "New meal plan" })).toBeNull();
     const form = button.closest("form") as HTMLFormElement;
     expect((form.querySelector('input[name="then"]') as HTMLInputElement).value).toBe("week");
     expect((form.querySelector('input[name="starts_on"]') as HTMLInputElement).value).toBe("2026-09-27");
