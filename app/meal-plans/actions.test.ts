@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  cuisineFromName,
   genericRecipe,
   openVideoUpload,
   recipeFromPage,
@@ -18,6 +19,7 @@ import {
   draftFromText,
   draftGeneric,
   findRecipePages,
+  saveForNow,
   saveRecipeMissing,
   updateRecipe,
   myRecipeImports,
@@ -38,6 +40,7 @@ vi.mock("next/server", () => ({ after: vi.fn() }));
 vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 vi.mock("../../lib/meal-plans/gemini", async (original) => ({
   isGeminiFile: (await original<typeof import("../../lib/meal-plans/gemini")>()).isGeminiFile,
+  cuisineFromName: vi.fn(),
   recipeFromText: vi.fn(),
   recipeFromPage: vi.fn(),
   genericRecipe: vi.fn(),
@@ -455,6 +458,7 @@ describe("adding a recipe from a web page link (REQ-150)", () => {
       draft: FROM_PAGE,
       seen: true,
       page_url: LINK,
+      recipe_id: null,
     });
     // A draft, not a card: it's reviewed first.
     expect(fake.from).not.toHaveBeenCalledWith("recipes");
@@ -625,3 +629,119 @@ describe("the frame the phone cuts for a video's photo (REQ-156)", () => {
     await expect(setDraftFrame(form({ import_id: IMPORT, frame: jpeg() }))).rejects.toThrow("REDIRECT:/meal-plans");
   });
 });
+
+describe("saving a recipe by name alone (REQ-174)", () => {
+  it("saves the card with just its name, Recipe missing, with no review step", async () => {
+    given({ cuisines: [{ name: "Mexican" }] });
+    vi.mocked(cuisineFromName).mockResolvedValue(null);
+    await expect(saveForNow({}, form({ name: "  Test pasta " }))).rejects.toThrow(/^REDIRECT:\/meal-plans\/[0-9a-f-]{36}$/);
+    expect(on("recipes")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ name: "Test pasta", cuisine: null }));
+    // Nothing goes through Gemini's review, and no recipe is written.
+    expect(fake.from).not.toHaveBeenCalledWith("recipe_imports");
+    expect(recipeFromText).not.toHaveBeenCalled();
+    expect(genericRecipe).not.toHaveBeenCalled();
+  });
+
+  it("gives the card the cuisine Gemini is confident of from the name, from the cuisines we keep", async () => {
+    given({ cuisines: [{ name: "Mexican" }, { name: "Thai" }] });
+    vi.mocked(cuisineFromName).mockResolvedValue("Mexican");
+    await expect(saveForNow({}, form({ name: "Test tacos" }))).rejects.toThrow(/^REDIRECT:/);
+    expect(cuisineFromName).toHaveBeenCalledWith("Test tacos", ["Mexican", "Thai"]);
+    expect(on("recipes")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ name: "Test tacos", cuisine: "Mexican" }));
+  });
+
+  it("saves the card anyway, cuisine blank, when Gemini doesn't answer", async () => {
+    given({ cuisines: [{ name: "Mexican" }] });
+    vi.mocked(cuisineFromName).mockRejectedValue(new Error("down"));
+    await expect(saveForNow({}, form({ name: "Test tacos" }))).rejects.toThrow(/^REDIRECT:/);
+    expect(on("recipes")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ name: "Test tacos", cuisine: null }));
+  });
+
+  it("keeps a recipe page link and a video link that were typed in, and refuses ones that aren't links", async () => {
+    given();
+    vi.mocked(cuisineFromName).mockResolvedValue(null);
+    await expect(
+      saveForNow({}, form({ name: "Test pasta", page_url: "https://recipes.example.com/pasta/", video_url: "https://www.instagram.com/reel/x" })),
+    ).rejects.toThrow(/^REDIRECT:/);
+    expect(on("recipes")[0].insert).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Test pasta", page_url: "https://recipes.example.com/pasta/", video_url: "https://www.instagram.com/reel/x" }),
+    );
+    given();
+    expect(await saveForNow({}, form({ name: "Test pasta", page_url: "not a link" }))).toEqual({ error: "The recipe page link should start with https://." });
+    expect(await saveForNow({}, form({ name: "Test pasta", video_url: "not a link" }))).toEqual({ error: "The video link should start with https://." });
+    expect(fake.from).not.toHaveBeenCalledWith("recipes");
+  });
+
+  it("wants a name, and a member", async () => {
+    given();
+    expect(await saveForNow({}, form({ name: "  " }))).toEqual({ error: "Give the recipe a name." });
+    given({}, []);
+    await expect(saveForNow({}, form({ name: "Test" }))).rejects.toThrow("REDIRECT:/meal-plans");
+  });
+});
+
+describe("adding details to a Recipe missing card (REQ-174)", () => {
+  const missing = { ingredients: [], steps: [], photo: null };
+
+  it("fills the same card from typed text, a page link, a picked page, a video or images: each draft carries the card's id", async () => {
+    given({ recipes: [missing] });
+    vi.mocked(recipeFromText).mockResolvedValue({ draft: DRAFT as never });
+    await expect(draftFromText({}, form({ name: "Test pasta", recipe: "boil it", recipe_id: RECIPE }))).rejects.toThrow(/^REDIRECT:\/meal-plans\/drafts\//);
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ recipe_id: RECIPE }));
+
+    given({ recipes: [missing] });
+    vi.mocked(readRecipePage).mockResolvedValue({ text: "Pasta: boil it.", image: null });
+    vi.mocked(recipeFromPage).mockResolvedValue({ draft: { ...DRAFT, name: "Test pasta" } as never });
+    const link = await draftFromLink("https://recipes.example.com/pasta/", RECIPE);
+    expect(link).toHaveProperty("id");
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ recipe_id: RECIPE }));
+
+    given({ recipes: [missing] });
+    vi.mocked(readPage).mockResolvedValue("Pasta: boil it.");
+    await expect(draftFromPage({}, form({ name: "Test pasta", page_url: "https://recipes.example.com/pasta/", recipe_id: RECIPE }))).rejects.toThrow(/^REDIRECT:/);
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ recipe_id: RECIPE }));
+
+    given({ recipes: [missing] });
+    await startVideoImport(form({ name: "", size: "1000", mime: "video/mp4", recipe_id: RECIPE }));
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ source: "video", recipe_id: RECIPE }));
+
+    given({ recipes: [missing] });
+    await startImagesImport(form({ image: jpeg(), thumb: jpeg(), recipe_id: RECIPE }));
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ source: "images", recipe_id: RECIPE }));
+  });
+
+  it("refuses to fill a card that has a recipe by now, or one that is gone, and makes no draft", async () => {
+    given({ recipes: [{ ingredients: [{ item: "rice" }], steps: ["Cook it."], photo: null }] });
+    expect(await draftFromText({}, form({ name: "Test", recipe: "x", recipe_id: RECIPE }))).toEqual({ error: "That card has a recipe now. Edit it instead." });
+    expect(fake.from).not.toHaveBeenCalledWith("recipe_imports");
+    given({ recipes: [] });
+    expect(await draftFromText({}, form({ name: "Test", recipe: "x", recipe_id: RECIPE }))).toEqual({ error: "That recipe is gone." });
+  });
+
+  it("makes a new card, as before, when no card is named", async () => {
+    given();
+    vi.mocked(recipeFromText).mockResolvedValue({ draft: DRAFT as never });
+    await expect(draftFromText({}, form({ name: "Test curry", recipe: "x" }))).rejects.toThrow(/^REDIRECT:/);
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ recipe_id: null }));
+  });
+
+  it("saves the reviewed draft into the same card, keeping its id (so its ratings and cooked history stay), and gives a card with no photo the draft's", async () => {
+    given({ recipe_imports: [{ photo: "imports/x/1.jpg", recipe_id: RECIPE, ai_generated: false }], recipes: [missing] });
+    await expect(
+      saveDraft({}, form({ import_id: IMPORT, name: "Test pasta", cuisine: "Italian", quantity: "200", unit: "g", item: "pasta", note: "", steps: "Boil 200 g pasta." })),
+    ).rejects.toThrow(`REDIRECT:/meal-plans/${RECIPE}`);
+    const update = on("recipes").find((query) => query.update.mock.calls.length > 0);
+    expect(update?.update).toHaveBeenCalledWith(expect.objectContaining({ name: "Test pasta", photo: "imports/x/1.jpg", steps: ["Boil 200 g pasta."] }));
+    expect(on("recipes").some((query) => query.insert.mock.calls.length > 0)).toBe(false);
+  });
+
+  it("leaves a card's own photo alone", async () => {
+    given({ recipe_imports: [{ photo: "imports/x/1.jpg", recipe_id: RECIPE, ai_generated: false }], recipes: [{ ...missing, photo: `${RECIPE}/1.jpg` }] });
+    await expect(
+      saveDraft({}, form({ import_id: IMPORT, name: "Test pasta", cuisine: "Italian", quantity: "200", unit: "g", item: "pasta", note: "", steps: "Boil 200 g pasta." })),
+    ).rejects.toThrow(/^REDIRECT:/);
+    const update = on("recipes").find((query) => query.update.mock.calls.length > 0);
+    expect(update?.update.mock.calls[0][0]).not.toHaveProperty("photo");
+  });
+});
+

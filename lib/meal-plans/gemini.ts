@@ -313,6 +313,29 @@ export async function genericRecipe(name: string): Promise<Reading> {
   return read([{ text: genericPrompt(name) }], 90_000);
 }
 
+// REQ-174: a card saved by name alone gets a cuisine only when the name
+// makes it plain ("Tacos" is Mexican); "Pasta" or "Chicken rice" stay blank.
+// It never writes a recipe, and it only names a cuisine we already keep.
+export const CUISINE_SCHEMA = {
+  type: "OBJECT",
+  properties: { cuisine: { type: "STRING", nullable: true }, confident: { type: "BOOLEAN" } },
+  required: ["cuisine", "confident"],
+};
+
+export function cuisinePrompt(name: string, known: readonly string[]): string {
+  return `Which cuisine is the dish called "${name}" from? Answer from the name alone, choosing one of: ${known.join(", ")}. Say confident only if the name points to one cuisine on its own (for example "Tacos" is Mexican); if it could be several, or none of the list fits, answer null with confident false. Do not write a recipe.`;
+}
+
+export async function cuisineFromName(name: string, known: readonly string[]): Promise<string | null> {
+  if (known.length === 0) return null;
+  const response = await generate([{ text: cuisinePrompt(name, known) }], 20_000, CUISINE_SCHEMA);
+  if (!(response instanceof Response)) return null;
+  const answer = answerFrom(await response.json()) as { cuisine?: unknown; confident?: unknown } | undefined;
+  if (answer?.confident !== true || typeof answer.cuisine !== "string") return null;
+  const wanted = answer.cuisine.trim().toLowerCase();
+  return known.find((cuisine) => cuisine.toLowerCase() === wanted) ?? null;
+}
+
 // REQ-112: recipe pages for a dish, from Gemini's Google Search. Only the
 // pages Google found count; what Gemini writes about them is ignored.
 export async function searchRecipePages(name: string, fetchImpl: typeof fetch = fetch): Promise<SearchResult | { error: string }> {

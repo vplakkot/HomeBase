@@ -23,6 +23,7 @@ import {
   type PageSearch,
   dismissImport,
   saveDraft,
+  saveForNow,
   setDraftPhoto,
   setRecipePhoto,
   startImagesImport,
@@ -58,7 +59,7 @@ function Check() {
   return <em className={styles.unsure}> · check this</em>;
 }
 
-type Way = "video" | "images" | "link" | "web" | "text" | "blank";
+type Way = "video" | "images" | "link" | "web" | "text" | "blank" | "generic";
 
 const WAYS: { value: Way; label: string }[] = [
   { value: "video", label: "From a video" },
@@ -73,10 +74,26 @@ const WAYS: { value: Way; label: string }[] = [
 // from, and why.
 type TypeIn = { url: string; name: string; why: string };
 
-// Add recipe: pick a Source (REQ-155, a dropdown): a video (REQ-112, BETA), images (REQ-157), a recipe page link
-// (REQ-150), text in any form (REQ-111), or an empty card to fill in.
-export function AddRecipe() {
+// REQ-174: Add recipe starts with the name. "Save for now" keeps the card
+// as it is, marked Recipe missing, with no review step; the details can come
+// from any Source (REQ-155, a dropdown): a video (REQ-112, BETA), images
+// (REQ-157), a recipe page link (REQ-150), a search of the web, text in any
+// form (REQ-111), or an empty card to fill in. On a Recipe missing card the
+// same methods fill that card (`fill`), keeping its ratings and history, and
+// Gemini can write a generic version (REQ-112).
+export function AddRecipe({ fill }: { fill?: { id: string; name: string } }) {
   const [way, setWay] = useState<Way>("video");
+  const [name, setName] = useState("");
+  const [saved, saveAction, saving] = useActionState(saveForNow, initialState);
+  // Save for now keeps what is given so far: a recipe page link or a video link typed into the method below goes with the name.
+  const keepNow = (data: FormData) => {
+    for (const field of ["page_url", "video_url"]) {
+      const typed = document.querySelector<HTMLInputElement>(`input[name="${field}"]`)?.value ?? "";
+      if (typed.trim()) data.set(field, typed);
+    }
+    startTransition(() => saveAction(data));
+  };
+  const ways = fill ? [...WAYS.filter((option) => option.value !== "blank"), { value: "generic" as Way, label: "Have Gemini write one" }] : WAYS;
   const [typeIn, setTypeIn] = useState<TypeIn | null>(null);
   const choose = (next: Way) => {
     setWay(next);
@@ -84,17 +101,31 @@ export function AddRecipe() {
   };
   const cantRead = (page: TypeIn) => {
     setTypeIn(page);
+    // The page's own title is a name to start from, if none was given yet.
+    setName((current) => current || page.name);
     setWay("text");
   };
   return (
     <>
+      {fill ? null : (
+        <form action={keepNow} className={cards.form}>
+          <label className={cards.field}>
+            <span>Name</span>
+            <input name="name" required value={name} onChange={(event) => setName(event.target.value)} placeholder="What the dish is called" autoComplete="off" />
+          </label>
+          <Outcome state={saved} />
+          <button type="submit" className={buttonClass} disabled={saving}>
+            {saving ? "Saving…" : "Save for now"}
+          </button>
+        </form>
+      )}
       <label className={cards.field}>
         <span>
           Source
           {way === "video" ? <Beta /> : null}
         </span>
         <select name="way" value={way} onChange={(event) => choose(event.target.value as Way)}>
-          {WAYS.map((option) => (
+          {ways.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -102,17 +133,19 @@ export function AddRecipe() {
         </select>
       </label>
       {way === "video" ? (
-        <VideoForm />
+        <VideoForm recipeId={fill?.id} />
       ) : way === "images" ? (
-        <ImagesForm />
+        <ImagesForm recipeId={fill?.id} />
       ) : way === "link" ? (
-        <LinkForm cantRead={cantRead} />
+        <LinkForm cantRead={cantRead} recipeId={fill?.id} />
       ) : way === "web" ? (
-        <WebForm />
+        <WebForm recipeId={fill?.id} startName={fill?.name ?? name} />
       ) : way === "text" ? (
-        <TextForm key={typeIn?.url ?? ""} from={typeIn} />
+        <TextForm key={typeIn?.url ?? ""} from={typeIn} recipeId={fill?.id} startName={fill?.name ?? name} />
+      ) : way === "generic" && fill ? (
+        <GenericRecipeForm recipeId={fill.id} />
       ) : (
-        <RecipeForm />
+        <RecipeForm name={name} />
       )}
     </>
   );
@@ -131,7 +164,7 @@ function upload(id: string, name: string, url: string, file: File) {
   void sendVideo({ id, name, url, file, check: () => videoProgress(id) }).catch(() => uploadFailed(id));
 }
 
-function VideoForm() {
+function VideoForm({ recipeId }: { recipeId?: string }) {
   const router = useRouter();
   const picker = useRef<HTMLInputElement>(null);
   const [chosen, setChosen] = useState<string | null>(null);
@@ -151,6 +184,7 @@ function VideoForm() {
     const data = new FormData();
     // No name asked for: the video says what the dish is (Vin, 2026-09-29).
     data.set("name", "");
+    if (recipeId) data.set("recipe_id", recipeId);
     data.set("video_url", String(form.get("video_url") ?? ""));
     data.set("size", String(file.size));
     data.set("mime", mimeOf(file));
@@ -199,7 +233,7 @@ function VideoForm() {
 // REQ-157: one or more pictures that make one recipe (a carousel,
 // screenshots). Each is shrunk here and sent with this request; Gemini
 // reads them while we do other things, like a video.
-function ImagesForm() {
+function ImagesForm({ recipeId }: { recipeId?: string }) {
   const router = useRouter();
   const picker = useRef<HTMLInputElement>(null);
   const [chosen, setChosen] = useState(0);
@@ -219,6 +253,7 @@ function ImagesForm() {
     setBusy(true);
     setError(null);
     const data = new FormData();
+    if (recipeId) data.set("recipe_id", recipeId);
     try {
       for (const file of files) {
         const shrunk = await shrinkPhoto(file);
@@ -287,7 +322,7 @@ async function keepPagePhoto(importId: string, dataUrl: string) {
 // REQ-150, flow 1: paste a recipe page's link; Gemini reads that page
 // and drafts the card, named from the page. If the page can't be read,
 // flow 2: switch to typing the recipe in, with the link kept.
-function LinkForm({ cantRead }: { cantRead: (page: TypeIn) => void }) {
+function LinkForm({ cantRead, recipeId }: { cantRead: (page: TypeIn) => void; recipeId?: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -296,7 +331,7 @@ function LinkForm({ cantRead }: { cantRead: (page: TypeIn) => void }) {
     const link = String(new FormData(event.currentTarget).get("page_url") ?? "");
     setError(null);
     setBusy("Gemini is reading the page…");
-    const result = await draftFromLink(link).catch(() => ({ error: "HomeBase didn't answer. Try again." }));
+    const result = await draftFromLink(link, recipeId).catch(() => ({ error: "HomeBase didn't answer. Try again." }));
     if ("id" in result) {
       if (result.photo) {
         setBusy("Keeping the page's photo…");
@@ -333,7 +368,7 @@ function LinkForm({ cantRead }: { cantRead: (page: TypeIn) => void }) {
 // REQ-112, flows 2 and 3: no video downloaded. Search the web for the
 // dish, then pick a page for Gemini to read, or none: the card is then
 // kept with its name and link as "Recipe missing".
-function WebForm() {
+function WebForm({ recipeId, startName = "" }: { recipeId?: string; startName?: string }) {
   const [asked, setAsked] = useState<{ name: string; videoUrl: string } | null>(null);
   const [found, setFound] = useState<PageSearch | null>(null);
   const [searching, setSearching] = useState(false);
@@ -342,6 +377,10 @@ function WebForm() {
     const form = new FormData(event.currentTarget);
     const name = String(form.get("name") ?? "").trim();
     const videoUrl = String(form.get("video_url") ?? "").trim();
+    if (!name) {
+      setFound({ error: "Give the recipe a name." });
+      return;
+    }
     setAsked({ name, videoUrl });
     setSearching(true);
     setFound(await findRecipePages(name).catch(() => ({ error: "The search didn't answer. Try again." })));
@@ -350,10 +389,8 @@ function WebForm() {
   if (!found || "error" in found || !asked)
     return (
       <form onSubmit={search} className={cards.form}>
-        <label className={cards.field}>
-          <span>Name</span>
-          <input name="name" required defaultValue={asked?.name} placeholder="What the dish is called" autoComplete="off" />
-        </label>
+        {/* The name is the one at the top of Add recipe, or the card's own. */}
+        <input type="hidden" name="name" value={startName} />
         <label className={cards.field}>
           <span>Link to the video (optional)</span>
           <input name="video_url" type="url" inputMode="url" defaultValue={asked?.videoUrl} placeholder="https://www.instagram.com/reel/…" autoComplete="off" />
@@ -364,7 +401,7 @@ function WebForm() {
         </button>
       </form>
     );
-  return <PickPage name={asked.name} videoUrl={asked.videoUrl} pages={found.pages} suggestions={found.suggestions} again={() => setFound(null)} />;
+  return <PickPage name={asked.name} videoUrl={asked.videoUrl} pages={found.pages} suggestions={found.suggestions} again={() => setFound(null)} recipeId={recipeId} />;
 }
 
 function PickPage({
@@ -373,12 +410,14 @@ function PickPage({
   pages,
   suggestions,
   again,
+  recipeId,
 }: {
   name: string;
   videoUrl: string;
   pages: { url: string; site: string; title: string }[];
   suggestions: string | null;
   again: () => void;
+  recipeId?: string;
 }) {
   const [picked, pickAction, reading] = useActionState(draftFromPage, initialState);
   const [none, noneAction, saving] = useActionState(saveRecipeMissing, initialState);
@@ -386,6 +425,7 @@ function PickPage({
     <div className={cards.form}>
       <form action={pickAction} className={styles.pickPage}>
         <input type="hidden" name="name" value={name} />
+        {recipeId ? <input type="hidden" name="recipe_id" value={recipeId} /> : null}
         <input type="hidden" name="video_url" value={videoUrl} />
         {pages.length > 0 ? (
           <fieldset className={styles.choices}>
@@ -419,14 +459,17 @@ function PickPage({
           </button>
         ) : null}
       </form>
-      <form action={noneAction}>
-        <input type="hidden" name="name" value={name} />
-        <input type="hidden" name="video_url" value={videoUrl} />
-        <Outcome state={none} />
-        <button type="submit" className={styles.linkButton} disabled={reading || saving}>
-          None of these: save it as Recipe missing
-        </button>
-      </form>
+      {/* On a card that is already Recipe missing, "none of these" would make a second card. */}
+      {recipeId ? null : (
+        <form action={noneAction}>
+          <input type="hidden" name="name" value={name} />
+          <input type="hidden" name="video_url" value={videoUrl} />
+          <Outcome state={none} />
+          <button type="submit" className={styles.linkButton} disabled={reading || saving}>
+            None of these: save it as Recipe missing
+          </button>
+        </form>
+      )}
       <button type="button" className={styles.linkButton} onClick={again}>
         Search again
       </button>
@@ -449,7 +492,7 @@ export function GenericRecipeForm({ recipeId }: { recipeId: string }) {
   );
 }
 
-function TextForm({ from = null }: { from?: TypeIn | null }) {
+function TextForm({ from = null, recipeId, startName = "" }: { from?: TypeIn | null; recipeId?: string; startName?: string }) {
   const [state, formAction, pending] = useActionState(draftFromText, initialState);
   return (
     <form action={formAction} className={cards.form}>
@@ -467,10 +510,9 @@ function TextForm({ from = null }: { from?: TypeIn | null }) {
           </p>
         </>
       ) : null}
-      <label className={cards.field}>
-        <span>Name</span>
-        <input name="name" required defaultValue={from?.name} placeholder="What the dish is called" autoComplete="off" />
-      </label>
+      {recipeId ? <input type="hidden" name="recipe_id" value={recipeId} /> : null}
+      {/* The name is the one at the top of Add recipe, or the card's own. */}
+      <input type="hidden" name="name" value={startName} />
       <label className={cards.field}>
         <span>The recipe</span>
         <textarea name="recipe" required className={styles.recipeInput} placeholder="A full recipe, a list of ingredients, or rough notes" />

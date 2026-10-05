@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Meal Plan, name-first recipes: Add recipe starts with the name, and Save
+  for now keeps it as a "Recipe missing" card at once, with no review, and keeps a recipe page link or video link you had typed in. Gemini
+  fills in the cuisine from the name only when it is sure ("Tacos" is
+  Mexican), otherwise it stays blank, and it never writes a recipe there. A
+  "Recipe missing" card can be planned like any other, and its Add details
+  fills the same card (keeping its ratings and history) from a video, images,
+  a page link, a web search, typed text, or a version Gemini writes. The
+  library filters end with "Not set" for cuisine, main meat, method and cook
+  time.
 - Meal Plan: a plan with no dishes can't be started. There is no Start button
   until it has a dish (Eating out alone doesn't count), and nobody is asked by
   notification to start an empty plan.
