@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { planStats, type PlanRow, type PlanStats } from "./plan";
 import type { Recipe } from "./recipes";
-import { naturalGapDays, suggestions } from "./suggest";
+import { naturalGapDays, score, suggestions } from "./suggest";
 
 // Invented recipes and plans; nothing here is real.
 function recipe(id: string, extra: Partial<Recipe> = {}): Recipe {
@@ -162,3 +162,18 @@ describe("the fun numbers on Meal Plans' home (REQ-118)", async () => {
     expect(homeStats([recipe("a")], new Map(), new Map())).toEqual({ mostCooked: null, topRated: null, recipes: 1, cuisines: 1 });
   });
 });
+
+describe("a recipe with no cook time (REQ-174)", () => {
+  it("is ranked on rating and days since last cooked alone, with the middling gap, never as a zero-minute dish", () => {
+    const last = planned("2026-09-10");
+    const none = recipe("none", { cook_minutes: null });
+    // The same as a typical 45-minute dish, and not as a dish that takes no time.
+    expect(naturalGapDays(null)).toBe(naturalGapDays(45));
+    expect(score(none, last, 4, TODAY)).toBe(score(recipe("typical", { cook_minutes: 45 }), last, 4, TODAY));
+    expect(score(none, last, 4, TODAY)).not.toBe(score(recipe("instant", { cook_minutes: 0 }), last, 4, TODAY));
+    // Two with no cook time rank by rating and recency only.
+    const ranked = suggest([recipe("a", { cook_minutes: null }), recipe("b", { cook_minutes: null })], [["a", planned("2026-08-01")], ["b", planned("2026-09-20")]]);
+    expect(ids(ranked)[0]).toBe("a");
+  });
+});
+

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { libraryRecipes } from "./library";
+import { NOT_SET, libraryRecipes } from "./library";
 import type { Recipe } from "./recipes";
 
 // Invented recipes; nothing here is real.
@@ -67,3 +67,25 @@ describe("the recipe library (REQ-114)", () => {
     expect(names({ hidden: "yes" })).toEqual(["Test soup"]);
   });
 });
+
+describe('the "Not set" filters (REQ-174)', () => {
+  const full = recipe("a", "Test tikka", { cuisine: "Indian", main_meat: "Chicken", cooking_method: "Oven", cook_minutes: 40 });
+  const bare = recipe("b", "Test pasta");
+  const half = recipe("c", "Test tacos", { cuisine: "Mexican", cook_minutes: 20 });
+  const all = [full, bare, half];
+  const names = (query: object) => libraryRecipes(all, new Map(), query).map((row) => row.name);
+
+  it("finds the recipes with no cuisine, no main meat, no method or no cook time", () => {
+    expect(names({ cuisine: NOT_SET })).toEqual(["Test pasta"]);
+    expect(names({ meat: NOT_SET })).toEqual(["Test pasta", "Test tacos"]);
+    expect(names({ method: NOT_SET })).toEqual(["Test pasta", "Test tacos"]);
+    expect(names({ time: NOT_SET })).toEqual(["Test pasta"]);
+  });
+
+  it("combines with the other filters, and a real value still finds only that value", () => {
+    expect(names({ meat: NOT_SET, time: "30" })).toEqual(["Test tacos"]);
+    expect(names({ cuisine: "Mexican" })).toEqual(["Test tacos"]);
+    expect(names({ time: "30" })).toEqual(["Test tacos"]);
+  });
+});
+

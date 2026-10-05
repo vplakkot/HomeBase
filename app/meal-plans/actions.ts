@@ -8,6 +8,7 @@ import { after } from "next/server";
 import { hasPermission } from "../../lib/auth/permissions";
 import { thumbPath } from "../../lib/drinks/photos";
 import {
+  cuisineFromName,
   deleteVideo,
   genericRecipe,
   isGeminiFile,
@@ -22,7 +23,7 @@ import { MAX_IMAGES, MAX_IMAGES_BYTES, MAX_VIDEO_BYTES, UNNAMED_IMAGES, UNNAMED_
 import { framePath, removeFrames } from "../../lib/meal-plans/frames";
 import { PROCESSING_GIVES_UP_MS, UPLOAD_GIVES_UP_MS, processImageImport, processVideoImport } from "../../lib/meal-plans/import-job";
 import { RECIPE_PHOTOS, recipePhotoPath } from "../../lib/meal-plans/photos";
-import { linkOrNull, readImports, recipeFieldsFrom, recipeMissing, type RecipeImport } from "../../lib/meal-plans/recipes";
+import { linkOrNull, readCuisines, readImports, recipeFieldsFrom, recipeMissing, type RecipeImport } from "../../lib/meal-plans/recipes";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { createClient } from "../../lib/supabase/server";
 
@@ -87,6 +88,43 @@ async function keepCuisine(supabase: SupabaseClient, cuisine: string | null) {
   if (error) throw new Error(`Could not add the cuisine: ${error.message}`);
 }
 
+// REQ-174: "Add details" on a "Recipe missing" card fills that same card,
+// so its ratings and cooked history stay. A draft carries the card's id; the
+// card must still be waiting for its recipe. No id means a new card.
+async function fillTarget(supabase: SupabaseClient, value: unknown): Promise<{ recipeId: string | null } | { error: string }> {
+  if (!String(value ?? "").trim()) return { recipeId: null };
+  const id = idFrom(value);
+  if (!id) return { error: "That recipe is gone." };
+  const { data: card } = await supabase.from("recipes").select("ingredients, steps").eq("id", id).maybeSingle();
+  if (!card) return { error: "That recipe is gone." };
+  if (!recipeMissing(card)) return { error: "That card has a recipe now. Edit it instead." };
+  return { recipeId: id };
+}
+
+// REQ-174: Add recipe starts with the name, and Save for now keeps just
+// that: a card marked "Recipe missing", no review step. Gemini names a
+// cuisine from the name alone only when it is confident ("Tacos" is
+// Mexican); otherwise the cuisine stays blank. It never writes a recipe
+// here, and if it doesn't answer the card is saved without one.
+export async function saveForNow(_prev: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { error: "Give the recipe a name." };
+  const known = await readCuisines(supabase).catch(() => [] as string[]);
+  const cuisine = await cuisineFromName(name, known).catch((error: unknown) => {
+    Sentry.captureException(error);
+    return null;
+  });
+  const id = crypto.randomUUID();
+  const { error } = await supabase.from("recipes").insert({ id, name, cuisine });
+  if (error) {
+    Sentry.captureException(new Error(error.message));
+    return { error: "The card couldn't be saved. Try again." };
+  }
+  refresh();
+  redirect(`/meal-plans/${id}`);
+}
+
 // REQ-111: a recipe in any form becomes a draft card to review. It's
 // quick, so it happens while the button shows it's working.
 export async function draftFromText(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -96,6 +134,8 @@ export async function draftFromText(_prev: FormState, formData: FormData): Promi
   if (!name) return { error: "Give the recipe a name." };
   if (!recipe) return { error: "Paste or type the recipe." };
   if (recipe.length > MAX_RECIPE_TEXT) return { error: "That's longer than a recipe. Paste just the recipe." };
+  const target = await fillTarget(supabase, formData.get("recipe_id"));
+  if ("error" in target) return target;
   const reading = await recipeFromText(name, recipe).catch((error: unknown) => {
     Sentry.captureException(error);
     return { error: "Gemini didn't answer." };
@@ -113,6 +153,7 @@ export async function draftFromText(_prev: FormState, formData: FormData): Promi
     seen: true,
     video_url: linkOrNull(formData.get("video_url")),
     page_url,
+    recipe_id: target.recipeId,
   });
   if (error) return { error: "The draft couldn't be kept. Try again." };
   redirect(`/meal-plans/drafts/${id}`);
@@ -129,9 +170,11 @@ export type LinkDraft =
 // that page only; its name comes from the page. The page's photo comes
 // back as a data: address for the browser to shrink and keep (the
 // bucket takes only small JPEGs, and shrinking happens in the browser).
-export async function draftFromLink(link: string): Promise<LinkDraft> {
+export async function draftFromLink(link: string, recipeId?: string): Promise<LinkDraft> {
   const supabase = await requireMember();
   const url = link.trim();
+  const target = await fillTarget(supabase, recipeId);
+  if ("error" in target) return target;
   if (!isPublicPage(url)) return { error: "Paste the recipe page's link, starting with https://." };
   const typeIn = { url, name: titleFrom(url) };
   let page: { text: string; image: string | null };
@@ -154,7 +197,7 @@ export async function draftFromLink(link: string): Promise<LinkDraft> {
   const id = crypto.randomUUID();
   const { error } = await supabase
     .from("recipe_imports")
-    .insert({ id, name, status: "ready", draft: { ...reading.draft, name }, seen: true, page_url: url });
+    .insert({ id, name, status: "ready", draft: { ...reading.draft, name }, seen: true, page_url: url, recipe_id: target.recipeId });
   if (error) return { error: "The draft couldn't be kept. Try again." };
   // A missing or unreadable photo doesn't stop the card.
   const photo = page.image ? await readImage(page.image).catch(() => null) : null;
@@ -202,10 +245,12 @@ export async function startVideoImport(formData: FormData): Promise<VideoStart> 
   if (!VIDEO_TYPES[mime]) return { error: "That file isn't a video HomeBase can send." };
   if (!Number.isInteger(size) || size <= 0) return { error: "That video looks empty." };
   if (size > MAX_VIDEO_BYTES) return { error: "That video is over 500 MB. Try a shorter one." };
+  const target = await fillTarget(supabase, formData.get("recipe_id"));
+  if ("error" in target) return target;
   const id = crypto.randomUUID();
   try {
     const uploadUrl = await openVideoUpload(size, mime, name);
-    const { error } = await supabase.from("recipe_imports").insert({ id, name, video_url, source: "video", status: "uploading", upload_url: uploadUrl });
+    const { error } = await supabase.from("recipe_imports").insert({ id, name, video_url, source: "video", status: "uploading", upload_url: uploadUrl, recipe_id: target.recipeId });
     if (error) throw new Error(error.message);
     return { id, uploadUrl };
   } catch (error) {
@@ -232,8 +277,10 @@ export async function startImagesImport(formData: FormData): Promise<ImagesStart
   if (blobs.length !== pictures.length || thumbs.length !== pictures.length) return { error: "An image didn't arrive. Try again." };
   if ([...blobs, ...thumbs].some((blob) => blob.type !== "image/jpeg" || blob.size > MAX_PHOTO_UPLOAD)) return { error: "Images are sent as JPEG, under 1 MB each." };
   if ([...blobs, ...thumbs].reduce((sum, blob) => sum + blob.size, 0) > MAX_IMAGES_BYTES) return { error: "Those images are too big together. Try fewer." };
+  const target = await fillTarget(supabase, formData.get("recipe_id"));
+  if ("error" in target) return target;
   const id = crypto.randomUUID();
-  const { error } = await supabase.from("recipe_imports").insert({ id, name: UNNAMED_IMAGES, source: "images", status: "processing" });
+  const { error } = await supabase.from("recipe_imports").insert({ id, name: UNNAMED_IMAGES, source: "images", status: "processing", recipe_id: target.recipeId });
   if (error) {
     Sentry.captureException(error);
     return { error: "The import couldn't start. Try again." };
@@ -394,12 +441,15 @@ export async function saveDraft(_prev: FormState, formData: FormData): Promise<F
   // it was asked for; any other draft becomes a new card.
   const id = idFrom(draft.recipe_id) ?? crypto.randomUUID();
   const ai_generated = draft.ai_generated === true;
+  let fillPhoto: string | null = null;
   // The card must still be waiting for its recipe: if either of us typed
   // one in meanwhile, the generic version doesn't overwrite it.
   if (draft.recipe_id) {
-    const { data: card } = await supabase.from("recipes").select("ingredients, steps").eq("id", id).maybeSingle();
+    const { data: card } = await supabase.from("recipes").select("ingredients, steps, photo").eq("id", id).maybeSingle();
     if (!card) return { error: "That recipe is gone. Remove this draft." };
     if (!recipeMissing(card)) return { error: "That card has a recipe now. Remove this draft, or edit the card instead." };
+    // REQ-174: a card with no photo takes the draft's (a page's or an image's).
+    if (!card.photo && draft.photo) fillPhoto = draft.photo;
   }
   // REQ-156: the frame chosen at review becomes the card's photo, and no
   // frame is a card with none.
@@ -421,7 +471,7 @@ export async function saveDraft(_prev: FormState, formData: FormData): Promise<F
   try {
     await keepCuisine(supabase, fields.cuisine);
     const { error } = draft.recipe_id
-      ? await supabase.from("recipes").update({ ...fields, ai_generated }).eq("id", id)
+      ? await supabase.from("recipes").update({ ...fields, ai_generated, ...(fillPhoto ? { photo: fillPhoto } : {}) }).eq("id", id)
       : await supabase.from("recipes").insert({ id, ...fields, ai_generated, photo });
     if (error) throw new Error(error.message);
   } catch (error) {
@@ -536,6 +586,8 @@ export async function draftFromPage(_prev: FormState, formData: FormData): Promi
   if (!name) return { error: "Give the recipe a name." };
   if (videoText && !video_url) return { error: "The video link should start with https://." };
   if (!isPublicPage(page)) return { error: "Pick one of the pages, or choose None of these." };
+  const target = await fillTarget(supabase, formData.get("recipe_id"));
+  if ("error" in target) return target;
   let text: string;
   try {
     text = await readPage(page);
@@ -551,7 +603,7 @@ export async function draftFromPage(_prev: FormState, formData: FormData): Promi
   const id = crypto.randomUUID();
   const { error } = await supabase
     .from("recipe_imports")
-    .insert({ id, name, status: "ready", draft: reading.draft, seen: true, video_url, page_url: page });
+    .insert({ id, name, status: "ready", draft: reading.draft, seen: true, video_url, page_url: page, recipe_id: target.recipeId });
   if (error) return { error: "The draft couldn't be kept. Try again." };
   redirect(`/meal-plans/drafts/${id}`);
 }

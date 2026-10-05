@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CARD_RULES,
   MODEL,
+  cuisineFromName,
+  cuisinePrompt,
   genericPrompt,
   openVideoUpload,
   pagePrompt,
@@ -246,3 +248,42 @@ describe("the photo moment Gemini names while watching a video (REQ-156)", () =>
     expect(await recipeFromVideo("", file)).toEqual({ error: "Gemini answered 500." });
   });
 });
+
+describe("a cuisine from the name alone (REQ-174)", () => {
+  const known = ["Italian", "Mexican", "Thai"];
+
+  it("names a cuisine only when Gemini is confident and the cuisine is one we keep", async () => {
+    fetchMock.mockResolvedValueOnce(reply({ cuisine: "Mexican", confident: true }));
+    expect(await cuisineFromName("Tacos", known)).toBe("Mexican");
+    // Matched without regard to case, and returned as we spell it.
+    fetchMock.mockResolvedValueOnce(reply({ cuisine: "mexican", confident: true }));
+    expect(await cuisineFromName("Tacos", known)).toBe("Mexican");
+  });
+
+  it("leaves the cuisine blank when Gemini isn't confident, names one we don't keep, or answers nothing", async () => {
+    fetchMock.mockResolvedValueOnce(reply({ cuisine: "Italian", confident: false }));
+    expect(await cuisineFromName("Pasta", known)).toBeNull();
+    fetchMock.mockResolvedValueOnce(reply({ cuisine: "Hungarian", confident: true }));
+    expect(await cuisineFromName("Goulash", known)).toBeNull();
+    fetchMock.mockResolvedValueOnce(reply({ cuisine: null, confident: true }));
+    expect(await cuisineFromName("Chicken rice", known)).toBeNull();
+    fetchMock.mockResolvedValueOnce(new Response("{}", { status: 500 }));
+    expect(await cuisineFromName("Tacos", known)).toBeNull();
+  });
+
+  it("asks from the name only, with the known cuisines, and never for a recipe", async () => {
+    expect(cuisinePrompt("Tacos", known)).toContain('"Tacos"');
+    expect(cuisinePrompt("Tacos", known)).toContain("Italian, Mexican, Thai");
+    expect(cuisinePrompt("Tacos", known)).toContain("Do not write a recipe");
+    fetchMock.mockResolvedValueOnce(reply({ cuisine: "Mexican", confident: true }));
+    await cuisineFromName("Tacos", known);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.generationConfig.responseSchema.properties.cuisine).toBeDefined();
+  });
+
+  it("asks nothing when we keep no cuisines yet", async () => {
+    expect(await cuisineFromName("Tacos", [])).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+

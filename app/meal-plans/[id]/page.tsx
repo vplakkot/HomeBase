@@ -9,7 +9,7 @@ import { readRatings, starsText } from "../../../lib/meal-plans/ratings";
 import { cookTimeText, readRecipe, recipeMissing } from "../../../lib/meal-plans/recipes";
 import { mainMeatIndex } from "../../../lib/meal-plans/scale";
 import { removeRecipe } from "../actions";
-import { AiGenerated, GenericRecipeForm } from "../forms";
+import { AddRecipe, AiGenerated } from "../forms";
 import { MealPlansScreen, mealPlansViewer } from "../frame";
 import { clearRecipeRating, setHidden } from "../plan-actions";
 import { AddToWeekButton, RateRecipeForm } from "../plan-forms";
@@ -71,7 +71,10 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
           <section className={styles.missing} aria-label="Recipe missing">
             <p>Recipe missing</p>
             <Link href={`/meal-plans/${recipe.id}/edit`}>Type it in</Link>
-            <GenericRecipeForm recipeId={recipe.id} />
+            <details className={styles.startDay}>
+              <summary className={styles.linkButton}>Add details</summary>
+              <AddRecipe fill={{ id: recipe.id, name: recipe.name }} />
+            </details>
           </section>
         ) : null}
         {recipe.video_url || recipe.page_url ? (

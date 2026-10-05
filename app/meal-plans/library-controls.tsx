@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { SearchIcon } from "../../components/icons";
-import { COOK_TIMES, SORTS, type LibraryQuery } from "../../lib/meal-plans/library";
+import { COOK_TIMES, NOT_SET, SORTS, type LibraryQuery } from "../../lib/meal-plans/library";
 import { COOKING_METHODS, MAIN_MEATS } from "../../lib/meal-plans/recipes";
 import styles from "./meal-plans.module.css";
 
@@ -44,13 +44,14 @@ export function LibraryFilters({ query, cuisines }: { query: LibraryQuery; cuisi
       </select>
     </label>
   );
-  const plain = (values: readonly string[]) => values.map((value) => ({ value, label: value }));
+  // Each filter ends with "Not set", for cards that don't have that yet (REQ-174).
+  const plain = (values: readonly string[]) => [...values.map((value) => ({ value, label: value })), { value: NOT_SET, label: "Not set" }];
   return (
     <div className={styles.controls}>
       {select("Cuisine", "cuisine", "Any cuisine", plain(cuisines))}
       {select("Main meat", "meat", "Any meat", plain(MAIN_MEATS))}
       {select("Method", "method", "Any method", plain(COOKING_METHODS))}
-      {select("Cook time", "time", "Any time", COOK_TIMES)}
+      {select("Cook time", "time", "Any time", [...COOK_TIMES, { value: NOT_SET, label: "Not set" }])}
       {select("Sort", "sort", "", SORTS)}
     </div>
   );
