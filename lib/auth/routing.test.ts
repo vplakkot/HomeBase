@@ -10,7 +10,7 @@ describe("redirectFor", () => {
       },
     );
 
-    it.each(["/sign-in", "/sign-up", "/sign-up/"])(
+    it.each(["/sign-in", "/sign-up", "/sign-up/", "/forgot-password"])(
       "lets %s through",
       (pathname) => {
         expect(redirectFor(pathname, false)).toBeNull();
@@ -26,7 +26,7 @@ describe("redirectFor", () => {
       },
     );
 
-    it.each(["/sign-in", "/sign-up", "/set-password"])(
+    it.each(["/sign-in", "/sign-up", "/set-password", "/forgot-password"])(
       "sends %s home",
       (pathname) => {
         expect(redirectFor(pathname, true)).toBe("/");

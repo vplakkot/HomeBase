@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Change an email: Profile has "Change email" for your own address, and an
+  admin can change any member's from People → Change name, email, role or
+  password. Someone who has signed in before gets a confirmation at the new
+  address, and the change is meant to take effect only once it is followed,
+  with nothing sent to the old address (unproven until a real email is sent). Someone who has never signed in has their address
+  changed at once, their old temporary password stops working, and a link to
+  choose a password goes to the new address. Same account, so data, role,
+  notification switch and module settings stay. An address another member
+  already uses is refused.
+- Forgot password: Sign in has "Forgot your password?", which emails a link
+  to choose a new one. The answer is the same for any address. The link works
+  from any browser, and an expired or used one says so on the sign-in page.
+
 - Admin console, test one person: each member's row now has a working
   "Send test" that goes only to that person's devices and shows in the
   notification log. It is disabled, and says why, while their switch is off.

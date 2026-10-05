@@ -4,7 +4,10 @@ import { householdExists } from "../../lib/household";
 import { createClient } from "../../lib/supabase/server";
 import { SignInForm } from "./sign-in-form";
 
-export default async function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: { searchParams?: Promise<{ link?: string }> } = {}) {
+  const { link } = (await searchParams) ?? {};
   const supabase = await createClient();
 
   if (!(await householdExists(supabase))) {
@@ -22,7 +25,13 @@ export default async function SignInPage() {
   return (
     <AuthPage>
       <h1>Sign in</h1>
+      {link === "invalid" ? (
+        <p role="alert">That link has expired or was already used. Ask for a new one below.</p>
+      ) : null}
       <SignInForm />
+      <p>
+        <Link href="/forgot-password">Forgot your password?</Link>
+      </p>
     </AuthPage>
   );
 }

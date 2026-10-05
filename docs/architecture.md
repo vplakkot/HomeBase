@@ -222,6 +222,42 @@ user, will never hold. So the sender in REQ-21 needs its own route to it,
 either as `service_role` or through a second `security definer` function
 written for a caller that is nobody. Nothing sends notifications yet.
 
+## Emailed links: changing an email, and a forgotten password
+
+Everything above creates accounts with no email at all. Two things do need
+one, and both use the same piece (REQ-158, #80). Supabase sends the email,
+through the SMTP account set in its dashboard (Gmail, for now: see
+[lesson 35](lessons/35-emailed-links.md)). The app sends nothing itself.
+Each email's template points at `{{ .RedirectTo }}`, which the app fills in
+from the address the person is using, with a one-time `token_hash` and a
+`type`. The link lands on `app/auth/confirm/route.ts`, which is left out of
+the sign-in proxy's matcher because the person may be signed out. It
+accepts only `recovery` and `email_change`, calls `verifyOtp`, and goes to
+one of three fixed places: `/set-password`, `/`, or `/sign-in?link=invalid`.
+No address comes from the link.
+
+- **Forgot password** (`/forgot-password`, public): asks Supabase to email
+  a recovery link, and answers the same way for any address. Following it
+  signs the person in, sets `must_set_password` through the secret key,
+  takes a fresh token that carries it, and lands on the existing
+  `/set-password` step.
+- **Change your own email** (Profile): `updateUser({ email })`. With
+  Supabase's "Secure email change" off, only the new address should be
+  emailed, and the change should take effect once it confirms (unproven
+  until a real send).
+- **Admin changes a member's email** (admin console, People card). For
+  someone who has signed in before, the server briefly acts as them to ask
+  Supabase for the same confirmation: `generateLink` (a one-time link that
+  should send nothing: unproven) → `verifyOtp` on a client that keeps no session
+  (`lib/supabase/ephemeral.ts`) → `updateUser` → sign that session out.
+  For someone who never has, the address changes at once, their temporary
+  password is replaced with a random one, `must_set_password` is set, and a
+  recovery link goes to the new address: the first-time sign-in. Duplicates
+  are refused against the household's own member list first.
+
+Same account throughout, so data, role, notification switch and module
+settings never move.
+
 ## Sign-in and sessions
 
 Signing in (`app/sign-in/`) calls Supabase Auth with the email and

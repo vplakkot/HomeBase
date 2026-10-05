@@ -173,6 +173,16 @@ describe("proxy", () => {
   });
 
 
+  // An emailed link (REQ-158, #80) is opened by someone who may be signed out
+  // or signed in as another person; the proxy would bounce either.
+  it("lets an emailed link reach /auth/confirm without a sign-in", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    expect(regex.test("/auth/confirm")).toBe(false);
+    expect(regex.test("/auth/confirm/extra")).toBe(true);
+    expect(regex.test("/auth/other")).toBe(true);
+  });
+
   // A phone reporting a delivered notification has no session either: the
   // service worker runs with no page, and its owner may be signed out.
   it("lets a phone report a delivery without a sign-in", () => {

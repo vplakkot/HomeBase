@@ -6,10 +6,11 @@ import type { Account } from "../lib/account";
 import { DeviceList } from "../app/notifications/device-list";
 import { myDevices, removeMyDevice, sendTestToMyDevice } from "../app/notifications/actions";
 import { EnableNotifications } from "../app/notifications/enable-notifications";
-import { saveMyName } from "../app/profile/actions";
+import { changeMyEmail, saveMyName } from "../app/profile/actions";
 import { SignOutForm } from "../app/sign-out/sign-out-form";
 import { BottomSheet } from "./bottom-sheet";
 import { MyModules } from "./my-modules";
+import { EmailForm } from "./email-form";
 import { NameForm } from "./name-form";
 import { AdminConsoleIcon, PersonIcon, SettingsIcon, SignOutIcon } from "./icons";
 import styles from "./account-menu.module.css";
@@ -132,6 +133,8 @@ function AccountSheets({
         </div>
         {/* REQ-124: your own name, and only yours. */}
         <NameForm action={saveMyName} name={account.name} label="Your name" />
+        {/* REQ-158: your own email, confirmed at the new address. */}
+        <EmailForm action={changeMyEmail} label="Your new email" />
       </BottomSheet>
       <BottomSheet open={sheet === "settings"} onClose={() => onClose("settings")} title="Settings">
         {/* Only while open: the control checks this device as it appears,

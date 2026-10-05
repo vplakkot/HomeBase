@@ -5,10 +5,22 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { removeDevice } from "../../lib/notifications/devices";
 import { MESSAGES, sendPush, sendTestNotification } from "../../lib/notifications/send";
+import { randomBytes } from "node:crypto";
+import {
+  cleanEmail,
+  confirmUrl,
+  EMAIL_INVALID_MESSAGE,
+  EMAIL_TAKEN_MESSAGE,
+  emailErrorMessage,
+  usedByAnother,
+  type EmailChangeState,
+} from "../../lib/auth/email";
+import { listMembers } from "../../lib/auth/members";
 import { cleanName, NAME_MAX } from "../../lib/auth/names";
 import { hasPermission } from "../../lib/auth/permissions";
 import { SWITCHES } from "../../lib/modules";
 import { createAdminClient } from "../../lib/supabase/admin";
+import { createEphemeralClient } from "../../lib/supabase/ephemeral";
 import { createClient } from "../../lib/supabase/server";
 
 export type CreateMemberState = { error?: string; created?: string };
@@ -206,6 +218,106 @@ export async function renameMember(_previous: RenameState, formData: FormData): 
   if (data?.claims?.sub === userId) await supabase.auth.refreshSession();
   revalidatePath("/", "layout");
   return { saved: true };
+}
+
+// REQ-158: the admin changing any member's email. The account is the same
+// one afterwards, so their data, role, notification switch and module
+// settings stay as they are, and only the new address is ever emailed.
+//
+// Someone who has signed in before gets a confirmation at the new address,
+// and the change takes effect once they follow it: Supabase's own email-
+// change step, run as them for this one request (a short sign-in made with
+// a one-time link, ended straight after). Someone who never has gets their
+// address changed at once, their temporary password thrown away so any
+// earlier invite stops working, and a link at the new address to choose a
+// password: the first-time sign-in, ending in the forced password change.
+export async function changeMemberEmail(
+  _previous: EmailChangeState,
+  formData: FormData,
+): Promise<EmailChangeState> {
+  const userId = String(formData.get("userId") ?? "");
+  const email = cleanEmail(formData.get("email"));
+  if (!userId) return { error: "Which member?" };
+  if (!email) return { error: EMAIL_INVALID_MESSAGE };
+
+  const supabase = await requireManageMembers();
+  let members;
+  try {
+    members = await listMembers(supabase);
+  } catch (reason) {
+    console.error("Could not list the members", reason);
+    return { error: "Couldn't check that address. Try again in a moment." };
+  }
+  const member = members.find((each) => each.user_id === userId);
+  if (!member) return { error: "That person isn't in this household." };
+  if (member.email.toLowerCase() === email) return { error: "That is already their email." };
+  if (usedByAnother(members, email, userId)) return { error: EMAIL_TAKEN_MESSAGE };
+
+  const redirectTo = confirmUrl((await headers()).get("host"));
+  const admin = createAdminClient();
+  const { data: account, error: lookup } = await admin.auth.admin.getUserById(userId);
+  if (lookup || !account.user) return { error: "Couldn't look that account up. Try again." };
+
+  if (!account.user.last_sign_in_at) {
+    // Never signed in: move the address, void the old temporary password,
+    // and send a link to choose one.
+    const { error } = await admin.auth.admin.updateUserById(userId, {
+      email,
+      email_confirm: true,
+      password: randomBytes(24).toString("base64url"),
+      app_metadata: { must_set_password: true },
+    });
+    if (error) {
+      console.error("changeMemberEmail failed", error.code, error.message);
+      return { error: emailErrorMessage(error) };
+    }
+    revalidatePath("/admin");
+    const { error: sendError } = await createEphemeralClient().auth.resetPasswordForEmail(email, { redirectTo });
+    if (sendError) {
+      console.error("changeMemberEmail: the link did not send", sendError.code, sendError.message);
+      return {
+        error: `The address is changed, but the email didn't send (${emailErrorMessage(sendError)}) Use "Reset password" to give them a temporary one, or change the address again to retry.`,
+      };
+    }
+    return { sent: { address: email, kind: "invite" } };
+  }
+
+  // Signed in before: a confirmation to the new address.
+  const { data: me } = await supabase.auth.getClaims();
+  let failure: { code?: string; message: string } | null = null;
+  if (me?.claims?.sub === userId) {
+    ({ error: failure } = await supabase.auth.updateUser({ email }, { emailRedirectTo: redirectTo }));
+  } else {
+    const { data: link, error: linkError } = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email: member.email,
+    });
+    const tokenHash = link?.properties?.hashed_token;
+    if (linkError || !tokenHash) {
+      console.error("changeMemberEmail: no link", linkError?.message);
+      return { error: "Couldn't start the change. Try again." };
+    }
+    const asThem = createEphemeralClient();
+    const { error: verifyError } = await asThem.auth.verifyOtp({ type: "magiclink", token_hash: tokenHash });
+    if (verifyError) {
+      console.error("changeMemberEmail: could not act as them", verifyError.message);
+      return { error: "Couldn't start the change. Try again." };
+    }
+    try {
+      ({ error: failure } = await asThem.auth.updateUser({ email }, { emailRedirectTo: redirectTo }));
+    } catch (reason) {
+      console.error("changeMemberEmail: the change threw", reason);
+      failure = { message: "threw" };
+    } finally {
+      // That short sign-in was only for this request.
+      await asThem.auth.signOut({ scope: "local" }).catch(() => {});
+    }
+  }
+  if (failure) {
+    console.error("changeMemberEmail failed", failure.code, failure.message);
+    return { error: emailErrorMessage(failure) };
+  }
+  return { sent: { address: email, kind: "confirm" } };
 }
 
 // "Send test now": a test notification, started by an admin. The hourly

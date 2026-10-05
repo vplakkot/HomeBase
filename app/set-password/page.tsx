@@ -16,8 +16,7 @@ export default async function SetPasswordPage() {
     <AuthPage>
       <h1>Set a new password</h1>
       <p>
-        You signed in with a temporary password. Choose your own before
-        going any further.
+        Choose your own password before going any further.
       </p>
       <SetPasswordForm />
       <form action={signOut} className={authStyles.aside}>
