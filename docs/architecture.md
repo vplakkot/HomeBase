@@ -1155,6 +1155,19 @@ card is a draft with `recipe_id` and `ai_generated`; saving it fills
 that card and sets `recipes.ai_generated`, which any edit clears. See
 [lesson 31](lessons/31-searching-and-fetching-the-web.md).
 
+Add recipe starts with the name (REQ-174). "Save for now" (`saveForNow`)
+saves the name as a "Recipe missing" card with no review step; Gemini
+(`cuisineFromName`) is asked for a cuisine from the name alone, may only
+name one of the cuisines we keep, and only when confident, and the card is
+saved without one if it isn't or doesn't answer. It never writes a recipe
+there. Every other way to add (video, images, page link, web search, typed
+text) can instead fill an existing "Recipe missing" card: its draft carries
+the card's id in `recipe_imports.recipe_id`, checked again when the draft is
+made and when it is saved, so the card keeps its id and with it its ratings
+and cooked history. The library's filters end with "Not set" for cuisine,
+main meat, method and cook time; a recipe without a cook time is ranked on
+rating and days since last cooked at the middling gap.
+
 ### The week's plan and the library (REQ-113 to REQ-115)
 
 `meal_plans` holds one plan per week, started on any day. Two partial

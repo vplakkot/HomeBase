@@ -99,6 +99,22 @@ const chooseSource = (name: string) => {
 };
 
 describe("adding a recipe (REQ-111, REQ-112)", () => {
+  it("starts with the name, and offers Save for now before any method is chosen (REQ-174)", async () => {
+    given({});
+    render(await NewRecipePage());
+    const card = within(screen.getByRole("region", { name: "Add recipe" }));
+    const name = card.getByRole("textbox", { name: "Name" }) as HTMLInputElement;
+    const save = card.getByRole("button", { name: "Save for now" });
+    const source = card.getByRole("combobox", { name: /Source/ });
+    // The name comes first on the page, then Save for now, then the ways to add details.
+    expect(name.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(save.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // And it is still there once a method is chosen.
+    chooseSource("Paste or type it");
+    expect(card.getByRole("button", { name: "Save for now" })).toBeTruthy();
+    expect(card.getAllByRole("textbox", { name: "Name" })).toHaveLength(1);
+  });
+
   it("offers a video (marked BETA), text in any form, or an empty card", async () => {
     given({});
     render(await NewRecipePage());
@@ -224,7 +240,8 @@ describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
     render(await NewRecipePage());
     chooseSource("From a recipe page link");
     expect(screen.getByRole("textbox", { name: /Link to the recipe page/ }).getAttribute("type")).toBe("url");
-    expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
+    // The name is the one at the top of Add recipe; the link form asks for none of its own.
+    expect(screen.getAllByRole("textbox", { name: "Name" })).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Read the recipe" })).toBeTruthy();
   });
 
@@ -241,6 +258,7 @@ describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
       "That page couldn't be read. Copy the recipe from the site and paste it here.",
     );
     expect((screen.getByRole("combobox", { name: /Source/ }) as HTMLSelectElement).selectedOptions[0].text).toBe("Paste or type it");
+    // The page's title becomes the name at the top, to start from.
     expect((screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement).value).toBe("Lemon test chicken");
     expect(screen.getByRole("textbox", { name: "The recipe" })).toBeTruthy();
     const kept = document.querySelector('input[type="hidden"][name="page_url"]') as HTMLInputElement;
@@ -260,11 +278,25 @@ describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
     expect(screen.getByRole("button", { name: "None of these: save it as Recipe missing" })).toBeTruthy();
   });
 
-  it("shows Recipe missing on a card with no recipe, with Type it in and Have Gemini write one", async () => {
+  it("shows Recipe missing on a card with no recipe, with Type it in and Add details offering every method", async () => {
     given({ recipes: [{ ...RECIPE, ingredients: [], steps: [], ai_generated: false }] });
     render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
     const missing = within(screen.getByRole("region", { name: "Recipe missing" }));
     expect(missing.getByRole("link", { name: "Type it in" }).getAttribute("href")).toBe(`/meal-plans/${ID}/edit`);
+    expect(missing.getByText("Add details")).toBeTruthy();
+    const source = missing.getByRole("combobox", { name: /Source/ }) as HTMLSelectElement;
+    expect(Array.from(source.options).map((option) => option.text)).toEqual([
+      "From a video",
+      "From images",
+      "From a recipe page link",
+      "Find it on the web",
+      "Paste or type it",
+      "Have Gemini write one",
+    ]);
+    // It fills this card: no name to give, and no second "Save for now" card.
+    expect(missing.queryByRole("textbox", { name: "Name" })).toBeNull();
+    expect(missing.queryByRole("button", { name: "Save for now" })).toBeNull();
+    fireEvent.change(source, { target: { value: "generic" } });
     expect(missing.getByRole("button", { name: "Have Gemini write one" })).toBeTruthy();
   });
 

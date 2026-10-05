@@ -4,7 +4,7 @@ import { isSwitchedOff } from "../module-switches";
 import { sendPush } from "../notifications/send";
 import { createAdminClient } from "../supabase/admin";
 import { daysBetween, planEnd, slide } from "./meals";
-import { readStoredPlans, saveLayout, syncAheadStart, type MealPlan } from "./plan";
+import { hasDishes, readStoredPlans, saveLayout, syncAheadStart, type MealPlan } from "./plan";
 
 // REQ-163: what the hourly job does for the plan we're on, all by the
 // household's clock (ET). It closes a started plan nobody closed, slides a
@@ -36,6 +36,8 @@ export function shouldSlide(plan: Scheduled, today: string): boolean {
 
 export function startPromptDue(plan: Scheduled, today: string, hour: number): boolean {
   if (plan.ahead || plan.status !== "new" || plan.starts_on !== today || plan.start_prompted_on === today) return false;
+  // Nobody is asked to start a plan with nothing in it.
+  if (!hasDishes(plan)) return false;
   const from = plan.starts_meal === "lunch" ? LUNCH_PROMPT_HOUR : DINNER_PROMPT_HOUR;
   return hour >= from && hour < from + PROMPT_WINDOW_HOURS;
 }

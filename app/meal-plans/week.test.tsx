@@ -830,6 +830,21 @@ describe("the plan lifecycle (REQ-163)", () => {
     expect(screen.queryByRole("button", { name: "Close plan" })).toBeNull();
   });
 
+  it("doesn't let a plan with no dishes be started: no Start button, and the action does nothing", async () => {
+    given({ meal_plans: [newPlan([])], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.getByText("Not started. First meal: Dinner Sun, Sep 27")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+    cleanup();
+    // Eating out alone is no meal to cook.
+    given({ meal_plans: [newPlan([planned(null, 1)])], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+    const fake = given({ meal_plans: [{ ...PLAN_ROW, status: "new" }], meal_plan_recipes: [] });
+    await startPlanNow(form({ plan_id: PLAN }));
+    expect(fake.rpc).not.toHaveBeenCalledWith("begin_meal_plan", expect.anything());
+  });
+
   it("shows a started plan with Close plan and no Start", async () => {
     given({ meal_plans: [openPlan([planned(ID, 2)])], recipes: [RECIPE] });
     render(await WeekPage());
@@ -838,7 +853,7 @@ describe("the plan lifecycle (REQ-163)", () => {
   });
 
   it("starts the plan we're on, and closes it, in one step each on the database", async () => {
-    let fake = given({});
+    let fake = given({ meal_plans: [{ ...PLAN_ROW, status: "new" }], meal_plan_recipes: [planned(ID, 2)] });
     await startPlanNow(form({ plan_id: PLAN }));
     expect(fake.rpc).toHaveBeenCalledWith("begin_meal_plan", { p_plan: PLAN });
     fake = given({});
@@ -1018,6 +1033,20 @@ describe("the repeat recipes setting (REQ-172)", () => {
     render(await WeekPage());
     expect(options()).toEqual(["Choose a recipe", "Test chicken rice", "Test lentil soup"]);
     expect(suggested().some((text) => text?.includes("Test chicken rice"))).toBe(true);
+  });
+});
+
+describe("a Recipe missing card in the plan (REQ-174)", () => {
+  const missing = { ...SECOND, ingredients: [], steps: [], cuisine: null, cook_minutes: null };
+
+  it("is offered to add and planned like any recipe", async () => {
+    given({ meal_plans: [openPlan([])], recipes: [missing] });
+    render(await WeekPage());
+    expect(within(screen.getByRole("combobox", { name: "Recipe" })).getAllByRole("option").map((option) => option.textContent)).toEqual(["Choose a recipe", "Test lentil soup"]);
+    cleanup();
+    const fake = given({ meal_plans: [PLAN_ROW], recipes: [missing] });
+    expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: OTHER, meals: "2" }))).toEqual({});
+    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ plan_id: PLAN, recipe_id: OTHER, meals: 2 });
   });
 });
 
