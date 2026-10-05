@@ -51,7 +51,7 @@ export async function runMealPlanSchedule({ subject, now = new Date() }: { subje
     const { current } = await readStoredPlans(admin);
     if (!current) break;
     if (shouldAutoClose(current, today)) {
-      const { error } = await admin.rpc("close_meal_plan_system", { p_plan: current.id });
+      const { error } = await admin.rpc("close_meal_plan_system", { p_plan: current.id, p_only_started: true });
       if (error) throw new Error(`Could not close the plan: ${error.message}`);
       closed += 1;
       continue;

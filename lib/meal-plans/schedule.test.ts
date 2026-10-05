@@ -114,7 +114,7 @@ describe("running the schedule (REQ-163)", () => {
       .mockResolvedValueOnce({ current: promoted, ahead: null })
       .mockResolvedValue({ current: promoted, ahead: null });
     const result = await runMealPlanSchedule({ subject: "s", now: new Date("2026-10-06T16:00:00Z") });
-    expect(rpc).toHaveBeenCalledWith("close_meal_plan_system", { p_plan: "p1" });
+    expect(rpc).toHaveBeenCalledWith("close_meal_plan_system", { p_plan: "p1", p_only_started: true });
     expect(saveLayout).toHaveBeenCalledWith(expect.anything(), "p2", "2026-10-06", "dinner", []);
     expect(syncAheadStart).toHaveBeenCalled();
     expect(result).toMatchObject({ closed: 1, slid: 1, sent: 0 });

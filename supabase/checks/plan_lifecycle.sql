@@ -42,17 +42,18 @@ begin
   perform public.begin_meal_plan(ahead_plan);
   report := report || format(E'2. Start on the plan ahead does nothing: %s\n', (select status = 'new' from public.meal_plans where id = ahead_plan));
 
-  -- 3. A new plan can't be closed.
+  -- 3. A member's Close works on a new plan too (the running app offers it on any), and closing it leaves the current plan alone.
   insert into public.meal_plan_recipes (plan_id, recipe_id, meals, meal_on, meal) values (current_plan, recipe_one, 2, '2030-01-06', 'dinner') returning id into entry_one;
   insert into public.meal_plan_recipes (plan_id, recipe_id, meals, meal_on, meal) values (current_plan, recipe_two, 1, '2030-01-08', 'dinner') returning id into entry_two;
-  perform public.close_meal_plan(current_plan);
-  report := report || format(E'3. a new plan isn''t closed: %s\n', (select closed_at is null and status = 'new' from public.meal_plans where id = current_plan));
+  perform public.close_meal_plan(ahead_plan);
+  report := report || format(E'3. a new plan can be closed by a member: %s\n', (select closed_at is not null and status = 'closed' from public.meal_plans where id = ahead_plan));
+  ahead_plan := public.start_meal_plan('2030-01-13');
 
   -- 4. Start it; the system closer isn't ours to call.
   perform public.begin_meal_plan(current_plan);
   report := report || format(E'4. started: %s\n', (select status = 'started' from public.meal_plans where id = current_plan));
   begin
-    perform public.close_meal_plan_system(current_plan);
+    perform public.close_meal_plan_system(current_plan, true);
     report := report || E'5. member calls the system closer: NOT refused (BAD)\n';
   exception when insufficient_privilege then
     report := report || E'5. member can''t call the system closer: true\n';

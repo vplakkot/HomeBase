@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { householdToday } from "../finances/budget-year";
 import type { ModuleStatus } from "../module-status";
 import { addDays, dayLabel, daysBetween, nextWeekStart, planEnd, slide, startOf, type EntrySize, type Meal, type MealKind, type Sited } from "./meals";
 
@@ -125,7 +126,8 @@ export async function readClosedPlan(supabase: SupabaseClient, today: string): P
     .maybeSingle();
   if (error) throw new Error(`Could not read the last plan: ${error.message}`);
   const plan = data as { id: string; closed_at: string; meal_plan_recipes: { id: string; recipe_id: string | null; didnt_cook: boolean; meal_on: string; meal: MealKind }[] | null } | null;
-  if (!plan?.closed_at || daysBetween(plan.closed_at.slice(0, 10), today) > 7) return null;
+  // How long ago it closed is counted by the household's calendar, not UTC's.
+  if (!plan?.closed_at || daysBetween(householdToday(new Date(plan.closed_at)), today) > 7) return null;
   const cards = (plan.meal_plan_recipes ?? [])
     .filter((entry) => entry.recipe_id !== null)
     .sort((a, b) => startOf(a as unknown as Sited) - startOf(b as unknown as Sited))

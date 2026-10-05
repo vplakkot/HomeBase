@@ -7,10 +7,12 @@
 -- hourly call). Existing plans: closed stay closed, the plan running is
 -- started, the plan ahead is new.
 --
--- Written so the live app keeps working until the new code is live: new
--- columns only, the old `carry_over` and `cooked` columns stay (closing treats
--- "carry over" the same as "didn't cook"), and a plan the old app creates is
--- started, as it always was.
+-- Written so the live app keeps working until the new code is live: the old
+-- `carry_over` and `cooked` columns stay (closing treats "carry over" the same
+-- as "didn't cook"), and a member's Close works on any open plan, as it
+-- always did. A plan the old app creates is new, and the old app has no Start
+-- button for it; it can still close it, and the new code, once live, shows it
+-- with a Start button.
 
 alter table public.meal_plans
   add column status text not null default 'started' check (status in ('new', 'started', 'closed')),
@@ -87,19 +89,19 @@ $$;
 revoke all on function public.begin_meal_plan(uuid) from public, anon;
 grant execute on function public.begin_meal_plan(uuid) to authenticated;
 
--- Closing, with nobody signed in (the schedule closes plans nobody closed).
--- Only a started plan closes. Every dish counts as cooked unless it was
+-- Closing. The schedule (nobody signed in) passes `p_only_started`, so it
+-- never closes a plan nobody started; a member's Close below doesn't. Every dish counts as cooked unless it was
 -- marked "Didn't cook this" (or carried over, which the old app wrote);
 -- each of us is asked to rate a dish cooked for the first time. When the
 -- plan we're on closes, the plan ahead becomes current, and is new.
-create function public.close_meal_plan_system(p_plan uuid)
+create function public.close_meal_plan_system(p_plan uuid, p_only_started boolean default true)
 returns void
 language plpgsql
 security definer
 set search_path = ''
 as $$
 begin
-  perform 1 from public.meal_plans where id = p_plan and closed_at is null and status = 'started' for update;
+  perform 1 from public.meal_plans where id = p_plan and closed_at is null and (status = 'started' or not p_only_started) for update;
   if not found then
     return;
   end if;
@@ -128,10 +130,11 @@ begin
 end;
 $$;
 
-revoke all on function public.close_meal_plan_system(uuid) from public, anon, authenticated;
-grant execute on function public.close_meal_plan_system(uuid) to service_role;
+revoke all on function public.close_meal_plan_system(uuid, boolean) from public, anon, authenticated;
+grant execute on function public.close_meal_plan_system(uuid, boolean) to service_role;
 
--- Either of us closes the plan we're on, any time.
+-- Either of us closes the plan we're on, any time (the new app offers Close
+-- on a started plan; the old one offered it on any).
 create or replace function public.close_meal_plan(p_plan uuid)
 returns void
 language plpgsql
@@ -143,7 +146,7 @@ begin
     raise exception 'Only a household member can close a plan'
       using errcode = 'insufficient_privilege';
   end if;
-  perform public.close_meal_plan_system(p_plan);
+  perform public.close_meal_plan_system(p_plan, false);
 end;
 $$;
 

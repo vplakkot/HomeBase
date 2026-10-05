@@ -903,9 +903,9 @@ describe("meal plan: plan lifecycle (REQ-163)", () => {
     expect(life).toMatch(/where id = p_plan and closed_at is null and not ahead and status = 'new';/);
   });
 
-  it("closes only a started plan, counting every dish cooked except those marked, and makes the plan ahead current", () => {
+  it("closes a started plan for the schedule (any open plan for a member), counting every dish cooked except those marked, and makes the plan ahead current", () => {
     const close = life.slice(life.indexOf("function public.close_meal_plan_system"), life.indexOf("-- Either of us closes"));
-    expect(close).toMatch(/where id = p_plan and closed_at is null and status = 'started' for update;/);
+    expect(close).toMatch(/where id = p_plan and closed_at is null and \(status = 'started' or not p_only_started\) for update;/);
     expect(close).toMatch(/not \(mpr\.didnt_cook or mpr\.carry_over\)/);
     expect(close).toMatch(/set cooked = not \(didnt_cook or carry_over\) where plan_id = p_plan;/);
     expect(close).toMatch(/set closed_at = now\(\), status = 'closed' where id = p_plan;/);
@@ -913,8 +913,13 @@ describe("meal plan: plan lifecycle (REQ-163)", () => {
   });
 
   it("keeps the closer that needs nobody signed in away from everyone but the schedule", () => {
-    expect(life).toMatch(/revoke all on function public\.close_meal_plan_system\(uuid\) from public, anon, authenticated;/);
-    expect(life).toMatch(/grant execute on function public\.close_meal_plan_system\(uuid\) to service_role;/);
+    expect(life).toMatch(/revoke all on function public\.close_meal_plan_system\(uuid, boolean\) from public, anon, authenticated;/);
+    expect(life).toMatch(/grant execute on function public\.close_meal_plan_system\(uuid, boolean\) to service_role;/);
+  });
+
+  it("lets a member close any open plan, as the running app does, while the schedule only closes a started one", () => {
+    expect(life).toMatch(/perform public\.close_meal_plan_system\(p_plan, false\);/);
+    expect(life).toMatch(/p_only_started boolean default true/);
   });
 
   it("lets members close, reopen, start and mark Didn't cook this, nobody else", () => {
