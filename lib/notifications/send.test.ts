@@ -3,7 +3,7 @@ import webpush from "web-push";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdminClient } from "../supabase/admin";
 import { hashReceiptToken } from "./receipt-token";
-import { sendTestNotification } from "./send";
+import { sendPush, sendTestNotification } from "./send";
 
 vi.mock("web-push", () => {
   class WebPushError extends Error {
@@ -154,6 +154,41 @@ describe("sendTestNotification", () => {
       .mocked(webpush.sendNotification)
       .mock.calls.map(([subscription]) => subscription.endpoint);
     expect(endpoints).toEqual(["https://web.push.apple.com/vin-phone"]);
+  });
+
+  // REQ-159, REQ-160: one person, and within them one device.
+  it("sends only to the one person named, and only to the one device when asked", async () => {
+    givenHousehold({
+      switchedOn: [VIN, MEGAN],
+      devices: [device(VIN, "vin-phone"), device(VIN, "vin-ipad"), device(MEGAN, "megan-phone")],
+    });
+    const message = { title: "HomeBase", body: "Test", url: "/" };
+    const one = await sendPush({ subject: "https://homebase.example", trigger: "manual", to: [VIN], message });
+    expect(one).toMatchObject({ people: 1, devices: 2, delivered: 2 });
+    vi.mocked(webpush.sendNotification).mockClear();
+    const device1 = await sendPush({
+      subject: "https://homebase.example",
+      trigger: "manual",
+      to: [VIN],
+      message,
+      onlyEndpoint: "https://web.push.apple.com/vin-ipad",
+    });
+    expect(device1).toMatchObject({ people: 1, devices: 1, delivered: 1 });
+    const [subscription] = vi.mocked(webpush.sendNotification).mock.calls[0];
+    expect(subscription.endpoint).toBe("https://web.push.apple.com/vin-ipad");
+    expect(webpush.sendNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends a test to someone whose switch is off nothing", async () => {
+    givenHousehold({ switchedOn: [MEGAN], devices: [device(VIN, "vin-phone"), device(MEGAN, "megan-phone")] });
+    const summary = await sendPush({
+      subject: "https://homebase.example",
+      trigger: "manual",
+      to: [VIN],
+      message: { title: "HomeBase", body: "Test", url: "/" },
+    });
+    expect(summary).toMatchObject({ people: 0, devices: 0 });
+    expect(webpush.sendNotification).not.toHaveBeenCalled();
   });
 
   it("sends nothing at all when nobody is switched on", async () => {

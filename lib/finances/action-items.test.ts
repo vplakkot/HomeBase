@@ -438,55 +438,42 @@ describe("Finances pushes (REQ-70)", () => {
   });
 });
 
-// REQ-148, as changed by Vin on 2026-09-28: a month filled in afterwards
-// raises none of the usual items and pushes nothing, but while it's open
-// it has one item of its own, to finish it.
+// REQ-161: a month filled in afterwards behaves like any other once it's
+// over, with one difference kept from Vin's 2026-09-28 call: it never
+// pushes.
 describe("a month added later", () => {
-  const owing = month("2026-05-01", [rent({ entered_by: null }), card({ amount: null, personal_answer: null })], {
-    added_later: true,
-  });
   const ended = month("2026-06-01", [rent({ payments: [pay(ALEX, 500, "2026-06-03")] })], { added_later: true });
   const settled = month("2026-07-01", [rent()], { added_later: true, closed_at: "2026-09-20T12:00:00Z", settled: true });
   const september = month("2026-09-01", [rent({ payments: [pay(ALEX, 1000, "2026-09-01"), pay(BLAIR, 1000, "2026-09-01")] })]);
-  const s = snapshot({ today: "2026-09-10", months: [owing, ended, settled, september] });
+  const s = snapshot({ today: "2026-09-10", months: [ended, settled, september] });
 
-  it("shows one item per open month until it's finished, and none once closed", () => {
+  it("uses the regular month-end item, wording and settle flow", () => {
+    const regular = snapshot({ today: "2026-09-10", months: [{ ...ended, added_later: false }, september] });
     for (const viewer of [ALEX, BLAIR]) {
-      const items = financeItems(s, viewer).filter((item) => /2026-0[567]/.test(item.key));
-      expect(items.map((item) => [item.text, item.detail, item.href, item.button])).toEqual([
-        ["May 2026 isn't finished", "1 bill still to enter", "/finances/monthly-entry?month=2026-05", "Finish month"],
-        ["June 2026 isn't finished", "Mark it settled, or log payments", "/finances/monthly-entry?month=2026-06", "Finish month"],
-      ]);
+      const mine = financeItems(s, viewer).filter((item) => item.key === "ended:2026-06-01");
+      const theirs = financeItems(regular, viewer).filter((item) => item.key === "ended:2026-06-01");
+      expect(mine.length).toBe(theirs.length);
+      expect(mine.map(({ push: _push, ...item }) => item)).toEqual(theirs.map(({ push: _push, ...item }) => item));
+    }
+    const [item] = financeItems(s, BLAIR).filter((each) => each.key === "ended:2026-06-01");
+    expect(item.text).toBe("June ended, not squared");
+    expect(item.href).toMatch(/^\/finances\/(log-payment|close-month)\?month=2026-06$/);
+  });
+
+  it("has no separate 'isn't finished' item", () => {
+    for (const viewer of [ALEX, BLAIR]) {
+      expect(financeItems(s, viewer).some((item) => item.key.startsWith("unfinished:") || /isn't finished/.test(item.text))).toBe(false);
     }
   });
 
-  it("sends no notifications", () => {
-    expect(pushesDue(s, []).filter((push) => /2026-0[567]/.test(push.topic))).toEqual([]);
-    expect(financeItems(s, ALEX).filter((item) => item.key.startsWith("unfinished:")).every((item) => item.push === null)).toBe(true);
-    // The same months, not added later, would have raised the usual items.
-    const plain = snapshot({ months: [{ ...owing, added_later: false }, { ...ended, added_later: false }] });
-    expect(financeItems(plain, ALEX).some((item) => item.key === "ended:2026-06-01")).toBe(true);
-  });
-});
-
-// Vin, 2026-09-28: Finances home on April shows April's items only.
-describe("items for the month on screen", () => {
-  const item = (href: string) => ({ href }) as FinanceItem;
-  const items = [
-    item("/finances/log-payment?month=2026-09&bill=b-1"),
-    item("/finances/monthly-entry?month=2026-04"),
-    item("/finances/budget-year"),
-    item("/finances?month=2026-04"),
-  ];
-
-  it("reads an item's month from its link", () => {
-    expect(itemMonth(items[0])).toBe("2026-09-01");
-    expect(itemMonth(items[2])).toBeNull();
+  it("says nothing about a month that's closed", () => {
+    expect(financeItems(s, ALEX).some((item) => item.key.endsWith("2026-07-01"))).toBe(false);
   });
 
-  it("shows a month gone by only its own items, and the month now running all of them", () => {
-    expect(itemsForMonth(items, "2026-04-01", "2026-09-28")).toEqual([items[1], items[3]]);
-    expect(itemsForMonth(items, "2026-05-01", "2026-09-28")).toEqual([]);
-    expect(itemsForMonth(items, "2026-09-01", "2026-09-28")).toEqual(items);
+  it("sends no notifications for it, though the same month opened normally would", () => {
+    expect(pushesDue(s, []).filter((push) => /2026-0[67]/.test(push.topic))).toEqual([]);
+    expect(financeItems(s, ALEX).filter((item) => item.key === "ended:2026-06-01").every((item) => item.push === null)).toBe(true);
+    const plain = snapshot({ today: "2026-09-10", months: [{ ...ended, added_later: false }] });
+    expect(financeItems(plain, ALEX).find((item) => item.key === "ended:2026-06-01")?.push).not.toBeNull();
   });
 });

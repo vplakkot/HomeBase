@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { Account } from "../lib/account";
+import { DeviceList } from "../app/notifications/device-list";
+import { myDevices, removeMyDevice, sendTestToMyDevice } from "../app/notifications/actions";
 import { EnableNotifications } from "../app/notifications/enable-notifications";
 import { saveMyName } from "../app/profile/actions";
 import { SignOutForm } from "../app/sign-out/sign-out-form";
@@ -138,6 +140,12 @@ function AccountSheets({
         {sheet === "settings" ? (
           <div className={styles.settings}>
             <EnableNotifications publicKey={account.publicKey} knownDevice={account.knownDevice} />
+            <section aria-labelledby="my-devices">
+              <h3 id="my-devices" className={styles.heading}>
+                My devices
+              </h3>
+              <DeviceList load={myDevices} remove={removeMyDevice} test={sendTestToMyDevice} />
+            </section>
             <MyModules view={account.modules} />
             <p data-testid="build-info" className={styles.note}>
               {account.build}

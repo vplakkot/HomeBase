@@ -6,7 +6,10 @@ import { ChevronLeftIcon } from "../../components/icons";
 import { SWITCHES, moduleColours } from "../../lib/modules";
 import { readAccount } from "../../lib/account";
 import { listMembers, listRoles } from "../../lib/auth/members";
-import { countDevices, listRecentLog, SHOW_DAYS } from "../../lib/notifications/log";
+import { listDevices, type DeviceView } from "../../lib/notifications/devices";
+import { listRecentLog, SHOW_DAYS } from "../../lib/notifications/log";
+import { DeviceList } from "../notifications/device-list";
+import { removeMemberDevice, renameMember } from "./actions";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { hasPermission } from "../../lib/auth/permissions";
 import { createClient } from "../../lib/supabase/server";
@@ -16,9 +19,9 @@ import { ModuleSwitchForm } from "./module-switch-form";
 import { NotificationLog } from "./notification-log";
 import { NotificationsForm } from "./notifications-form";
 import { NameForm } from "../../components/name-form";
-import { renameMember } from "./actions";
 import { ResetPasswordForm } from "./reset-password-form";
 import { SendTestForm } from "./send-test-form";
+import { SendTestPersonForm } from "./send-test-person-form";
 import { RoleForm } from "./role-form";
 import styles from "./page.module.css";
 
@@ -56,13 +59,13 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
       reason instanceof Error ? reason.message : reason,
     );
   }
-  // REQ-125: how many devices each person has registered. Only counts are
-  // read (never the addresses), and losing them loses only the note.
-  let devices: Map<string, number> | null = null;
+  // REQ-125, REQ-160: each person's registered devices, named but never
+  // by address, and losing them loses only this note and list.
+  let devices: Map<string, DeviceView[]> | null = null;
   try {
-    devices = await countDevices(createAdminClient());
+    devices = await listDevices(createAdminClient(), members.map((member) => member.user_id));
   } catch (reason) {
-    console.error("Could not count the devices", reason instanceof Error ? reason.message : reason);
+    console.error("Could not read the devices", reason instanceof Error ? reason.message : reason);
   }
   const names = new Map(
     members.map((member) => [member.user_id, member.name ?? member.email]),
@@ -170,25 +173,38 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
                   {person(member)}
                   {devices ? (
                     <span className={styles.rowNote}>
-                      {deviceText(devices.get(member.user_id) ?? 0)}
+                      {deviceText(devices.get(member.user_id)?.length ?? 0)}
                     </span>
                   ) : null}
-                  <button type="button" className={styles.button} disabled title="Coming soon">
-                    Send test
-                  </button>
+                  <SendTestPersonForm
+                    userId={member.user_id}
+                    enabled={member.notifications_enabled}
+                    name={member.name ?? member.email}
+                  />
                   <NotificationsForm
                     userId={member.user_id}
                     enabled={member.notifications_enabled}
                     label={`Notifications for ${member.name ?? member.email}`}
                   />
                 </div>
+                {devices && (devices.get(member.user_id)?.length ?? 0) > 0 ? (
+                  <details className={styles.manage}>
+                    <summary>Devices</summary>
+                    <DeviceList
+                      initial={devices.get(member.user_id)}
+                      remove={removeMemberDevice}
+                      who={member.name ?? member.email}
+                    />
+                  </details>
+                ) : null}
               </li>
             ))}
           </ul>
           <div className={styles.cardFoot}>
             <p>
-              A test for one person is coming soon. For now, a test goes to every
-              device of every member whose switch is on.
+              The switch decides whether a person gets notifications at all.
+              &ldquo;Send test&rdquo; on a row tests that person; &ldquo;Send
+              test now&rdquo; tests everyone switched on.
             </p>
             <SendTestForm />
             <p>Notifications never show dollar amounts on the lock screen.</p>

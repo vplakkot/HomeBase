@@ -59,7 +59,7 @@ async function currentStatus(
     if (
       existing &&
       existing.endpoint === knownDevice &&
-      (await saveDevice(existing.toJSON())).saved
+      (await saveDevice(existing.toJSON(), { quiet: true })).saved
     ) {
       return "on";
     }

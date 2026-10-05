@@ -68,9 +68,10 @@ export const DUE_SOON_DAYS = 5;
 export const QUIET_DAYS = 14;
 
 export function financeItems(everything: FinanceSnapshot, viewer: string): FinanceItem[] {
-  // REQ-148: a month filled in afterwards raises none of the usual items;
-  // while it's open it has one of its own (below), which never pushes.
-  const snapshot = { ...everything, months: everything.months.filter((month) => !month.added_later) };
+  // REQ-161: a month filled in afterwards raises the same items as any
+  // other month once it's over. The one difference is that it never
+  // pushes: a month Vin and Megan are catching up on isn't news.
+  const snapshot = everything;
   const { today, splits } = snapshot;
   const me = snapshot.people.find((person) => person.user_id === viewer);
   if (!me || !splitInForce(splits, today)) return [];
@@ -103,10 +104,12 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
     // Past its last day and not squared: whoever owes pays; an admin who
     // owes nothing can close it with the balance left.
     if (month.starts_on < current) {
-      const push = { topic: `ended:${month.starts_on}`, body: `${name} ended with a balance still open.` };
+      const push = month.added_later
+        ? null
+        : { topic: `ended:${month.starts_on}`, body: `${name} ended with a balance still open.` };
       if (mine && mine.outstanding > 0) {
         items.push({
-          key: push.topic,
+          key: `ended:${month.starts_on}`,
           text: `${name} ended, not squared`,
           detail: `You owe ${formatMoney(mine.outstanding)}`,
           rank: RANKS.ended,
@@ -116,7 +119,7 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
         });
       } else if (me.manages_budget) {
         items.push({
-          key: push.topic,
+          key: `ended:${month.starts_on}`,
           text: `${name} ended, not squared`,
           detail: "Close it with the balance left",
           rank: RANKS.ended,
@@ -184,22 +187,6 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
         });
       }
     }
-  }
-
-  // Vin, 2026-09-28: a month added later and not yet closed stays in
-  // view until it's finished. In the app only: it sends no notification.
-  for (const month of everything.months) {
-    if (!month.added_later || month.closed_at) continue;
-    const toEnter = month.bills.filter((bill) => !billEntered(bill)).length;
-    items.push({
-      key: `unfinished:${month.starts_on}`,
-      text: `${monthLabel(month.starts_on)} isn't finished`,
-      detail: toEnter > 0 ? `${toEnter} bill${toEnter === 1 ? "" : "s"} still to enter` : "Mark it settled, or log payments",
-      rank: RANKS.enter,
-      href: `/finances/monthly-entry?month=${month.starts_on.slice(0, 7)}`,
-      button: "Finish month",
-      push: null,
-    });
   }
 
   // The month now running, not opened yet.

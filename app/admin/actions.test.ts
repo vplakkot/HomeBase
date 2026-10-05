@@ -2,14 +2,17 @@ import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { headers } from "next/headers";
-import { sendTestNotification } from "../../lib/notifications/send";
+import { removeDevice } from "../../lib/notifications/devices";
+import { sendPush, sendTestNotification } from "../../lib/notifications/send";
 import { createClient } from "../../lib/supabase/server";
 import {
   changeRole,
   createMember,
   renameMember,
   resetPassword,
+  removeMemberDevice,
   sendTestNow,
+  sendTestToMember,
   setNotifications,
 } from "./actions";
 
@@ -17,7 +20,12 @@ vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("../../lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/headers", () => ({ headers: vi.fn() }));
-vi.mock("../../lib/notifications/send", () => ({ sendTestNotification: vi.fn() }));
+vi.mock("../../lib/notifications/send", () => ({
+  sendTestNotification: vi.fn(),
+  sendPush: vi.fn(),
+  MESSAGES: { manual: { title: "HomeBase", body: "Test notification, sent by hand." } },
+}));
+vi.mock("../../lib/notifications/devices", () => ({ removeDevice: vi.fn() }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -368,5 +376,80 @@ describe("sendTestNow", () => {
     });
     expect(log).toHaveBeenCalled();
     log.mockRestore();
+  });
+});
+
+// REQ-159: a test for one person.
+describe("sendTestToMember", () => {
+  beforeEach(() => {
+    vi.mocked(headers).mockResolvedValue(new Headers({ host: "homebase.example" }) as unknown as Awaited<ReturnType<typeof headers>>);
+    vi.mocked(sendPush).mockReset();
+    vi.mocked(sendPush).mockResolvedValue({
+      trigger: "manual",
+      people: 1,
+      devices: 2,
+      delivered: 2,
+      failed: 0,
+      removed: 0,
+      outcomes: [],
+    });
+  });
+
+  it("sends to that member only, as a manual test, and says how it went", async () => {
+    given();
+    expect(await sendTestToMember({}, form({ userId: "u-2" }))).toEqual({
+      sent: { people: 1, devices: 2, delivered: 2 },
+    });
+    expect(sendPush).toHaveBeenCalledWith(
+      expect.objectContaining({ trigger: "manual", to: ["u-2"], subject: "https://homebase.example" }),
+    );
+  });
+
+  it("reports nobody switched on rather than sending", async () => {
+    given();
+    vi.mocked(sendPush).mockResolvedValue({
+      trigger: "manual", people: 0, devices: 0, delivered: 0, failed: 0, removed: 0, outcomes: [],
+    });
+    expect(await sendTestToMember({}, form({ userId: "u-2" }))).toEqual({
+      sent: { people: 0, devices: 0, delivered: 0 },
+    });
+  });
+
+  it("sends a member away without sending anything", async () => {
+    given({ permission: false });
+    await expect(sendTestToMember({}, form({ userId: "u-2" }))).rejects.toThrow("REDIRECT:/");
+    expect(sendPush).not.toHaveBeenCalled();
+  });
+
+  it("asks which member when none is named", async () => {
+    given();
+    expect(await sendTestToMember({}, form({}))).toEqual({ error: "Which member?" });
+  });
+});
+
+// REQ-160: the admin removing any member's device.
+describe("removeMemberDevice", () => {
+  beforeEach(() => {
+    vi.mocked(removeDevice).mockReset();
+  });
+
+  it("removes the device and refreshes the console", async () => {
+    given();
+    vi.mocked(removeDevice).mockResolvedValue("https://web.push.apple.com/x");
+    expect(await removeMemberDevice("d-1")).toEqual({ done: "Removed." });
+    expect(removeDevice).toHaveBeenCalledWith(expect.anything(), "d-1");
+    expect(revalidatePath).toHaveBeenCalledWith("/admin");
+  });
+
+  it("says so when the device is already gone", async () => {
+    given();
+    vi.mocked(removeDevice).mockResolvedValue(null);
+    expect(await removeMemberDevice("d-1")).toEqual({ error: "That device is already gone." });
+  });
+
+  it("sends a member away without removing anything", async () => {
+    given({ permission: false });
+    await expect(removeMemberDevice("d-1")).rejects.toThrow("REDIRECT:/");
+    expect(removeDevice).not.toHaveBeenCalled();
   });
 });

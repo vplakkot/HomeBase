@@ -1071,3 +1071,23 @@ describe("module switches (REQ-141, REQ-142, REQ-143)", () => {
     expect(switches).toContain("grant execute on function public.choose_modules(text[]) to authenticated;");
   });
 });
+
+// REQ-160: a removed device leaves a mark so the quiet sign-up can't put it back.
+describe("removed devices migration", () => {
+  const removed = readMigration("20261007100000");
+
+  it("keeps a one-way hash of the address, not the address", () => {
+    expect(removed).toMatch(/create table public\.removed_devices \(\s*endpoint_hash text primary key/);
+    expect(removed).not.toMatch(/endpoint text/);
+  });
+
+  it("is closed to everyone but the secret key", () => {
+    expect(removed).toMatch(/alter table public\.removed_devices enable row level security/);
+    expect(removed).toMatch(/revoke all on public\.removed_devices from anon, authenticated/);
+    expect(removed).not.toMatch(/create policy/);
+  });
+
+  it("goes with the person when they leave the household", () => {
+    expect(removed).toMatch(/references public\.household_members \(user_id\) on delete cascade/);
+  });
+});
