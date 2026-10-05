@@ -958,6 +958,25 @@ describe("meal plan: lifecycle follow-ups (REQ-163)", () => {
   });
 });
 
+describe("meal plan: repeat recipes setting (REQ-172)", () => {
+  const repeat = readMigration("20261006130000");
+
+  it("keeps one household setting, off by default, that only members read and change", () => {
+    expect(repeat).toMatch(/id boolean primary key default true check \(id\)/);
+    expect(repeat).toMatch(/repeat_recipes boolean not null default false/);
+    expect(repeat).toMatch(/insert into public\.meal_plan_settings \(id\) values \(true\);/);
+    expect(repeat).toMatch(/alter table public\.meal_plan_settings enable row level security;/);
+    expect(repeat).toMatch(/revoke all on public\.meal_plan_settings from anon;/);
+    expect(repeat).toMatch(/on public\.meal_plan_settings for select to authenticated\s+using \(\(select public\.is_member\(\)\)\)/);
+    expect(repeat).toMatch(/on public\.meal_plan_settings for update to authenticated\s+using \(\(select public\.has_permission\('use_modules'\)\)\)/);
+    expect(repeat).not.toMatch(/meal_plan_settings for (insert|delete)/);
+  });
+
+  it("lets a recipe be in a plan more than once, by dropping the one-per-plan rule", () => {
+    expect(repeat).toMatch(/drop constraint meal_plan_recipes_plan_recipe_key;/);
+  });
+});
+
 describe("restaurants migration (REQ-90, REQ-129)", () => {
   const restaurants = readMigration("20260929100000");
 
