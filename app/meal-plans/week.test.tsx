@@ -238,7 +238,7 @@ describe("the week's plan (REQ-115)", () => {
     expect(screen.getByText("Change the start day").closest("details")?.hasAttribute("open")).toBe(false);
     const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
-    expect(rows[0].textContent).toMatch(/^Dinner Sun · Lunch Mon \(leftovers\)Test chicken rice/);
+    expect(rows[0].textContent).toMatch(/^Dinner Sun · Lunch MonTest chicken rice/);
     expect(rows[1].textContent).toMatch(/^Dinner MonTest lentil soup/);
     expect((screen.getByRole("combobox", { name: "Size of Test chicken rice" }) as HTMLSelectElement).value).toBe("2");
     expect((screen.getByRole("combobox", { name: "Size of Test lentil soup" }) as HTMLSelectElement).value).toBe("1");
@@ -422,8 +422,8 @@ describe("Meal Plans' home (REQ-118)", () => {
     expect(within(card).queryByText(/Covers through/)).toBeNull();
     const list = within(card).getByRole("list", { name: "On the menu: dishes" });
     expect(within(list).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "Test chicken riceDinner Sun · Lunch Mon (leftovers)",
-      "Test lentil soupDinner Mon · Lunch Tue (leftovers)",
+      "Test chicken riceDinner Sun · Lunch Mon",
+      "Test lentil soupDinner Mon · Lunch Tue",
     ]);
     expect(within(list).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([`/meal-plans/${ID}`, `/meal-plans/${OTHER}`]);
     // The dish with a photo shows it; the one without shows no empty block.
@@ -562,7 +562,7 @@ describe("a plan is a run of meals (REQ-168)", () => {
       "Lunch MonOn your own",
       "Dinner MonEating out",
       "Lunch TueOn your own",
-      "Dinner Tue · Lunch Wed (leftovers)Test lentil soup",
+      "Dinner Tue · Lunch WedTest lentil soup",
     ]);
     expect(screen.getByRole("heading", { name: "Sun, Sep 27 Dinner – Wed, Sep 30 Lunch" })).toBeTruthy();
     // An evening out has no cooked or carry-over tick.
@@ -573,11 +573,11 @@ describe("a plan is a run of meals (REQ-168)", () => {
     given({ meal_plans: [openPlan([planned(ID, 2), planned(OTHER, 2, "2026-09-29", "dinner", false, false, E2)])], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
     const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
-    expect(rows.map((row) => row.textContent?.slice(0, 32))).toEqual([
-      "Dinner Sun · Lunch Mon (leftover",
+    expect(rows.map((row) => row.textContent?.slice(0, 22))).toEqual([
+      "Dinner Sun · Lunch Mon",
       "Dinner MonNot planned",
       "Lunch TueOn your own",
-      "Dinner Tue · Lunch Wed (leftover",
+      "Dinner Tue · Lunch Wed",
     ]);
   });
 
