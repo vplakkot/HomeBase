@@ -414,28 +414,45 @@ describe("suggestions while planning (REQ-117)", () => {
 
 describe("Meal Plans' home (REQ-118)", () => {
   // REQ-155: plain rows, a name and the meal it's for; no photos.
-  it("lists the open plan's recipes as text rows with their meals, and how far they carry us", async () => {
+  it("shows the plan as one On the menu card: its dates, then each dish with its photo and meals", async () => {
     given({ recipes: [RECIPE, SECOND], recipe_imports: [], meal_plans: [openPlan([planned(ID, 2), planned(OTHER, 2, "2026-09-28", "dinner")])] });
     render(await MealPlansPage());
-    const week = screen.getByRole("region", { name: "This week" });
-    expect(week.textContent).toContain("Sun, Sep 27 Dinner – Tue, Sep 29 Lunch");
-    expect(within(week).queryByText(/Covers through/)).toBeNull();
-    const list = within(week).getByRole("list", { name: "Recipes in the plan" });
+    const card = screen.getByRole("region", { name: "On the menu" });
+    expect(card.textContent).toContain("Sun, Sep 27 Dinner – Tue, Sep 29 Lunch");
+    expect(within(card).queryByText(/Covers through/)).toBeNull();
+    const list = within(card).getByRole("list", { name: "On the menu: dishes" });
     expect(within(list).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
       "Test chicken riceDinner Sun · Lunch Mon",
       "Test lentil soupDinner Mon · Lunch Tue",
     ]);
     expect(within(list).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([`/meal-plans/${ID}`, `/meal-plans/${OTHER}`]);
-    expect(list.querySelector("img")).toBeNull();
-    expect(within(week).getByRole("link", { name: "Open the plan" }).getAttribute("href")).toBe("/meal-plans/week");
+    // The dish with a photo shows it; the one without shows no empty block.
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows[0].querySelector("img")?.getAttribute("src")).toMatch(/^https:\/\/signed\.example\//);
+    expect(rows[1].querySelector("img")).toBeNull();
+    expect(within(card).getByRole("link", { name: "Open the plan" }).getAttribute("href")).toBe("/meal-plans/week");
+    // Next week isn't planned: no second card.
+    expect(screen.queryByRole("region", { name: "Next week" })).toBeNull();
   });
 
-  it("prompts us to start a plan when none is open", async () => {
+  it("shows next week's plan as a second card below, labelled Next week", async () => {
+    given({ recipes: [RECIPE, SECOND], recipe_imports: [], meal_plans: [openPlan([planned(ID, 2)]), aheadPlan([planned(OTHER, 2, "2026-09-28", "dinner", false, false, E3)])] });
+    render(await MealPlansPage());
+    const cards = screen.getAllByRole("region").filter((region) => ["On the menu", "Next week"].includes(region.getAttribute("aria-label") ?? ""));
+    expect(cards.map((card) => card.getAttribute("aria-label"))).toEqual(["On the menu", "Next week"]);
+    const next = within(screen.getByRole("region", { name: "Next week" }));
+    expect(next.getByRole("link", { name: "Test lentil soup" })).toBeTruthy();
+    expect(next.getByText("Next week")).toBeTruthy();
+  });
+
+  it("still shows the card when there is no plan, empty", async () => {
     given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [] });
     render(await MealPlansPage());
-    const week = screen.getByRole("region", { name: "This week" });
-    expect(within(week).getByText("What are we eating this week?")).toBeTruthy();
-    expect(within(week).getByRole("button", { name: "New meal plan" })).toBeTruthy();
+    const card = within(screen.getByRole("region", { name: "On the menu" }));
+    expect(card.getByText("No plan yet")).toBeTruthy();
+    expect(card.queryByRole("list")).toBeNull();
+    // The plan button is the one at the top, not a second one in the card.
+    expect(card.queryByRole("button", { name: "New meal plan" })).toBeNull();
   });
 
   it("shows the most cooked and top rated recipes, total recipes and number of cuisines", async () => {
@@ -456,7 +473,8 @@ describe("Meal Plans' home (REQ-118)", () => {
     const kitchen = screen.getByRole("region", { name: "Our kitchen" });
     const value = (label: string) => within(kitchen).getByText(label).nextElementSibling?.textContent;
     expect(value("Most cooked")).toBe("Test chicken rice (2)");
-    expect(value("Top rated")).toBe("Test lentil soup ★★★★★");
+    // The average as a number with one star (REQ-173).
+    expect(value("Top rated")).toBe("Test lentil soup ★ 5");
     expect(value("Recipes")).toBe("3");
     expect(value("Cuisines")).toBe("2");
   });
@@ -1045,7 +1063,7 @@ describe("planning ahead (REQ-162)", () => {
 });
 
 describe("module home actions and suggestions (REQ-165)", () => {
-  it("shows Add recipe and New meal plan side by side while there is no plan", async () => {
+  it("shows Add recipe and New meal plan side by side at the top while there is no plan", async () => {
     given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [] });
     render(await MealPlansPage());
     const actions = within(screen.getByRole("group", { name: "Start something" }));

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Meal Plan home: "On the menu" is one card with the plan's dates and each
+  dish with its photo and meals. Next week's plan, when it exists, is a second
+  card below it, "Next week". With no plan the card is still there, empty, and
+  the top row offers New meal plan (or Plan next week once a plan runs). Top
+  rated shows the average as "★ 4.5" ("★ 5" for a whole number), and the
+  Recipes and Cuisines counts are centred in their tiles.
+
+
 - Meal Plan, header and wording: a plan's header is just its dates, "Sun, Oct 4
   Dinner – Mon, Oct 5 Lunch", with a small Dinner or Lunch on each, in one
   style. The "From…" and "Covers through…" lines are gone, on the plan page
