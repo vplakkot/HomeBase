@@ -82,10 +82,10 @@ describe("the plan laid out by meal (REQ-168)", () => {
     expect(
       rows.map((row) => (row.kind === "empty" ? `${row.meal.meal} ${row.meal.day}: ${row.label}` : `${row.entry.id}: ${entryMeals(row.meals)}`)),
     ).toEqual([
-      "a: Dinner Sun · Lunch Mon (leftovers)",
+      "a: Dinner Sun · Lunch Mon",
       "dinner 2026-10-05: Not planned",
       "lunch 2026-10-06: On your own",
-      "b: Dinner Tue · Lunch Wed (leftovers)",
+      "b: Dinner Tue · Lunch Wed",
     ]);
   });
 

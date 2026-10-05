@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { planStats, type PlanRow, type PlanStats } from "./plan";
 import type { Recipe } from "./recipes";
 import { naturalGapDays, score, suggestions } from "./suggest";
+import { ratingText } from "./home";
 
 // Invented recipes and plans; nothing here is real.
 function recipe(id: string, extra: Partial<Recipe> = {}): Recipe {
@@ -174,6 +175,15 @@ describe("a recipe with no cook time (REQ-174)", () => {
     // Two with no cook time rank by rating and recency only.
     const ranked = suggest([recipe("a", { cook_minutes: null }), recipe("b", { cook_minutes: null })], [["a", planned("2026-08-01")], ["b", planned("2026-09-20")]]);
     expect(ids(ranked)[0]).toBe("a");
+  });
+});
+
+describe("the top rated number (REQ-173)", () => {
+  it("is the average with one star, one decimal, and no decimal for a whole number", () => {
+    expect(ratingText(4.5)).toBe("★ 4.5");
+    expect(ratingText(5)).toBe("★ 5");
+    expect(ratingText(4.96)).toBe("★ 5");
+    expect(ratingText(4.333)).toBe("★ 4.3");
   });
 });
 

@@ -32,7 +32,7 @@ const plan = (over: Partial<MealPlan> = {}): MealPlan => ({
 
 describe("what the schedule decides (REQ-163)", () => {
   it("closes a started plan the day after its last filled meal, leftovers included, and not before", () => {
-    // Sun dinner + Mon lunch (leftovers): the last filled meal is on Monday.
+    // Sun dinner + Mon lunch: the last filled meal is on Monday.
     expect(shouldAutoClose(plan(), "2026-10-05")).toBe(false);
     expect(shouldAutoClose(plan(), "2026-10-06")).toBe(true);
   });

@@ -10,6 +10,12 @@ export type HomeStats = {
   cuisines: number;
 };
 
+// REQ-173: the average as a number with one star, "★ 4.5", or "★ 5" for a
+// whole number.
+export function ratingText(average: number): string {
+  return `★ ${Number(average.toFixed(1))}`;
+}
+
 export function homeStats(all: readonly Recipe[], stats: ReadonlyMap<string, PlanStats>, averages: ReadonlyMap<string, number>): HomeStats {
   const recipes = all.filter((recipe) => !recipe.hidden);
   let mostCooked: HomeStats["mostCooked"] = null;

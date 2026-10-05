@@ -228,9 +228,11 @@
   color: var(--color-muted);
 }
 
-.covers {
-  font-size: var(--text-brand);
-  font-weight: 700;
+/* REQ-171: the small Dinner / Lunch marker beside a date in a plan's header. */
+.rangeMark {
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+  color: var(--color-muted);
 }
 
 .inline {
@@ -274,7 +276,7 @@
 .menu li {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-1) var(--space-3);
   padding: var(--space-2) var(--space-3);
@@ -282,6 +284,15 @@
   background: var(--module-quiet);
   color: var(--color-ink);
   font-weight: 700;
+}
+
+/* REQ-173: a dish's photo on the menu card. */
+.menuThumb {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
 }
 
 .menuMeal {
@@ -336,6 +347,12 @@
   color: var(--module-quiet-title);
   font-size: var(--text-body-sm);
   font-weight: 700;
+}
+
+/* REQ-173: the Recipes and Cuisines counts sit in the middle of their tiles. */
+.stats dd.statCentre {
+  padding-left: 0;
+  text-align: center;
 }
 
 .stats .plain {
