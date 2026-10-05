@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ModuleStatus } from "../module-status";
-import { addDays, dayAfterEnd, dayLabel, daysBetween, planEnd, slide, startOf, type EntrySize, type Meal, type MealKind, type Sited } from "./meals";
+import { addDays, dayLabel, daysBetween, nextWeekStart, planEnd, slide, startOf, type EntrySize, type Meal, type MealKind, type Sited } from "./meals";
 
 export { addDays };
 
@@ -60,11 +60,13 @@ export async function readStoredPlans(supabase: SupabaseClient): Promise<{ curre
   return { current: plans.find((plan) => !plan.ahead) ?? null, ahead: plans.find((plan) => plan.ahead) ?? null };
 }
 
-// What we show: the plan ahead starts at the first dinner after the current plan's last
-// meal, wherever that has moved to (REQ-162).
+// What we show: next week's plan starts at the meal worked out from the
+// current plan's last filled meal, wherever that has moved to (REQ-170).
 export async function readPlans(supabase: SupabaseClient): Promise<{ current: MealPlan | null; ahead: MealPlan | null }> {
   const { current, ahead } = await readStoredPlans(supabase);
-  return { current, ahead: ahead && current ? { ...ahead, starts_on: nextPlanStart(current) } : ahead };
+  if (!ahead || !current) return { current, ahead };
+  const start = nextPlanStart(current);
+  return { current, ahead: { ...ahead, starts_on: start.day, starts_meal: start.meal } };
 }
 
 export async function readOpenPlan(supabase: SupabaseClient): Promise<MealPlan | null> {
@@ -85,8 +87,8 @@ export async function syncAheadStart(supabase: SupabaseClient): Promise<void> {
   const { current, ahead } = await readStoredPlans(supabase);
   if (!current || !ahead) return;
   const start = nextPlanStart(current);
-  if (ahead.starts_on === start) return;
-  await saveLayout(supabase, ahead.id, start, ahead.starts_meal, slide(ahead.recipes, daysBetween(ahead.starts_on, start), ahead.daysOff));
+  if (ahead.starts_on === start.day && ahead.starts_meal === start.meal) return;
+  await saveLayout(supabase, ahead.id, start.day, start.meal, slide(ahead.recipes, daysBetween(ahead.starts_on, start.day), ahead.daysOff));
 }
 
 // The plan closed last, which can be reopened while no other is open.
@@ -149,11 +151,11 @@ export function carriedOver(rows: readonly PlanRow[], lastClosed: string | null)
   return rows.flatMap((row) => (row.carry_over && row.plan_id === lastClosed && row.recipe_id ? [row.recipe_id] : []));
 }
 
-// REQ-162: the plan ahead starts at the first dinner after the current
-// plan's last meal (Vin, 2026-10-04): the same day when that meal is a
-// lunch, the next day when it is a dinner.
-export function nextPlanStart(plan: Pick<MealPlan, "starts_on" | "recipes">): string {
-  return dayAfterEnd(plan, plan.recipes);
+// REQ-170: next week's plan starts at the meal right after the current
+// plan's last filled meal when that is a weekend lunch, otherwise at the
+// next dinner.
+export function nextPlanStart(plan: Pick<MealPlan, "starts_on" | "starts_meal" | "recipes" | "daysOff">): Meal {
+  return nextWeekStart(plan, plan.recipes, plan.daysOff);
 }
 
 export function coversText(covers: Meal | null, anyPlanned: boolean): string {

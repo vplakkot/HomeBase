@@ -3,21 +3,26 @@ import { coversText, isPlanSize, nextPlanStart, planTile, type MealPlan } from "
 
 const MONDAY = "2026-09-29";
 
-// REQ-162: where the plan ahead starts is tested with the rules, in meals.test.ts.
-describe("where the plan ahead starts (REQ-162)", () => {
-  const plan = (starts_on: string, entries: { day: string; meal: "lunch" | "dinner"; size: 1 | 2 }[]) => ({
+// REQ-170: the rules for where next week starts are tested with the rest, in meals.test.ts.
+describe("where next week's plan starts (REQ-170)", () => {
+  const plan = (starts_on: string, entries: { day: string; meal: "lunch" | "dinner"; size: 1 | 2 }[]): MealPlan => ({
+    id: "p",
     starts_on,
+    starts_meal: "dinner",
+    ahead: false,
+    daysOff: new Set(),
     recipes: entries.map((entry, index) => ({ id: `e${index}`, recipe_id: "r", eating_out: false, meals: entry.size, meal_on: entry.day, meal: entry.meal, cooked: false, carry_over: false, added_at: "" })),
   });
 
-  it("starts that same day when the last meal is a lunch, and the next day when it is a dinner", () => {
-    expect(nextPlanStart(plan(MONDAY, [{ day: MONDAY, meal: "dinner", size: 2 }]))).toBe("2026-09-30");
-    expect(nextPlanStart(plan(MONDAY, [{ day: MONDAY, meal: "dinner", size: 1 }]))).toBe("2026-09-30");
-    expect(nextPlanStart(plan(MONDAY, [{ day: "2026-09-30", meal: "dinner", size: 1 }]))).toBe("2026-10-01");
+  it("starts at the meal after the plan's last filled meal: dinner, or a weekend lunch", () => {
+    // Tuesday 2026-09-29: a 2-meal dish ends Wednesday lunch, so next week starts Wednesday dinner.
+    expect(nextPlanStart(plan(MONDAY, [{ day: MONDAY, meal: "dinner", size: 2 }]))).toEqual({ day: "2026-09-30", meal: "dinner" });
+    // A 1-meal dish on Friday 2026-10-02 dinner: Saturday lunch is next, and it's a weekend.
+    expect(nextPlanStart(plan(MONDAY, [{ day: "2026-10-02", meal: "dinner", size: 1 }]))).toEqual({ day: "2026-10-03", meal: "lunch" });
   });
 
-  it("counts an empty plan as its start day", () => {
-    expect(nextPlanStart(plan(MONDAY, []))).toBe("2026-09-30");
+  it("counts an empty plan's first meal as filled", () => {
+    expect(nextPlanStart(plan(MONDAY, []))).toEqual({ day: "2026-09-30", meal: "dinner" });
   });
 });
 

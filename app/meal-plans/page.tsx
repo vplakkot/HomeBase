@@ -25,7 +25,7 @@ const STATUS: Record<string, string> = {
 // dishes, how long they last, and a few fun numbers. Above them, anything
 // to rate (REQ-116) and recipes on their way in. REQ-155: the dishes are
 // plain rows, a name and the meal it's for, with no photos. REQ-165: Add
-// recipe and the plan action (New meal plan, or Plan ahead while one runs)
+// recipe and the plan action (New meal plan, or Plan next week while one runs)
 // sit side by side with equal weight; REQ-164: the meals come from the
 // plan's layout.
 export default async function MealPlansPage() {

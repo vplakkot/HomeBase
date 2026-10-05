@@ -137,13 +137,14 @@ export function nextFreeMeal<T extends Sited>(plan: PlanStart, entries: readonly
   return startChoices(plan, entry, daysOff, lockedBefore).find((at) => !blockerAt(entries, entry, at)) ?? null;
 }
 
-// Where the plan reaches the day after: the same day as its last meal when
-// that is a lunch, the day after when it is a dinner. A plan with nothing
-// in it counts as its start day. (REQ-162; REQ-170 changes the rule.)
-export function dayAfterEnd(plan: Pick<PlanStart, "starts_on">, entries: readonly Pick<Sited, "meal_on" | "meal" | "meals">[]): string {
-  const end = planEnd(entries);
-  if (!end) return addDays(plan.starts_on, 1);
-  return end.meal === "lunch" ? end.day : addDays(end.day, 1);
+// Where next week's plan starts (REQ-170): at the meal right after the
+// current plan's last filled meal (leftovers count as filled) when that is
+// a lunch on a weekend day or Day off; otherwise at the next dinner. A plan
+// with nothing in it counts its own first meal as filled.
+export function nextWeekStart(plan: PlanStart, entries: readonly Pick<Sited, "meal_on" | "meal" | "meals">[], daysOff: ReadonlySet<string>): Meal {
+  const last = planEnd(entries) ?? planStartMeal(plan);
+  const after = mealAtIndex(mealIndex(last) + 1);
+  return after.meal === "lunch" && isWeekendDay(after.day, daysOff) ? after : { day: after.day, meal: "dinner" };
 }
 
 // Settling a shift (the reflow rule). Dishes keep their order and what

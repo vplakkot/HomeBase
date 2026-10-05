@@ -36,7 +36,7 @@ export function QuickAdd({
 }) {
   const [openLabel, setOpenLabel] = useState<string | null>(null);
   const actions = ACTIONS.filter((action) => !off.includes(action.module) && (action.module !== "meal-plans" || planAction !== null)).map((action) =>
-    action.module === "meal-plans" && planAction === "ahead" ? { ...action, label: "Plan ahead", title: "Plan the next week" } : action,
+    action.module === "meal-plans" && planAction === "ahead" ? { ...action, label: "Plan next week", title: "Plan next week" } : action,
   );
 
   return (

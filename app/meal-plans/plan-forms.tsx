@@ -36,7 +36,7 @@ function Outcome({ state }: { state: PlanFormState }) {
 const submitForm = (event: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => event.currentTarget.form?.requestSubmit();
 
 // REQ-115: any day will do, usually a Sunday. Only offered while there is
-// no plan; with one running, "Plan ahead" below sets up the next (REQ-162).
+// no plan; with one running, "Plan next week" below sets up the next (REQ-162, REQ-170).
 export function StartPlanForm({
   today,
   label = "Start a plan",
@@ -79,7 +79,7 @@ export function PlanAheadForm({ thenWeek = false }: { thenWeek?: boolean }) {
     <form action={formAction} className={styles.inline}>
       {thenWeek ? <input type="hidden" name="then" value="week" /> : null}
       <button type="submit" className={buttonClass} disabled={pending}>
-        Plan ahead
+        Plan next week
       </button>
       <Outcome state={state} />
     </form>

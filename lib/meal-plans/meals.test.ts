@@ -3,7 +3,6 @@ import {
   blockerAt,
   canStartAt,
   capMeal,
-  dayAfterEnd,
   entryMeals,
   isWeekendDay,
   layoutPlan,
@@ -11,6 +10,7 @@ import {
   mealIndex,
   mealKey,
   nextFreeMeal,
+  nextWeekStart,
   parseMealKey,
   planEnd,
   pushBack,
@@ -165,12 +165,32 @@ describe("the next free meal (REQ-168)", () => {
   });
 });
 
-describe("where the plan ahead starts (REQ-162)", () => {
-  it("is the same day when the last meal is a lunch, the next when it is a dinner", () => {
-    expect(dayAfterEnd({ starts_on: SUN }, [dish("a", SUN, "dinner")])).toBe(MON);
-    expect(dayAfterEnd({ starts_on: SUN }, [dish("a", SUN, "dinner", 1)])).toBe(MON);
-    expect(dayAfterEnd({ starts_on: SUN }, [dish("a", SUN, "dinner"), dish("b", MON, "dinner")])).toBe(TUE);
-    expect(dayAfterEnd({ starts_on: SUN }, [])).toBe(MON);
+describe("where next week's plan starts (REQ-170)", () => {
+  const plan = { starts_on: SUN, starts_meal: "dinner" as const };
+  const FRI = "2026-10-09";
+  const start = (entries: Sited[], daysOff: ReadonlySet<string> = NONE) => mealKey(nextWeekStart(plan, entries, daysOff));
+
+  it("starts at the next dinner after a 2-meal dish on Friday dinner, whose leftovers fill Saturday lunch", () => {
+    expect(start([dish("a", FRI, "dinner")])).toBe("2026-10-10:dinner");
+  });
+
+  it("starts at Saturday lunch after a 1-meal dish on Friday dinner: a weekend lunch", () => {
+    expect(start([dish("a", FRI, "dinner", 1)])).toBe("2026-10-10:lunch");
+  });
+
+  it("starts at the next dinner when the meal after is a weekday lunch", () => {
+    expect(start([dish("a", SUN, "dinner", 1)])).toBe("2026-10-05:dinner");
+    expect(start([dish("a", TUE, "dinner")])).toBe("2026-10-07:dinner");
+  });
+
+  it("counts a Day off as a weekend day, and an Eating out as a filled meal", () => {
+    expect(start([dish("a", MON, "dinner", 1)], new Set([TUE]))).toBe("2026-10-06:lunch");
+    expect(start([out("x", FRI)])).toBe("2026-10-10:lunch");
+  });
+
+  it("counts an empty plan's own first meal as filled, and moves with the last meal", () => {
+    expect(start([])).toBe("2026-10-05:dinner");
+    expect(start([dish("a", FRI, "dinner"), dish("b", SAT, "dinner", 1)])).toBe("2026-10-11:lunch");
   });
 });
 
