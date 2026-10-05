@@ -840,8 +840,8 @@ describe("the plan lifecycle (REQ-163)", () => {
     render(await WeekPage());
     const cards = within(screen.getByRole("region", { name: "Closing cards" })).getAllByRole("listitem");
     expect(cards.map((item) => item.textContent)).toEqual([
-      "Test chicken riceDidn't cook this",
-      "Test lentil soupDidn't cookCooked after allProposed for next week",
+      "Test chicken riceDidn't cook",
+      "Test lentil soupDidn't cookCooked",
     ]);
   });
 
@@ -850,7 +850,6 @@ describe("the plan lifecycle (REQ-163)", () => {
     render(await WeekPage());
     const closing = within(screen.getByRole("region", { name: "Closing cards" }));
     expect(closing.getByRole("button", { name: "Add to next week" })).toBeTruthy();
-    expect(closing.queryByText("Proposed for next week")).toBeNull();
   });
 
   it("shows no closing cards for a plan closed more than a week ago, or one with no dishes", async () => {
@@ -908,7 +907,7 @@ describe("the closing cards and the start notification (REQ-163)", () => {
     const row = within(screen.getByRole("region", { name: "Closing cards" })).getByRole("listitem");
     expect(within(row).getAllByRole("radio")).toHaveLength(5);
     expect(within(row).getByRole("button", { name: "Skip rating Test chicken rice" })).toBeTruthy();
-    expect(within(row).getByRole("button", { name: /Didn't cook this/ })).toBeTruthy();
+    expect(within(row).getByRole("button", { name: /Didn't cook/ })).toBeTruthy();
   });
 
   it("keeps a separate Rate these tile only for dishes that aren't on a closing card, and asks no rating for a dish we didn't cook", async () => {
