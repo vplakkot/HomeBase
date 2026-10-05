@@ -15,6 +15,7 @@
   rated shows the average as "★ 4.5" ("★ 5" for a whole number), and the
   Recipes and Cuisines counts are centred in their tiles.
 
+
 - Meal Plan, header and wording: a plan's header is just its dates, "Sun, Oct 4
   Dinner – Mon, Oct 5 Lunch", with a small Dinner or Lunch on each, in one
   style. The "From…" and "Covers through…" lines are gone, on the plan page
