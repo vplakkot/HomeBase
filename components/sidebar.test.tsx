@@ -6,7 +6,12 @@ import { TEST_ACCOUNT } from "../test/account";
 import { installDialogStandIn } from "../test/dialog";
 
 vi.mock("../app/sign-out/actions", () => ({ signOut: vi.fn() }));
-vi.mock("../app/notifications/actions", () => ({ saveDevice: vi.fn() }));
+vi.mock("../app/notifications/actions", () => ({
+  saveDevice: vi.fn(),
+  myDevices: vi.fn(async () => []),
+  removeMyDevice: vi.fn(),
+  sendTestToMyDevice: vi.fn(),
+}));
 beforeAll(installDialogStandIn);
 
 afterEach(cleanup);

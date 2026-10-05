@@ -431,25 +431,25 @@ describe("Finances home", () => {
     expect(owes.textContent).not.toContain("outstanding");
   });
 
-  // Vin, 2026-09-28: April's page never shows September's items, and a
-  // month added later stays in view until it's finished.
+  // Vin, 2026-09-28: April's page never shows September's items. REQ-161: a
+  // month added later and over reads like any other month that's over.
   it("on a month gone by shows only that month's items", async () => {
     const april = { ...SEPTEMBER, id: "m-apr", starts_on: "2026-04-01", added_later: true, settled: false, closed_at: null };
     await showMonth({ months: [april, SEPTEMBER], month: "2026-04" });
     const items = within(screen.getByRole("region", { name: /^Action items/ })).getAllByRole("listitem");
-    expect(items.map((item) => item.querySelector("span span")?.textContent)).toEqual(["April 2026 isn't finished"]);
-    expect(within(items[0]).getByRole("link", { name: "Finish month" }).getAttribute("href")).toBe(
-      "/finances/monthly-entry?month=2026-04",
+    expect(items.map((item) => item.querySelector("span span")?.textContent)).toEqual(["April ended, not squared"]);
+    expect(within(items[0]).getByRole("link", { name: /Log payment|Close month/ }).getAttribute("href")).toMatch(
+      /^\/finances\/(log-payment|close-month)\?month=2026-04$/,
     );
   });
 
-  it("on the month now running shows every item, an unfinished month's too", async () => {
+  it("on the month now running shows every item, a backfilled month's too", async () => {
     const april = { ...SEPTEMBER, id: "m-apr", starts_on: "2026-04-01", added_later: true, settled: false, closed_at: null };
     await showMonth({ months: [SEPTEMBER, april] });
     const texts = within(screen.getByRole("region", { name: /^Action items/ }))
       .getAllByRole("listitem")
       .map((item) => item.querySelector("span span")?.textContent);
-    expect(texts).toContain("April 2026 isn't finished");
+    expect(texts).toContain("April ended, not squared");
     expect(texts.length).toBeGreaterThan(1);
   });
 
@@ -458,7 +458,7 @@ describe("Finances home", () => {
     const april = { ...SEPTEMBER, id: "m-apr", starts_on: "2026-04-01", added_later: true, settled: false, closed_at: null };
     await showMonth({ months: [april, SEPTEMBER], month: "2026-04" });
     const items = screen.getByRole("region", { name: /^Action items/ });
-    expect(within(items).getByText("April 2026 isn't finished").className).toContain("band");
+    expect(within(items).getByText("April ended, not squared").className).toContain("band");
     expect(within(items).getByRole("heading").className).not.toContain("band");
   });
 

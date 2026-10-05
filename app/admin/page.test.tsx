@@ -10,12 +10,19 @@ import { switchTable } from "../../test/module-switches";
 import AdminPage from "./page";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
-// REQ-125: the device counts come through the secret key; here, a fixed answer.
-const deviceCounts = new Map<string, number>([["u2", 2]]);
+// REQ-125, REQ-160: the devices come through the secret key; here, a fixed answer.
+const device = (id: string, name: string, thisDevice = false) => ({
+  id,
+  name,
+  addedAt: "2026-10-01T12:00:00Z",
+  lastReceivedAt: id === "d1" ? "2026-10-02T09:30:00Z" : null,
+  thisDevice,
+});
+const deviceLists = new Map([["u2", [device("d1", "iPhone, Safari"), device("d2", "Mac, Chrome")]]]);
 vi.mock("../../lib/supabase/admin", () => ({ createAdminClient: vi.fn(() => ({})) }));
-vi.mock("../../lib/notifications/log", async (original) => ({
-  ...(await original<typeof import("../../lib/notifications/log")>()),
-  countDevices: vi.fn(async () => deviceCounts),
+vi.mock("../../lib/notifications/devices", async (original) => ({
+  ...(await original<typeof import("../../lib/notifications/devices")>()),
+  listDevices: vi.fn(async () => deviceLists),
 }));
 vi.mock("./send-test-form", () => ({
   SendTestForm: () => <button type="button">Send test now</button>,
@@ -237,9 +244,8 @@ describe("AdminPage", () => {
     render(await AdminPage());
     const section = screen.getByRole("region", { name: "Notifications" });
     expect(within(section).getByRole("button", { name: "Send test now" })).toBeDefined();
-    expect(
-      within(section).getByText(/every device of every member whose switch is on/),
-    ).toBeDefined();
+    expect(within(section).getByText(/The switch decides whether a person gets notifications at all/)).toBeDefined();
+    expect(within(section).getByText(/tests everyone switched on/)).toBeDefined();
   });
 
   // REQ-84: DESIGN.md §8's three cards, in the design's order per screen.
@@ -295,13 +301,29 @@ describe("AdminPage", () => {
     expect((sheet.querySelector('input[name="on"]') as HTMLInputElement).value).toBe("false");
   });
 
-  it("shows a Send test per person, not yet working", async () => {
+  // REQ-159: a test for one person, only while their switch is on.
+  it("shows a Send test per person, working only for someone switched on", async () => {
     given({ signedIn: true, permissions: ["manage_members"] });
     render(await AdminPage());
     const notifications = screen.getByRole("region", { name: "Notifications" });
-    const perPerson = within(notifications).getAllByRole("button", { name: "Send test" });
-    expect(perPerson).toHaveLength(2);
-    for (const button of perPerson) expect((button as HTMLButtonElement).disabled).toBe(true);
+    const off = within(notifications).getByRole("button", { name: "Send test to first@example.com" }) as HTMLButtonElement;
+    const on = within(notifications).getByRole("button", { name: "Send test to Sam" }) as HTMLButtonElement;
+    expect(off.disabled).toBe(true);
+    expect(off.title).toBe("Notifications are switched off for first@example.com");
+    expect(on.disabled).toBe(false);
+  });
+
+  // REQ-160: each member's devices, which the admin can remove.
+  it("lists each member's devices with a Remove on each", async () => {
+    given({ signedIn: true, permissions: ["manage_members"] });
+    render(await AdminPage());
+    const sam = screen.getByRole("list", { name: "Devices for Sam" });
+    expect(within(sam).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
+      expect.stringContaining("iPhone, Safari"),
+      expect.stringContaining("Mac, Chrome"),
+    ]);
+    expect(within(sam).getAllByRole("button", { name: "Remove" })).toHaveLength(2);
+    expect(screen.queryByRole("list", { name: "Devices for first@example.com" })).toBeNull();
   });
 
   // REQ-22.

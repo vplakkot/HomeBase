@@ -190,3 +190,29 @@ subscription. This Mac has no iPhone simulator, and push needs a real
 device anyway. It gets proven when REQ-21's first test notification
 reaches a phone. "Each device receives its own notification" also moved
 to REQ-21, because until something sends there's nothing to receive.
+
+## Removing a device you can't hold (REQ-160)
+
+Settings and the admin console list devices, each with a Remove. Deleting
+the row is enough to stop the sender. It isn't enough to keep the device
+gone. Think of a hotel key card: cancelling it at the front desk stops it
+opening the room, but if the guest's phone quietly re-issues a card every
+time they walk past the desk, the cancellation lasts until they next walk
+past.
+
+That is what the app did. Opening Home on a phone that was turned on
+before saves its device again, out of sight, to keep the 400-day note
+fresh. So a removed phone came back the next time it was used.
+
+The fix is a mark, not a bigger delete: removing also writes a SHA-256 of
+the address to `removed_devices`, and the out-of-sight save (`quiet`)
+checks for it and stays out. The tap on "Enable notifications" is
+deliberate, so it clears the mark and goes ahead. The hash, not the
+address, is stored, for the same reason the log keeps a fingerprint: the
+address is what lets anyone send to the phone.
+
+Two places the check can fail are chosen on purpose. If the mark can't be
+read, the quiet save goes ahead, because losing someone's notifications
+is the worse way to be wrong. And a person removing *this* device also
+drops the `homebase-device` note in this browser and tells the push
+service to forget it, so nothing on this phone tries to bring it back.

@@ -172,7 +172,7 @@ describe("EnableNotifications", () => {
     expect(
       await screen.findByText("Notifications are on for this device."),
     ).toBeDefined();
-    expect(saveDevice).toHaveBeenCalledWith(DEVICE_JSON);
+    expect(saveDevice).toHaveBeenCalledWith(DEVICE_JSON, { quiet: true });
   });
 
   // Someone else's device, or this one after they signed out: the browser
@@ -269,7 +269,7 @@ describe("KeepThisDevice", () => {
     const { container } = render(
       <KeepThisDevice publicKey={PUBLIC_KEY} knownDevice={DEVICE_JSON.endpoint} />,
     );
-    await waitFor(() => expect(saveDevice).toHaveBeenCalledWith(DEVICE_JSON));
+    await waitFor(() => expect(saveDevice).toHaveBeenCalledWith(DEVICE_JSON, { quiet: true }));
     expect(device.serviceWorker.register).toHaveBeenCalledWith("/sw.js");
     expect(container.innerHTML).toBe("");
   });

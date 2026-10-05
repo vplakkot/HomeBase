@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { sendTestNotification } from "../../lib/notifications/send";
+import { removeDevice } from "../../lib/notifications/devices";
+import { MESSAGES, sendPush, sendTestNotification } from "../../lib/notifications/send";
 import { cleanName, NAME_MAX } from "../../lib/auth/names";
 import { hasPermission } from "../../lib/auth/permissions";
 import { SWITCHES } from "../../lib/modules";
@@ -237,6 +238,52 @@ export async function sendTestNow(
     console.error("Could not send a test notification", reason);
     return { error: "Couldn't send the test notification. Try again." };
   }
+}
+
+// REQ-159: a test to one member's devices only, for checking a single
+// person's setup without notifying everyone. Their switch decides, as for
+// every notification: switched off, nothing goes.
+export async function sendTestToMember(
+  _previous: SendTestState,
+  formData: FormData,
+): Promise<SendTestState> {
+  const userId = String(formData.get("userId") ?? "");
+  if (!userId) return { error: "Which member?" };
+  await requireManageMembers();
+
+  const host = (await headers()).get("host");
+  if (!host) {
+    return { error: "Couldn't work out this app's own address." };
+  }
+  try {
+    const summary = await sendPush({
+      subject: `https://${host}`,
+      trigger: "manual",
+      to: [userId],
+      message: { ...MESSAGES.manual, url: "/" },
+    });
+    return {
+      sent: { people: summary.people, devices: summary.devices, delivered: summary.delivered },
+    };
+  } catch (reason) {
+    console.error("Could not send a test notification", reason);
+    return { error: "Couldn't send the test notification. Try again." };
+  }
+}
+
+// REQ-160: the admin removing any member's device. Only a manage_members
+// holder gets this far; the table itself only holds members' devices.
+export async function removeMemberDevice(deviceId: string): Promise<{ error?: string; done?: string }> {
+  await requireManageMembers();
+  try {
+    const removed = await removeDevice(createAdminClient(), deviceId);
+    if (!removed) return { error: "That device is already gone." };
+  } catch (reason) {
+    console.error("Could not remove a device", reason);
+    return { error: "Couldn't remove that device. Try again." };
+  }
+  revalidatePath("/admin");
+  return { done: "Removed." };
 }
 
 // REQ-141: turn one of the admin console's module switches on or off for

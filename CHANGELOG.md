@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Admin console, test one person: each member's row now has a working
+  "Send test" that goes only to that person's devices and shows in the
+  notification log. It is disabled, and says why, while their switch is off.
+  The note under the members explains the switch, "Send test" and "Send test
+  now".
+- Notifications, see and remove devices: Profile → Settings has "My devices"
+  with each device's name ("iPhone, Safari"), when it was added, when it last
+  received a notification, "This device" on the one you are holding, and
+  Remove and Send test on each. The admin console lists every member's
+  devices with Remove. A removed device stays removed even if that phone
+  still has notifications allowed; turning notifications on again by hand
+  there brings it back. New table `removed_devices`.
+- Finances, backfilled months: once a month added later is over and not
+  squared, it shows the same "April ended, not squared" item as any other
+  month (log a payment, or close it with the balance left). The separate
+  "isn't finished" item is gone. A backfilled month still sends no
+  notification.
+
 - Meal Plan, repeat recipes setting: a "Repeat recipes in a plan" switch at the
   bottom of the module home, off by default, that either of you can change.
   Off, a recipe can be in only one of this week's plan and next week's:

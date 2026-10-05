@@ -504,9 +504,30 @@ The console reads the whole 7-day window and shows it 25 rows to a page
 the page. Times are drawn in UTC on the server and turned into the
 viewer's own time zone once the page is in the browser
 (`app/admin/local-time.tsx`). Beside each person in the Notifications
-card the console says how many devices they have registered
-(`countDevices`, counts only, read with the secret key): an empty
+card the console says how many devices they have registered: an empty
 `push_subscriptions` table explains an empty "arrived" column.
+
+**Testing and managing devices (REQ-159, REQ-160).** Each member row has
+its own "Send test", enabled only while that person's switch is on; it
+calls `sendPush` with `to: [thatPerson]`, so the same switch rule and the
+same log rows apply. Under each member the console lists their devices,
+and Profile → Settings lists your own ("My devices"); both use
+`lib/notifications/devices.ts`, which reads `push_subscriptions` and the
+log with the secret key and hands the screen only an id, a readable name
+from the saved user-agent ("iPhone, Safari"), when it was added, and when
+the log last shows a delivery to it (the log keeps 30 days). The push
+address never reaches the browser; a device is named by its row id. Each
+list can remove a device (the admin's any member's, Settings' only your
+own, checked first as you under row-level security), and Settings can send
+one device a test (`sendPush` with `onlyEndpoint`).
+
+Removing deletes the row, which stops the sender at once. But a phone that
+still holds its permission and its `homebase-device` note re-saves itself
+quietly when Home opens (`KeepThisDevice`). So removal also writes a
+SHA-256 of the address to `removed_devices` (secret key only, no policies,
+cascades away with the person), and the quiet path (`saveDevice(…, {
+quiet: true })`) stays out when the mark exists. Turning notifications on
+by hand is a deliberate tap and clears the mark.
 
 ```mermaid
 sequenceDiagram

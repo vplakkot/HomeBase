@@ -74,11 +74,14 @@ export async function sendPush({
   trigger,
   to,
   message,
+  onlyEndpoint,
 }: {
   subject: string;
   trigger: Trigger;
   to: string[] | null;
   message: Message;
+  // Just this one device (REQ-160), of whoever `to` names.
+  onlyEndpoint?: string;
 }): Promise<SendSummary> {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
@@ -115,11 +118,13 @@ export async function sendPush({
 
   // Each device gets its own secret, handed to it inside its own message,
   // which it sends back to report the delivery (REQ-22).
-  const addressed = ((devices ?? []) as Device[]).map((device) => ({
-    device,
-    receiptToken: newReceiptToken(),
-    fingerprint: fingerprintOf(device.endpoint),
-  }));
+  const addressed = ((devices ?? []) as Device[])
+    .filter((device) => onlyEndpoint === undefined || device.endpoint === onlyEndpoint)
+    .map((device) => ({
+      device,
+      receiptToken: newReceiptToken(),
+      fingerprint: fingerprintOf(device.endpoint),
+    }));
 
   // The log rows go in BEFORE anything is sent. A notification can reach a
   // phone and be reported back in well under a second, and a receipt that
@@ -173,7 +178,7 @@ function contactAddress(subject: string): string {
 // A stable name for a device that isn't its address. The address is what
 // lets anyone send to the phone; this is a one-way hash of it, so the log
 // can follow one device over time without holding the means to reach it.
-function fingerprintOf(endpoint: string): string {
+export function fingerprintOf(endpoint: string): string {
   return createHash("sha256").update(endpoint).digest("hex").slice(0, 12);
 }
 
