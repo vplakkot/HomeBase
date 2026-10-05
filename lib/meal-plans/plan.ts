@@ -204,26 +204,21 @@ export function nextPlanStart(plan: Pick<MealPlan, "starts_on" | "starts_meal" |
   return nextWeekStart(plan, plan.recipes, plan.daysOff);
 }
 
-export function coversText(covers: Meal | null, anyPlanned: boolean): string {
-  if (covers) return `Covers through ${covers.meal}, ${dayLabel(covers.day)}`;
-  return anyPlanned ? "Not a whole meal yet" : "Add recipes to see how long the plan lasts";
-}
-
 // "Sep 29"
 function shortDay(day: string): string {
   return new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 // Home's tile is about the plan we're on, not the library (Vin,
-// 2026-09-29): "Sep 29 – Oct 3 · 4 recipes", the start, the day it
+// 2026-09-29): "Sep 29 – Oct 3 · 4 dishes", the start, the day it
 // carries us through and what's in it. Calm, like the rest of the
 // module: nothing here needs anyone.
 export function planTile(plan: MealPlan | null): ModuleStatus {
   const status = (text: string): ModuleStatus => ({ status: text, headline: text, facts: [], actionItems: [] });
   if (!plan) return status("No plan yet");
   const count = plan.recipes.filter((entry) => !entry.eating_out).length;
-  const recipes = count === 0 ? "no recipes yet" : count === 1 ? "1 recipe" : `${count} recipes`;
+  const dishes = count === 0 ? "no dishes yet" : count === 1 ? "1 dish" : `${count} dishes`;
   const through = planEnd(plan.recipes);
   const days = through && through.day !== plan.starts_on ? `${shortDay(plan.starts_on)} – ${shortDay(through.day)}` : shortDay(plan.starts_on);
-  return status(`${days} · ${recipes}`);
+  return status(`${days} · ${dishes}`);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coversText, isPlanSize, nextPlanStart, planTile, type MealPlan } from "./plan";
+import { isPlanSize, nextPlanStart, planTile, type MealPlan } from "./plan";
 
 const MONDAY = "2026-09-29";
 
@@ -29,12 +29,7 @@ describe("where next week's plan starts (REQ-170)", () => {
   });
 });
 
-describe("the plan in words", () => {
-  it("says how far it reaches", () => {
-    expect(coversText({ day: "2026-10-04", meal: "lunch" }, true)).toBe("Covers through lunch, Sun, Oct 4");
-    expect(coversText(null, false)).toBe("Add recipes to see how long the plan lasts");
-  });
-
+describe("the size of a dish", () => {
   it("allows a dish to be 2 meals or 1, nothing else", () => {
     expect([2, 1, 0, 3, 4].map(isPlanSize)).toEqual([true, true, false, false, false]);
   });
@@ -66,21 +61,21 @@ describe("Home's Meal Plans tile", () => {
     })),
   });
 
-  it("says the plan's dates and how many recipes are in it", () => {
-    expect(planTile(plan([2, 2])).status).toBe("Sep 29 – Oct 1 · 2 recipes");
-    expect(planTile(plan([2])).status).toBe("Sep 29 – Sep 30 · 1 recipe");
+  it("says the plan's dates and how many dishes are in it", () => {
+    expect(planTile(plan([2, 2])).status).toBe("Sep 29 – Oct 1 · 2 dishes");
+    expect(planTile(plan([2])).status).toBe("Sep 29 – Sep 30 · 1 dish");
   });
 
-  it("gives just the start while it fits in a day, and says so with no plan or no recipes", () => {
-    expect(planTile(plan([1])).status).toBe("Sep 29 · 1 recipe");
-    expect(planTile(plan([])).status).toBe("Sep 29 · no recipes yet");
+  it("gives just the start while it fits in a day, and says so with no plan or no dishes", () => {
+    expect(planTile(plan([1])).status).toBe("Sep 29 · 1 dish");
+    expect(planTile(plan([])).status).toBe("Sep 29 · no dishes yet");
     expect(planTile(null).status).toBe("No plan yet");
   });
 
-  it("doesn't count an evening out as a recipe", () => {
+  it("doesn't count an evening out as a dish", () => {
     const withOut = plan([2]);
     withOut.recipes.push({ id: "x", recipe_id: null, eating_out: true, meals: 1, meal_on: "2026-09-29", meal: "dinner", cooked: false, carry_over: false, didnt_cook: false, added_at: "" });
-    expect(planTile(withOut).status).toBe("Sep 29 – Sep 30 · 1 recipe");
+    expect(planTile(withOut).status).toBe("Sep 29 – Sep 30 · 1 dish");
   });
 
   it("is calm: no action items", () => {

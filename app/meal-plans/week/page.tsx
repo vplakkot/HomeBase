@@ -2,7 +2,6 @@ import Link from "next/link";
 import { householdToday } from "../../../lib/finances/budget-year";
 import { dayLabel, entryMeals, layoutPlan, mealKey, mealName, mealPlace, planStartMeal, startChoices, startOf, type Meal } from "../../../lib/meal-plans/meals";
 import {
-  coversText,
   planStats,
   readClosedPlan,
   readLastClosedPlan,
@@ -20,6 +19,7 @@ import { AddToPlanForm, AddToWeekButton, ChangeStartForm, DaysOffForm, MoveContr
 import { closePlan, removePlan, reopenPlan, setDidntCook, skipRating, startPlanNow, takeOffPlan } from "../plan-actions";
 import { readPeople } from "../../../lib/drinks/drinks";
 import { buttonClass } from "../../../components/button";
+import { PlanRange } from "../plan-range";
 import { RatePrompts } from "../rate-prompts";
 import styles from "../meal-plans.module.css";
 
@@ -46,9 +46,11 @@ function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: re
   return (
     <section className={styles.formCard} aria-label={ahead ? "Next plan" : "This week"}>
       <div className={styles.fileHead}>
-        <h2 className={styles.title}>{ahead ? `Next plan, from ${dayLabel(plan.starts_on)}` : `From ${dayLabel(plan.starts_on)}`}</h2>
+        {ahead ? <p className={styles.rangeMark}>Next week</p> : null}
+        <h2 className={styles.title}>
+          <PlanRange plan={plan} />
+        </h2>
       </div>
-      <p className={styles.covers}>{coversText(layout.end, entries.length > 0)}</p>
       {!ahead && plan.status === "new" ? (
         <div className={styles.inline}>
           <p>Not started. First meal: {mealPlace(planStartMeal(plan))}</p>

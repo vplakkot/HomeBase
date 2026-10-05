@@ -270,8 +270,7 @@ export function mealPlace(meal: Meal): string {
   return `${meal.meal === "dinner" ? "Dinner" : "Lunch"} ${dayLabel(meal.day)}`;
 }
 
-// "Dinner Mon · Lunch Tue (leftovers)": a 2-meal dish's second meal is
-// the leftovers.
+// "Dinner Mon · Lunch Tue": the meals a dish covers, in plain words.
 export function entryMeals(meals: readonly Meal[]): string {
-  return meals.map((meal, i) => (i === 0 ? mealName(meal) : `${mealName(meal)} (leftovers)`)).join(" · ");
+  return meals.map(mealName).join(" · ");
 }

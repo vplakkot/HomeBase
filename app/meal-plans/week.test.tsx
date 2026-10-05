@@ -226,14 +226,19 @@ describe("the week's plan (REQ-115)", () => {
   it("shows the shared plan's recipes and their sizes, with no cooked or carry-over ticks, and how far they carry us", async () => {
     given({ meal_plans: [openPlan([planned(ID, 2, "2026-09-27", "dinner", true), planned(OTHER, 1, "2026-09-28", "dinner")])], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
-    expect(screen.getByRole("heading", { name: "From Sun, Sep 27" })).toBeTruthy();
+    // The header is the dates, with a small Dinner / Lunch marker on each; no "From" or "Covers through" line (REQ-171).
+    expect(screen.getByRole("heading", { name: "Sun, Sep 27 Dinner – Mon, Sep 28 Dinner" })).toBeTruthy();
+    expect(screen.queryByText(/Covers through/)).toBeNull();
+    expect(screen.queryByRole("heading", { name: /^From / })).toBeNull();
+    // Servings are never shown in the plan: a dish's size is "2 meals" or "1 meal" (REQ-171).
+    expect(screen.queryByText(/servings?/i)).toBeNull();
+    expect(screen.queryByRole("option", { name: /servings?/i })).toBeNull();
     // A 2-meal dish is a dinner and the next lunch; the 1-meal one the dinner after.
-    expect(screen.getByText("Covers through dinner, Mon, Sep 28")).toBeTruthy();
     // The start day is already the heading; changing it is folded away.
     expect(screen.getByText("Change the start day").closest("details")?.hasAttribute("open")).toBe(false);
     const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
-    expect(rows[0].textContent).toMatch(/^Dinner Sun · Lunch Mon \(leftovers\)Test chicken rice/);
+    expect(rows[0].textContent).toMatch(/^Dinner Sun · Lunch MonTest chicken rice/);
     expect(rows[1].textContent).toMatch(/^Dinner MonTest lentil soup/);
     expect((screen.getByRole("combobox", { name: "Size of Test chicken rice" }) as HTMLSelectElement).value).toBe("2");
     expect((screen.getByRole("combobox", { name: "Size of Test lentil soup" }) as HTMLSelectElement).value).toBe("1");
@@ -413,11 +418,12 @@ describe("Meal Plans' home (REQ-118)", () => {
     given({ recipes: [RECIPE, SECOND], recipe_imports: [], meal_plans: [openPlan([planned(ID, 2), planned(OTHER, 2, "2026-09-28", "dinner")])] });
     render(await MealPlansPage());
     const week = screen.getByRole("region", { name: "This week" });
-    expect(within(week).getByText("Covers through lunch, Tue, Sep 29")).toBeTruthy();
+    expect(week.textContent).toContain("Sun, Sep 27 Dinner – Tue, Sep 29 Lunch");
+    expect(within(week).queryByText(/Covers through/)).toBeNull();
     const list = within(week).getByRole("list", { name: "Recipes in the plan" });
     expect(within(list).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "Test chicken riceDinner Sun · Lunch Mon (leftovers)",
-      "Test lentil soupDinner Mon · Lunch Tue (leftovers)",
+      "Test chicken riceDinner Sun · Lunch Mon",
+      "Test lentil soupDinner Mon · Lunch Tue",
     ]);
     expect(within(list).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([`/meal-plans/${ID}`, `/meal-plans/${OTHER}`]);
     expect(list.querySelector("img")).toBeNull();
@@ -540,9 +546,9 @@ describe("a plan is a run of meals (REQ-168)", () => {
       "Lunch MonOn your own",
       "Dinner MonEating out",
       "Lunch TueOn your own",
-      "Dinner Tue · Lunch Wed (leftovers)Test lentil soup",
+      "Dinner Tue · Lunch WedTest lentil soup",
     ]);
-    expect(screen.getByText("Covers through lunch, Wed, Sep 30")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Sun, Sep 27 Dinner – Wed, Sep 30 Lunch" })).toBeTruthy();
     // An evening out has no cooked or carry-over tick.
     expect(screen.queryByRole("checkbox", { name: /Eating out/ })).toBeNull();
   });
@@ -551,11 +557,11 @@ describe("a plan is a run of meals (REQ-168)", () => {
     given({ meal_plans: [openPlan([planned(ID, 2), planned(OTHER, 2, "2026-09-29", "dinner", false, false, E2)])], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
     const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
-    expect(rows.map((row) => row.textContent?.slice(0, 32))).toEqual([
-      "Dinner Sun · Lunch Mon (leftover",
+    expect(rows.map((row) => row.textContent?.slice(0, 22))).toEqual([
+      "Dinner Sun · Lunch Mon",
       "Dinner MonNot planned",
       "Lunch TueOn your own",
-      "Dinner Tue · Lunch Wed (leftover",
+      "Dinner Tue · Lunch Wed",
     ]);
   });
 
@@ -970,7 +976,7 @@ describe("planning ahead (REQ-162)", () => {
   it("shows next week's plan from the meal it starts at, and moves its start meal with the current plan", async () => {
     given({ meal_plans: [openPlan([planned(ID, 1, "2026-10-02", "dinner")]), aheadPlan()], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
-    expect(screen.getByRole("heading", { name: "Next plan, from Sat, Oct 3" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Sat, Oct 3 Lunch" })).toBeTruthy();
     // The stored plan was set up when it started at dinner on Sep 30: the start day and meal are both rewritten.
     const fake = given({
       meal_plans: [openPlan([planned(ID, 1, "2026-10-02", "dinner")]), aheadPlan([planned(OTHER, 2, "2026-10-01", "dinner", false, false, E3)])],
@@ -990,10 +996,11 @@ describe("planning ahead (REQ-162)", () => {
     given({ meal_plans: [openPlan([planned(ID, 2)]), aheadPlan([planned(OTHER, 2, "2026-09-28", "dinner", false, false, E3)])], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
     // The stored start (Sep 30) is not used: the current plan ends Monday lunch, so the next starts Monday dinner.
-    expect(screen.getByRole("heading", { name: "Next plan, from Mon, Sep 28" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Mon, Sep 28 Dinner – Tue, Sep 29 Lunch" })).toBeTruthy();
     const next = within(screen.getByRole("region", { name: "Next plan" }));
     expect(next.getByRole("list", { name: "Entries in the next plan" })).toBeTruthy();
-    expect(next.getByText("Covers through lunch, Tue, Sep 29")).toBeTruthy();
+    // Next week's plan is labelled by a small "Next week" above its dates.
+    expect(next.getByText("Next week")).toBeTruthy();
     // Its start isn't ours to change, and it can't be closed before it begins.
     expect(next.queryByText("Change the start day")).toBeNull();
     expect(next.queryByRole("button", { name: "Close this plan" })).toBeNull();
