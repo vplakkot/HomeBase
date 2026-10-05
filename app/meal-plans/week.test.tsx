@@ -947,6 +947,20 @@ describe("the closing cards and the start notification (REQ-163)", () => {
   });
 });
 
+describe("a Recipe missing card in the plan (REQ-174)", () => {
+  const missing = { ...SECOND, ingredients: [], steps: [], cuisine: null, cook_minutes: null };
+
+  it("is offered to add and planned like any recipe", async () => {
+    given({ meal_plans: [openPlan([])], recipes: [missing] });
+    render(await WeekPage());
+    expect(within(screen.getByRole("combobox", { name: "Recipe" })).getAllByRole("option").map((option) => option.textContent)).toEqual(["Choose a recipe", "Test lentil soup"]);
+    cleanup();
+    const fake = given({ meal_plans: [PLAN_ROW], recipes: [missing] });
+    expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: OTHER, meals: "2" }))).toEqual({});
+    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ plan_id: PLAN, recipe_id: OTHER, meals: 2 });
+  });
+});
+
 describe("planning ahead (REQ-162)", () => {
   it("queues the next plan at the dinner after the current plan's last meal, and never closes anything", async () => {
     const fake = given({ meal_plans: [openPlan([planned(ID, 2), planned(OTHER, 1, "2026-09-28", "dinner")])] });
