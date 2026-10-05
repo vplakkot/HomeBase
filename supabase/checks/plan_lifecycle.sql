@@ -26,7 +26,7 @@ begin
     raise exception 'Need a Member to test with';
   end if;
 
-  report := report || format(E'0. the job is scheduled on the hour: %s\n', exists (select 1 from cron.job where jobname = 'meal-plan-schedule' and schedule = '0 * * * *'));
+  report := report || format(E'0. one job, on the hour (not a second one beside an older minute): %s\n', (select count(*) = 1 and bool_and(schedule = '0 * * * *') from cron.job where jobname = 'meal-plan-schedule'));
   update public.meal_plans set closed_at = now() - interval '1 day', status = 'closed' where closed_at is null;
 
   perform set_config('request.jwt.claims', json_build_object('sub', member_id, 'role', 'authenticated')::text, true);
