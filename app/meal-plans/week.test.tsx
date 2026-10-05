@@ -239,7 +239,7 @@ describe("the week's plan (REQ-115)", () => {
     expect(screen.getByText("Change the start day").closest("details")?.hasAttribute("open")).toBe(false);
     const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
-    expect(rows[0].textContent).toMatch(/^Dinner Sun · Lunch Mon \(leftovers\)Test chicken rice/);
+    expect(rows[0].textContent).toMatch(/^Dinner Sun · Lunch MonTest chicken rice/);
     expect(rows[1].textContent).toMatch(/^Dinner MonTest lentil soup/);
     expect((screen.getByRole("combobox", { name: "Size of Test chicken rice" }) as HTMLSelectElement).value).toBe("2");
     expect((screen.getByRole("combobox", { name: "Size of Test lentil soup" }) as HTMLSelectElement).value).toBe("1");
@@ -421,8 +421,8 @@ describe("Meal Plans' home (REQ-118)", () => {
     expect(within(card).queryByText(/Covers through/)).toBeNull();
     const list = within(card).getByRole("list", { name: "On the menu: dishes" });
     expect(within(list).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
-      "Test chicken riceDinner Sun · Lunch Mon (leftovers)",
-      "Test lentil soupDinner Mon · Lunch Tue (leftovers)",
+      "Test chicken riceDinner Sun · Lunch Mon",
+      "Test lentil soupDinner Mon · Lunch Tue",
     ]);
     expect(within(list).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([`/meal-plans/${ID}`, `/meal-plans/${OTHER}`]);
     // The dish with a photo shows it; the one without shows no empty block.
@@ -444,12 +444,14 @@ describe("Meal Plans' home (REQ-118)", () => {
     expect(next.getByText("Next week")).toBeTruthy();
   });
 
-  it("still shows the card when there is no plan, empty, with New meal plan", async () => {
+  it("still shows the card when there is no plan, empty", async () => {
     given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [] });
     render(await MealPlansPage());
     const card = within(screen.getByRole("region", { name: "On the menu" }));
-    expect(card.getByRole("button", { name: "New meal plan" })).toBeTruthy();
+    expect(card.getByText("No plan yet")).toBeTruthy();
     expect(card.queryByRole("list")).toBeNull();
+    // The plan button is the one at the top, not a second one in the card.
+    expect(card.queryByRole("button", { name: "New meal plan" })).toBeNull();
   });
 
   it("shows the most cooked and top rated recipes, total recipes and number of cuisines", async () => {
@@ -561,7 +563,7 @@ describe("a plan is a run of meals (REQ-168)", () => {
       "Lunch MonOn your own",
       "Dinner MonEating out",
       "Lunch TueOn your own",
-      "Dinner Tue · Lunch Wed (leftovers)Test lentil soup",
+      "Dinner Tue · Lunch WedTest lentil soup",
     ]);
     expect(screen.getByRole("heading", { name: "Sun, Sep 27 Dinner – Wed, Sep 30 Lunch" })).toBeTruthy();
     // An evening out has no cooked or carry-over tick.
@@ -572,11 +574,11 @@ describe("a plan is a run of meals (REQ-168)", () => {
     given({ meal_plans: [openPlan([planned(ID, 2), planned(OTHER, 2, "2026-09-29", "dinner", false, false, E2)])], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
     const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
-    expect(rows.map((row) => row.textContent?.slice(0, 32))).toEqual([
-      "Dinner Sun · Lunch Mon (leftover",
+    expect(rows.map((row) => row.textContent?.slice(0, 22))).toEqual([
+      "Dinner Sun · Lunch Mon",
       "Dinner MonNot planned",
       "Lunch TueOn your own",
-      "Dinner Tue · Lunch Wed (leftover",
+      "Dinner Tue · Lunch Wed",
     ]);
   });
 
@@ -1096,16 +1098,14 @@ describe("planning ahead (REQ-162)", () => {
 });
 
 describe("module home actions and suggestions (REQ-165)", () => {
-  it("shows Add recipe at the top while there is no plan, and New meal plan in the empty card instead of a second button", async () => {
+  it("shows Add recipe and New meal plan side by side at the top while there is no plan", async () => {
     given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [] });
     render(await MealPlansPage());
     const actions = within(screen.getByRole("group", { name: "Start something" }));
     expect(actions.getByRole("link", { name: "Add recipe" }).getAttribute("href")).toBe("/meal-plans/new");
-    expect(actions.queryByRole("button", { name: "New meal plan" })).toBeNull();
     // One press makes the plan and goes straight to it: a button that posts, not a link to a page that asks again.
-    const card = within(screen.getByRole("region", { name: "On the menu" }));
-    const button = card.getByRole("button", { name: "New meal plan" });
-    expect(card.queryByRole("link", { name: "New meal plan" })).toBeNull();
+    const button = actions.getByRole("button", { name: "New meal plan" });
+    expect(actions.queryByRole("link", { name: "New meal plan" })).toBeNull();
     const form = button.closest("form") as HTMLFormElement;
     expect((form.querySelector('input[name="then"]') as HTMLInputElement).value).toBe("week");
     expect((form.querySelector('input[name="starts_on"]') as HTMLInputElement).value).toBe("2026-09-27");

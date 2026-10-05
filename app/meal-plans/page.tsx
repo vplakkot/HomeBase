@@ -29,7 +29,7 @@ const STATUS: Record<string, string> = {
 // its photo and the meals it covers. The one for the plan we're on is "On
 // the menu", the one queued behind it is "Next week". With no plan the card
 // is still there, empty, with New meal plan.
-function MenuCard({ label, plan, byId, thumbs, today }: { label: string; plan: MealPlan | null; byId: Map<string, Recipe>; thumbs: Map<string, string>; today: string }) {
+function MenuCard({ label, plan, byId, thumbs }: { label: string; plan: MealPlan | null; byId: Map<string, Recipe>; thumbs: Map<string, string> }) {
   const entries = plan?.recipes.filter((entry) => entry.eating_out || (entry.recipe_id && byId.has(entry.recipe_id))) ?? [];
   const dishes = plan ? layoutPlan(plan, entries).rows.flatMap((row) => (row.kind === "entry" ? [{ entry: row.entry, meals: row.meals }] : [])) : [];
   return (
@@ -68,7 +68,7 @@ function MenuCard({ label, plan, byId, thumbs, today }: { label: string; plan: M
           )}
         </>
       ) : (
-        <NewPlanForm today={today} />
+        <p className={styles.summary}>No plan yet</p>
       )}
     </section>
   );
@@ -106,7 +106,7 @@ export default async function MealPlansPage() {
     <MealPlansScreen viewer={viewer} section={OVERVIEW}>
       <div className={styles.homeActions} role="group" aria-label="Start something">
         <ButtonLink href="/meal-plans/new">Add recipe</ButtonLink>
-        {plan && !ahead ? <PlanAheadForm thenWeek /> : null}
+        {!plan ? <NewPlanForm today={householdToday()} /> : !ahead ? <PlanAheadForm thenWeek /> : null}
       </div>
       <RatePrompts recipes={prompts.flatMap((id) => (byId.has(id) ? [{ id, name: byId.get(id)?.name ?? "" }] : []))} />
       {imports.length > 0 ? (
@@ -133,8 +133,8 @@ export default async function MealPlansPage() {
           </ul>
         </section>
       ) : null}
-      <MenuCard label="On the menu" plan={plan} byId={byId} thumbs={thumbs} today={householdToday()} />
-      {ahead ? <MenuCard label="Next week" plan={ahead} byId={byId} thumbs={thumbs} today={householdToday()} /> : null}
+      <MenuCard label="On the menu" plan={plan} byId={byId} thumbs={thumbs} />
+      {ahead ? <MenuCard label="Next week" plan={ahead} byId={byId} thumbs={thumbs} /> : null}
       <section className={styles.section} aria-label="Our kitchen">
         <div className={styles.sectionHead}>
           <h2 className={styles.sectionTitle}>Our kitchen</h2>
