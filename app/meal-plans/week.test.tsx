@@ -18,6 +18,7 @@ import {
   saveScaled,
   setHidden,
   setPlanMeals,
+  setRepeatRecipes,
   setDidntCook,
   startPlanNow,
   markDayOff,
@@ -246,13 +247,11 @@ describe("the week's plan (REQ-115)", () => {
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
   });
 
-  it("adds a dish as 2 meals by default, or 1, and never twice", async () => {
+  it("adds a dish as 2 meals by default, or 1", async () => {
     const fake = given({ meal_plans: [PLAN_ROW] });
     expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "2" }))).toEqual({});
     expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ plan_id: PLAN, recipe_id: ID, meals: 2, eating_out: false, meal_on: "2026-09-27", meal: "dinner" });
     expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "3" }))).toHaveProperty("error");
-    refusedAsDuplicate(fake);
-    expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "2" }))).toEqual({ error: "That recipe is already in the plan." });
     given({ meal_plans: [openPlan([])], recipes: [RECIPE, { ...SECOND, hidden: true }] });
     render(await WeekPage());
     const picker = screen.getByRole("combobox", { name: "Recipe" });
@@ -983,6 +982,57 @@ describe("the closing cards and the start notification (REQ-163)", () => {
     render(await WeekPage({ searchParams: Promise.resolve({ start: PLAN }) }));
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.getByRole("button", { name: "Start" })).toBeTruthy();
+  });
+});
+
+describe("the repeat recipes setting (REQ-172)", () => {
+  const settings = (repeat_recipes: boolean) => [{ repeat_recipes }];
+
+  it("is off by default, and either of us switches it", async () => {
+    given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [] });
+    render(await MealPlansPage());
+    const box = within(screen.getByRole("region", { name: "Settings" })).getByRole("checkbox", { name: "Repeat recipes in a plan" }) as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    cleanup();
+    given({ recipes: [RECIPE], recipe_imports: [], meal_plans: [], meal_plan_settings: settings(true) });
+    render(await MealPlansPage());
+    expect((screen.getByRole("checkbox", { name: "Repeat recipes in a plan" }) as HTMLInputElement).checked).toBe(true);
+    const fake = given({});
+    await setRepeatRecipes(form({ repeat: "yes" }));
+    const update = fake.from.mock.calls.findIndex(([name]) => name === "meal_plan_settings");
+    expect(fake.from.mock.results[update].value.update).toHaveBeenCalledWith(expect.objectContaining({ repeat_recipes: true }));
+    expect(fake.from.mock.results[update].value.eq).toHaveBeenCalledWith("id", true);
+  });
+
+  it("refuses a recipe already in the plan we're on or next week's while it is off, and says which", async () => {
+    // The chicken is in next week's plan; adding it to this week's is refused.
+    const fake = given({ meal_plans: [openPlan([]), aheadPlan([planned(ID, 2, "2026-09-30", "dinner", false, false, E3)])], recipes: [RECIPE], meal_plan_settings: settings(false) });
+    expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "2" }))).toEqual({ error: "Test chicken rice is already planned." });
+    expect(sent(fake, "meal_plan_recipes", "insert")).toBeUndefined();
+    // And the other way: in this week's, refused for next week's.
+    given({ meal_plans: [openPlan([planned(ID, 2)]), aheadPlan()], recipes: [RECIPE], meal_plan_settings: settings(false) });
+    expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "2" }))).toEqual({ error: "Test chicken rice is already planned." });
+  });
+
+  it("lets a recipe be added more than once while it is on", async () => {
+    const fake = given({ meal_plans: [openPlan([planned(ID, 2)]), aheadPlan()], recipes: [RECIPE], meal_plan_settings: settings(true) });
+    expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "1" }))).toEqual({});
+    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ recipe_id: ID, meals: 1 });
+  });
+
+  it("offers to add, and suggests, only recipes that aren't already planned while it is off", async () => {
+    given({ meal_plans: [openPlan([planned(ID, 2)])], recipes: [RECIPE, SECOND], meal_plan_settings: settings(false) });
+    render(await WeekPage());
+    const options = () => within(screen.getByRole("combobox", { name: "Recipe" })).getAllByRole("option").map((option) => option.textContent);
+    expect(options()).toEqual(["Choose a recipe", "Test lentil soup"]);
+    const suggested = () => within(screen.getByRole("region", { name: "Suggestions" })).getAllByRole("listitem").map((item) => item.textContent);
+    expect(suggested().some((text) => text?.includes("Test chicken rice"))).toBe(false);
+    cleanup();
+    // On: everything can be added again, and suggested.
+    given({ meal_plans: [openPlan([planned(ID, 2)])], recipes: [RECIPE, SECOND], meal_plan_settings: settings(true) });
+    render(await WeekPage());
+    expect(options()).toEqual(["Choose a recipe", "Test chicken rice", "Test lentil soup"]);
+    expect(suggested().some((text) => text?.includes("Test chicken rice"))).toBe(true);
   });
 });
 

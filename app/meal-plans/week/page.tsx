@@ -19,6 +19,7 @@ import { MealPlansScreen, mealPlansViewer } from "../frame";
 import { AddToPlanForm, AddToWeekButton, ChangeStartForm, DaysOffForm, MoveControls, PlanAheadForm, PlannedControls, RateRecipeForm, StartPlanForm } from "../plan-forms";
 import { closePlan, removePlan, reopenPlan, setDidntCook, skipRating, startPlanNow, takeOffPlan } from "../plan-actions";
 import { readPeople } from "../../../lib/drinks/drinks";
+import { readSettings } from "../../../lib/meal-plans/settings";
 import { buttonClass } from "../../../components/button";
 import { PlanRange } from "../plan-range";
 import { RatePrompts } from "../rate-prompts";
@@ -33,7 +34,7 @@ const asOption = (meal: Meal) => ({ value: mealKey(meal), label: mealPlace(meal)
 // your own", "Not planned"). `ahead` is the plan queued behind the current
 // one (REQ-162): its start isn't ours to change, it follows the current
 // plan's last meal.
-function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: readonly Recipe[]; names: Map<string, string>; ahead: boolean }) {
+function PlanCard({ plan, recipes, names, ahead, planned }: { plan: MealPlan; recipes: readonly Recipe[]; names: Map<string, string>; ahead: boolean; planned: ReadonlySet<string> }) {
   const entries = plan.recipes.filter((entry) => entry.eating_out || (entry.recipe_id && names.has(entry.recipe_id)));
   const layout = layoutPlan(plan, entries);
   // Days before today are locked once a plan has started; a new plan hasn't (REQ-163).
@@ -41,8 +42,9 @@ function PlanCard({ plan, recipes, names, ahead }: { plan: MealPlan; recipes: re
   const choicesFor = (shape: { eating_out: boolean; meals: 1 | 2 }) => startChoices(plan, shape, plan.daysOff, locked).map(asOption);
   const choices = { one: choicesFor({ eating_out: false, meals: 1 }), two: choicesFor({ eating_out: false, meals: 2 }) };
   const dishes = entries.filter((entry) => !entry.eating_out).sort((a, b) => startOf(a) - startOf(b));
-  const inPlan = new Set(entries.flatMap((entry) => (entry.recipe_id ? [entry.recipe_id] : [])));
-  const addable = recipes.filter((recipe) => !recipe.hidden && !inPlan.has(recipe.id));
+  // What can be added: not already planned, unless the repeat setting is on (REQ-172),
+  // when `planned` is empty.
+  const addable = recipes.filter((recipe) => !recipe.hidden && !planned.has(recipe.id));
   const daysOff = [...plan.daysOff].sort().map((day) => ({ day, label: dayLabel(day) }));
   return (
     <section className={styles.formCard} aria-label={ahead ? "Next plan" : "This week"}>
@@ -209,7 +211,7 @@ function ClosingCards({ closed, names, ahead, toRate }: { closed: ClosedPlan | n
 export default async function WeekPage({ searchParams }: { searchParams?: Promise<{ skip?: string; start?: string }> } = {}) {
   const viewer = await mealPlansViewer();
   const query = (await searchParams) ?? {};
-  const [{ current: plan, ahead }, lastClosed, recipes, rows, ratings, prompts, proposed, closed, people] = await Promise.all([
+  const [{ current: plan, ahead }, lastClosed, recipes, rows, ratings, prompts, proposed, closed, people, settings] = await Promise.all([
     readPlans(viewer.supabase),
     readLastClosedPlan(viewer.supabase),
     readRecipes(viewer.supabase),
@@ -219,6 +221,7 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
     readProposed(viewer.supabase),
     readClosedPlan(viewer.supabase, householdToday()),
     readPeople(viewer.supabase),
+    readSettings(viewer.supabase),
   ]);
   const names = new Map(recipes.map((recipe) => [recipe.id, recipe.name]));
   const toRate = prompts.flatMap((id) => (names.has(id) ? [{ id, name: names.get(id) ?? "" }] : []));
@@ -247,7 +250,9 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
       </MealPlansScreen>
     );
   }
-  const inPlan = new Set([...plan.recipes, ...(ahead?.recipes ?? [])].flatMap((entry) => (entry.recipe_id ? [entry.recipe_id] : [])));
+  // REQ-172: with "Repeat recipes in a plan" off, a recipe already in the plan we're on or in
+  // next week's is neither offered to add nor suggested; with it on, nothing is held back.
+  const inPlan = settings.repeatRecipes ? new Set<string>() : new Set([...plan.recipes, ...(ahead?.recipes ?? [])].flatMap((entry) => (entry.recipe_id ? [entry.recipe_id] : [])));
   // REQ-169: dishes a push took off a plan, proposed first for next week's plan.
   const proposedFirst = recipes.filter((recipe) => proposed.includes(recipe.id) && !recipe.hidden && !inPlan.has(recipe.id));
   // Opened from the "Start this week's plan?" notification after the other person already pressed Start (REQ-163).
@@ -270,7 +275,7 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
       {startedNotice ? <p role="status">{startedNotice}</p> : null}
       <RatePrompts recipes={rateElsewhere} />
       <ClosingCards closed={closed} names={names} ahead={ahead} toRate={rateOnCards} />
-      <PlanCard plan={plan} recipes={recipes} names={names} ahead={false} />
+      <PlanCard plan={plan} recipes={recipes} names={names} ahead={false} planned={inPlan} />
       {suggested.length > 0 ? (
         <section className={styles.section} aria-label="Suggestions">
           <div className={styles.sectionHead}>
@@ -306,7 +311,7 @@ export default async function WeekPage({ searchParams }: { searchParams?: Promis
         </section>
       ) : null}
       {ahead ? (
-        <PlanCard plan={ahead} recipes={recipes} names={names} ahead />
+        <PlanCard plan={ahead} recipes={recipes} names={names} ahead planned={inPlan} />
       ) : (
         <section className={styles.formCard} aria-label="Next plan">
           <PlanAheadForm />

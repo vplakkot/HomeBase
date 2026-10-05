@@ -24,6 +24,7 @@ import {
 } from "../../lib/meal-plans/meals";
 import { ENTRY_COLUMNS, hasDishes, isPlanSize, nextPlanStart, readStoredPlans, saveLayout, syncAheadStart, type MealPlan, type PlannedRecipe, type PlanStatus } from "../../lib/meal-plans/plan";
 import { readRecipe } from "../../lib/meal-plans/recipes";
+import { readSettings } from "../../lib/meal-plans/settings";
 import { isFactor, scaleRecipe } from "../../lib/meal-plans/scale";
 import { createClient } from "../../lib/supabase/server";
 
@@ -279,8 +280,15 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
     } else if (taken) {
       return { error: await takenMessage(supabase, taken) };
     } else {
+      // REQ-172: a recipe can repeat only when the setting says so; otherwise it can
+      // be in just one of the plan we're on and next week's plan.
+      if (recipeId && !(await readSettings(supabase)).repeatRecipes) {
+        const { current, ahead } = await readStoredPlans(supabase);
+        if ([...(current?.recipes ?? []), ...(ahead?.recipes ?? [])].some((item) => item.recipe_id === recipeId)) {
+          return { error: `${await entryName(supabase, { eating_out: false, recipe_id: recipeId })} is already planned.` };
+        }
+      }
       const { error } = await supabase.from("meal_plan_recipes").insert({ ...entry, plan_id: planId, recipe_id: recipeId, meal_on: at.day, meal: at.meal });
-      if (error?.code === "23505") return { error: "That recipe is already in the plan." };
       if (error) throw new Error(error.message);
       // Planned again: no longer waiting to be proposed.
       if (recipeId) await supabase.from("meal_plan_proposed_next").delete().eq("recipe_id", recipeId);
@@ -332,6 +340,17 @@ export async function setPlanMeals(_prev: PlanFormState, formData: FormData): Pr
   await syncAhead(supabase);
   refresh();
   return {};
+}
+
+// REQ-172: either of us switches "Repeat recipes in a plan".
+export async function setRepeatRecipes(formData: FormData): Promise<void> {
+  const supabase = await requireMember();
+  const { error } = await supabase
+    .from("meal_plan_settings")
+    .update({ repeat_recipes: formData.get("repeat") === "yes", updated_at: new Date().toISOString() })
+    .eq("id", true);
+  if (error) Sentry.captureException(new Error(error.message));
+  refresh();
 }
 
 // REQ-163: press Start on the plan we're on.

@@ -11,8 +11,9 @@ import { averageRatings, readRatingPrompts, readRatings } from "../../lib/meal-p
 import { readImports, readRecipes, type Recipe } from "../../lib/meal-plans/recipes";
 import { dismissImport } from "./actions";
 import { MealPlansScreen, mealPlansViewer } from "./frame";
-import { NewPlanForm, PlanAheadForm } from "./plan-forms";
+import { NewPlanForm, PlanAheadForm, RepeatRecipesSetting } from "./plan-forms";
 import { PlanRange } from "./plan-range";
+import { readSettings } from "../../lib/meal-plans/settings";
 import { RatePrompts } from "./rate-prompts";
 import styles from "./meal-plans.module.css";
 import band from "../../components/band.module.css";
@@ -82,13 +83,14 @@ function MenuCard({ label, plan, byId, thumbs }: { label: string; plan: MealPlan
 // plan's layout.
 export default async function MealPlansPage() {
   const viewer = await mealPlansViewer();
-  const [all, imports, { current: plan, ahead }, prompts, rows, ratings] = await Promise.all([
+  const [all, imports, { current: plan, ahead }, prompts, rows, ratings, settings] = await Promise.all([
     readRecipes(viewer.supabase),
     readImports(viewer.supabase),
     readPlans(viewer.supabase),
     readRatingPrompts(viewer.supabase, viewer.userId),
     readPlanRows(viewer.supabase),
     readRatings(viewer.supabase),
+    readSettings(viewer.supabase),
   ]);
   const byId = new Map(all.map((recipe) => [recipe.id, recipe]));
   const numbers = homeStats(all, planStats(rows), averageRatings(ratings));
@@ -178,6 +180,12 @@ export default async function MealPlansPage() {
             <dd className={styles.statCentre}>{numbers.cuisines}</dd>
           </div>
         </dl>
+      </section>
+      <section className={styles.section} aria-label="Settings">
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}>Settings</h2>
+        </div>
+        <RepeatRecipesSetting on={settings.repeatRecipes} />
       </section>
     </MealPlansScreen>
   );

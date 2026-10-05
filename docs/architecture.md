@@ -1213,6 +1213,12 @@ ranking and Home's "Most cooked" all read the same counts.
 `recipes.hidden` keeps a
 recipe out of the library without deleting it.
 
+`meal_plan_settings` is a single row for the household (REQ-172): `repeat_recipes`,
+off by default, switched from the bottom of the module home by either of us.
+Off, adding a recipe that is already in the plan we're on or next week's is
+refused by the app, and the add list and suggestions leave it out; on, none of
+that applies, so the database no longer has a one-row-per-recipe-per-plan rule.
+
 ### The plan lifecycle (REQ-163)
 
 A plan has a `status`: `new` until someone presses Start (a plan ahead is

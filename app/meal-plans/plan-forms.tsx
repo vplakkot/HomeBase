@@ -12,6 +12,7 @@ import {
   moveEntry,
   rateRecipe,
   setPlanMeals,
+  setRepeatRecipes,
   startPlan,
   unmarkDayOff,
   type PlanFormState,
@@ -65,6 +66,18 @@ export function StartPlanForm({
         {label}
       </button>
       <Outcome state={state} />
+    </form>
+  );
+}
+
+// REQ-172: the one Meal Plan setting, saved as soon as it changes.
+export function RepeatRecipesSetting({ on }: { on: boolean }) {
+  return (
+    <form action={setRepeatRecipes}>
+      <input type="hidden" name="repeat" value={on ? "no" : "yes"} />
+      <label>
+        <input type="checkbox" checked={on} onChange={submitForm} /> Repeat recipes in a plan
+      </label>
     </form>
   );
 }
