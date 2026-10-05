@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { carriedOver, planStats, type PlanRow, type PlanStats } from "./plan";
+import { planStats, type PlanRow, type PlanStats } from "./plan";
 import type { Recipe } from "./recipes";
 import { naturalGapDays, suggestions } from "./suggest";
 
@@ -44,29 +44,24 @@ function suggest(recipes: Recipe[], stats: [string, PlanStats][], extra: Partial
 }
 const ids = (list: ReturnType<typeof suggestions>) => list.map((item) => item.recipe.id);
 
-describe("closing a week: what carries over (REQ-116)", () => {
-  const row = (recipe_id: string, carry_over: boolean, starts_on: string, closed_at: string | null): PlanRow => ({
-    plan_id: `plan-${starts_on}`,
-    recipe_id,
-    carry_over,
-    meal_plans: { starts_on, closed_at },
+describe("counting what we cooked (REQ-175)", () => {
+  const row = (recipe_id: string | null, cooked: boolean, meal_on: string, closed_at: string | null): PlanRow => ({ recipe_id, cooked, meal_on, meal_plans: { closed_at } });
+  const CLOSED = "2026-09-26T20:00:00Z";
+
+  it("counts each dish cooked in a closed plan once, on the day it was cooked, with the first and last day", () => {
+    const stats = planStats([row("a", true, "2026-09-20", CLOSED), row("a", true, "2026-09-06", "2026-09-12T20:00:00Z"), row("b", true, "2026-09-21", CLOSED)]);
+    expect(stats.get("a")).toEqual({ times: 2, last: "2026-09-20", first: "2026-09-06" });
+    expect(stats.get("b")).toEqual({ times: 1, last: "2026-09-21", first: "2026-09-21" });
   });
 
-  it("proposes what the last plan closed carried over, not older plans' carry-overs, even when the last one was empty", () => {
-    const rows = [
-      row("old", true, "2026-09-13", "2026-09-19T20:00:00Z"),
-      row("a", true, "2026-09-20", "2026-09-26T20:00:00Z"),
-      row("b", false, "2026-09-20", "2026-09-26T20:00:00Z"),
-      row("c", false, "2026-09-27", null),
-    ];
-    expect(carriedOver(rows, "plan-2026-09-20")).toEqual(["a"]);
-    // The last plan closed had no recipes at all: nothing is carried over.
-    expect(carriedOver(rows, "plan-2026-09-25")).toEqual([]);
-  });
-
-  it("doesn't count a carried-over recipe as planned that week", () => {
-    const stats = planStats([row("a", true, "2026-09-20", "2026-09-26T20:00:00Z"), row("a", false, "2026-09-06", "2026-09-12T20:00:00Z")]);
+  it("doesn't count a dish marked Didn't cook this, one carried over from before (existing data: cooked is false), or one in a plan still open", () => {
+    const stats = planStats([row("a", false, "2026-09-20", CLOSED), row("a", true, "2026-09-06", "2026-09-12T20:00:00Z"), row("c", true, "2026-09-27", null)]);
     expect(stats.get("a")).toEqual({ times: 1, last: "2026-09-06", first: "2026-09-06" });
+    expect(stats.has("c")).toBe(false);
+  });
+
+  it("counts an evening out toward nothing", () => {
+    expect(planStats([row(null, true, "2026-09-20", CLOSED)]).size).toBe(0);
   });
 });
 
@@ -76,7 +71,7 @@ describe("suggestions while planning (REQ-117)", () => {
     expect(naturalGapDays(20)).toBeLessThan(14);
   });
 
-  it("ranks by rating, days since last planned and cook time", () => {
+  it("ranks by rating, days since last cooked and cook time", () => {
     const recipes = [recipe("quick", { cook_minutes: 20 }), recipe("slow", { cook_minutes: 120 }), recipe("meh", { cook_minutes: 20 })];
     // All planned 20 days ago: the quick favourite is due, the 2-hour one isn't yet.
     const stats: [string, PlanStats][] = recipes.map((r) => [r.id, planned("2026-09-07")]);
@@ -157,13 +152,13 @@ describe("the fun numbers on Meal Plans' home (REQ-118)", async () => {
       new Map([["tacos", planned("2026-09-20", 5)], ["pasta", planned("2026-09-13", 2)], ["gone", planned("2026-01-01", 9)]]),
       new Map([["pasta", 4.5], ["pizza", 4], ["gone", 5]]),
     );
-    expect(result.mostPlanned).toEqual({ recipe: recipes[0], times: 5 });
+    expect(result.mostCooked).toEqual({ recipe: recipes[0], times: 5 });
     expect(result.topRated).toEqual({ recipe: recipes[1], average: 4.5 });
     expect(result.recipes).toBe(3);
     expect(result.cuisines).toBe(2);
   });
 
   it("has no favourites before anything is planned or rated", () => {
-    expect(homeStats([recipe("a")], new Map(), new Map())).toEqual({ mostPlanned: null, topRated: null, recipes: 1, cuisines: 1 });
+    expect(homeStats([recipe("a")], new Map(), new Map())).toEqual({ mostCooked: null, topRated: null, recipes: 1, cuisines: 1 });
   });
 });

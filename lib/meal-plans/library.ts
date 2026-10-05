@@ -12,8 +12,8 @@ export const COOK_TIMES = [
 export const SORTS = [
   { value: "name", label: "Name" },
   { value: "rating", label: "Rating" },
-  { value: "last", label: "Last planned" },
-  { value: "times", label: "Times planned" },
+  { value: "last", label: "Last cooked" },
+  { value: "times", label: "Times cooked" },
 ] as const;
 
 export type LibraryQuery = { q?: string; cuisine?: string; meat?: string; method?: string; time?: string; sort?: string; hidden?: string };
@@ -38,7 +38,7 @@ export function libraryRecipes(
   );
   const byName = (a: Recipe, b: Recipe) => a.name.localeCompare(b.name);
   const stat = (recipe: Recipe) => stats.get(recipe.id) ?? { times: 0, last: null };
-  // Best rated, most recent or most planned first; unrated or never-planned
+  // Best rated, most recently cooked or most cooked first; unrated or never-cooked
   // recipes last, by name.
   if (query.sort === "rating") return kept.sort((a, b) => (averages.get(b.id) ?? 0) - (averages.get(a.id) ?? 0) || byName(a, b));
   if (query.sort === "last") return kept.sort((a, b) => (stat(b).last ?? "").localeCompare(stat(a).last ?? "") || byName(a, b));

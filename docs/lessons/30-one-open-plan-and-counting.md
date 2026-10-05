@@ -133,3 +133,13 @@ run whose write went in sends. The closer that needs nobody signed in is a
 separate database function, callable only by the server's own key, so a
 signed-in member can't run it by hand on a plan that isn't finished.
 
+## Update (REQ-175): still counting, but only what happened
+
+Counts were taken from every plan a recipe was in. With "Didn't cook this" a
+planned dish no longer means a cooked dish, so the count now only takes dishes
+in a plan that has closed and that carry the `cooked` mark. Nothing was
+stored or migrated: the mark was already written for every old closed plan,
+so old plans converted themselves. Because the number is counted fresh each
+time, marking a dish "didn't cook" afterwards changes the card, the sort,
+the suggestions and the stat at once.
+

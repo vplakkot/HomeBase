@@ -1190,9 +1190,14 @@ with a dish (REQ-169) pushes that dish and every later dish back a day
 remembered in `meal_plan_proposed_next` (a recipe once; the app clears it
 when the recipe is planned again), the others are rewritten, and a new
 Eating out is added, all in one step. Once next week's plan exists the
-plan page proposes those recipes first, to add to it. A recipe's "times planned" and "last planned" aren't stored: they're
-counted from these rows each time (`lib/meal-plans/plan.ts`), so taking
-a recipe off a plan can't leave a stale count. `recipes.hidden` keeps a
+plan page proposes those recipes first, to add to it. A recipe's "times cooked" and "last cooked" (REQ-175) aren't stored: they're
+counted from these rows each time (`lib/meal-plans/plan.ts`): each dish
+in a plan that has closed counts once if it is marked `cooked`, on the day
+it was cooked (`meal_on`). A dish marked "Didn't cook this", one in a plan
+still open and an Eating out count for nothing, so taking a dish off a
+plan can't leave a stale count. The library's sort, the suggestions'
+ranking and Home's "Most cooked" all read the same counts.
+`recipes.hidden` keeps a
 recipe out of the library without deleting it.
 
 ### The plan lifecycle (REQ-163)

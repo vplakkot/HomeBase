@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Meal Plan, cooked counts: a recipe's card now shows "Times cooked" and
+  "Last cooked" (it said planned), counted from dishes in plans that have
+  closed, not marked "Didn't cook this". The library sorts by "Last cooked"
+  and "Times cooked", suggestions rank by days since last cooked, and the
+  module home's "Most planned" is "Most cooked". Plans closed before this
+  count as cooked, except dishes that were carried over.
+
 - Meal Plan, plan lifecycle: a plan is now new, started or closed. A new
   plan shows its first meal and a Start button, and is never locked. At
   11:00 AM (a lunch start) or 6:00 PM (a dinner start) on its start day,
