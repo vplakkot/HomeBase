@@ -17,7 +17,7 @@ beforeAll(installDialogStandIn);
 
 vi.mock("../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./sign-out/actions", () => ({ signOut: vi.fn() }));
-vi.mock("./profile/actions", () => ({ saveMyName: vi.fn(), setModuleHidden: vi.fn() }));
+vi.mock("./profile/actions", () => ({ saveMyName: vi.fn(), changeMyEmail: vi.fn(), setModuleHidden: vi.fn() }));
 vi.mock("../lib/finances/snapshot", () => ({ readFinanceSnapshot: vi.fn() }));
 vi.mock("../lib/paperwork/paperwork", async (original) => ({
   ...(await original<typeof import("../lib/paperwork/paperwork")>()),

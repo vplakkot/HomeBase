@@ -25,6 +25,20 @@ describe("SignInPage", () => {
     expect(screen.queryByRole("link", { name: "Create your household" })).toBeNull();
   });
 
+  // #80: the way back in after a forgotten password.
+  it("links to Forgot your password, and says when an emailed link has run out", async () => {
+    givenHouseholdExists(true);
+    render(await SignInPage({ searchParams: Promise.resolve({ link: "invalid" }) }));
+    expect(screen.getByRole("link", { name: "Forgot your password?" }).getAttribute("href")).toBe("/forgot-password");
+    expect(screen.getByRole("alert").textContent).toMatch(/expired or was already used/);
+  });
+
+  it("says nothing about a link unless one failed", async () => {
+    givenHouseholdExists(true);
+    render(await SignInPage());
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("points to sign-up instead while no household exists", async () => {
     givenHouseholdExists(false);
     render(await SignInPage());

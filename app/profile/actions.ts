@@ -1,7 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import {
+  cleanEmail,
+  confirmUrl,
+  EMAIL_INVALID_MESSAGE,
+  EMAIL_TAKEN_MESSAGE,
+  emailErrorMessage,
+  usedByAnother,
+  type EmailChangeState,
+} from "../../lib/auth/email";
+import { listMembers } from "../../lib/auth/members";
 import { cleanName, NAME_MAX } from "../../lib/auth/names";
 import { MODULES } from "../../lib/modules";
 import { createClient } from "../../lib/supabase/server";
@@ -46,4 +57,34 @@ export async function setModuleHidden(_previous: HiddenState, formData: FormData
   if (error) return { error: error.message };
   revalidatePath("/", "layout");
   return { hidden };
+}
+
+// REQ-158: changing your own email from Profile. Supabase emails a
+// confirmation to the new address only, and the change takes effect once
+// it's followed (the old address is told nothing). Same account, so
+// nothing else about you changes.
+export async function changeMyEmail(_previous: EmailChangeState, formData: FormData): Promise<EmailChangeState> {
+  const email = cleanEmail(formData.get("email"));
+  if (!email) return { error: EMAIL_INVALID_MESSAGE };
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims) redirect("/sign-in");
+  if (data.claims.email?.toLowerCase() === email) return { error: "That is already your email." };
+
+  try {
+    if (usedByAnother(await listMembers(supabase), email, data.claims.sub)) return { error: EMAIL_TAKEN_MESSAGE };
+  } catch (reason) {
+    console.error("Could not check the household's emails", reason);
+    return { error: "Couldn't check that address. Try again in a moment." };
+  }
+
+  const { error } = await supabase.auth.updateUser(
+    { email },
+    { emailRedirectTo: confirmUrl((await headers()).get("host")) },
+  );
+  if (error) {
+    console.error("changeMyEmail failed", error.code, error.message);
+    return { error: emailErrorMessage(error) };
+  }
+  return { sent: { address: email, kind: "confirm" } };
 }

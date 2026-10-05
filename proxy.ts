@@ -72,12 +72,15 @@ export async function proxy(request: NextRequest) {
 // database with nobody signed in, and proves itself with a shared secret
 // instead. Sent through here it would be answered with the sign-in page,
 // and the schedule would quietly send nothing.
+// The email-link address (/auth/confirm) is another: a person arriving from
+// an emailed link may be signed out, or signed in as someone else, and the
+// proxy would bounce either before the link could be used.
 // The receipt address is the last, for the same shape of reason: a phone
 // reports a delivered notification from its service worker, which has no
 // session and may belong to someone signed out. It proves itself with the
 // one-message token it was sent (REQ-22).
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest$|sw\\.js$|api/notifications/(?:receipt|finances)$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest$|sw\\.js$|api/notifications/(?:receipt|finances)$|auth/confirm$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

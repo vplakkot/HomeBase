@@ -5,7 +5,10 @@ import { headers } from "next/headers";
 import { removeDevice } from "../../lib/notifications/devices";
 import { sendPush, sendTestNotification } from "../../lib/notifications/send";
 import { createClient } from "../../lib/supabase/server";
+import { listMembers } from "../../lib/auth/members";
+import { createEphemeralClient } from "../../lib/supabase/ephemeral";
 import {
+  changeMemberEmail,
   changeRole,
   createMember,
   renameMember,
@@ -26,6 +29,8 @@ vi.mock("../../lib/notifications/send", () => ({
   MESSAGES: { manual: { title: "HomeBase", body: "Test notification, sent by hand." } },
 }));
 vi.mock("../../lib/notifications/devices", () => ({ removeDevice: vi.fn() }));
+vi.mock("../../lib/auth/members", () => ({ listMembers: vi.fn() }));
+vi.mock("../../lib/supabase/ephemeral", () => ({ createEphemeralClient: vi.fn() }));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -67,6 +72,8 @@ function given({
         createUser: vi.fn().mockResolvedValue({ data: {}, error: createError }),
         updateUserById: vi.fn().mockResolvedValue({ data: {}, error: adminUpdateError }),
         inviteUserByEmail: vi.fn(),
+        getUserById: vi.fn(),
+        generateLink: vi.fn(),
       },
     },
   };
@@ -451,5 +458,113 @@ describe("removeMemberDevice", () => {
     given({ permission: false });
     await expect(removeMemberDevice("d-1")).rejects.toThrow("REDIRECT:/");
     expect(removeDevice).not.toHaveBeenCalled();
+  });
+});
+
+// REQ-158: the admin changing a member's email.
+describe("changeMemberEmail", () => {
+  const MEMBERS = [
+    { user_id: "u-admin", email: "vin@example.com" },
+    { user_id: "u-2", email: "membera@example.com" },
+  ] as Awaited<ReturnType<typeof listMembers>>;
+
+  function setup({
+    lastSignIn = "2026-10-01T00:00:00Z" as string | null,
+    adminUpdateError = null as { code?: string; message: string } | null,
+    updateUserError = null as { code?: string; message: string } | null,
+    resetError = null as { code?: string; message: string } | null,
+    me = "u-admin",
+  } = {}) {
+    const base = given({ adminUpdateError });
+    vi.mocked(headers).mockResolvedValue(new Headers({ host: "homebase.example" }) as unknown as Awaited<ReturnType<typeof headers>>);
+    vi.mocked(listMembers).mockResolvedValue(MEMBERS);
+    const own = { updateUser: vi.fn().mockResolvedValue({ error: updateUserError }), getClaims: vi.fn().mockResolvedValue({ data: { claims: { sub: me } } }) };
+    vi.mocked(createClient).mockResolvedValue({
+      rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
+      auth: own,
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+    base.admin.auth.admin.getUserById.mockResolvedValue({ data: { user: { last_sign_in_at: lastSignIn } }, error: null });
+    base.admin.auth.admin.generateLink.mockResolvedValue({ data: { properties: { hashed_token: "hash-1" } }, error: null });
+    const asThem = {
+      verifyOtp: vi.fn().mockResolvedValue({ error: null }),
+      updateUser: vi.fn().mockResolvedValue({ error: updateUserError }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
+      resetPasswordForEmail: vi.fn().mockResolvedValue({ error: resetError }),
+    };
+    vi.mocked(createEphemeralClient).mockReturnValue({ auth: asThem } as unknown as ReturnType<typeof createEphemeralClient>);
+    return { admin: base.admin, own, asThem };
+  }
+
+  it("for someone who has signed in, has Supabase send a confirmation to the new address only, as them", async () => {
+    const { admin, asThem } = setup();
+    expect(await changeMemberEmail({}, form({ userId: "u-2", email: " New@Example.com" }))).toEqual({
+      sent: { address: "new@example.com", kind: "confirm" },
+    });
+    expect(admin.auth.admin.generateLink).toHaveBeenCalledWith({ type: "magiclink", email: "membera@example.com" });
+    expect(asThem.verifyOtp).toHaveBeenCalledWith({ type: "magiclink", token_hash: "hash-1" });
+    expect(asThem.updateUser).toHaveBeenCalledWith(
+      { email: "new@example.com" },
+      { emailRedirectTo: "https://homebase.example/auth/confirm" },
+    );
+    // The change is theirs to confirm: nothing is changed directly, and that sign-in is ended.
+    expect(admin.auth.admin.updateUserById).not.toHaveBeenCalled();
+    expect(asThem.signOut).toHaveBeenCalledWith({ scope: "local" });
+  });
+
+  it("changing your own uses your own session, with no borrowed sign-in", async () => {
+    const { own, asThem, admin } = setup();
+    await changeMemberEmail({}, form({ userId: "u-admin", email: "vin2@example.com" }));
+    expect(own.updateUser).toHaveBeenCalledWith({ email: "vin2@example.com" }, { emailRedirectTo: "https://homebase.example/auth/confirm" });
+    expect(admin.auth.admin.generateLink).not.toHaveBeenCalled();
+    expect(asThem.verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it("for someone who never signed in, moves the address, voids the old password, and sends a link to choose one", async () => {
+    const { admin, asThem } = setup({ lastSignIn: null });
+    expect(await changeMemberEmail({}, form({ userId: "u-2", email: "megan@example.com" }))).toEqual({
+      sent: { address: "megan@example.com", kind: "invite" },
+    });
+    const [id, attributes] = admin.auth.admin.updateUserById.mock.calls[0];
+    expect(id).toBe("u-2");
+    expect(attributes).toMatchObject({ email: "megan@example.com", email_confirm: true, app_metadata: { must_set_password: true } });
+    expect(attributes.password).toHaveLength(32);
+    expect(asThem.resetPasswordForEmail).toHaveBeenCalledWith("megan@example.com", {
+      redirectTo: "https://homebase.example/auth/confirm",
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/admin");
+  });
+
+  it("says plainly when the address changed but the email didn't send", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    setup({ lastSignIn: null, resetError: { code: "over_email_send_rate_limit", message: "x" } });
+    const state = await changeMemberEmail({}, form({ userId: "u-2", email: "megan@example.com" }));
+    expect(state.error).toMatch(/address is changed, but the email didn't send/);
+    expect(state.sent).toBeUndefined();
+  });
+
+  it("refuses an address another member uses, the member's own, or a bad one, changing nothing", async () => {
+    const { admin, asThem } = setup();
+    expect((await changeMemberEmail({}, form({ userId: "u-2", email: "VIN@example.com" }))).error).toMatch(/already belongs to another account/);
+    expect((await changeMemberEmail({}, form({ userId: "u-2", email: "membera@example.com" }))).error).toBe("That is already their email.");
+    expect((await changeMemberEmail({}, form({ userId: "u-2", email: "nope" }))).error).toMatch(/full email address/);
+    expect((await changeMemberEmail({}, form({ userId: "stranger", email: "x@example.com" }))).error).toBe("That person isn't in this household.");
+    expect(admin.auth.admin.updateUserById).not.toHaveBeenCalled();
+    expect(asThem.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("refuses Supabase's own duplicate answer with the same clear message", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    setup({ lastSignIn: null, adminUpdateError: { code: "email_exists", message: "x" } });
+    expect((await changeMemberEmail({}, form({ userId: "u-2", email: "x@example.com" }))).error).toMatch(/already belongs to another account/);
+  });
+
+  it("sends a non-admin away without touching anything", async () => {
+    const { admin } = setup();
+    vi.mocked(createClient).mockResolvedValue({
+      rpc: vi.fn().mockResolvedValue({ data: false, error: null }),
+      auth: {},
+    } as unknown as Awaited<ReturnType<typeof createClient>>);
+    await expect(changeMemberEmail({}, form({ userId: "u-2", email: "x@example.com" }))).rejects.toThrow("REDIRECT:/");
+    expect(admin.auth.admin.getUserById).not.toHaveBeenCalled();
   });
 });

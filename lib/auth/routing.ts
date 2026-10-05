@@ -1,4 +1,4 @@
-const PUBLIC_PATHS = ["/sign-in", "/sign-up"];
+const PUBLIC_PATHS = ["/sign-in", "/sign-up", "/forgot-password"];
 
 export const SET_PASSWORD_PATH = "/set-password";
 

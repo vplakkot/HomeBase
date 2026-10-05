@@ -9,7 +9,7 @@ import { listMembers, listRoles } from "../../lib/auth/members";
 import { listDevices, type DeviceView } from "../../lib/notifications/devices";
 import { listRecentLog, SHOW_DAYS } from "../../lib/notifications/log";
 import { DeviceList } from "../notifications/device-list";
-import { removeMemberDevice, renameMember } from "./actions";
+import { changeMemberEmail, removeMemberDevice, renameMember } from "./actions";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { hasPermission } from "../../lib/auth/permissions";
 import { createClient } from "../../lib/supabase/server";
@@ -18,6 +18,7 @@ import { BuildCard } from "./build-card";
 import { ModuleSwitchForm } from "./module-switch-form";
 import { NotificationLog } from "./notification-log";
 import { NotificationsForm } from "./notifications-form";
+import { EmailForm } from "../../components/email-form";
 import { NameForm } from "../../components/name-form";
 import { ResetPasswordForm } from "./reset-password-form";
 import { SendTestForm } from "./send-test-form";
@@ -129,13 +130,14 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
                     <span className={styles.chip}>{member.role_name}</span>
                   </div>
                   <details className={styles.manage}>
-                    <summary>Change name, role or password</summary>
+                    <summary>Change name, email, role or password</summary>
                     <NameForm
                       action={renameMember}
                       name={member.name}
                       label={`Name for ${who}`}
                       userId={member.user_id}
                     />
+                    <EmailForm action={changeMemberEmail} label={`New email for ${who}`} userId={member.user_id} />
                     <RoleForm
                       userId={member.user_id}
                       roleId={member.role_id}
