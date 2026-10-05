@@ -22,7 +22,7 @@ import {
   type MealKind,
   type Sited,
 } from "../../lib/meal-plans/meals";
-import { ENTRY_COLUMNS, isPlanSize, nextPlanStart, readStoredPlans, saveLayout, syncAheadStart, type MealPlan, type PlannedRecipe, type PlanStatus } from "../../lib/meal-plans/plan";
+import { ENTRY_COLUMNS, hasDishes, isPlanSize, nextPlanStart, readStoredPlans, saveLayout, syncAheadStart, type MealPlan, type PlannedRecipe, type PlanStatus } from "../../lib/meal-plans/plan";
 import { readRecipe } from "../../lib/meal-plans/recipes";
 import { isFactor, scaleRecipe } from "../../lib/meal-plans/scale";
 import { createClient } from "../../lib/supabase/server";
@@ -339,6 +339,9 @@ export async function startPlanNow(formData: FormData): Promise<void> {
   const supabase = await requireMember();
   const id = idFrom(formData.get("plan_id"));
   if (!id) return;
+  // A plan with nothing to cook isn't started.
+  const plan = await loadPlan(supabase, id);
+  if (!plan || !hasDishes(plan)) return;
   const { error } = await supabase.rpc("begin_meal_plan", { p_plan: id });
   if (error) Sentry.captureException(new Error(error.message));
   refresh();

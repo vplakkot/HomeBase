@@ -831,6 +831,21 @@ describe("the plan lifecycle (REQ-163)", () => {
     expect(screen.queryByRole("button", { name: "Close plan" })).toBeNull();
   });
 
+  it("doesn't let a plan with no dishes be started: no Start button, and the action does nothing", async () => {
+    given({ meal_plans: [newPlan([])], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.getByText("Not started. First meal: Dinner Sun, Sep 27")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+    cleanup();
+    // Eating out alone is no meal to cook.
+    given({ meal_plans: [newPlan([planned(null, 1)])], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+    const fake = given({ meal_plans: [{ ...PLAN_ROW, status: "new" }], meal_plan_recipes: [] });
+    await startPlanNow(form({ plan_id: PLAN }));
+    expect(fake.rpc).not.toHaveBeenCalledWith("begin_meal_plan", expect.anything());
+  });
+
   it("shows a started plan with Close plan and no Start", async () => {
     given({ meal_plans: [openPlan([planned(ID, 2)])], recipes: [RECIPE] });
     render(await WeekPage());
@@ -839,7 +854,7 @@ describe("the plan lifecycle (REQ-163)", () => {
   });
 
   it("starts the plan we're on, and closes it, in one step each on the database", async () => {
-    let fake = given({});
+    let fake = given({ meal_plans: [{ ...PLAN_ROW, status: "new" }], meal_plan_recipes: [planned(ID, 2)] });
     await startPlanNow(form({ plan_id: PLAN }));
     expect(fake.rpc).toHaveBeenCalledWith("begin_meal_plan", { p_plan: PLAN });
     fake = given({});
