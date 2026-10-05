@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Meal Plan, fix: Eating out on the dinner that is a weekend-lunch dish's
+  leftovers no longer drops the dish. The dish keeps its lunch and becomes
+  a 1-meal dish; nothing else moves.
+
 - Meal Plan, Eating out pushes dishes back: marking Eating out on a dinner
   that has a dish pushes that dish, and every later dish, back a day, each
   keeping its meal (a dinner stays a dinner). The lunch it leaves behind

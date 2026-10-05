@@ -261,14 +261,25 @@ describe("Eating out pushes dishes back (REQ-169)", () => {
     expect(where(result?.entries ?? [])).toEqual({ X: "dinner 2026-10-06", Y: "dinner 2026-10-07", chicken: "dinner 2026-10-08" });
   });
 
-  it("pushes the dish whose leftovers are on that dinner, and settles a weekend-lunch dish that lands on a weekday", () => {
-    // A plan from Saturday Oct 3. A 2-meal dish from Sat lunch covers Sat dinner; pushed to Sun lunch, still a weekend.
+  it("shrinks a weekend-lunch dish to 1 meal when Eating out takes its leftovers' dinner, and moves nothing else", () => {
+    // A 2-meal dish from Sat lunch covers Sat dinner. Eating out on Sat dinner keeps the dish on its lunch.
     const saturday = { starts_on: "2026-10-03" };
-    const result = pushBack(saturday, [dish("weekend", "2026-10-03", "lunch")], out("X", "2026-10-03"), { day: "2026-10-03", meal: "dinner" }, NONE);
-    expect(where(result?.entries ?? [])).toEqual({ X: "dinner 2026-10-03", weekend: "lunch 2026-10-04" });
-    // From a Sunday lunch, pushed to Monday lunch (a weekday): it starts at Monday's dinner instead.
-    const sunday = pushBack(saturday, [dish("sun", SUN, "lunch")], out("X", SUN), { day: SUN, meal: "dinner" }, NONE);
-    expect(where(sunday?.entries ?? [])).toEqual({ X: "dinner 2026-10-04", sun: "dinner 2026-10-05" });
+    const entries = [dish("weekend", "2026-10-03", "lunch"), dish("later", "2026-10-06", "dinner")];
+    const result = pushBack(saturday, entries, out("X", "2026-10-03"), { day: "2026-10-03", meal: "dinner" }, NONE);
+    expect(where(result?.entries ?? [])).toEqual({ weekend: "lunch 2026-10-03", X: "dinner 2026-10-03", later: "dinner 2026-10-06" });
+    expect(result?.entries.find((entry) => entry.id === "weekend")?.meals).toBe(1);
+    expect(result?.entries.find((entry) => entry.id === "later")?.meals).toBe(2);
+    expect(result?.dropped).toEqual([]);
+  });
+
+  it("pushes a dish cooked on that dinner, and a weekend-lunch dish that lands on a weekday starts at that day's dinner", () => {
+    const saturday = { starts_on: "2026-10-03" };
+    // Cooked on Sat dinner (a 2-meal dish covering Sunday lunch): pushed to Sunday dinner.
+    const cooked = pushBack(saturday, [dish("c", "2026-10-03", "dinner")], out("X", "2026-10-03"), { day: "2026-10-03", meal: "dinner" }, NONE);
+    expect(where(cooked?.entries ?? [])).toEqual({ X: "dinner 2026-10-03", c: "dinner 2026-10-04" });
+    // A weekend-lunch dish after the pushed one that lands on a weekday lunch settles to that day's dinner.
+    const later = pushBack(saturday, [dish("a", "2026-10-03", "dinner", 1), dish("b", "2026-10-04", "lunch")], out("X", "2026-10-03"), { day: "2026-10-03", meal: "dinner" }, NONE);
+    expect(where(later?.entries ?? [])).toEqual({ X: "dinner 2026-10-03", a: "dinner 2026-10-04", b: "dinner 2026-10-05" });
   });
 
   it("drops a dish pushed past dinner on the first Saturday, and hands it back", () => {
