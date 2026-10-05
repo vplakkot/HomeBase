@@ -887,6 +887,77 @@ describe("meal plan: Eating out pushes dishes back (REQ-169)", () => {
   });
 });
 
+describe("meal plan: plan lifecycle (REQ-163)", () => {
+  const life = readMigration("20261006110000");
+
+  it("gives a plan a status and keeps the old columns, so the running app keeps working", () => {
+    expect(life).not.toMatch(/drop column/);
+    expect(life).toMatch(/add column status text not null default 'started' check \(status in \('new', 'started', 'closed'\)\)/);
+    expect(life).toMatch(/set status = case when closed_at is not null then 'closed' when ahead then 'new' else 'started' end;/);
+    expect(life).toMatch(/add column didnt_cook boolean not null default false;/);
+    expect(life).toMatch(/set didnt_cook = true where carry_over;/);
+  });
+
+  it("starts every plan new, and Start only works on the plan we're on", () => {
+    expect(life).toMatch(/values \(p_starts_on, p_starts_meal, \(select auth\.uid\(\)\), current_plan is not null, 'new'\)/);
+    expect(life).toMatch(/where id = p_plan and closed_at is null and not ahead and status = 'new';/);
+  });
+
+  it("closes a started plan for the schedule (any open plan for a member), counting every dish cooked except those marked, and makes the plan ahead current", () => {
+    const close = life.slice(life.indexOf("function public.close_meal_plan_system"), life.indexOf("-- Either of us closes"));
+    expect(close).toMatch(/where id = p_plan and closed_at is null and \(status = 'started' or not p_only_started\) for update;/);
+    expect(close).toMatch(/not \(mpr\.didnt_cook or mpr\.carry_over\)/);
+    expect(close).toMatch(/set cooked = not \(didnt_cook or carry_over\) where plan_id = p_plan;/);
+    expect(close).toMatch(/set closed_at = now\(\), status = 'closed' where id = p_plan;/);
+    expect(close).toMatch(/update public\.meal_plans set ahead = false where closed_at is null and ahead;/);
+  });
+
+  it("keeps the closer that needs nobody signed in away from everyone but the schedule", () => {
+    expect(life).toMatch(/revoke all on function public\.close_meal_plan_system\(uuid, boolean\) from public, anon, authenticated;/);
+    expect(life).toMatch(/grant execute on function public\.close_meal_plan_system\(uuid, boolean\) to service_role;/);
+  });
+
+  it("lets a member close any open plan, as the running app does, while the schedule only closes a started one", () => {
+    expect(life).toMatch(/perform public\.close_meal_plan_system\(p_plan, false\);/);
+    expect(life).toMatch(/p_only_started boolean default true/);
+  });
+
+  it("lets members close, reopen, start and mark Didn't cook this, nobody else", () => {
+    expect(life.match(/if not public\.has_permission\('use_modules'\) then/g)).toHaveLength(5);
+    expect(life).toMatch(/revoke all on function public\.set_didnt_cook\(uuid, boolean\) from public, anon;/);
+    expect(life).toMatch(/grant execute on function public\.set_didnt_cook\(uuid, boolean\) to authenticated;/);
+  });
+
+  it("takes a dish's rating questions away when it's marked, and asks the first-time question again when it's taken back", () => {
+    const mark = life.slice(life.indexOf("function public.set_didnt_cook"));
+    expect(mark).toMatch(/delete from public\.recipe_rating_prompts where recipe_id = v_recipe and plan_id = v_plan;/);
+    expect(mark).toMatch(/insert into public\.recipe_rating_prompts \(recipe_id, user_id, plan_id\)/);
+  });
+
+  it("logs the start question, and schedules the hourly call with the shared secret", () => {
+    expect(life).toMatch(/check \(trigger in \('hourly', 'manual', 'finances', 'meal-plan'\)\)/);
+    expect(life).toMatch(/'meal-plan-schedule',\s+--[^\n]*\n\s+'20 \* \* \* \*'/);
+    expect(life).toMatch(/\|\| '\/api\/notifications\/meal-plan'/);
+    expect(life).toMatch(/where name = 'notify_secret'/);
+  });
+});
+
+describe("meal plan: lifecycle follow-ups (REQ-163)", () => {
+  const follow = readMigration("20261006120000");
+
+  it("remembers who pressed Start, set to the person asking, only on a new plan we're on", () => {
+    expect(follow).toMatch(/add column began_by uuid references auth\.users \(id\) on delete set null;/);
+    expect(follow).toMatch(/set status = 'started', began_by = \(select auth\.uid\(\)\)/);
+    expect(follow).toMatch(/where id = p_plan and closed_at is null and not ahead and status = 'new';/);
+    expect(follow).toMatch(/if not public\.has_permission\('use_modules'\) then/);
+  });
+
+  it("moves the schedule to the hour, as the same job", () => {
+    expect(follow).toMatch(/'meal-plan-schedule',\s+'0 \* \* \* \*'/);
+    expect(follow).toMatch(/\|\| '\/api\/notifications\/meal-plan'/);
+  });
+});
+
 describe("restaurants migration (REQ-90, REQ-129)", () => {
   const restaurants = readMigration("20260929100000");
 

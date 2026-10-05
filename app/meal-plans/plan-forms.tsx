@@ -11,8 +11,6 @@ import {
   markDayOff,
   moveEntry,
   rateRecipe,
-  setCarryOver,
-  setCooked,
   setPlanMeals,
   startPlan,
   unmarkDayOff,
@@ -65,6 +63,22 @@ export function StartPlanForm({
       </label>
       <button type="submit" className={buttonClass} disabled={pending}>
         {label}
+      </button>
+      <Outcome state={state} />
+    </form>
+  );
+}
+
+// The module home's "New meal plan": one press makes the plan (today, at
+// dinner) and goes straight to it, instead of to a page that asks again.
+export function NewPlanForm({ today }: { today: string }) {
+  const [state, formAction, pending] = useActionState(startPlan, initialState);
+  return (
+    <form action={formAction} className={styles.inline}>
+      <input type="hidden" name="then" value="week" />
+      <input type="hidden" name="starts_on" value={today} />
+      <button type="submit" className={buttonClass} disabled={pending}>
+        New meal plan
       </button>
       <Outcome state={state} />
     </form>
@@ -180,52 +194,20 @@ export function AddToPlanForm({
   );
 }
 
-// One dish's size, cooked tick and carry-over tick, each saved as soon as
-// it changes.
-export function PlannedControls({
-  planId,
-  entryId,
-  name,
-  meals,
-  cooked,
-  carryOver,
-}: {
-  planId: string;
-  entryId: string;
-  name: string;
-  meals: EntrySize;
-  cooked: boolean;
-  carryOver: boolean;
-}) {
+// One dish's size, saved as soon as it changes. (The cooked and carry-over
+// ticks went with REQ-163: closing cards and "Didn't cook this" replace them.)
+export function PlannedControls({ planId, entryId, name, meals }: { planId: string; entryId: string; name: string; meals: EntrySize }) {
   const [state, formAction] = useActionState(setPlanMeals, initialState);
   return (
-    <>
-      <form action={formAction}>
-        <input type="hidden" name="plan_id" value={planId} />
-        <input type="hidden" name="entry_id" value={entryId} />
-        <label>
-          <span className={styles.hidden}>Size of {name}</span>
-          <SizeSelect defaultValue={meals} onChange={submitForm} />
-        </label>
-        <Outcome state={state} />
-      </form>
-      <form action={setCooked}>
-        <input type="hidden" name="plan_id" value={planId} />
-        <input type="hidden" name="entry_id" value={entryId} />
-        <input type="hidden" name="cooked" value={cooked ? "no" : "yes"} />
-        <label>
-          <input type="checkbox" checked={cooked} onChange={submitForm} aria-label={`${name} cooked`} /> Cooked
-        </label>
-      </form>
-      <form action={setCarryOver}>
-        <input type="hidden" name="plan_id" value={planId} />
-        <input type="hidden" name="entry_id" value={entryId} />
-        <input type="hidden" name="carry_over" value={carryOver ? "no" : "yes"} />
-        <label>
-          <input type="checkbox" checked={carryOver} onChange={submitForm} aria-label={`Carry ${name} over`} /> Carry over
-        </label>
-      </form>
-    </>
+    <form action={formAction}>
+      <input type="hidden" name="plan_id" value={planId} />
+      <input type="hidden" name="entry_id" value={entryId} />
+      <label>
+        <span className={styles.hidden}>Size of {name}</span>
+        <SizeSelect defaultValue={meals} onChange={submitForm} />
+      </label>
+      <Outcome state={state} />
+    </form>
   );
 }
 

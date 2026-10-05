@@ -9,9 +9,9 @@ import styles from "./meal-plans.module.css";
 export function RatePrompts({ recipes }: { recipes: readonly { id: string; name: string }[] }) {
   if (recipes.length === 0) return null;
   return (
-    <section className={styles.section} aria-label="Rate what we cooked">
+    <section className={styles.section} aria-label="Rate these">
       <div className={styles.sectionHead}>
-        <h2 className={styles.sectionTitle}>Rate what we cooked</h2>
+        <h2 className={styles.sectionTitle}>Rate these</h2>
       </div>
       <ul className={styles.planList}>
         {recipes.map((recipe) => (

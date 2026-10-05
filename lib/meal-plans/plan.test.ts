@@ -10,8 +10,11 @@ describe("where next week's plan starts (REQ-170)", () => {
     starts_on,
     starts_meal: "dinner",
     ahead: false,
+    status: "started",
+    start_prompted_on: null,
+    began_by: null,
     daysOff: new Set(),
-    recipes: entries.map((entry, index) => ({ id: `e${index}`, recipe_id: "r", eating_out: false, meals: entry.size, meal_on: entry.day, meal: entry.meal, cooked: false, carry_over: false, added_at: "" })),
+    recipes: entries.map((entry, index) => ({ id: `e${index}`, recipe_id: "r", eating_out: false, meals: entry.size, meal_on: entry.day, meal: entry.meal, cooked: false, carry_over: false, didnt_cook: false, added_at: "" })),
   });
 
   it("starts at the meal after the plan's last filled meal: dinner, or a weekend lunch", () => {
@@ -45,6 +48,9 @@ describe("Home's Meal Plans tile", () => {
     starts_on: "2026-09-29",
     starts_meal: "dinner",
     ahead: false,
+    status: "started",
+    start_prompted_on: null,
+    began_by: null,
     daysOff: new Set(),
     recipes: sizes.map((size, index) => ({
       id: `e${index}`,
@@ -55,6 +61,7 @@ describe("Home's Meal Plans tile", () => {
       meal: "dinner" as const,
       cooked: false,
       carry_over: false,
+      didnt_cook: false,
       added_at: "",
     })),
   });
@@ -72,7 +79,7 @@ describe("Home's Meal Plans tile", () => {
 
   it("doesn't count an evening out as a recipe", () => {
     const withOut = plan([2]);
-    withOut.recipes.push({ id: "x", recipe_id: null, eating_out: true, meals: 1, meal_on: "2026-09-29", meal: "dinner", cooked: false, carry_over: false, added_at: "" });
+    withOut.recipes.push({ id: "x", recipe_id: null, eating_out: true, meals: 1, meal_on: "2026-09-29", meal: "dinner", cooked: false, carry_over: false, didnt_cook: false, added_at: "" });
     expect(planTile(withOut).status).toBe("Sep 29 – Sep 30 · 1 recipe");
   });
 

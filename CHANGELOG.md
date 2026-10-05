@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Meal Plan, plan lifecycle: a plan is now new, started or closed. A new
+  plan shows its first meal and a Start button, and is never locked. At
+  11:00 AM (a lunch start) or 6:00 PM (a dinner start) on its start day,
+  everyone with notifications on is asked "Start this week's plan?". A new
+  plan nobody started slides a day, its dishes with it, and next week's plan
+  follows. A started plan has a Close plan button and closes by itself the day
+  after its last filled meal. When a plan closes every dish gets a closing
+  card and counts as cooked unless marked "Didn't cook this", which can be
+  taken back; a dish you didn't cook can go into next week's plan, or is
+  proposed first when you make it. The Cooked and Carry over ticks are gone.
+  First-time dishes still ask each of you for a rating, on the dish's own
+  closing card ("Rate these" now only holds the rest); a dish removed from a
+  plan just leaves it. If two of you get the start question and one presses
+  Start, the other sees "<Name> already started this plan" on opening it.
+  The job runs on the hour, so the question arrives at 11:00 AM or 6:00 PM.
+  The module home's New meal plan now makes the plan in one press. Everything
+  uses New York time.
+
 - Meal Plan, plan next week: "Plan ahead" is now "Plan next week" on Home,
   the module home and the plan page. Next week's plan starts at the meal
   right after the current plan's last filled meal (leftovers count) when
