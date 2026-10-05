@@ -4,7 +4,8 @@ import { ButtonLink } from "../../components/button";
 import { householdToday } from "../../lib/finances/budget-year";
 import { homeStats } from "../../lib/meal-plans/home";
 import { entryMeals, layoutPlan } from "../../lib/meal-plans/meals";
-import { coversText, planStats, readPlans, readPlanRows } from "../../lib/meal-plans/plan";
+import { planStats, readPlans, readPlanRows } from "../../lib/meal-plans/plan";
+import { PlanRange } from "./plan-range";
 import { averageRatings, readRatingPrompts, readRatings, starsText } from "../../lib/meal-plans/ratings";
 import { readImports, readRecipes } from "../../lib/meal-plans/recipes";
 import { dismissImport } from "./actions";
@@ -85,7 +86,9 @@ export default async function MealPlansPage() {
         </div>
         {plan ? (
           <>
-            <p className={styles.summary}>{layout.end || planned.length > 0 ? coversText(layout.end, planned.length > 0) : "An empty plate so far"}</p>
+            <p className={styles.summary}>
+              <PlanRange plan={plan} />
+            </p>
             {planned.length > 0 ? (
               <ul className={styles.menu} aria-label="Recipes in the plan">
                 {planned.map(({ entry, meals }) => (

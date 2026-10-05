@@ -228,9 +228,11 @@
   color: var(--color-muted);
 }
 
-.covers {
-  font-size: var(--text-brand);
-  font-weight: 700;
+/* REQ-171: the small Dinner / Lunch marker beside a date in a plan's header. */
+.rangeMark {
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+  color: var(--color-muted);
 }
 
 .inline {

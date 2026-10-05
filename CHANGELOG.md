@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Meal Plan, header and wording: a plan's header is just its dates, "Sun, Oct 4
+  Dinner – Mon, Oct 5 Lunch", with a small Dinner or Lunch on each, in one
+  style. The "From…" and "Covers through…" lines are gone, on the plan page
+  and the module home. Next week's plan is marked by a small "Next week".
+  Home's Meal Plans tile says "Oct 4 – Oct 10 · 4 dishes", or "No plan yet".
+
 - Meal Plan, cooked counts: a recipe's card now shows "Times cooked" and
   "Last cooked" (it said planned), counted from dishes in plans that have
   closed, not marked "Didn't cook this". The library sorts by "Last cooked"
