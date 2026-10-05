@@ -735,6 +735,16 @@ describe("Eating out pushes dishes back (REQ-169)", () => {
     expect(pushCall(fake)).toBeUndefined();
   });
 
+  it("shrinks a weekend-lunch dish to 1 meal when Eating out takes its leftovers' dinner, and drops nothing", async () => {
+    // A 2-meal dish from Saturday lunch (2026-10-03) covers Saturday dinner.
+    const fake = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(ID, 2, "2026-10-03", "lunch")] });
+    expect(await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-10-03:dinner" }))).toEqual({});
+    const call = pushCall(fake);
+    expect(call?.p_drop).toEqual([]);
+    expect(call?.p_layout).toEqual([{ id: E1, meal_on: "2026-10-03", meal: "lunch", meals: 1 }]);
+    expect(call?.p_eating_out).toMatchObject({ meal_on: "2026-10-03" });
+  });
+
   it("pushes the dish when an Eating out already in the plan is moved onto its dinner", async () => {
     const fake = given({
       meal_plans: [PLAN_ROW],

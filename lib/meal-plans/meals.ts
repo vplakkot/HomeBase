@@ -201,13 +201,22 @@ export function swapWithNeighbour<T extends Sited>(entries: readonly T[], id: st
 // cap (dinner on the first Saturday after the plan's start day) leaves the
 // plan: it is returned as `dropped`. `eatingOut` is the entry going onto
 // `at`: new, or an existing one being moved there. Returns null when no
-// dish is on that dinner, so nothing needs pushing.
+// dish is on that dinner, so nothing needs pushing. Eating out on the
+// leftovers of a dish that starts at the lunch before it doesn't push that
+// dish: it shrinks to 1 meal instead (Vin, 2026-10-04).
 export type Pushed<T> = { entries: T[]; dropped: T[] };
 
 export function pushBack<T extends Sited>(plan: Pick<PlanStart, "starts_on">, entries: readonly T[], eatingOut: T, at: Meal, daysOff: ReadonlySet<string>): Pushed<T> | null {
   const rest = entries.filter((entry) => entry.id !== eatingOut.id);
   const on = occupant(rest, at);
   if (!on || on.eating_out) return null;
+  // The dinner is the leftovers of a 2-meal dish that starts at the lunch before it
+  // (a weekend lunch). The dish keeps its lunch and becomes a 1-meal dish, and
+  // Eating out takes the dinner: nothing else moves, nothing is dropped.
+  if (startOf(on) < mealIndex(at)) {
+    const kept = rest.map((entry) => (entry.id === on.id ? { ...entry, meals: 1 as const } : entry));
+    return { entries: [...kept, { ...eatingOut, meal_on: at.day, meal: "dinner" as const, meals: 1 as const }], dropped: [] };
+  }
   const first = startOf(on);
   const pushed = new Set(rest.filter((entry) => !entry.eating_out && startOf(entry) >= first).map((entry) => entry.id));
   const shifted = rest.map((entry) => (pushed.has(entry.id) ? { ...entry, meal_on: addDays(entry.meal_on, 1) } : entry));
