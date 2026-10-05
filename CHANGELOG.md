@@ -8,6 +8,7 @@
   adding it again says "<Recipe> is already planned", and the add list and
   the suggestions leave it out. On, it can be added more than once.
 
+
 - Meal Plan home: "On the menu" is one card with the plan's dates and each
   dish with its photo and meals. Next week's plan, when it exists, is a second
   card below it, "Next week". With no plan the card is still there, empty, and

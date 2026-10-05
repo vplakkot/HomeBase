@@ -7,6 +7,9 @@ export type MealPlanSettings = { repeatRecipes: boolean };
 
 export async function readSettings(supabase: SupabaseClient): Promise<MealPlanSettings> {
   const { data, error } = await supabase.from("meal_plan_settings").select("repeat_recipes").maybeSingle();
+  // Until the migration that adds the table has run (it runs when this code merges, and the code
+  // may deploy a moment first), the setting is off: the default, and what it always was.
+  if (error?.code === "PGRST205" || error?.code === "42P01") return { repeatRecipes: false };
   if (error) throw new Error(`Could not read the Meal Plan settings: ${error.message}`);
   return { repeatRecipes: (data as { repeat_recipes: boolean } | null)?.repeat_recipes === true };
 }
