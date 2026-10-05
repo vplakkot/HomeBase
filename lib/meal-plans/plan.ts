@@ -41,6 +41,12 @@ export type MealPlan = {
   daysOff: Set<string>;
 };
 
+// A plan can be started only once it has a dish: Eating out alone is no meal
+// to cook (REQ-163, Vin 2026-10-05).
+export function hasDishes(plan: Pick<MealPlan, "recipes">): boolean {
+  return plan.recipes.some((entry) => !entry.eating_out);
+}
+
 export function isPlanSize(value: number): value is EntrySize {
   return value === 1 || value === 2;
 }

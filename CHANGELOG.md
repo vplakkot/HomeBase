@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Meal Plan: a plan with no dishes can't be started. There is no Start button
+  until it has a dish (Eating out alone doesn't count), and nobody is asked by
+  notification to start an empty plan.
+
 - Meal Plan home: "On the menu" is one card with the plan's dates and each
   dish with its photo and meals. Next week's plan, when it exists, is a second
   card below it, "Next week". With no plan the card is still there, empty, and
