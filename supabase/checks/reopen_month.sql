@@ -24,15 +24,16 @@ begin
     raise exception 'Need one admin and one member to test with';
   end if;
 
-  -- An invented month, closed with a closing record, written as the owner.
-  insert into public.months (starts_on, closed_at, closed_by, closed_automatically, settled)
-    values ('2099-01-01', now(), null, true, true) returning id into the_month;
-  insert into public.month_people (month_id, user_id, percent, outstanding)
-    values (the_month, admin_id, 60, 0), (the_month, member_id, 40, 0);
-
-  -- One bill in it, to try the lock with.
+  -- An invented month with one bill (to try the lock with), then closed
+  -- with a closing record, all written as the owner.
+  insert into public.months (starts_on) values ('2099-01-01') returning id into the_month;
   insert into public.month_bills (month_id, name, kind, due_day, amount)
     values (the_month, 'Check: rent', 'rent', 1, 100);
+  update public.months
+    set closed_at = now(), closed_by = null, closed_automatically = true, settled = true
+    where id = the_month;
+  insert into public.month_people (month_id, user_id, percent, outstanding)
+    values (the_month, admin_id, 60, 0), (the_month, member_id, 40, 0);
 
   -- 0b. While it's closed, the bill can't change.
   begin
