@@ -40,6 +40,16 @@ describe("a bottom sheet", () => {
     expect(document.getElementById(titleId!)?.textContent).toBe("Add an expense");
   });
 
+  it("can carry a small note beside the title without it becoming part of the name", () => {
+    render(
+      <BottomSheet open onClose={() => {}} title="Account" note="v3.1.0">
+        <p>Body</p>
+      </BottomSheet>,
+    );
+    expect(screen.getByText("v3.1.0")).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Account", hidden: true }).textContent).toBe("Account");
+  });
+
   it("closes from its Close button", () => {
     render(<Harness />);
     fireEvent.click(screen.getByRole("button", { name: "Open" }));

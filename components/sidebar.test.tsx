@@ -21,11 +21,26 @@ function sidebar() {
 }
 
 describe("the desktop sidebar", () => {
-  it("starts with the brand, then Home", () => {
+  it("starts with the brand, which is the way Home; there is no separate Home", () => {
     render(<Sidebar current="home" canAdminister={false} account={TEST_ACCOUNT} />);
     const nav = sidebar();
     expect(nav.firstElementChild?.textContent).toBe("HomeBase");
-    expect(within(nav).getByRole("link", { name: "Home" }).getAttribute("href")).toBe("/");
+    expect(within(nav).getByRole("link", { name: "HomeBase" }).getAttribute("href")).toBe("/");
+    expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
+  });
+
+  it("shows the release you're on under the brand, for everyone", () => {
+    vi.stubEnv("NEXT_PUBLIC_BUILD_VERSION", "3.1.0");
+    render(<Sidebar current="finances" canAdminister={false} account={TEST_ACCOUNT} />);
+    expect(within(sidebar()).getByText("v3.1.0")).toBeDefined();
+    vi.unstubAllEnvs();
+  });
+
+  it("shows no version when the build doesn't know it", () => {
+    vi.stubEnv("NEXT_PUBLIC_BUILD_VERSION", "");
+    render(<Sidebar current="finances" canAdminister={false} account={TEST_ACCOUNT} />);
+    expect(sidebar().textContent).not.toMatch(/v\d/);
+    vi.unstubAllEnvs();
   });
 
   it("lists all nine modules, from the module list, in order", () => {
@@ -90,7 +105,7 @@ describe("the desktop sidebar", () => {
   });
 
   it.each([
-    ["home", "Home"],
+    ["home", "HomeBase"],
     ["finances", "Finances"],
     ["admin", "Admin console"],
   ])("marks where you are: %s", (current, name) => {

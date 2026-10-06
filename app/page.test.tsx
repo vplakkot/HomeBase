@@ -157,6 +157,24 @@ describe("HomePage", () => {
     vi.unstubAllEnvs();
   });
 
+  // Everyone can say which release they're on: the version of the build sits
+  // beside "Account" in the pill's menu, outside the heading.
+  it("shows the release beside Account in the pill's menu", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BUILD_VERSION", "3.1.0");
+    given({ email: "admin@example.com", permissions: [] });
+    render(await home());
+    const menu = openMenu();
+    expect(within(menu).getByText("v3.1.0")).toBeDefined();
+    expect(within(menu).getByRole("heading", { name: "Account" })).toBeDefined();
+  });
+
+  it("shows no version when the build doesn't know it", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BUILD_VERSION", "");
+    given({ email: "admin@example.com", permissions: [] });
+    render(await home());
+    expect(openMenu().textContent).not.toMatch(/v\d/);
+  });
+
   // REQ-81, phone: brand and Admin pill, greeting and date, action items,
   // then the modules, all in the one scrolling area.
   it("runs top to bottom as the design does", async () => {

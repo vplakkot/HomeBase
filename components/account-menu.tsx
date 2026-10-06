@@ -8,6 +8,7 @@ import { myDevices, removeMyDevice, sendTestToMyDevice } from "../app/notificati
 import { EnableNotifications } from "../app/notifications/enable-notifications";
 import { changeMyEmail, saveMyName } from "../app/profile/actions";
 import { SignOutForm } from "../app/sign-out/sign-out-form";
+import { runningBuild } from "../lib/build-info";
 import { BottomSheet } from "./bottom-sheet";
 import { MyModules } from "./my-modules";
 import { EmailForm } from "./email-form";
@@ -58,7 +59,14 @@ export function AccountPill({
         </span>
         {account.name?.split(/\s+/)[0] ?? "Account"}
       </button>
-      <BottomSheet open={sheet === "menu"} onClose={() => closeSheet("menu")} title="Account">
+      {/* The release this app is running, so anyone can say which one they
+          have. It's the app's own, written into it when it was built. */}
+      <BottomSheet
+        open={sheet === "menu"}
+        onClose={() => closeSheet("menu")}
+        title="Account"
+        note={runningBuild().version ? `v${runningBuild().version}` : undefined}
+      >
         <ul className={styles.menu}>
           <li>
             <button type="button" className={styles.item} onClick={() => setSheet("profile")}>
