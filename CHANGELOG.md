@@ -27,9 +27,10 @@
   location that can't be renamed or deleted and takes only Drive Files.
   Access was tested on a real folder first: moving a document, moving a
   folder and renaming a folder are all allowed. Drive documents aren't
-  searched and aren't counted on Home's unfiled tile. The migration is proven
-  on an in-memory Postgres, not through row-level security or Supabase's own
-  apply, and nothing here was clicked through while signed in.
+  searched and aren't counted on Home's unfiled tile. The migration applied to
+  Supabase, and its row-level security was checked live as a real admin and
+  member (supabase/checks/paperwork_drive.sql); nothing here was clicked
+  through while signed in.
 - Paperwork, removing stays put: removing a file leaves you in its location
   (or its storage box), and removing a document leaves you in its file or
   archive, instead of jumping to the Overview. Deleting a location still goes
