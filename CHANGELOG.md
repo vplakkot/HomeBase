@@ -9,7 +9,8 @@ and are tracked like physical ones, with locations you can manage, single
 documents you can archive, and Restore everywhere. Meal Plans' page now follows
 the recipe note after a screen lock. Everyone can see which release they're
 on, and the desktop sidebar's HomeBase name is the way Home. Finances
-lets an admin close any month by hand and tidies Previous months.
+lets an admin close any month by hand and reopen a closed one, fills in the
+other split share for you, and tidies Previous months.
 
 - Finances, reopen a closed month: an admin can unlock a closed month from its
   page ("Reopen April": the closing record is removed and bills and payments
