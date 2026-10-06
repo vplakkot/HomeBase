@@ -14,11 +14,15 @@ export function BottomSheet({
   open,
   onClose,
   title,
+  note,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
+  // Small muted text beside the title (the Account sheet's version). It sits
+  // outside the heading, so the sheet's name is still just the title.
+  note?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -38,9 +42,12 @@ export function BottomSheet({
       <div className={styles.panel}>
         <span className={styles.grabber} aria-hidden="true" />
         <div className={styles.header}>
-          <h2 id={titleId} className={styles.title}>
-            {title}
-          </h2>
+          <div className={styles.titleGroup}>
+            <h2 id={titleId} className={styles.title}>
+              {title}
+            </h2>
+            {note ? <span className={styles.titleNote}>{note}</span> : null}
+          </div>
           <button type="button" className={styles.close} onClick={onClose}>
             Close
           </button>

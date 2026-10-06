@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The release you're on is shown beside "Account" in the top-right account
+  menu (for example v3.1.0), for everyone, not just in the admin console.
 - Paperwork, Google Drive: a File can live in one shared Google Drive
   folder. An admin connects the folder in Paperwork settings (the app shows
   the robot's email to share it with, and checks it can read the folder and
