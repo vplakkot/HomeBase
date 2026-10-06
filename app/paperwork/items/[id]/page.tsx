@@ -67,7 +67,7 @@ export default async function PaperPage({
           <form action={removePaper}>
             <input type="hidden" name="id" value={paper.id} />
             <input type="hidden" name="fileId" value={paper.file_id ?? ""} />
-            <input type="hidden" name="boxId" value={archive?.storage_entry_id ?? ""} />
+            <input type="hidden" name="archiveId" value={archive?.id ?? ""} />
             <button type="submit" className={buttonClass} aria-label={`Remove ${paper.name}`}>
               Remove the document
             </button>

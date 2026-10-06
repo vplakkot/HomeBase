@@ -387,6 +387,9 @@ describe("screen 3: a file (REQ-100)", () => {
     ).toEqual(["Choose a box", "S-003 · Shoes"]);
     pick("Remove file");
     expect(screen.getByRole("button", { name: "Yes, remove the file" })).toBeDefined();
+    // Removing leaves you in the file's location.
+    const back = document.querySelector("input[name=returnTo]") as HTMLInputElement;
+    expect(back.value).toBe("/paperwork/locations/10ca0000-0000-4000-8000-000000000001");
   });
 
   it("offers Bring back from storage for an archived file", async () => {

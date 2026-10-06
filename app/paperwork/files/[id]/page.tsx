@@ -50,7 +50,7 @@ export default async function FilePage({
         </div>
         <div className={styles.fileButtons}>
           <AddPaperwork file={file} choices={choices} />
-          <ManageFile file={file} label={label} boxes={boxes(storage)} choices={choices} />
+          <ManageFile file={file} label={label} boxes={boxes(storage)} choices={choices} returnTo={place.href} />
         </div>
       </div>
       {inside.length === 0 ? (

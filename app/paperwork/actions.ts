@@ -239,10 +239,15 @@ export async function removePaper(formData: FormData): Promise<void> {
   const { error } = await supabase.from("paperwork").delete().eq("id", id);
   if (error) throw new Error(`Could not remove the paperwork: ${error.message}`);
   refresh();
+  // Stay where you were: the file, the archive, or the unfiled list.
   const fileId = text(formData, "fileId");
-  const boxId = text(formData, "boxId");
+  const archiveId = text(formData, "archiveId");
   redirect(
-    UUID.test(fileId) ? `/paperwork/files/${fileId}` : UUID.test(boxId) ? `/paperwork/boxes/${boxId}` : "/paperwork/unfiled",
+    UUID.test(fileId)
+      ? `/paperwork/files/${fileId}`
+      : UUID.test(archiveId)
+        ? `/paperwork/archives/${archiveId}`
+        : "/paperwork/unfiled",
   );
 }
 
@@ -271,7 +276,8 @@ export async function updateFile(_previous: FormState, formData: FormData): Prom
 }
 
 // Its paperwork goes back to Unfiled rather than disappearing; its number
-// is never handed out again.
+// is never handed out again. You stay in its location (or box): the form
+// says which, and only a location's or box's own page is accepted.
 export async function removeFile(formData: FormData): Promise<void> {
   const supabase = await requireMember();
   const id = rowId(formData);
@@ -279,7 +285,8 @@ export async function removeFile(formData: FormData): Promise<void> {
   const { error } = await supabase.from("paperwork_files").delete().eq("id", id);
   if (error) throw new Error(`Could not remove the file: ${error.message}`);
   refresh();
-  redirect("/paperwork");
+  const back = text(formData, "returnTo");
+  redirect(/^\/paperwork\/(locations|boxes)\/[0-9a-f-]{36}$/i.test(back) ? back : "/paperwork");
 }
 
 function categoryFields(formData: FormData) {

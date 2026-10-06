@@ -132,11 +132,14 @@ export function ManageFile({
   label,
   boxes,
   choices,
+  returnTo,
 }: {
   file: PaperFile;
   label: string;
   boxes: StorageEntry[];
   choices: PaperworkChoices;
+  // Where removing the file leaves you: its location's (or box's) page.
+  returnTo: string;
 }) {
   const [menu, setMenu] = useState(false);
   const [open, setOpen] = useState<Manage | null>(null);
@@ -221,7 +224,7 @@ export function ManageFile({
         )}
       </BottomSheet>
       <BottomSheet open={open === "remove"} onClose={closer("remove")} title="Remove the file">
-        <RemoveFileForm file={file} label={label} />
+        <RemoveFileForm file={file} label={label} returnTo={returnTo} />
       </BottomSheet>
     </>
   );

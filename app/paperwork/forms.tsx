@@ -389,10 +389,11 @@ export function FileEditForm({
 // REQ-88: remove a file. Its paperwork goes back to Unfiled, and its
 // number is never handed out again. The sheet it sits in is the "are you
 // sure?".
-export function RemoveFileForm({ file, label }: { file: PaperFile; label: string }) {
+export function RemoveFileForm({ file, label, returnTo }: { file: PaperFile; label: string; returnTo: string }) {
   return (
     <form action={removeFile} className={styles.form}>
       <input type="hidden" name="id" value={file.id} />
+      <input type="hidden" name="returnTo" value={returnTo} />
       <p className={styles.check}>Remove {label}? Its documents go back to Unfiled.</p>
       <button type="submit" className={buttonClass}>
         Yes, remove the file

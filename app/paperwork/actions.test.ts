@@ -231,6 +231,24 @@ describe("files (REQ-88)", () => {
     await expect(removeFile(form({ id: FILE }))).rejects.toThrow("REDIRECT:/paperwork");
     expect(on("paperwork_files")[0].delete).toHaveBeenCalled();
   });
+
+  it("leaves you in the location (or box) it was in", async () => {
+    given();
+    await expect(removeFile(form({ id: FILE, returnTo: `/paperwork/locations/${HALL}` }))).rejects.toThrow(
+      `REDIRECT:/paperwork/locations/${HALL}`,
+    );
+    given();
+    await expect(removeFile(form({ id: FILE, returnTo: `/paperwork/boxes/${HALL}` }))).rejects.toThrow(
+      `REDIRECT:/paperwork/boxes/${HALL}`,
+    );
+  });
+
+  it("goes to the Overview rather than to any other address it is given", async () => {
+    given();
+    await expect(removeFile(form({ id: FILE, returnTo: "https://example.com/" }))).rejects.toThrow("REDIRECT:/paperwork");
+    given();
+    await expect(removeFile(form({ id: FILE, returnTo: "/storage" }))).rejects.toThrow("REDIRECT:/paperwork");
+  });
 });
 
 describe("categories (REQ-88)", () => {
@@ -451,8 +469,10 @@ describe("archiving a document (REQ-153)", () => {
     expect(on("paperwork")[0].update).toHaveBeenCalledWith({ archive_id: null });
   });
 
-  it("goes back to the box when an archived document is removed", async () => {
+  it("goes back to the archive when an archived document is removed", async () => {
     given();
-    await expect(removePaper(form({ id: P1, fileId: "", boxId: BOX }))).rejects.toThrow(`REDIRECT:/paperwork/boxes/${BOX}`);
+    await expect(removePaper(form({ id: P1, fileId: "", archiveId: ARCHIVE }))).rejects.toThrow(
+      `REDIRECT:/paperwork/archives/${ARCHIVE}`,
+    );
   });
 });
