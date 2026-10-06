@@ -112,6 +112,13 @@ export async function linkUnlinkedFolder(_previous: DriveState, formData: FormDa
   if (!folder || !UUID.test(file)) return { error: "Choose a file waiting for its folder." };
   const row = await driveFile(supabase, file);
   if (!row || row.drive_folder_id) return { error: "That file isn't waiting for a folder." };
+  // Only a folder the last sync saw, still there and not linked.
+  const { data: known } = await supabase
+    .from("paperwork_drive_folders")
+    .select("drive_id, missing")
+    .eq("drive_id", folder)
+    .maybeSingle();
+  if (!known || (known as { missing: boolean }).missing) return { error: "That folder isn't in Google Drive any more. Refresh." };
   const { error } = await supabase.from("paperwork_files").update({ drive_folder_id: folder }).eq("id", file);
   if (error) return { error: error.code === "23505" ? "That folder is already linked to another file." : error.message };
   await syncDrive(supabase);
@@ -143,7 +150,8 @@ export async function fixFolderName(formData: FormData): Promise<void> {
   } catch (error) {
     throw new Error(driveProblem(error));
   }
-  await supabase.from("paperwork_drive_folders").update({ name }).eq("drive_id", file.drive_folder_id);
+  const { error } = await supabase.from("paperwork_drive_folders").update({ name }).eq("drive_id", file.drive_folder_id);
+  if (error) throw new Error(`Renamed in Drive, but HomeBase couldn't note it: ${error.message}`);
   refresh();
 }
 
@@ -224,7 +232,11 @@ export async function archiveDriveDocument(formData: FormData): Promise<void> {
     } catch (error) {
       throw new Error(driveProblem(error));
     }
-    await supabase.from("paperwork_drive_documents").update({ parent_id: connection.archived_folder_id }).eq("drive_id", drive);
+    const { error } = await supabase
+      .from("paperwork_drive_documents")
+      .update({ parent_id: connection.archived_folder_id })
+      .eq("drive_id", drive);
+    if (error) throw new Error(`Moved in Drive, but HomeBase couldn't note it: ${error.message}`);
   }
   refresh();
 }
@@ -243,7 +255,11 @@ export async function bringBackDriveDocument(formData: FormData): Promise<void> 
     } catch (error) {
       throw new Error(driveProblem(error));
     }
-    await supabase.from("paperwork_drive_documents").update({ parent_id: connection.folder_id }).eq("drive_id", drive);
+    const { error } = await supabase
+      .from("paperwork_drive_documents")
+      .update({ parent_id: connection.folder_id })
+      .eq("drive_id", drive);
+    if (error) throw new Error(`Moved in Drive, but HomeBase couldn't note it: ${error.message}`);
   }
   refresh();
 }
@@ -276,7 +292,8 @@ async function moveFileFolder(supabase: SupabaseClient, formData: FormData, toAr
   } catch (error) {
     return { error: driveProblem(error) };
   }
-  await supabase.from("paperwork_drive_folders").update({ in_archived: toArchive }).eq("drive_id", file.drive_folder_id);
+  const noted = await supabase.from("paperwork_drive_folders").update({ in_archived: toArchive }).eq("drive_id", file.drive_folder_id);
+  if (noted.error) return { error: `Moved in Drive, but HomeBase couldn't note it: ${noted.error.message}` };
   const { error } = await supabase.from("paperwork_files").update({ status: toArchive ? "archived" : "active" }).eq("id", id);
   if (error) return { error: error.message };
   refresh();

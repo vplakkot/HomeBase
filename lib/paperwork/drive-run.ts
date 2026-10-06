@@ -34,6 +34,9 @@ export async function syncDrive(supabase: SupabaseClient): Promise<{ error?: str
     if (!(await getItem(connection.folder_id))) {
       return { error: "HomeBase can't see the connected Google Drive folder. Was it deleted, or is it no longer shared?" };
     }
+    if (!(await getItem(connection.archived_folder_id))) {
+      return { error: "HomeBase can't see the Archived folder in Google Drive. Was it deleted?" };
+    }
     const [files, folders, documents, members] = await Promise.all([
       supabase.from("paperwork_files").select("id, status, drive_folder_id").eq("is_drive", true),
       supabase.from("paperwork_drive_folders").select("drive_id, name, in_archived, ignored, missing"),
@@ -113,7 +116,8 @@ export async function renameFoldersInCategory(supabase: SupabaseClient, category
     if (folder.name === name) continue;
     try {
       await renameItem(folder.drive_id, name);
-      await supabase.from("paperwork_drive_folders").update({ name }).eq("drive_id", folder.drive_id);
+      const { error } = await supabase.from("paperwork_drive_folders").update({ name }).eq("drive_id", folder.drive_id);
+      if (error) failed += 1;
     } catch {
       failed += 1;
     }

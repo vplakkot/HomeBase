@@ -173,11 +173,19 @@ describe("linking a waiting file to its folder (REQ-152)", () => {
   });
 
   it("lets the admin link an unlinked folder to a waiting file, or ignore it", async () => {
-    given(ADMIN, { paperwork_files: [waiting] });
+    given(ADMIN, { paperwork_files: [waiting], paperwork_drive_folders: [{ drive_id: "stray", missing: false }] });
     expect(await linkUnlinkedFolder({}, form({ folderId: "stray", fileId: FILE }))).toEqual({ saved: true });
     expect(updates("paperwork_files")[0]).toEqual({ drive_folder_id: "stray" });
     await ignoreFolder(form({ folderId: "stray" }));
-    expect(updates("paperwork_drive_folders")).toEqual([{ ignored: true }]);
+    expect(updates("paperwork_drive_folders")).toContainEqual({ ignored: true });
+  });
+
+  it("won't link a folder the last sync didn't see, or that has gone", async () => {
+    given(ADMIN, { paperwork_files: [waiting], paperwork_drive_folders: [] });
+    expect((await linkUnlinkedFolder({}, form({ folderId: "made-up", fileId: FILE }))).error).toMatch(/isn't in Google Drive/);
+    given(ADMIN, { paperwork_files: [waiting], paperwork_drive_folders: [{ drive_id: "gone", missing: true }] });
+    expect((await linkUnlinkedFolder({}, form({ folderId: "gone", fileId: FILE }))).error).toMatch(/isn't in Google Drive/);
+    expect(updates("paperwork_files")).toHaveLength(0);
   });
 
   it("keeps both of those for the admin", async () => {

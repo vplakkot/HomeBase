@@ -134,6 +134,13 @@ describe("syncDrive (REQ-152 Sync)", () => {
     expect(drive.listChildren).not.toHaveBeenCalled();
   });
 
+  it("says so, and marks nothing missing, when the Archived folder can't be seen", async () => {
+    vi.mocked(drive.getItem).mockResolvedValueOnce(item({ id: "top", name: "HomeBase Paperwork", parents: [] })).mockResolvedValueOnce(null);
+    const fake = fakeSupabase({ tables: { paperwork_drive: [CONNECTION] } });
+    expect((await syncDrive(client(fake))).error).toMatch(/Archived folder/);
+    expect(drive.listChildren).not.toHaveBeenCalled();
+  });
+
   it("reports a Drive failure in words", async () => {
     vi.mocked(drive.listChildren).mockRejectedValue(new drive.DriveError("Google Drive said no: nope"));
     const fake = fakeSupabase({ tables: { paperwork_drive: [CONNECTION], paperwork_files: [], paperwork_drive_folders: [], paperwork_drive_documents: [], household_members: [] } });
