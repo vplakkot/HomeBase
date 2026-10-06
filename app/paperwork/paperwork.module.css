@@ -569,3 +569,8 @@ a.row:hover .rowName {
   color: var(--color-ink);
   font-weight: 600;
 }
+
+/* The Connected / Not connected line in settings, inset like its form. */
+.driveNote {
+  padding: var(--space-4) var(--space-4) 0;
+}

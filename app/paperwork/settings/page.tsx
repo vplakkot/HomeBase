@@ -5,6 +5,7 @@ import { serviceAccountEmail } from "../../../lib/paperwork/drive";
 import { ConnectDriveForm } from "../drive-forms";
 import { CategoryForm, RemoveCategoryForm } from "../forms";
 import { PaperworkScreen, paperworkViewer } from "../frame";
+import paperwork from "../paperwork.module.css";
 
 // REQ-88: the admin's Paperwork settings, behind the header's settings
 // gear (REQ-100, DESIGN.md §11): no tab is highlighted here. Categories
@@ -102,7 +103,7 @@ export default async function PaperworkSettingsPage({ searchParams }: { searchPa
           </header>
           <div className={styles.addBlock}>
             {drive.connection ? (
-              <p className={styles.detail}>
+              <p className={`${styles.detail} ${paperwork.driveNote}`}>
                 Connected to{" "}
                 <a href={`https://drive.google.com/drive/folders/${drive.connection.folder_id}`} target="_blank" rel="noreferrer">
                   this folder
@@ -110,7 +111,7 @@ export default async function PaperworkSettingsPage({ searchParams }: { searchPa
                 .
               </p>
             ) : (
-              <p className={styles.detail}>Not connected.</p>
+              <p className={`${styles.detail} ${paperwork.driveNote}`}>Not connected.</p>
             )}
             <ConnectDriveForm email={serviceAccountEmail()} connected={drive.connection !== null} />
           </div>

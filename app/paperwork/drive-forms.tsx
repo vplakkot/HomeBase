@@ -79,7 +79,7 @@ export function ConnectDriveForm({ email, connected }: { email: string | null; c
   const [state, formAction, pending] = useActionState(connectDrive, initialState);
   return (
     <form action={formAction} className={styles.form}>
-      <p className={styles.check}>
+      <p className={styles.detail}>
         {email ? (
           <>
             Share the Drive folder with <strong>{email}</strong> as an Editor, make a sub-folder in it called{" "}
