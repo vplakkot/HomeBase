@@ -850,12 +850,18 @@ flowchart LR
   Squared -->|pg_cron, just after midnight New York| Closed
   Open -->|month over, not squared| Ended["Ended · not squared"]
   Ended -->|admin: Close month action item| Closed
+  Open -->|admin: Close the month, any time| Closed
+  Squared -->|admin: Close month, now| Closed
 ```
 
-Since REQ-103 an admin closes with a balance only from the "ended, not
-squared" action item, which opens `/finances/close-month`, so the app no
-longer offers closing a month still running early. The database function
-itself would still allow it.
+An admin can close any open month by hand (Vin, 2026-10-06; REQ-59 had it
+only for a month that ended owing). The "ended, not squared" and "squared"
+action items, and a "Close the month" card at the bottom of the month's
+page, all open `/finances/close-month`, which says who owes what or that
+everything is paid, and that closing locks the month (and, for one still
+running, that nothing more can be added). The database function
+`close_month_with_balance` never required the month to be over or
+unsquared, so this needed no migration.
 
 - **Squared** is worked out twice, on purpose: `monthStatus()` in the
   app for Home's tile and the action items, and `month_balances()` / `month_is_squared()`
