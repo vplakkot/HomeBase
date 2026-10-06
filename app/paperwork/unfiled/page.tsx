@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ownerName, unfiled } from "../../../lib/paperwork/paperwork";
+import { DriveStatus } from "../drive-forms";
+import { DriveUnfiledSection } from "../drive-views";
 import { PaperworkScreen, Section, paperworkViewer } from "../frame";
 import styles from "../paperwork.module.css";
 import { FileItButton } from "../sheets";
@@ -45,6 +47,8 @@ export default async function UnfiledPage({ searchParams }: { searchParams?: Pro
           </ul>
         )}
       </Section>
+      {viewer.drive.connection ? <DriveStatus syncedAt={viewer.drive.connection.synced_at} /> : null}
+      <DriveUnfiledSection viewer={viewer} />
     </PaperworkScreen>
   );
 }

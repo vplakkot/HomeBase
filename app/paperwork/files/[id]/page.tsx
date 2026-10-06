@@ -1,7 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { documentsCount, fileId, labelText, ownerName, placeOf } from "../../../../lib/paperwork/paperwork";
+import {
+  documentsCount,
+  driveFileState,
+  expectedFolderName,
+  fileId,
+  labelText,
+  ownerName,
+  placeOf,
+} from "../../../../lib/paperwork/paperwork";
 import { boxes } from "../../../../lib/storage/storage";
+import { CreatedItForm, DriveStatus, FolderName } from "../../drive-forms";
+import { DriveFileBody } from "../../drive-views";
 import { PaperworkScreen, paperworkViewer } from "../../frame";
 import styles from "../../paperwork.module.css";
 import { AddPaperwork, ManageFile } from "../../sheets";
@@ -29,6 +39,46 @@ export default async function FilePage({
   const place = placeOf(file, storage, locations);
   const inside = papers.filter((paper) => paper.file_id === file.id);
   const archived = file.status === "archived";
+
+  if (file.is_drive) {
+    const category = categories.find((row) => row.id === file.category_id);
+    const state = driveFileState(file, viewer.drive);
+    return (
+      <PaperworkScreen
+        viewer={viewer}
+        here={`/paperwork/files/${file.id}`}
+        query={q}
+        crumbs={[{ name: place.name, href: place.href }, { name: fileId(file) }]}
+      >
+        <div className={styles.fileHead}>
+          <div className={styles.section}>
+            <h2 className={styles.title}>{label}</h2>
+            <p className={styles.facts}>
+              {file.label ? <strong>{file.label}</strong> : <span className={styles.noLabel}>No label</span>}
+              <span aria-hidden="true">·</span>
+              <span>Google Drive</span>
+              <span aria-hidden="true">·</span>
+              <span>{archived ? "Archived" : "Active"}</span>
+              {state.kind === "linked" ? (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{documentsCount(state.documents.filter((document) => !document.missing).length)}</span>
+                </>
+              ) : null}
+            </p>
+          </div>
+          <div className={styles.fileButtons}>
+            <ManageFile file={file} label={label} boxes={[]} choices={choices} returnTo={place.href} />
+          </div>
+        </div>
+        {viewer.drive.connection ? <DriveStatus syncedAt={viewer.drive.connection.synced_at} /> : null}
+        <DriveFileBody viewer={viewer} file={file} state={state}>
+          <FolderName name={expectedFolderName(file, category)} />
+          <CreatedItForm file={file} />
+        </DriveFileBody>
+      </PaperworkScreen>
+    );
+  }
 
   return (
     <PaperworkScreen

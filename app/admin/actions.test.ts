@@ -16,6 +16,7 @@ import {
   removeMemberDevice,
   sendTestNow,
   sendTestToMember,
+  setGoogleEmail,
   setNotifications,
 } from "./actions";
 
@@ -188,6 +189,34 @@ describe("changeRole", () => {
     const state = await changeRole({}, form({ userId: "u1", roleId: "r2" }));
     expect(state.error).toBe("This role must keep at least 1 holder(s)");
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("setGoogleEmail (REQ-152)", () => {
+  it("refuses anyone without the manage_members permission", async () => {
+    const { members } = given({ permission: false });
+    await expect(setGoogleEmail({}, form({ userId: "u1", googleEmail: "a@example.com" }))).rejects.toThrow("REDIRECT:/");
+    expect(members.update).not.toHaveBeenCalled();
+  });
+
+  it("saves the address, tidied, on the member's own row", async () => {
+    const { members, updateEq } = given();
+    expect(await setGoogleEmail({}, form({ userId: "u1", googleEmail: "  Alex@Example.com " }))).toEqual({ saved: true });
+    expect(members.update).toHaveBeenCalledWith({ google_email: "alex@example.com" });
+    expect(updateEq).toHaveBeenCalledWith("user_id", "u1");
+  });
+
+  it("clears it when left empty, since it's optional", async () => {
+    const { members } = given();
+    expect(await setGoogleEmail({}, form({ userId: "u1", googleEmail: "" }))).toEqual({ saved: true });
+    expect(members.update).toHaveBeenCalledWith({ google_email: null });
+  });
+
+  it("refuses something that isn't an email address", async () => {
+    const { members } = given();
+    const state = await setGoogleEmail({}, form({ userId: "u1", googleEmail: "alex" }));
+    expect(state.error).toMatch(/full email address/);
+    expect(members.update).not.toHaveBeenCalled();
   });
 });
 

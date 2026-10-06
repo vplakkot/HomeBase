@@ -42,7 +42,7 @@ const TAXES = { id: "c-tax", name: "Taxes", keep_years: 7 };
 // A real-looking id, since making a file checks the category's id.
 const CAR = { id: "c0ca0000-0000-4000-8000-000000000001", name: "Car", keep_years: null };
 // Locations are records (REQ-179); the shed has no files.
-const HALL = { id: "10ca0000-0000-4000-8000-000000000001", name: "Hall cupboard" };
+const HALL = { id: "10ca0000-0000-4000-8000-000000000001", name: "Hall cupboard", built_in: null };
 const GLOVEBOX = { id: "10ca0000-0000-4000-8000-000000000002", name: "Glovebox" };
 const SHED = { id: "10ca0000-0000-4000-8000-000000000003", name: "Shed" };
 const file = (id: string, number: number, category_id: string, label: string | null, location_id: string) => ({
@@ -543,7 +543,7 @@ describe("flows (REQ-100)", () => {
 });
 
 describe("keep-until pre-fills from the file's category (REQ-97)", () => {
-  const files = FILES.map((row) => ({ ...row, status: "active" as const }));
+  const files = FILES.map((row) => ({ ...row, status: "active" as const, is_drive: false, drive_folder_id: null }));
   const renderForm = () =>
     render(<PaperForm people={PEOPLE} files={files} categories={[CAR, TAXES]} locations={[HALL]} today="2026-09-24" />);
   const keep = () => screen.getByLabelText("Keep until (optional)") as HTMLInputElement;

@@ -7,6 +7,7 @@ import { ButtonLink, buttonClass } from "../../components/button";
 import { SettingsIcon } from "../../components/icons";
 import type { Person } from "../../lib/finances/budget-year";
 import type { Category, Location, Paper, PaperFile } from "../../lib/paperwork/paperwork";
+import { ArchiveDriveFileForm, FileDriveDocumentForm, FolderName, SetOwnerForm } from "./drive-forms";
 import type { StorageEntry } from "../../lib/storage/storage";
 import type { FormState } from "./actions";
 import {
@@ -30,6 +31,8 @@ export type PaperworkChoices = {
   categories: Category[];
   locations: Location[];
   today: string;
+  // A Google Drive folder is connected, so a Drive file can be made (REQ-152).
+  driveReady: boolean;
 };
 
 // REQ-100: a form in a sheet leaves you on the screen underneath. Once it
@@ -38,9 +41,11 @@ export type PaperworkChoices = {
 function useSheet() {
   const [open, setOpen] = useState(false);
   const [newFile, setNewFile] = useState<string | null>(null);
+  const [driveFolder, setDriveFolder] = useState<string | null>(null);
   const saved = useCallback((state: FormState) => {
     setOpen(false);
     if (state.newFile) setNewFile(state.newFile);
+    if (state.driveFolder) setDriveFolder(state.driveFolder);
   }, []);
   const notice = (
     <BottomSheet open={newFile !== null} onClose={() => setNewFile(null)} title="New file: print its label">
@@ -52,7 +57,28 @@ function useSheet() {
       </div>
     </BottomSheet>
   );
-  return { open, setOpen, saved, notice };
+  const driveNotice = (
+    <BottomSheet open={driveFolder !== null} onClose={() => setDriveFolder(null)} title="New file: make its folder in Drive">
+      <div className={styles.sheetBody}>
+        {driveFolder ? <FolderName name={driveFolder} /> : null}
+        <p className={styles.empty}>
+          Make a folder with exactly this name in the connected Google Drive folder, then open the file and tap &quot;I&apos;ve created
+          it&quot;.
+        </p>
+      </div>
+    </BottomSheet>
+  );
+  return {
+    open,
+    setOpen,
+    saved,
+    notice: (
+      <>
+        {notice}
+        {driveNotice}
+      </>
+    ),
+  };
 }
 
 // The header's tools on every Paperwork screen (DESIGN.md §11): the one
@@ -152,6 +178,7 @@ export function ManageFile({
     setOpen(which);
   };
   const archived = file.status === "archived";
+  const drive = file.is_drive;
   return (
     <>
       <button
@@ -168,19 +195,29 @@ export function ManageFile({
         <ul id="manage-file" className={styles.menu} aria-label="Manage file">
           <li>
             <button type="button" className={styles.menuItem} onClick={() => choose("edit")}>
-              Edit category, label or location
+              {drive ? "Edit category or label" : "Edit category, label or location"}
             </button>
           </li>
-          <li>
-            <button type="button" className={styles.menuItem} onClick={() => choose("label")}>
-              Show label to reprint
-            </button>
-          </li>
-          <li>
-            <button type="button" className={styles.menuItem} onClick={() => choose("archive")}>
-              {archived ? "Bring back from storage" : "Archive to a storage box"}
-            </button>
-          </li>
+          {drive ? null : (
+            <li>
+              <button type="button" className={styles.menuItem} onClick={() => choose("label")}>
+                Show label to reprint
+              </button>
+            </li>
+          )}
+          {drive && !file.drive_folder_id ? null : (
+            <li>
+              <button type="button" className={styles.menuItem} onClick={() => choose("archive")}>
+                {drive
+                  ? archived
+                    ? "Bring back from Archived"
+                    : "Archive in Google Drive"
+                  : archived
+                    ? "Bring back from storage"
+                    : "Archive to a storage box"}
+              </button>
+            </li>
+          )}
           <li className={styles.divider} aria-hidden="true" />
           <li>
             <button type="button" className={styles.menuItem} onClick={() => choose("remove")}>
@@ -205,9 +242,11 @@ export function ManageFile({
       <BottomSheet
         open={open === "archive"}
         onClose={closer("archive")}
-        title={archived ? "Bring it back" : "Archive to a storage box"}
+        title={archived ? "Bring it back" : drive ? "Archive in Google Drive" : "Archive to a storage box"}
       >
-        {open !== "archive" ? null : archived ? (
+        {open !== "archive" ? null : drive ? (
+          <ArchiveDriveFileForm file={file} archived={archived} onSaved={close} />
+        ) : archived ? (
           <BringBackForm file={file} locations={choices.locations} onSaved={close} />
         ) : boxes.length === 0 ? (
           <div className={styles.sheetBody}>
@@ -285,6 +324,7 @@ export function NewFile({ location, choices }: { location?: string; choices: Pap
             categories={choices.categories}
             locations={choices.locations}
             location={location}
+            driveReady={choices.driveReady}
             onSaved={sheet.saved}
           />
         ) : null}
@@ -385,6 +425,74 @@ export function ArchivePaperButton({ paper, boxes }: { paper: Paper; boxes: Stor
             <ArchivePaperForm paper={paper} boxes={boxes} onSaved={sheet.saved} />
           </div>
         )}
+      </BottomSheet>
+    </>
+  );
+}
+
+// REQ-152: "File it" on a document in Google Drive, in a sheet. The owner
+// pre-fills with whoever owns the document in Drive.
+export function FileDriveDocumentButton({
+  documentId,
+  name,
+  files,
+  choices,
+  guess,
+  moving = false,
+}: {
+  documentId: string;
+  name: string;
+  files: PaperFile[];
+  choices: PaperworkChoices;
+  guess: string | null;
+  moving?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  return (
+    <>
+      <button type="button" className={buttonClass} aria-label={`${moving ? "Move" : "File"} ${name}`} onClick={() => setOpen(true)}>
+        {moving ? "Move" : "File it"}
+      </button>
+      <BottomSheet open={open} onClose={close} title={`${moving ? "Move" : "File"} ${name}`}>
+        {open ? (
+          <FileDriveDocumentForm
+            documentId={documentId}
+            name={name}
+            files={files}
+            categories={choices.categories}
+            people={choices.people}
+            guess={guess}
+            onSaved={close}
+          />
+        ) : null}
+      </BottomSheet>
+    </>
+  );
+}
+
+// REQ-152: sets the owner of a Drive document that arrived without one.
+export function SetOwnerButton({
+  documentId,
+  name,
+  people,
+  current,
+  label = "Set owner",
+}: {
+  documentId: string;
+  name: string;
+  people: PaperworkChoices["people"];
+  current: string;
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className={buttonClass} aria-label={`${label}: ${name}`} onClick={() => setOpen(true)}>
+        {label}
+      </button>
+      <BottomSheet open={open} onClose={() => setOpen(false)} title={`Owner of ${name}`}>
+        {open ? <SetOwnerForm documentId={documentId} people={people} current={current} /> : null}
       </BottomSheet>
     </>
   );

@@ -7,6 +7,11 @@ import {
   documentsByYear,
   archiveName,
   cardFiles,
+  DRIVE_ARCHIVE_HREF,
+  driveArchiveDocuments,
+  driveFileState,
+  driveUnfiled,
+  expectedFolderName,
   placeOf,
   places,
   sameLocation,
@@ -19,12 +24,14 @@ import {
   ownerName,
   search,
   unfiled,
+  unlinkedFolders,
   type Archive,
   type Category,
   type Location,
   type Paper,
   type PaperFile,
 } from "./paperwork";
+import type { DriveDocument, DriveFolder } from "./drive-sync";
 
 // Invented household paperwork; nothing here is real.
 const TAXES: Category = { id: "c-tax", name: "Taxes", keep_years: 7 };
@@ -37,6 +44,8 @@ const file = (number: number, category: Category, label: string | null = null): 
   label,
   status: "active",
   storage_entry_id: null,
+  is_drive: false,
+  drive_folder_id: null,
 });
 const paper = (id: string, name: string, file_id: string | null, owner_id: string | null = null): Paper => ({
   id,
@@ -178,9 +187,9 @@ describe("countUnfiled (REQ-97)", () => {
 });
 
 describe("locations (REQ-179)", () => {
-  const HALL: Location = { id: "l-hall", name: "Hall cupboard" };
-  const OFFICE: Location = { id: "l-office", name: "Office · Cabinet" };
-  const SHED: Location = { id: "l-shed", name: "Shed" };
+  const HALL: Location = { id: "l-hall", name: "Hall cupboard", built_in: null };
+  const OFFICE: Location = { id: "l-office", name: "Office · Cabinet", built_in: null };
+  const SHED: Location = { id: "l-shed", name: "Shed", built_in: null };
 
   it("are the same place however the case or spacing differs, but not the dots", () => {
     expect(sameLocation("Office · Cabinet", "office  ·  cabinet")).toBe(true);
@@ -289,5 +298,79 @@ describe("browsing by category (REQ-105)", () => {
     expect(documentsByYear([dated("a", "Return", "2022-04-15")]).map((row) => row.year)).toEqual([2022]);
     expect(documentsByYear([dated("a", "Receipt", null)]).map((row) => row.year)).toEqual([null]);
     expect(documentsByYear([])).toEqual([]);
+  });
+});
+
+describe("Google Drive files (REQ-152, REQ-153)", () => {
+  const DRIVE_LOC: Location = { id: "l-drive", name: "Google Drive", built_in: "drive" };
+  const driveFile = (number: number, folder: string | null, over: Partial<PaperFile> = {}): PaperFile => ({
+    ...file(number, TAXES, "Returns"),
+    location_id: "l-drive",
+    is_drive: true,
+    drive_folder_id: folder,
+    ...over,
+  });
+  const document = (drive_id: string, parent_id: string, missing = false): DriveDocument => ({
+    drive_id, name: drive_id, mime_type: null, link: null, drive_owner_email: null, parent_id, owner_id: null, owner_set: false, missing,
+  });
+  const folder = (drive_id: string, name: string, over: Partial<DriveFolder> = {}): DriveFolder => ({
+    drive_id, name, in_archived: false, ignored: false, missing: false, ...over,
+  });
+  const CONNECTION = { folder_id: "top", archived_folder_id: "arch", synced_at: null };
+
+  it("names the folder <ID>_<Category>_<label>, or without a label", () => {
+    expect(expectedFolderName({ number: 42, label: "2025 Returns" }, TAXES)).toBe("F-0042_Taxes_2025 Returns");
+    expect(expectedFolderName({ number: 42, label: null }, TAXES)).toBe("F-0042_Taxes");
+  });
+
+  it("counts a Drive file's documents from its folder, not the papers table", () => {
+    const rows = fileRows([driveFile(5, "fold-1")], [TAXES], [], {
+      documents: [document("a", "fold-1"), document("b", "fold-1"), document("gone", "fold-1", true), document("c", "other")],
+    });
+    expect(rows[0].count).toBe(2);
+  });
+
+  it("is waiting before its folder is linked", () => {
+    expect(driveFileState(driveFile(5, null), { folders: [], documents: [] })).toEqual({ kind: "waiting" });
+  });
+
+  it("is missing when its folder is gone from Drive or was never seen", () => {
+    expect(driveFileState(driveFile(5, "f"), { folders: [folder("f", "x", { missing: true })], documents: [] })).toEqual({ kind: "missing" });
+    expect(driveFileState(driveFile(5, "f"), { folders: [], documents: [] })).toEqual({ kind: "missing" });
+  });
+
+  it("is linked with the documents directly in its folder", () => {
+    const state = driveFileState(driveFile(5, "f"), { folders: [folder("f", "F-0005_Taxes")], documents: [document("a", "f"), document("b", "other")] });
+    expect(state).toMatchObject({ kind: "linked", documents: [{ drive_id: "a" }] });
+  });
+
+  it("lists unlinked folders: not linked, not ignored, not gone", () => {
+    const folders = [folder("f1", "F-0005_Taxes"), folder("f2", "Stray"), folder("f3", "Ignored", { ignored: true }), folder("f4", "Gone", { missing: true })];
+    expect(unlinkedFolders({ folders }, [driveFile(5, "f1")]).map((row) => row.drive_id)).toEqual(["f2"]);
+  });
+
+  it("shows loose top-level documents as Unfiled · Google Drive, apart from Archived ones", () => {
+    const documents = [document("loose", "top"), document("filed", "fold-1"), document("old", "arch"), document("old-gone", "arch", true)];
+    expect(driveUnfiled({ connection: CONNECTION, documents }).map((row) => row.drive_id)).toEqual(["loose"]);
+    expect(driveArchiveDocuments({ connection: CONNECTION, documents }).map((row) => row.drive_id)).toEqual(["old"]);
+    expect(driveUnfiled({ connection: null, documents })).toEqual([]);
+  });
+
+  it("puts an archived Drive file in Google Drive · Archived, not a storage box", () => {
+    const archived = driveFile(5, "f", { status: "archived" });
+    expect(placeOf(archived, [], [DRIVE_LOC])).toEqual({ name: "Google Drive · Archived", href: DRIVE_ARCHIVE_HREF });
+    expect(placeOf(driveFile(6, "g"), [], [DRIVE_LOC])).toEqual({ name: "Google Drive", href: "/paperwork/locations/l-drive" });
+  });
+
+  it("gives the Archived folder its own card with archived files and loose documents", () => {
+    const drive = { connection: CONNECTION, folders: [], documents: [document("old", "arch"), document("x", "f")] };
+    const { office, archived } = places(
+      [driveFile(5, "f", { status: "archived" }), driveFile(6, "g")],
+      [TAXES], [], [], [DRIVE_LOC], [], drive,
+    );
+    expect(office.map((card) => [card.name, card.files.length])).toEqual([["Google Drive", 1]]);
+    expect(archived).toHaveLength(1);
+    expect(archived[0]).toMatchObject({ name: "Google Drive · Archived", items: 2 });
+    expect(cardFiles(archived[0])).toBe(2);
   });
 });

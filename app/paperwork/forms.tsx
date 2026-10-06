@@ -48,10 +48,14 @@ function LocationField({
   label,
   locations,
   defaultValue,
+  driveReady = false,
 }: {
   label: string;
   locations: Location[];
   defaultValue?: string;
+  // Google Drive (built in, REQ-152) is offered only to a new file, and
+  // only once a folder is connected; a physical file never goes there.
+  driveReady?: boolean;
 }) {
   const [choice, setChoice] = useState(defaultValue ?? "");
   return (
@@ -62,11 +66,13 @@ function LocationField({
           <option value="" disabled>
             Choose a location
           </option>
-          {locations.map((location) => (
-            <option key={location.id} value={location.id}>
-              {location.name}
-            </option>
-          ))}
+          {locations
+            .filter((location) => !location.built_in || driveReady)
+            .map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.name}
+              </option>
+            ))}
           <option value="new">New location…</option>
         </select>
       </label>
@@ -87,12 +93,14 @@ function NewFileFields({
   locations,
   file,
   location,
+  driveReady = false,
   onCategory,
 }: {
   categories: Category[];
   locations: Location[];
   file?: PaperFile;
   location?: string;
+  driveReady?: boolean;
   onCategory?: (id: string) => void;
 }) {
   return (
@@ -115,7 +123,12 @@ function NewFileFields({
           ))}
         </select>
       </label>
-      <LocationField label="Location" locations={locations} defaultValue={file?.location_id ?? location} />
+      {file?.is_drive ? (
+        // A Drive file's location is set when it's made and never changes.
+        <p className={styles.check}>Location: Google Drive</p>
+      ) : (
+        <LocationField label="Location" locations={locations} defaultValue={file?.location_id ?? location} driveReady={driveReady} />
+      )}
       <label className={styles.field}>
         <span>Label name (optional)</span>
         <input name="label" defaultValue={file?.label ?? ""} />
@@ -144,7 +157,8 @@ function FileChooser({
 }) {
   const [choice, setChoice] = useState("");
   const categoryOf = (fileId: string) => files.find((file) => file.id === fileId)?.category_id ?? null;
-  const open = files.filter((file) => file.status === "active");
+  // Physical paperwork goes only into physical files (REQ-152).
+  const open = files.filter((file) => file.status === "active" && !file.is_drive);
   return (
     <>
       <label className={styles.field}>
@@ -340,18 +354,20 @@ export function NewFileForm({
   categories,
   locations,
   location,
+  driveReady = false,
   onSaved,
 }: {
   categories: Category[];
   locations: Location[];
   location?: string;
+  driveReady?: boolean;
   onSaved?: (state: FormState) => void;
 }) {
   const [state, formAction, pending] = useActionState(makeFile, initialState);
   useOnSaved(state, onSaved);
   return (
     <form action={formAction} className={styles.form}>
-      <NewFileFields categories={categories} locations={locations} location={location} />
+      <NewFileFields categories={categories} locations={locations} location={location} driveReady={driveReady} />
       <button type="submit" className={buttonClass} disabled={pending || categories.length === 0}>
         {pending ? "Making…" : "Make the file"}
       </button>
@@ -390,11 +406,16 @@ export function FileEditForm({
 // number is never handed out again. The sheet it sits in is the "are you
 // sure?".
 export function RemoveFileForm({ file, label, returnTo }: { file: PaperFile; label: string; returnTo: string }) {
+  const drive = file.is_drive;
   return (
     <form action={removeFile} className={styles.form}>
       <input type="hidden" name="id" value={file.id} />
       <input type="hidden" name="returnTo" value={returnTo} />
-      <p className={styles.check}>Remove {label}? Its documents go back to Unfiled.</p>
+      <p className={styles.check}>
+        {drive
+          ? `Remove ${label}? Its folder and documents stay in Google Drive; only HomeBase forgets the file.`
+          : `Remove ${label}? Its documents go back to Unfiled.`}
+      </p>
       <button type="submit" className={buttonClass}>
         Yes, remove the file
       </button>

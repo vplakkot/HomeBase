@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ButtonLink } from "../../components/button";
 import { UNFILED_HREF, unfiledItem } from "../../lib/paperwork/action-items";
 import { cardFiles, documentsCount, filesCount, places, type PlaceCard } from "../../lib/paperwork/paperwork";
+import { DriveStatus } from "./drive-forms";
+import { DriveUnfiledSection, UnlinkedFoldersSection } from "./drive-views";
 import { Fact, PaperworkScreen, Section, paperworkViewer } from "./frame";
 import styles from "./paperwork.module.css";
 import { AddLocation } from "./sheets";
@@ -21,6 +23,7 @@ export default async function PaperworkPage({ searchParams }: { searchParams: Pr
     viewer.storage,
     viewer.locations,
     viewer.archives,
+    viewer.drive,
   );
   const item = unfiledItem(viewer.papers);
 
@@ -51,9 +54,17 @@ export default async function PaperworkPage({ searchParams }: { searchParams: Pr
         <dl className={styles.summary}>
           <Fact label="Locations" value={office.length + archived.length} />
           <Fact label="Files" value={viewer.files.length + viewer.archives.length} />
-          <Fact label="Documents" value={viewer.papers.length} />
+          <Fact
+            label="Documents"
+            value={viewer.papers.length + viewer.drive.documents.filter((document) => !document.missing).length}
+          />
         </dl>
       </section>
+
+      {viewer.drive.connection ? <DriveStatus syncedAt={viewer.drive.connection.synced_at} /> : null}
+
+      <DriveUnfiledSection viewer={viewer} />
+      <UnlinkedFoldersSection viewer={viewer} />
 
       <Section id="locations" title="Locations" action={<AddLocation />}>
         {office.length === 0 ? (
