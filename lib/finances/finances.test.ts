@@ -5,7 +5,9 @@ import {
   householdToday,
   monthLabel,
   monthStart,
+  otherShare,
   parsePercent,
+  withOtherShare,
   splitInForce,
   splitIsHistory,
 } from "./budget-year";
@@ -103,5 +105,27 @@ describe("bills and money", () => {
     expect(parseAmount("0")).toBeNull();
     expect(parseAmount("12.345")).toBeNull();
     expect(formatMoney(2400.5)).toBe("$2,400.50");
+  });
+});
+
+// Vin, 2026-10-06: with two people, typing one share fills in the other.
+describe("otherShare and withOtherShare", () => {
+  it("is what's left of 100, without stray zeros", () => {
+    expect(otherShare("60")).toBe("40");
+    expect(otherShare("33.33")).toBe("66.67");
+    expect(otherShare("62.5")).toBe("37.5");
+    expect(otherShare("0")).toBe("100");
+    expect(otherShare("100")).toBe("0");
+  });
+
+  it("is nothing for text that isn't a share yet", () => {
+    for (const text of ["", "6.", "abc", "101", "-5"]) expect(otherShare(text)).toBeNull();
+  });
+
+  it("fills in the other of exactly two people, and never touches more", () => {
+    expect(withOtherShare({ a: "", b: "" }, ["a", "b"], "a", "60")).toEqual({ a: "60", b: "40" });
+    expect(withOtherShare({ a: "60", b: "40" }, ["a", "b"], "b", "")).toEqual({ a: "60", b: "" });
+    expect(withOtherShare({ a: "", b: "", c: "" }, ["a", "b", "c"], "a", "50")).toEqual({ a: "50", b: "", c: "" });
+    expect(withOtherShare({ a: "" }, ["a"], "a", "100")).toEqual({ a: "100" });
   });
 });

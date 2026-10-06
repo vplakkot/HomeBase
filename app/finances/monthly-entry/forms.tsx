@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import type { Person, Share } from "../../../lib/finances/budget-year";
+import { useActionState, useState } from "react";
+import { withOtherShare, type Person, type Share } from "../../../lib/finances/budget-year";
 import type { MonthBill } from "../../../lib/finances/month";
 import styles from "../../../components/cards.module.css";
 import { Hint } from "../../../components/hint";
@@ -192,7 +192,10 @@ export function DirectPaymentForm({
 // that month only.
 export function MonthSplitForm({ monthId, people, shares }: { monthId: string; people: Person[]; shares: Share[] }) {
   const [state, formAction, pending] = useActionState(setMonthSplit, initialState);
-  const percentOf = new Map(shares.map((share) => [share.user_id, share.percent]));
+  // With two people, typing one share fills in the other (Vin, 2026-10-06).
+  const [typed, setTyped] = useState<Record<string, string>>(() =>
+    Object.fromEntries(people.map((person) => [person.user_id, shares.find((share) => share.user_id === person.user_id)?.percent.toString() ?? ""])),
+  );
   return (
     <form action={formAction} className={styles.form}>
       <input type="hidden" name="monthId" value={monthId} />
@@ -204,7 +207,10 @@ export function MonthSplitForm({ monthId, people, shares }: { monthId: string; p
               name={`share_${person.user_id}`}
               aria-label={`${person.name}'s percentage`}
               inputMode="decimal"
-              defaultValue={percentOf.get(person.user_id)?.toString() ?? ""}
+              value={typed[person.user_id]}
+              onChange={(event) =>
+                setTyped(withOtherShare(typed, people.map((one) => one.user_id), person.user_id, event.target.value))
+              }
               required
             />
             <span aria-hidden="true">%</span>
