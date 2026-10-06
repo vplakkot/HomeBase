@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { BILL_KINDS, ordinal, type Bill } from "../../../lib/finances/bills";
-import { formatPercent, monthLabel, parsePercent, type Person } from "../../../lib/finances/budget-year";
+import { formatPercent, monthLabel, parsePercent, withOtherShare, type Person } from "../../../lib/finances/budget-year";
 import { CADENCES, type IncomeSource } from "../../../lib/finances/income";
 import { saveBill, saveIncomeSource, saveSplit, type FormState } from "./actions";
 import styles from "../../../components/cards.module.css";
@@ -18,6 +18,9 @@ function Outcome({ state, saved }: { state: FormState; saved: string }) {
 
 // REQ-50, #132: a split starts in a month and holds until a later one
 // starts, so changing it never reaches back into months already run.
+//
+// With two people, typing one share fills in the other (Vin, 2026-10-06):
+// they always add to 100. With more, each is typed on its own.
 export function SplitForm({
   people,
   months,
@@ -74,7 +77,7 @@ export function SplitForm({
               aria-label={`${person.name}'s share of ${what}`}
               inputMode="decimal"
               value={typed[person.user_id]}
-              onChange={(event) => setTyped({ ...typed, [person.user_id]: event.target.value })}
+              onChange={(event) => setTyped(withOtherShare(typed, people.map((p) => p.user_id), person.user_id, event.target.value))}
               required
             />
             <span aria-hidden="true">%</span>

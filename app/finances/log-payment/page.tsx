@@ -95,8 +95,10 @@ export default async function LogPaymentPage({
             <h2 id="log-payment" className={styles.name}>
               Log a payment
             </h2>
+          </header>
+          <div className={styles.addBlock}>
             {totals.people.length > 0 ? (
-              <p className={styles.note}>
+              <p className={`${styles.note} ${styles.blockNote}`}>
                 {totals.people
                   .map((person) => {
                     const name = nameOf.get(person.user_id) ?? "Someone";
@@ -107,8 +109,6 @@ export default async function LogPaymentPage({
                   .join(" · ")}
               </p>
             ) : null}
-          </header>
-          <div className={styles.addBlock}>
             {closed ? (
               <p className={styles.empty}>This month is closed, so its payments can&apos;t change.</p>
             ) : choices.length === 0 ? (

@@ -174,14 +174,32 @@ describe("the Budget year section", () => {
     expect(saved.textContent).toContain("Alex60%");
   });
 
-  it("keeps a running total and says when it isn't 100", async () => {
+  // Vin, 2026-10-06: with two people the shares always add to 100, so typing
+  // one fills in the other.
+  it("fills in the other share when one is typed, so two people always add to 100", async () => {
     await renderAs(ADMIN);
     const split = screen.getByRole("region", { name: "Split" });
-    fireEvent.change(within(split).getByLabelText("Alex's share of the new split"), { target: { value: "60" } });
-    fireEvent.change(within(split).getByLabelText("Sam's share of the new split"), { target: { value: "30" } });
-    expect(within(split).getByText("Total: 90% · must be 100%")).toBeDefined();
-    fireEvent.change(within(split).getByLabelText("Sam's share of the new split"), { target: { value: "40" } });
+    const alex = within(split).getByLabelText("Alex's share of the new split") as HTMLInputElement;
+    const sam = within(split).getByLabelText("Sam's share of the new split") as HTMLInputElement;
+    fireEvent.change(alex, { target: { value: "60" } });
+    expect(sam.value).toBe("40");
     expect(within(split).getByText("Total: 100%")).toBeDefined();
+    fireEvent.change(sam, { target: { value: "33.33" } });
+    expect(alex.value).toBe("66.67");
+    expect(within(split).getByText("Total: 100%")).toBeDefined();
+  });
+
+  it("leaves the other share alone while one is half typed or cleared, and says the total", async () => {
+    await renderAs(ADMIN);
+    const split = screen.getByRole("region", { name: "Split" });
+    const alex = within(split).getByLabelText("Alex's share of the new split") as HTMLInputElement;
+    const sam = within(split).getByLabelText("Sam's share of the new split") as HTMLInputElement;
+    fireEvent.change(alex, { target: { value: "60" } });
+    fireEvent.change(alex, { target: { value: "60." } });
+    expect(sam.value).toBe("40");
+    fireEvent.change(alex, { target: { value: "" } });
+    expect(sam.value).toBe("40");
+    expect(within(split).getByText("Total: —")).toBeDefined();
   });
 
   it("says plainly when nothing is saved yet", async () => {

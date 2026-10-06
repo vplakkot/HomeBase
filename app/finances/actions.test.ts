@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
-import { acknowledgeItem, closeMonthWithBalance } from "./actions";
+import { acknowledgeItem, closeMonthWithBalance, reopenMonth } from "./actions";
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -38,6 +38,41 @@ describe("closeMonthWithBalance", () => {
     given(["use_modules"]);
     await expect(closeMonthWithBalance(form())).rejects.toThrow("REDIRECT:/finances");
     expect(fake.rpc).not.toHaveBeenCalledWith("close_month_with_balance", expect.anything());
+  });
+});
+
+// Vin, 2026-10-06: an admin can reopen a closed month.
+describe("reopenMonth", () => {
+  const reopenForm = (month = "2026-04") => {
+    const data = form();
+    data.append("month", month);
+    return data;
+  };
+
+  it("asks the database to reopen the month for an admin, then shows that month", async () => {
+    given(["use_modules", "manage_budget"]);
+    await expect(reopenMonth(reopenForm())).rejects.toThrow("REDIRECT:/finances?month=2026-04");
+    expect(fake.rpc).toHaveBeenCalledWith("reopen_month", { p_month: "m-sep" });
+  });
+
+  it("sends a member back without reopening anything", async () => {
+    given(["use_modules"]);
+    await expect(reopenMonth(reopenForm())).rejects.toThrow("REDIRECT:/finances");
+    expect(fake.rpc).not.toHaveBeenCalledWith("reopen_month", expect.anything());
+  });
+
+  it("only follows a month written like 2026-04", async () => {
+    given(["use_modules", "manage_budget"]);
+    await expect(reopenMonth(reopenForm("//evil"))).rejects.toThrow("REDIRECT:/finances");
+  });
+
+  it("says plainly when the database refuses", async () => {
+    given(["use_modules", "manage_budget"]);
+    const rpc = fake.rpc as unknown as ReturnType<typeof vi.fn>;
+    rpc.mockImplementation(async (fn: string) =>
+      fn === "reopen_month" ? { data: null, error: { message: "That month is not closed" } } : { data: true, error: null },
+    );
+    await expect(reopenMonth(reopenForm())).rejects.toThrow("Could not reopen the month: That month is not closed");
   });
 });
 

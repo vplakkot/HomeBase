@@ -380,3 +380,13 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* Reopen a closed month: its one line and button, side by side. */
+.reopen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  margin: 0;
+}

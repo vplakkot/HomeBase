@@ -11,6 +11,24 @@ the recipe note after a screen lock. Everyone can see which release they're
 on, and the desktop sidebar's HomeBase name is the way Home. Finances
 lets an admin close any month by hand and tidies Previous months.
 
+- Finances, reopen a closed month: an admin can unlock a closed month from its
+  page ("Reopen April": the closing record is removed and bills and payments
+  can change again). A reopened month no longer closes on its own at midnight,
+  even when squared; it stays open until an admin closes it again, and its
+  "squared" item says so. Needs the migration `20261009200000` (adds
+  `reopened_at`, `reopened_by`, `reopen_month()`, and a one-line change to the
+  nightly job); the migration is proven by a live check, which is run after it
+  is applied. The close page now says closing locks the month until it is
+  reopened.
+- Finances, split: with two people, typing one share fills in the other, so
+  they always add to 100. It works the same on the budget year's Split form
+  and on a month added later's own split. With more than two people, each is
+  still typed on its own.
+- Finances, tidier boxes: the Close month page now has its text and full-width
+  button inside a padded box like the Finish month card, and Log a payment's
+  "who still owes what" line moved inside the box, so its box lines up with
+  Payments this month. The Close the month card on a month's page is no longer
+  stretched tall.
 - Finances, close any month by hand: an admin can now close a month that is
   squared, still running, or has a balance, not only one that ended owing.
   The month's page has a "Close the month" card (admin only), the "squared"

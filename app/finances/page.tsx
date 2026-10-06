@@ -8,7 +8,7 @@ import { billEntered, chosenMonth, dayLabel, listOpenedMonths, monthShares, mont
 import { formatMoney } from "../../lib/finances/money";
 import { monthSummary, progress } from "../../lib/finances/overview";
 import { acknowledge, readFinanceSnapshot } from "../../lib/finances/snapshot";
-import { acknowledgeItem } from "./actions";
+import { acknowledgeItem, reopenMonth } from "./actions";
 import { FinancesFrame, financesViewer } from "./frame";
 import { Paid } from "./paid-mark";
 import styles from "./page.module.css";
@@ -189,6 +189,17 @@ export default async function FinancesPage({
               </p>
             );
           })}
+          {canManageBudget ? (
+            // Closing locks a month; an admin can unlock it again.
+            <form action={reopenMonth} className={styles.reopen}>
+              <input type="hidden" name="monthId" value={month.id} />
+              <input type="hidden" name="month" value={at} />
+              <span className={styles.note}>Unlocks {monthLabel(startsOn)}. It stays open until you close it again.</span>
+              <button type="submit" className={buttonClass}>
+                Reopen {monthName}
+              </button>
+            </form>
+          ) : null}
         </section>
       ) : null}
 
@@ -330,11 +341,15 @@ export default async function FinancesPage({
               Close the month
             </h2>
           </div>
-          <div className={`${styles.card} ${styles.itemRow}`}>
-            <span className={styles.itemText}>
-              <span className={styles.note}>Locks {monthLabel(startsOn)}: bills and payments can&apos;t change after.</span>
-            </span>
-            <ButtonLink href={`/finances/close-month?month=${at}`}>Close {monthName}</ButtonLink>
+          <div className={`${styles.card} ${styles.rows}`}>
+            <div className={styles.itemRow}>
+              <span className={styles.itemText}>
+                <span className={styles.note}>
+                  Locks {monthLabel(startsOn)}: bills and payments can&apos;t change until you reopen it.
+                </span>
+              </span>
+              <ButtonLink href={`/finances/close-month?month=${at}`}>Close {monthName}</ButtonLink>
+            </div>
           </div>
         </section>
       ) : null}

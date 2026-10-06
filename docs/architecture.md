@@ -852,6 +852,8 @@ flowchart LR
   Ended -->|admin: Close month action item| Closed
   Open -->|admin: Close the month, any time| Closed
   Squared -->|admin: Close month, now| Closed
+  Closed -->|admin: Reopen| Reopened["Open, reopened"]
+  Reopened -->|admin: Close month| Closed
 ```
 
 An admin can close any open month by hand (Vin, 2026-10-06; REQ-59 had it
@@ -862,6 +864,16 @@ everything is paid, and that closing locks the month (and, for one still
 running, that nothing more can be added). The database function
 `close_month_with_balance` never required the month to be over or
 unsquared, so this needed no migration.
+
+**Reopening.** Closing isn't a dead end: an admin can reopen a closed month
+from its page (`reopen_month()`, `manage_budget` only, a closed month only).
+The month's closing record (`month_people`) is removed, since closing writes
+it again, and it is open: the lock lifts, `closed_at`, `settled` and
+`split_from` are cleared. `months.reopened_at` / `reopened_by` remember it,
+because the nightly job would otherwise close a reopened, squared month at
+the next midnight; `close_squared_months()` skips any month with
+`reopened_at`, so it stays open until an admin closes it again. Its "squared"
+action item then says so instead of "Closes tonight".
 
 - **Squared** is worked out twice, on purpose: `monthStatus()` in the
   app for Home's tile and the action items, and `month_balances()` / `month_is_squared()`

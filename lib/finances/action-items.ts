@@ -94,7 +94,15 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
         text: `${name} is squared`,
         // An admin can close it by hand now instead of waiting for tonight's
         // automatic close; anyone else is just told.
-        detail: me.manages_budget ? "Closes tonight, or close it now" : "Closes tonight",
+        // A month an admin reopened doesn't close on its own: it waits for
+        // an admin to close it again.
+        detail: month.reopened_at
+          ? me.manages_budget
+            ? "Reopened: close it when you're done"
+            : "Reopened by an admin"
+          : me.manages_budget
+            ? "Closes tonight, or close it now"
+            : "Closes tonight",
         rank: RANKS.squared,
         href: me.manages_budget ? `/finances/close-month?month=${at}` : `/finances?month=${at}`,
         button: me.manages_budget ? "Close month" : "View month",

@@ -24,6 +24,7 @@ const month = (bills: MonthBill[], over: Partial<Month> = {}): Month => ({
   closed_at: null,
   closed_by: null,
   closed_automatically: false,
+  reopened_at: null,
   split_from: null,
   people: [],
   savings: [],
