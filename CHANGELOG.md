@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Finances, split: with two people, typing one share fills in the other, so
+  they always add to 100. It works the same on the budget year's Split form
+  and on a month added later's own split. With more than two people, each is
+  still typed on its own.
 - Finances, tidier boxes: the Close month page now has its text and full-width
   button inside a padded box like the Finish month card, and Log a payment's
   "who still owes what" line moved inside the box, so its box lines up with

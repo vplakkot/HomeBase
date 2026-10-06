@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "../../../lib/supabase/server";
 import { installDialogStandIn } from "../../../test/dialog";
@@ -207,6 +207,19 @@ describe("Monthly entry in a month added later", () => {
       { user_id: "u-sam", percent: "35.00" },
     ],
   };
+
+  // Vin, 2026-10-06: with two people typing one share fills in the other.
+  it("fills in the other share of its own split when one is typed", async () => {
+    given({ months: [MAY, SEPTEMBER] });
+    await page("2026-05");
+    const split = screen.getByRole("region", { name: "Split for May 2026" });
+    const alex = within(split).getByRole("textbox", { name: "Alex's percentage" }) as HTMLInputElement;
+    const sam = within(split).getByRole("textbox", { name: "Sam's percentage" }) as HTMLInputElement;
+    fireEvent.change(alex, { target: { value: "70" } });
+    expect(sam.value).toBe("30");
+    fireEvent.change(sam, { target: { value: "45.5" } });
+    expect(alex.value).toBe("54.5");
+  });
 
   it("is the same Monthly entry screen, with its own split to change and Mark settled", async () => {
     given({ months: [MAY, SEPTEMBER] });
