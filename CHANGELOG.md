@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Finances, tidier boxes: the Close month page now has its text and full-width
+  button inside a padded box like the Finish month card, and Log a payment's
+  "who still owes what" line moved inside the box, so its box lines up with
+  Payments this month. The Close the month card on a month's page is no longer
+  stretched tall.
 - Finances, close any month by hand: an admin can now close a month that is
   squared, still running, or has a balance, not only one that ended owing.
   The month's page has a "Close the month" card (admin only), the "squared"
