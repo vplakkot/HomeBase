@@ -16,6 +16,8 @@ export function fakeSupabase({ signedIn = true, permissions = [], people = [], t
   const rpc = vi.fn(async (fn: string, args?: { permission?: string }) => {
     if (fn === "has_permission") return { data: permissions.includes(args?.permission ?? ""), error: null };
     if (fn === "household_people") return { data: people, error: null };
+    // Paperwork's Drive owner matching: user_id and the account email.
+    if (fn === "paperwork_member_accounts") return { data: tables.household_members ?? [], error: null };
     return { data: null, error: null };
   });
   const from = vi.fn((table: string) => {

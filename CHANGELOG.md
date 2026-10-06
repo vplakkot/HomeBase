@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- Paperwork, Google Drive: a File can live in one shared Google Drive
+  folder. An admin connects the folder in Paperwork settings (the app shows
+  the robot's email to share it with, and checks it can read the folder and
+  find its `Archived` sub-folder). A new File can choose Google Drive as its
+  location; the app shows the exact folder name to make in Drive
+  (`F-0042_Taxes_2025 Returns`) with a Copy button, and "I've created it"
+  links the File to that folder. A Drive File lists its documents by their
+  Drive names, each opening in Google Drive; a document that arrives without
+  being filed here shows "Owner not set" until someone sets it (or takes the
+  household member whose Google account owns it, once the admin has saved
+  that account's email on the member, or else the email they sign in with). Loose documents show in "Unfiled ·
+  Google Drive", and filing one moves it into the File's folder and confirms
+  the owner. Opening Paperwork or tapping Refresh re-reads the folder;
+  anything deleted in Drive shows as Missing and the admin can remove its
+  record. The admin also sees folders nobody has linked (link to a waiting
+  File, or ignore) and "Folder name doesn't follow convention" with a Fix
+  that renames the folder; renaming a category, or changing a File's category
+  or label, renames its folders, and a
+  category name can no longer contain "_". Drive Files archive by moving
+  their folder into `Archived` and are restored ("Restore") to the top level; a single
+  Drive document can be archived there and brought back to Unfiled, and
+  `Archived` shows as Google Drive's archive. Google Drive is a built-in
+  location that can't be renamed or deleted and takes only Drive Files.
+  Access was tested on a real folder first: moving a document, moving a
+  folder and renaming a folder are all allowed. Drive documents aren't
+  searched and aren't counted on Home's unfiled tile. The migration applied to
+  Supabase, and its row-level security was checked live as a real admin and
+  member (supabase/checks/paperwork_drive.sql); nothing here was clicked
+  through while signed in.
 - Paperwork, removing stays put: removing a file leaves you in its location
   (or its storage box), and removing a document leaves you in its file or
   archive, instead of jumping to the Overview. Deleting a location still goes
@@ -20,7 +49,7 @@
   "Archive" button that moves it, with no file, into the chosen Storage box's
   archive, made the first time one goes in. The archive shows beside its
   box's files (Overview, the box's page, and the box in Storage), has no
-  F-ID, category or label, and can't be renamed or deleted. "Bring back" on an
+  F-ID, category or label, and can't be renamed or deleted. "Restore" on an
   archived document returns it to Unfiled. A box whose archive holds
   documents can't be removed. The Google Drive half waits for the Drive batch.
 - After an email change is confirmed, every device on that account is signed

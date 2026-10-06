@@ -1038,6 +1038,73 @@ results replace that screen. Forms open in sheets
 where you are; a form that makes a file returns its label, shown once to
 print, instead of opening the file.
 
+### Google Drive files (REQ-152, REQ-153)
+
+A File can live in one Google Drive folder instead of a cupboard. The
+documents stay in Drive; HomeBase links a File to its folder by the
+folder's **Drive ID, never its name**, and keeps a copy of what it last
+saw so pages open fast.
+
+```mermaid
+flowchart LR
+  Page["Paperwork page opens<br/>(or Refresh)"] --> Sync["syncDrive()<br/>lib/paperwork/drive-run.ts"]
+  Sync -- "signed request,<br/>service account key" --> Drive[("Google Drive<br/>one shared folder")]
+  Sync -- "folders, documents,<br/>who owns each" --> Copy[("paperwork_drive_*<br/>tables")]
+  Action["file it, archive,<br/>restore, fix name"] -- "Drive first" --> Drive
+  Action -- "then" --> Copy
+```
+
+| Table | One row is | Key facts |
+|---|---|---|
+| `paperwork_drive` | the one connected folder | `id` is always `true`, so one row; `folder_id`, `archived_folder_id` (the `Archived` sub-folder found when connected), `synced_at`; only `manage_paperwork` (Admin) connects; a member's sync stamps the time through `record_drive_sync()` |
+| `paperwork_drive_folders` | a sub-folder last seen (a File's, or one nobody linked) | `drive_id`, `name`, `in_archived`, `ignored` (the admin chose), `missing` (gone from Drive; never dropped) |
+| `paperwork_drive_documents` | a document directly in a File's folder, `Archived` or the top folder | `drive_id`, `name`, `link`, `parent_id`, `drive_owner_email`, `owner_id` (null is Joint) with `owner_set`; `missing`; only the admin removes a missing one's record |
+
+Other changes: `paperwork_files.is_drive` (set when made, never changes)
+and `drive_folder_id` (null while "Waiting for folder"); a Drive File is
+archived by moving its folder into `Archived`, so it is archived without
+a storage box (the archived-in-a-box check has a Drive branch);
+`paperwork_locations.built_in = 'drive'` is the Google Drive location,
+which a trigger stops being renamed or removed, and the database refuses
+a physical File there or a Drive File anywhere else;
+`household_members.google_email` (admin, optional) is compared with
+Drive's document owners.
+
+**Talking to Drive.** [`lib/paperwork/drive.ts`](../lib/paperwork/drive.ts)
+is plain REST with no Google library: it signs a short-lived token
+request with the service account's private key (Node `crypto`, RS256),
+then lists, moves and renames. The key is `GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY`
+in Vercel (the key file as it is, or base64 of it), never in git. The
+admin shares the one folder, and its `Archived` sub-folder, with the
+service account's email as Editor. What it may do was tried on a real
+folder on 2026-10-06: move a document, move a folder and rename a folder
+are all allowed (Notion decision "Drive access test"), so all three have
+buttons. The app never makes folders.
+
+**Sync** ([`drive-sync.ts`](../lib/paperwork/drive-sync.ts) decides,
+[`drive-run.ts`](../lib/paperwork/drive-run.ts) does): opening Paperwork,
+or Refresh, reads the connected folder, `Archived` and each linked File's
+folder, then updates the copy. A folder or document Drive no longer has
+is marked Missing, never dropped; a File follows its folder into or out of
+`Archived`; a document in a File's folder with no owner decided takes the
+member whose Google account owns it, else "Owner not set". Anything
+deeper than one level inside a File's folder is ignored. If the connected
+folder itself can't be seen, sync says so and marks nothing Missing.
+
+**Changes** go to Drive first and the database after
+([`app/paperwork/drive-actions.ts`](../app/paperwork/drive-actions.ts)),
+so a refusal from Drive leaves HomeBase unchanged. The app is the source
+of truth for names: a linked folder named differently shows the admin
+"Folder name doesn't follow convention" with a Fix that renames it, and
+renaming a category, or changing a File's category or label, renames its
+folders. Category names can't contain
+"_". Drive documents go only into Drive Files and physical paperwork only
+into physical Files. Routes added: `/paperwork/archives/drive` (the Drive
+archive File: `Archived`'s loose documents, with archived Drive Files).
+Drive documents aren't searched, don't count toward Home's unfiled tile
+(the Overview and Unfiled tab show "Unfiled · Google Drive"), and have no
+page of their own: a name opens the document in Google Drive.
+
 Home's "N documents unfiled" is an action item from
 [`lib/paperwork/action-items.ts`](../lib/paperwork/action-items.ts),
 ranked after every Finances item; the Overview shows the same item with

@@ -3,44 +3,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { hasPermission } from "../../lib/auth/permissions";
-import { labelText, tidyName } from "../../lib/paperwork/paperwork";
-import { createClient } from "../../lib/supabase/server";
+import { hasUnderscore } from "../../lib/paperwork/drive";
+import { readConnection, renameFoldersInCategory } from "../../lib/paperwork/drive-run";
+import { expectedFolderName, labelText, tidyName } from "../../lib/paperwork/paperwork";
+import { refresh, requireAdmin, requireMember, rowId, text, UUID } from "./action-helpers";
 
 // newFile: the label of a file the form just made ("F-0005 · Taxes"),
-// shown once so it can be printed (REQ-100).
-export type FormState = { error?: string; saved?: boolean; newFile?: string };
+// shown once so it can be printed (REQ-100). driveFolder: for a Google
+// Drive file there's no label; this is the folder name to make in Drive
+// instead (REQ-152).
+export type FormState = { error?: string; saved?: boolean; newFile?: string; driveFolder?: string };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const UUID = /^[0-9a-f-]{36}$/i;
-
-async function requireMember() {
-  const supabase = await createClient();
-  if (!(await hasPermission(supabase, "use_modules"))) redirect("/paperwork");
-  return supabase;
-}
-
-// REQ-88: only the admin changes categories.
-async function requireAdmin() {
-  const supabase = await createClient();
-  if (!(await hasPermission(supabase, "manage_paperwork"))) redirect("/paperwork");
-  return supabase;
-}
-
-const text = (formData: FormData, name: string) => String(formData.get(name) ?? "").trim();
-
-// The row a form is about. A missing or garbled id would change nothing
-// and still say "saved", so it's refused instead.
-function rowId(formData: FormData): string | null {
-  const id = text(formData, "id");
-  return UUID.test(id) ? id : null;
-}
-
-function refresh() {
-  revalidatePath("/paperwork", "layout");
-  // Home's unfiled count.
-  revalidatePath("/");
-}
 
 // Which location a form chose (REQ-179): one that exists, or (choice
 // "new") one made on the spot from the name typed beside it, with the same
@@ -48,17 +22,26 @@ function refresh() {
 async function chosenLocation(
   supabase: SupabaseClient,
   formData: FormData,
-): Promise<{ location_id: string } | { error: string }> {
+  allowDrive = false,
+): Promise<{ location_id: string; is_drive: boolean } | { error: string }> {
   const choice = text(formData, "locationId");
   if (choice === "new") {
     const name = tidyName(text(formData, "newLocation"));
     if (name === "") return { error: "Name the new location." };
     const { data, error } = await supabase.from("paperwork_locations").insert({ name }).select("id").single();
     if (error || !data) return { error: locationError(error?.message, error?.code, name) };
-    return { location_id: (data as { id: string }).id };
+    return { location_id: (data as { id: string }).id, is_drive: false };
   }
   if (!UUID.test(choice)) return { error: "Choose where the file is kept." };
-  return { location_id: choice };
+  // Google Drive is the one built-in location (REQ-179): only a Drive
+  // file goes there, and only once a folder is connected (REQ-152).
+  const { data: place } = await supabase.from("paperwork_locations").select("built_in").eq("id", choice).maybeSingle();
+  const is_drive = (place as { built_in: string | null } | null)?.built_in === "drive";
+  if (is_drive && !allowDrive) return { error: "Google Drive is only for Google Drive files." };
+  if (is_drive && !(await readConnection(supabase))) {
+    return { error: "Google Drive isn't connected yet. An admin connects a folder in Paperwork settings." };
+  }
+  return { location_id: choice, is_drive };
 }
 
 function locationError(message: string | undefined, code: string | undefined, name: string): string {
@@ -67,12 +50,16 @@ function locationError(message: string | undefined, code: string | undefined, na
 
 // A new file's fields, from a form that makes one. The form then shows
 // the label to print, and leaves you where you were (REQ-100).
-type NewFile = { category_id: string; location_id: string; label: string | null };
+type NewFile = { category_id: string; location_id: string; label: string | null; is_drive: boolean };
 
-async function newFileFields(supabase: SupabaseClient, formData: FormData): Promise<NewFile | { error: string }> {
+async function newFileFields(
+  supabase: SupabaseClient,
+  formData: FormData,
+  allowDrive = false,
+): Promise<NewFile | { error: string }> {
   const category_id = text(formData, "categoryId");
   if (!UUID.test(category_id)) return { error: "Choose the file's category." };
-  const location = await chosenLocation(supabase, formData);
+  const location = await chosenLocation(supabase, formData, allowDrive);
   if ("error" in location) return location;
   return { category_id, ...location, label: text(formData, "label") || null };
 }
@@ -80,8 +67,10 @@ async function newFileFields(supabase: SupabaseClient, formData: FormData): Prom
 async function createFile(
   supabase: SupabaseClient,
   fields: NewFile,
-): Promise<{ id: string; label: string } | { error: string }> {
-  const { data, error } = await supabase.from("paperwork_files").insert(fields).select("id, number").single();
+): Promise<{ id: string; label: string; driveFolder?: string } | { error: string }> {
+  // Only a Drive file says so; a physical file leaves it to the default.
+  const row = fields.is_drive ? fields : { category_id: fields.category_id, location_id: fields.location_id, label: fields.label };
+  const { data, error } = await supabase.from("paperwork_files").insert(row).select("id, number").single();
   if (error || !data) return { error: error?.message ?? "Could not make the file." };
   const made = data as { id: string; number: number };
   const { data: category } = await supabase
@@ -89,7 +78,13 @@ async function createFile(
     .select("name")
     .eq("id", fields.category_id)
     .maybeSingle();
-  return { id: made.id, label: labelText({ number: Number(made.number) }, category as { name: string } | undefined) };
+  const named = category as { name: string } | undefined;
+  const number = Number(made.number);
+  return {
+    id: made.id,
+    label: labelText({ number }, named),
+    ...(fields.is_drive ? { driveFolder: expectedFolderName({ number, label: fields.label }, named) } : {}),
+  };
 }
 
 // Which file the paperwork goes in: none (Unfiled), one that exists, or a
@@ -107,6 +102,9 @@ async function chosenFile(
     return "error" in made ? made : { fileId: made.id, newFile: made.label };
   }
   if (!UUID.test(choice)) return { error: "Choose a file, or leave it Unfiled." };
+  // Physical paperwork goes only into physical files (REQ-152).
+  const { data } = await supabase.from("paperwork_files").select("is_drive").eq("id", choice).maybeSingle();
+  if ((data as { is_drive: boolean } | null)?.is_drive) return { error: "Paperwork can't go into a Google Drive file." };
   return { fileId: choice };
 }
 
@@ -254,12 +252,12 @@ export async function removePaper(formData: FormData): Promise<void> {
 // REQ-88: a new file gets the next number, and the form shows its label.
 export async function makeFile(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
-  const fields = await newFileFields(supabase, formData);
+  const fields = await newFileFields(supabase, formData, true);
   if ("error" in fields) return { error: fields.error };
   const made = await createFile(supabase, fields);
   if ("error" in made) return { error: made.error };
   refresh();
-  return done(made.label);
+  return made.driveFolder ? { saved: true, driveFolder: made.driveFolder } : done(made.label);
 }
 
 // REQ-88: a file that moved gets its new location; the old one is gone.
@@ -267,9 +265,32 @@ export async function updateFile(_previous: FormState, formData: FormData): Prom
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to change." };
+  // A Google Drive file's location never changes (REQ-152): only its
+  // category and label do, and its folder name follows (see "Fix").
+  const { data: current } = await supabase.from("paperwork_files").select("is_drive").eq("id", id).maybeSingle();
+  if ((current as { is_drive: boolean } | null)?.is_drive) {
+    const category_id = text(formData, "categoryId");
+    if (!UUID.test(category_id)) return { error: "Choose the file's category." };
+    const { error } = await supabase
+      .from("paperwork_files")
+      .update({ category_id, label: text(formData, "label") || null })
+      .eq("id", id);
+    if (error) return { error: error.message };
+    // REQ-152: the folder follows, so there's no name to fix by hand.
+    const { data: category } = await supabase.from("paperwork_categories").select("name").eq("id", category_id).maybeSingle();
+    const failed = category
+      ? await renameFoldersInCategory(supabase, { id: category_id, name: (category as { name: string }).name, keep_years: null }, id)
+      : 0;
+    refresh();
+    if (failed > 0) return { error: "Saved, but its Drive folder couldn't be renamed. Use Fix on the file." };
+    return { saved: true };
+  }
   const fields = await newFileFields(supabase, formData);
   if ("error" in fields) return { error: fields.error };
-  const { error } = await supabase.from("paperwork_files").update(fields).eq("id", id);
+  const { error } = await supabase
+    .from("paperwork_files")
+    .update({ category_id: fields.category_id, location_id: fields.location_id, label: fields.label })
+    .eq("id", id);
   if (error) return { error: error.message };
   refresh();
   return { saved: true };
@@ -293,6 +314,8 @@ function categoryFields(formData: FormData) {
   const name = text(formData, "name");
   const years = text(formData, "keepYears");
   if (name === "") return { error: "Give the category a name." };
+  // Drive folder names are split at "_" (REQ-152).
+  if (hasUnderscore(name)) return { error: "A category name can't contain an underscore (_): Drive folder names use it to separate parts." };
   if (years !== "" && !/^\d+$/.test(years)) return { error: "Keep for a whole number of years, or leave it blank." };
   const keep_years = years === "" ? null : Number(years);
   if (keep_years !== null && (keep_years < 1 || keep_years > 100)) return { error: "Keep for 1 to 100 years." };
@@ -321,7 +344,12 @@ export async function updateCategory(_previous: FormState, formData: FormData): 
   if ("error" in fields) return { error: fields.error };
   const { error } = await supabase.from("paperwork_categories").update(fields).eq("id", id);
   if (error) return { error: categoryError(error.message, error.code, fields.name) };
+  // REQ-152: every linked Drive folder in the category is renamed to match.
+  const failed = await renameFoldersInCategory(supabase, { id, ...fields });
   refresh();
+  if (failed > 0) {
+    return { error: `Saved, but ${failed === 1 ? "1 Drive folder" : `${failed} Drive folders`} couldn't be renamed. Fix them from the files.` };
+  }
   return { saved: true };
 }
 
@@ -377,7 +405,7 @@ export async function bringBackFile(_previous: FormState, formData: FormData): P
   if ("error" in location) return { error: location.error };
   const { error } = await supabase
     .from("paperwork_files")
-    .update({ status: "active", storage_entry_id: null, ...location })
+    .update({ status: "active", storage_entry_id: null, location_id: location.location_id })
     .eq("id", id);
   if (error) return { error: error.message };
   refresh();

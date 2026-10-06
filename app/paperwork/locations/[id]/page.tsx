@@ -20,7 +20,7 @@ export default async function LocationPage({
   const viewer = await paperworkViewer();
   const location = viewer.locations.find((row) => row.id === id);
   if (!location) notFound();
-  const { office } = places(viewer.files, viewer.categories, viewer.papers, viewer.storage, viewer.locations);
+  const { office } = places(viewer.files, viewer.categories, viewer.papers, viewer.storage, viewer.locations, [], viewer.drive);
   const place = office.find((card) => card.href === `/paperwork/locations/${id}`);
   if (!place) notFound();
   const filesHere = viewer.files.filter((file) => file.location_id === id).length;
@@ -34,7 +34,7 @@ export default async function LocationPage({
         action={
           <div className={styles.fileButtons}>
             <NewFile location={id} choices={viewer.choices} />
-            <ManageLocation location={location} files={filesHere} />
+            {location.built_in ? null : <ManageLocation location={location} files={filesHere} />}
           </div>
         }
       >

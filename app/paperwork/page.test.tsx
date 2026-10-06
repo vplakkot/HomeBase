@@ -42,7 +42,7 @@ const TAXES = { id: "c-tax", name: "Taxes", keep_years: 7 };
 // A real-looking id, since making a file checks the category's id.
 const CAR = { id: "c0ca0000-0000-4000-8000-000000000001", name: "Car", keep_years: null };
 // Locations are records (REQ-179); the shed has no files.
-const HALL = { id: "10ca0000-0000-4000-8000-000000000001", name: "Hall cupboard" };
+const HALL = { id: "10ca0000-0000-4000-8000-000000000001", name: "Hall cupboard", built_in: null };
 const GLOVEBOX = { id: "10ca0000-0000-4000-8000-000000000002", name: "Glovebox" };
 const SHED = { id: "10ca0000-0000-4000-8000-000000000003", name: "Shed" };
 const file = (id: string, number: number, category_id: string, label: string | null, location_id: string) => ({
@@ -392,11 +392,11 @@ describe("screen 3: a file (REQ-100)", () => {
     expect(back.value).toBe("/paperwork/locations/10ca0000-0000-4000-8000-000000000001");
   });
 
-  it("offers Bring back from storage for an archived file", async () => {
+  it("offers Restore from storage for an archived file", async () => {
     given();
     render(await openFile("f-9"));
     fireEvent.click(screen.getByRole("button", { name: "Manage file" }));
-    fireEvent.click(screen.getByRole("button", { name: "Bring back from storage" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restore from storage" }));
     expect(screen.getByLabelText("New location")).toBeDefined();
   });
 
@@ -543,7 +543,7 @@ describe("flows (REQ-100)", () => {
 });
 
 describe("keep-until pre-fills from the file's category (REQ-97)", () => {
-  const files = FILES.map((row) => ({ ...row, status: "active" as const }));
+  const files = FILES.map((row) => ({ ...row, status: "active" as const, is_drive: false, drive_folder_id: null }));
   const renderForm = () =>
     render(<PaperForm people={PEOPLE} files={files} categories={[CAR, TAXES]} locations={[HALL]} today="2026-09-24" />);
   const keep = () => screen.getByLabelText("Keep until (optional)") as HTMLInputElement;
@@ -716,10 +716,10 @@ describe("archiving single documents (REQ-153)", () => {
     }
   });
 
-  it("offers Bring back, not Archive or Move, for an archived document", async () => {
+  it("offers Restore, not Archive or Move, for an archived document", async () => {
     withArchive();
     render(await item("p5"));
-    expect(screen.getByRole("button", { name: "Bring back" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Restore" })).toBeDefined();
     expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Move to another file" })).toBeNull();
     expect(crumbs()).toEqual(["Paperwork", "Box S-003 · Shoes", "Archive · S-003", "Old lease"]);

@@ -47,6 +47,7 @@ export async function paperworkViewer() {
     categories: paperwork.categories,
     locations: sortedLocations(paperwork.locations),
     today: householdToday(),
+    driveReady: paperwork.drive.connection !== null,
   };
   return { canManageMembers, canManagePaperwork, account, people, ...paperwork, storage, choices };
 }
@@ -159,7 +160,7 @@ export function Fact({ label, value }: { label: string; value: string | number }
 // name, grouped. Each document says which file it's in and where that is.
 function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: string }) {
   const { files, categories, papers, storage, locations, archives } = viewer;
-  const found = search(fileRows(files, categories, papers), papers, query, null);
+  const found = search(fileRows(files, categories, papers, viewer.drive), papers, query, null);
   const fileOf = (id: string | null) => files.find((file) => file.id === id);
   return (
     <>

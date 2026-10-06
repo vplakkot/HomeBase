@@ -20,6 +20,7 @@ import { NotificationLog } from "./notification-log";
 import { NotificationsForm } from "./notifications-form";
 import { EmailForm } from "../../components/email-form";
 import { NameForm } from "../../components/name-form";
+import { GoogleEmailForm } from "./google-email-form";
 import { ResetPasswordForm } from "./reset-password-form";
 import { SendTestForm } from "./send-test-form";
 import { SendTestPersonForm } from "./send-test-person-form";
@@ -48,6 +49,12 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
     listRoles(supabase),
     readAccount(data.claims, supabase),
   ]);
+  // REQ-152: each member's Google account, for Paperwork's Drive documents.
+  // Forgiven if it can't be read: the rest of this page doesn't need it.
+  const { data: googleRows } = await supabase.from("household_members").select("user_id, google_email");
+  const googleEmails = new Map(
+    ((googleRows ?? []) as { user_id: string; google_email: string | null }[]).map((row) => [row.user_id, row.google_email]),
+  );
   // Read separately, and forgiven if it fails. The log is the least
   // important thing on this page; losing it must not take member
   // management down with it.
@@ -143,6 +150,11 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
                       roleId={member.role_id}
                       roles={roles}
                       label={`Role for ${who}`}
+                    />
+                    <GoogleEmailForm
+                      userId={member.user_id}
+                      current={googleEmails.get(member.user_id) ?? null}
+                      label={`Google email for ${who}`}
                     />
                     <ResetPasswordForm
                       userId={member.user_id}

@@ -16,6 +16,7 @@ import {
   removeFile,
   removePaper,
   renameLocation,
+  updateCategory,
   updateFile,
   updatePaper,
 } from "./actions";
@@ -221,7 +222,7 @@ describe("files (REQ-88)", () => {
   it("replaces the location when a file moves, never touching its number", async () => {
     given();
     await updateFile({}, form({ id: FILE, categoryId: TAXES, locationId: HALL, label: "" }));
-    const update = on("paperwork_files")[0].update.mock.calls[0][0];
+    const update = on("paperwork_files").flatMap((query) => query.update.mock.calls)[0][0];
     expect(update).toEqual({ category_id: TAXES, location_id: HALL, label: null });
     expect(update).not.toHaveProperty("number");
   });
@@ -325,7 +326,7 @@ describe("archiving a file to storage (REQ-98)", () => {
     });
   });
 
-  it("needs the new location to bring it back", async () => {
+  it("needs the new location to restore it", async () => {
     given();
     expect(await bringBackFile({}, form({ id: FILE, locationId: "" }))).toEqual({
       error: "Choose where the file is kept.",
@@ -474,5 +475,81 @@ describe("archiving a document (REQ-153)", () => {
     await expect(removePaper(form({ id: P1, fileId: "", archiveId: ARCHIVE }))).rejects.toThrow(
       `REDIRECT:/paperwork/archives/${ARCHIVE}`,
     );
+  });
+});
+
+describe("Google Drive files (REQ-152)", () => {
+  const DRIVE_PLACE = { id: HALL, built_in: "drive" };
+  const CONNECTION = { folder_id: "top", archived_folder_id: "arch", synced_at: null };
+  const inserted = () => on("paperwork_files").flatMap((query) => query.insert.mock.calls.map((call) => call[0]));
+
+  it("makes a Drive file when Drive is chosen as the location, and says the folder to make", async () => {
+    given(["use_modules"], { paperwork_locations: [DRIVE_PLACE], paperwork_drive: [CONNECTION] });
+    expect(await makeFile({}, form({ categoryId: TAXES, locationId: HALL, label: "2025 Returns" }))).toEqual({
+      saved: true,
+      driveFolder: "F-0005_Taxes_2025 Returns",
+    });
+    expect(inserted()[0]).toEqual({ category_id: TAXES, location_id: HALL, label: "2025 Returns", is_drive: true });
+  });
+
+  it("names the folder <ID>_<Category> when there's no label name", async () => {
+    given(["use_modules"], { paperwork_locations: [DRIVE_PLACE], paperwork_drive: [CONNECTION] });
+    const result = await makeFile({}, form({ categoryId: TAXES, locationId: HALL, label: "" }));
+    expect(result.driveFolder).toBe("F-0005_Taxes");
+  });
+
+  it("can't make a Drive file before a folder is connected", async () => {
+    given(["use_modules"], { paperwork_locations: [DRIVE_PLACE], paperwork_drive: [] });
+    expect((await makeFile({}, form({ categoryId: TAXES, locationId: HALL, label: "" }))).error).toMatch(/isn't connected/);
+    expect(inserted()).toHaveLength(0);
+  });
+
+  it("keeps physical files out of Drive, and physical paperwork out of Drive files", async () => {
+    given(["use_modules"], { paperwork_locations: [DRIVE_PLACE], paperwork_drive: [CONNECTION] });
+    expect((await updateFile({}, form({ id: FILE, categoryId: TAXES, locationId: HALL, label: "" }))).error).toMatch(/only for Google Drive/);
+    given(["use_modules"], { paperwork_files: [{ id: FILE, is_drive: true }] });
+    expect((await logPaper({}, form({ ...PAPER, fileId: FILE }))).error).toMatch(/can't go into a Google Drive file/);
+    expect(on("paperwork")).toHaveLength(0);
+  });
+
+  it("changes only a Drive file's category and label, never its location", async () => {
+    given(["use_modules"], { paperwork_files: [{ id: FILE, is_drive: true }] });
+    expect(await updateFile({}, form({ id: FILE, categoryId: CAR, label: "Loan", locationId: HALL }))).toEqual({ saved: true });
+    const update = on("paperwork_files").flatMap((query) => query.update.mock.calls)[0][0];
+    expect(update).toEqual({ category_id: CAR, label: "Loan" });
+  });
+
+  it("renames that file's Drive folder to match once its category or label changes", async () => {
+    const drive = await import("../../lib/paperwork/drive");
+    const rename = vi.spyOn(drive, "renameItem").mockResolvedValue(undefined);
+    given(["use_modules"], {
+      paperwork_files: [{ id: FILE, is_drive: true, number: 5, label: "Loan", drive_folder_id: "fold-5" }],
+      paperwork_categories: [{ name: "Car" }],
+      paperwork_drive_folders: [{ drive_id: "fold-5", name: "F-0005_Taxes_Returns", missing: false }],
+    });
+    expect(await updateFile({}, form({ id: FILE, categoryId: CAR, label: "Loan" }))).toEqual({ saved: true });
+    expect(rename).toHaveBeenCalledWith("fold-5", "F-0005_Car_Loan");
+    rename.mockRestore();
+  });
+
+  it("says when the folder couldn't be renamed, the edit still saved", async () => {
+    const drive = await import("../../lib/paperwork/drive");
+    const rename = vi.spyOn(drive, "renameItem").mockRejectedValue(new drive.DriveError("nope"));
+    given(["use_modules"], {
+      paperwork_files: [{ id: FILE, is_drive: true, number: 5, label: "Loan", drive_folder_id: "fold-5" }],
+      paperwork_categories: [{ name: "Car" }],
+      paperwork_drive_folders: [{ drive_id: "fold-5", name: "F-0005_Taxes_Returns", missing: false }],
+    });
+    expect((await updateFile({}, form({ id: FILE, categoryId: CAR, label: "Loan" }))).error).toMatch(/couldn't be renamed/);
+    rename.mockRestore();
+  });
+
+  it("rejects a category name with an underscore, since folder names are split there", async () => {
+    given(["use_modules", "manage_paperwork"]);
+    const result = await addCategory({}, form({ name: "Car_loans", keepYears: "" }));
+    expect(result.error).toMatch(/underscore/);
+    expect(on("paperwork_categories")).toHaveLength(0);
+    given(["use_modules", "manage_paperwork"]);
+    expect((await updateCategory({}, form({ id: TAXES, name: "Tax_forms", keepYears: "" }))).error).toMatch(/underscore/);
   });
 });

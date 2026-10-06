@@ -1,8 +1,11 @@
 import styles from "../../../components/cards.module.css";
 import { Hint } from "../../../components/hint";
 import { LockIcon } from "../../../components/icons";
+import { serviceAccountEmail } from "../../../lib/paperwork/drive";
+import { ConnectDriveForm } from "../drive-forms";
 import { CategoryForm, RemoveCategoryForm } from "../forms";
 import { PaperworkScreen, paperworkViewer } from "../frame";
+import paperwork from "../paperwork.module.css";
 
 // REQ-88: the admin's Paperwork settings, behind the header's settings
 // gear (REQ-100, DESIGN.md §11): no tab is highlighted here. Categories
@@ -11,7 +14,7 @@ import { PaperworkScreen, paperworkViewer } from "../frame";
 export default async function PaperworkSettingsPage({ searchParams }: { searchParams?: Promise<{ q?: string }> }) {
   const { q = "" } = (await searchParams) ?? {};
   const viewer = await paperworkViewer();
-  const { canManagePaperwork, categories, files } = viewer;
+  const { canManagePaperwork, categories, files, drive } = viewer;
   const screen = {
     viewer,
     here: "/paperwork/settings",
@@ -89,6 +92,28 @@ export default async function PaperworkSettingsPage({ searchParams }: { searchPa
                 })}
               </ul>
             )}
+          </div>
+        </section>
+        <section className={styles.card} aria-labelledby="drive">
+          <header className={styles.head}>
+            <h2 id="drive" className={styles.name}>
+              Google Drive
+            </h2>
+            <Hint text="Files kept in one Google Drive folder are tracked here like physical ones. HomeBase reads and tidies that folder as a Google service account you share it with; it never makes folders." />
+          </header>
+          <div className={styles.addBlock}>
+            {drive.connection ? (
+              <p className={`${styles.detail} ${paperwork.driveNote}`}>
+                Connected to{" "}
+                <a href={`https://drive.google.com/drive/folders/${drive.connection.folder_id}`} target="_blank" rel="noreferrer">
+                  this folder
+                </a>
+                .
+              </p>
+            ) : (
+              <p className={`${styles.detail} ${paperwork.driveNote}`}>Not connected.</p>
+            )}
+            <ConnectDriveForm email={serviceAccountEmail()} connected={drive.connection !== null} />
           </div>
         </section>
       </div>

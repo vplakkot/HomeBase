@@ -26,6 +26,7 @@ import { createClient } from "../../lib/supabase/server";
 export type CreateMemberState = { error?: string; created?: string };
 export type ChangeRoleState = { error?: string; saved?: boolean };
 export type RenameState = { error?: string; saved?: boolean };
+export type GoogleEmailState = { error?: string; saved?: boolean };
 export type ResetPasswordState = { error?: string; reset?: boolean };
 export type NotificationsState = { error?: string; enabled?: boolean };
 export type ModuleSwitchState = { error?: string; on?: boolean };
@@ -117,6 +118,28 @@ export async function changeRole(
   if (error) {
     return { error: error.message };
   }
+
+  revalidatePath("/admin");
+  return { saved: true };
+}
+
+// REQ-152: the Google account a member's Drive documents belong to, so a
+// document Drive says they own is theirs in Paperwork too. Optional: left
+// empty, it's cleared. It's only compared with Drive's owners, never used
+// to sign in or sent anything.
+export async function setGoogleEmail(
+  _previous: GoogleEmailState,
+  formData: FormData,
+): Promise<GoogleEmailState> {
+  const userId = String(formData.get("userId") ?? "");
+  if (!userId) return { error: "Which member?" };
+  const typed = String(formData.get("googleEmail") ?? "").trim();
+  const email = typed === "" ? null : cleanEmail(typed);
+  if (typed !== "" && !email) return { error: EMAIL_INVALID_MESSAGE };
+
+  const supabase = await requireManageMembers();
+  const { error } = await supabase.from("household_members").update({ google_email: email }).eq("user_id", userId);
+  if (error) return { error: error.message };
 
   revalidatePath("/admin");
   return { saved: true };
