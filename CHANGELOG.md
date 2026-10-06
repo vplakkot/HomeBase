@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Paperwork, removing stays put: removing a file leaves you in its location
+  (or its storage box), and removing a document leaves you in its file or
+  archive, instead of jumping to the Overview. Deleting a location still goes
+  to the Overview.
 - Paperwork, manage locations: a location is now its own record. The
   Overview has "Add location" (a location can exist with no files, shown
   with 0 files), and each location's page has "Manage location" with Rename
