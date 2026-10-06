@@ -210,7 +210,7 @@ export function ManageFile({
               <button type="button" className={styles.menuItem} onClick={() => choose("archive")}>
                 {drive
                   ? archived
-                    ? "Bring back from Archived"
+                    ? "Restore from Archived"
                     : "Archive in Google Drive"
                   : archived
                     ? "Bring back from storage"
@@ -242,7 +242,7 @@ export function ManageFile({
       <BottomSheet
         open={open === "archive"}
         onClose={closer("archive")}
-        title={archived ? "Bring it back" : drive ? "Archive in Google Drive" : "Archive to a storage box"}
+        title={archived ? (drive ? "Restore it" : "Bring it back") : drive ? "Archive in Google Drive" : "Archive to a storage box"}
       >
         {open !== "archive" ? null : drive ? (
           <ArchiveDriveFileForm file={file} archived={archived} onSaved={close} />

@@ -35,8 +35,10 @@ trust. See `lib/paperwork/drive.ts`.
 quirks. The first task of this batch was to try, against the real folder,
 the three things the screens would need: move a document between folders,
 move a folder, rename a folder. All worked, so all three got buttons.
-(What didn't: the robot can't *create* a document, because it has no
-storage of its own. The app never needs to.) Had one failed, the plan was
+(What didn't: the robot can't create a *document*, because it has no
+storage of its own; the app never needs to. It can create folders, but the
+requirement leaves that to people: a folder the robot made would be the
+robot's, and handing it over would need a Google login that expires.) Had one failed, the plan was
 to build no button for it. Trying first is cheaper than building a button
 that always errors.
 

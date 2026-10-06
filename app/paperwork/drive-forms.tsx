@@ -264,9 +264,9 @@ export function ArchiveDriveFileForm({ file, archived, onSaved }: { file: PaperF
           : "Its folder moves into the Archived folder in Google Drive."}
       </p>
       <button type="submit" className={buttonClass} disabled={pending}>
-        {pending ? "Moving…" : archived ? "Bring it back" : "Archive the file"}
+        {pending ? "Moving…" : archived ? "Restore it" : "Archive the file"}
       </button>
-      <Outcome state={state} saved={archived ? "Back in Drive." : "Archived."} />
+      <Outcome state={state} saved={archived ? "Restored." : "Archived."} />
     </form>
   );
 }

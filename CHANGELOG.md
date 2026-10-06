@@ -21,7 +21,7 @@
   that renames the folder; renaming a category, or changing a File's category
   or label, renames its folders, and a
   category name can no longer contain "_". Drive Files archive by moving
-  their folder into `Archived` and come back to the top level; a single
+  their folder into `Archived` and are restored ("Restore") to the top level; a single
   Drive document can be archived there and brought back to Unfiled, and
   `Archived` shows as Google Drive's archive. Google Drive is a built-in
   location that can't be renamed or deleted and takes only Drive Files.

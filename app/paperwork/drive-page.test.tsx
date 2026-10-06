@@ -286,11 +286,11 @@ describe("a Drive file's screen (REQ-152)", () => {
     expect(screen.queryByRole("button", { name: "Show label to reprint" })).toBeNull();
   });
 
-  it("offers Bring back from Archived for an archived file, and nothing to archive while waiting", async () => {
+  it("offers Restore from Archived for an archived file, and nothing to archive while waiting", async () => {
     given();
     render(await openFile("f-7"));
     fireEvent.click(screen.getByRole("button", { name: /Manage file/ }));
-    expect(screen.getByRole("button", { name: "Bring back from Archived" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Restore from Archived" })).toBeDefined();
     cleanup();
     given();
     render(await openFile("f-5"));
@@ -306,7 +306,7 @@ describe("Google Drive's archive (REQ-153)", () => {
     expect(within(region("Archived files")).getByText("F-0007 · Taxes")).toBeDefined();
     const loose = region("Archive · Google Drive");
     expect(within(loose).getByRole("link", { name: "Tax 2012.pdf" })).toBeDefined();
-    expect(within(loose).getByRole("button", { name: "Bring back Tax 2012.pdf" })).toBeDefined();
+    expect(within(loose).getByRole("button", { name: "Restore Tax 2012.pdf" })).toBeDefined();
   });
 
   it("has nothing to rename, delete, archive or give a category", async () => {

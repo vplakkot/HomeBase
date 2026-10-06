@@ -275,8 +275,8 @@ export function DriveArchiveDocuments({ viewer, documents }: { viewer: Paperwork
           <span className={styles.rowActions}>
             <form action={bringBackDriveDocument} className={styles.inlineForm}>
               <input type="hidden" name="documentId" value={document.drive_id} />
-              <button type="submit" className={buttonClass} aria-label={`Bring back ${document.name}`}>
-                Bring back
+              <button type="submit" className={buttonClass} aria-label={`Restore ${document.name}`}>
+                Restore
               </button>
             </form>
           </span>
