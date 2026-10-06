@@ -71,8 +71,8 @@ export default async function CloseMonthPage({ searchParams }: { searchParams: P
                   {owing.length > 0
                     ? `${owing.join(" · ")}. Closing records that and locks ${label}; nothing carries into next month.`
                     : squared
-                      ? `Everything is paid. Closing locks ${label}: bills and payments can't change after.`
-                      : `Nobody owes anything. Closing locks ${label}: bills and payments can't change after.`}
+                      ? `Everything is paid. Closing locks ${label}: bills and payments can't change until you reopen it.`
+                      : `Nobody owes anything. Closing locks ${label}: bills and payments can't change until you reopen it.`}
                   {stillRunning ? ` ${label} isn't over yet, so nothing more can be added to it.` : ""}
                 </p>
                 <form action={closeMonthWithBalance}>

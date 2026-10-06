@@ -1091,3 +1091,25 @@ describe("removed devices migration", () => {
     expect(removed).toMatch(/references public\.household_members \(user_id\) on delete cascade/);
   });
 });
+
+describe("reopening a month (Vin, 2026-10-06)", () => {
+  const reopen = readMigration("20261009200000");
+
+  it("is for an admin only, and only for a closed month", () => {
+    expect(reopen).toMatch(/create function public\.reopen_month\(p_month uuid\)/);
+    expect(reopen).toMatch(/not public\.has_permission\('manage_budget'\)/);
+    expect(reopen).toMatch(/closed_at is null[\s\S]*That month is not closed/);
+    expect(reopen).toMatch(/revoke all on function public\.reopen_month\(uuid\) from public, anon/);
+    expect(reopen).toMatch(/grant execute on function public\.reopen_month\(uuid\) to authenticated/);
+  });
+
+  it("gives the month back open: the closing record goes, the lock lifts", () => {
+    expect(reopen).toMatch(/delete from public\.month_people where month_id = p_month/);
+    expect(reopen).toMatch(/closed_at = null[\s\S]*settled = false[\s\S]*reopened_at = now\(\)/);
+  });
+
+  it("keeps the nightly job from closing a reopened month on its own", () => {
+    expect(reopen).toMatch(/create or replace function public\.close_squared_months/);
+    expect(reopen).toMatch(/where closed_at is null and reopened_at is null/);
+  });
+});

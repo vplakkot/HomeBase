@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Finances, reopen a closed month: an admin can unlock a closed month from its
+  page ("Reopen April": the closing record is removed and bills and payments
+  can change again). A reopened month no longer closes on its own at midnight,
+  even when squared; it stays open until an admin closes it again, and its
+  "squared" item says so. Needs the migration `20261009200000` (adds
+  `reopened_at`, `reopened_by`, `reopen_month()`, and a one-line change to the
+  nightly job); the migration is proven by a live check, which is run after it
+  is applied. The close page now says closing locks the month until it is
+  reopened.
 - Finances, close any month by hand: an admin can now close a month that is
   squared, still running, or has a balance, not only one that ended owing.
   The month's page has a "Close the month" card (admin only), the "squared"

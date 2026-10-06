@@ -473,6 +473,39 @@ describe("Finances home", () => {
     expect(closed.textContent).toContain("Closed with $800.00 of Sam's unpaid.");
   });
 
+  // Vin, 2026-10-06: closing isn't a dead end; an admin can unlock a month.
+  describe("reopening a closed month", () => {
+    const AUGUST = {
+      ...SEPTEMBER,
+      id: "m-aug",
+      starts_on: "2026-08-01",
+      closed_at: "2026-09-01T14:00:00Z",
+      closed_by: "user-1",
+      split_from: "2026-04-01",
+      people: [{ user_id: "user-1", percent: "60.00", outstanding: "0.00" }, { user_id: "u-sam", percent: "40.00", outstanding: "0.00" }],
+    };
+
+    it("gives an admin a Reopen button on a closed month, naming it", async () => {
+      await showMonth({ months: [AUGUST, SEPTEMBER], month: "2026-08" });
+      const closed = region("Closed month");
+      const button = within(closed).getByRole("button", { name: "Reopen August" });
+      const data = new FormData(button.closest("form")!);
+      expect(data.get("monthId")).toBe("m-aug");
+      expect(data.get("month")).toBe("2026-08");
+      expect(closed.textContent).toContain("It stays open until you close it again");
+    });
+
+    it("keeps Reopen from a member", async () => {
+      await showMonth({ months: [AUGUST, SEPTEMBER], month: "2026-08", permissions: MEMBER });
+      expect(screen.queryByRole("button", { name: /Reopen/ })).toBeNull();
+    });
+
+    it("has no Reopen, and no Close the month, on a month that isn't closed", async () => {
+      await showMonth();
+      expect(screen.queryByRole("button", { name: /Reopen/ })).toBeNull();
+    });
+  });
+
   // REQ-148: settled between us outside the app, so nobody owes anything
   // for it, whatever was logged in it.
   it("shows a month added later and settled as settled, owing nothing", async () => {

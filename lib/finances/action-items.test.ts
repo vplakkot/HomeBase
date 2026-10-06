@@ -53,6 +53,7 @@ function month(startsOn: string, bills: MonthBill[], over: Partial<Month> = {}):
     closed_at: null,
     closed_by: null,
     closed_automatically: false,
+    reopened_at: null,
     split_from: null,
     people: [],
     savings: [],
@@ -215,6 +216,13 @@ describe("Finances action items (REQ-93)", () => {
       button: "View month",
       push: null,
     });
+  });
+
+  // A month an admin reopened doesn't close on its own, so it must not say it will.
+  it("says a reopened squared month waits for an admin, not that it closes tonight", () => {
+    const squared = { ...month("2026-09-01", [rent({ payments: [pay(ALEX, 1000, "2026-09-02"), pay(BLAIR, 1000, "2026-09-03")] })]), reopened_at: "2026-10-06T12:00:00Z" };
+    expect(find(financeItems(snapshot({ months: [squared] }), ALEX), "squared:")?.detail).toBe("Reopened: close it when you're done");
+    expect(find(financeItems(snapshot({ months: [squared] }), BLAIR), "squared:")?.detail).toBe("Reopened by an admin");
   });
 
   // Vin, 2026-10-06: a squared month can be closed by hand, by an admin.

@@ -47,6 +47,9 @@ export type Month = {
   closed_by: string | null;
   // Closed by the nightly job, squared (REQ-59).
   closed_automatically: boolean;
+  // An admin reopened it after it closed (Vin, 2026-10-06): it no longer
+  // closes on its own, only when an admin closes it again.
+  reopened_at: string | null;
   split_from: string | null;
   people: ClosedPerson[];
   // What was actually put away (REQ-66).
@@ -58,7 +61,7 @@ export type Month = {
   own_shares: Share[];
 };
 
-const MONTH_FIELDS = `id, starts_on, closed_at, closed_by, closed_automatically, split_from, added_later, settled,
+const MONTH_FIELDS = `id, starts_on, closed_at, closed_by, closed_automatically, reopened_at, split_from, added_later, settled,
   own_shares:month_shares(user_id, percent),
   people:month_people(user_id, percent, outstanding),
   income:month_income(id, owner_id, kind, amount, received_on, income_source_id, note),
@@ -112,6 +115,7 @@ function tidyMonth(month: Month): Month {
     closed_at: month.closed_at ?? null,
     closed_by: month.closed_by ?? null,
     closed_automatically: month.closed_automatically ?? false,
+    reopened_at: month.reopened_at ?? null,
     split_from: month.split_from ?? null,
     income: [...(month.income ?? [])]
       .sort((a, b) => a.received_on.localeCompare(b.received_on))
