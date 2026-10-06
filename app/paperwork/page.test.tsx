@@ -392,11 +392,11 @@ describe("screen 3: a file (REQ-100)", () => {
     expect(back.value).toBe("/paperwork/locations/10ca0000-0000-4000-8000-000000000001");
   });
 
-  it("offers Bring back from storage for an archived file", async () => {
+  it("offers Restore from storage for an archived file", async () => {
     given();
     render(await openFile("f-9"));
     fireEvent.click(screen.getByRole("button", { name: "Manage file" }));
-    fireEvent.click(screen.getByRole("button", { name: "Bring back from storage" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restore from storage" }));
     expect(screen.getByLabelText("New location")).toBeDefined();
   });
 
@@ -716,10 +716,10 @@ describe("archiving single documents (REQ-153)", () => {
     }
   });
 
-  it("offers Bring back, not Archive or Move, for an archived document", async () => {
+  it("offers Restore, not Archive or Move, for an archived document", async () => {
     withArchive();
     render(await item("p5"));
-    expect(screen.getByRole("button", { name: "Bring back" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Restore" })).toBeDefined();
     expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Move to another file" })).toBeNull();
     expect(crumbs()).toEqual(["Paperwork", "Box S-003 · Shoes", "Archive · S-003", "Old lease"]);

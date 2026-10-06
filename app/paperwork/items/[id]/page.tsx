@@ -53,7 +53,7 @@ export default async function PaperPage({
               <form action={bringBackPaper}>
                 <input type="hidden" name="id" value={paper.id} />
                 <button type="submit" className={buttonClass}>
-                  Bring back
+                  Restore
                 </button>
               </form>
             ) : (

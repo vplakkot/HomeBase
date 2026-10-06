@@ -326,7 +326,7 @@ describe("archiving a file to storage (REQ-98)", () => {
     });
   });
 
-  it("needs the new location to bring it back", async () => {
+  it("needs the new location to restore it", async () => {
     given();
     expect(await bringBackFile({}, form({ id: FILE, locationId: "" }))).toEqual({
       error: "Choose where the file is kept.",

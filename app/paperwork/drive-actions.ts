@@ -184,7 +184,7 @@ export async function fileDriveDocument(_previous: DriveState, formData: FormDat
   const [document, file] = await Promise.all([driveDocument(supabase, drive), driveFile(supabase, fileChoice)]);
   if (!document) return { error: "That document isn't in Google Drive any more. Refresh." };
   if (!file?.drive_folder_id) return { error: "That file has no Drive folder yet." };
-  if (file.status !== "active") return { error: "That file is archived. Bring it back first." };
+  if (file.status !== "active") return { error: "That file is archived. Restore it first." };
   if (file.drive_folder_id !== document.parent_id) {
     try {
       await moveItem(drive, document.parent_id, file.drive_folder_id);

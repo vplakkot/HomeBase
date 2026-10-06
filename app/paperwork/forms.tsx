@@ -543,7 +543,7 @@ export function BringBackForm({
       <input type="hidden" name="id" value={file.id} />
       <LocationField label="New location" locations={locations} />
       <button type="submit" className={buttonClass} disabled={pending}>
-        {pending ? "Saving…" : "Bring it back"}
+        {pending ? "Saving…" : "Restore it"}
       </button>
       <Outcome state={state} saved="Back in the office." />
     </form>

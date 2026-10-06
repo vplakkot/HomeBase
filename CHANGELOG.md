@@ -49,7 +49,7 @@
   "Archive" button that moves it, with no file, into the chosen Storage box's
   archive, made the first time one goes in. The archive shows beside its
   box's files (Overview, the box's page, and the box in Storage), has no
-  F-ID, category or label, and can't be renamed or deleted. "Bring back" on an
+  F-ID, category or label, and can't be renamed or deleted. "Restore" on an
   archived document returns it to Unfiled. A box whose archive holds
   documents can't be removed. The Google Drive half waits for the Drive batch.
 - After an email change is confirmed, every device on that account is signed

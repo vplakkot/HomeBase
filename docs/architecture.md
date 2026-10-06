@@ -1050,7 +1050,7 @@ flowchart LR
   Page["Paperwork page opens<br/>(or Refresh)"] --> Sync["syncDrive()<br/>lib/paperwork/drive-run.ts"]
   Sync -- "signed request,<br/>service account key" --> Drive[("Google Drive<br/>one shared folder")]
   Sync -- "folders, documents,<br/>who owns each" --> Copy[("paperwork_drive_*<br/>tables")]
-  Action["file it, archive,<br/>bring back, fix name"] -- "Drive first" --> Drive
+  Action["file it, archive,<br/>restore, fix name"] -- "Drive first" --> Drive
   Action -- "then" --> Copy
 ```
 
