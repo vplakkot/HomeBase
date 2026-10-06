@@ -30,6 +30,18 @@ begin
   insert into public.month_people (month_id, user_id, percent, outstanding)
     values (the_month, admin_id, 60, 0), (the_month, member_id, 40, 0);
 
+  -- One bill in it, to try the lock with.
+  insert into public.month_bills (month_id, name, kind, due_day, amount)
+    values (the_month, 'Check: rent', 'rent', 1, 100);
+
+  -- 0b. While it's closed, the bill can't change.
+  begin
+    update public.month_bills set amount = 200 where month_id = the_month;
+    report := report || E'0b. a closed month's bill CHANGED -- WRONG\n';
+  exception when others then
+    report := report || format('0b. a closed month refuses a change (wants this): %s%s', sqlerrm, E'\n');
+  end;
+
   -- 1. A member can't reopen it.
   perform set_config('request.jwt.claims', json_build_object('sub', member_id, 'role', 'authenticated')::text, true);
   set local role authenticated;
@@ -52,6 +64,12 @@ begin
   report := report || format('2a. the admin reopens it, open and remembered as reopened: %s (wants 1)%s', v_count, E'\n');
   select count(*) into v_count from public.month_people where month_id = the_month;
   report := report || format('2b. its closing record is gone: %s rows (wants 0)%s', v_count, E'\n');
+
+  -- 2c. Once reopened, the same change goes through (the lock lifted).
+  reset role;
+  update public.month_bills set amount = 200 where month_id = the_month;
+  select count(*) into v_count from public.month_bills where month_id = the_month and amount = 200;
+  report := report || format('2c. a reopened month takes the change: %s (wants 1)%s', v_count, E'\n');
 
   -- 3. An open month can't be reopened again.
   perform set_config('request.jwt.claims', json_build_object('sub', admin_id, 'role', 'authenticated')::text, true);
