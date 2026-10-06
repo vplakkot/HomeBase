@@ -3,7 +3,8 @@
 ## Unreleased
 
 - After an email change is confirmed, every device on that account is signed
-  out, the one that followed the link too, and the sign-in page says to use
+  out (other devices within about an hour at most), the one that followed the
+  link at once, and the sign-in page says to use
   the new address and the password. Their notification devices are cleared
   with the sessions; they turn notifications on again after signing in.
 - Change an email: Profile has "Change email" for your own address, and an

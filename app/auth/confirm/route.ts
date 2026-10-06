@@ -46,7 +46,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (type === "email_change") {
-    // Ends every session on the account, including the one this link just made.
+    // Ends every session on the account, including the one this link just
+    // made. Other devices' long-lived refresh tokens are revoked at once; a
+    // short-lived access token one of them already holds can keep working
+    // until it expires (about an hour by default), because the proxy checks
+    // it without asking Supabase. Both unproven until a real run.
     const { error: signOutError } = await supabase.auth.signOut({ scope: "global" });
     if (signOutError) console.error("Could not end the sessions after an email change", signOutError.message);
     // Their devices were signed up for notifications under sessions that no
