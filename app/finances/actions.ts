@@ -21,6 +21,23 @@ export async function closeMonthWithBalance(formData: FormData): Promise<void> {
   redirect("/finances");
 }
 
+// An admin reopens a closed month (Vin, 2026-10-06), so a mistake found
+// afterwards isn't stuck. The database (reopen_month) checks the same
+// things; the month then stays open until an admin closes it again.
+export async function reopenMonth(formData: FormData): Promise<void> {
+  const monthId = String(formData.get("monthId") ?? "");
+  const month = String(formData.get("month") ?? "");
+  const supabase = await createClient();
+  if (!monthId || !(await hasPermission(supabase, "manage_budget"))) {
+    redirect("/finances");
+  }
+  const { error } = await supabase.rpc("reopen_month", { p_month: monthId });
+  if (error) throw new Error(`Could not reopen the month: ${error.message}`);
+  revalidatePath("/finances", "layout");
+  revalidatePath("/");
+  redirect(/^\d{4}-\d{2}$/.test(month) ? `/finances?month=${month}` : "/finances");
+}
+
 // REQ-93 on Finances home: an item that's only news is cleared from its
 // own Acknowledge button, for the person who pressed it: the cash gap and
 // the two over-budget items. Any other key is ignored.

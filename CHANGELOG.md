@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Finances, reopen a closed month: an admin can unlock a closed month from its
+  page ("Reopen April": the closing record is removed and bills and payments
+  can change again). A reopened month no longer closes on its own at midnight,
+  even when squared; it stays open until an admin closes it again, and its
+  "squared" item says so. Needs the migration `20261009200000` (adds
+  `reopened_at`, `reopened_by`, `reopen_month()`, and a one-line change to the
+  nightly job); the migration is proven by a live check, which is run after it
+  is applied. The close page now says closing locks the month until it is
+  reopened.
 - Finances, split: with two people, typing one share fills in the other, so
   they always add to 100. It works the same on the budget year's Split form
   and on a month added later's own split. With more than two people, each is

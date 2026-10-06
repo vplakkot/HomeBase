@@ -121,6 +121,20 @@ than a bill no longer holds a month open: `left <= 0` and
 in SQL, with checks 16b and 16c proving the two sides (overpaid and
 settled, overpaid but someone still owes).
 
+## A padlock needs a key (reopening)
+
+A lock nobody can open turns every slip into a permanent stain, so an
+admin can reopen a closed month (Vin, 2026-10-06). Reopening is the
+reverse of signing off: the photocopy (the closing record) is thrown away,
+because closing makes a fresh one, and the lock lifts.
+
+The catch is the night watchman. The nightly job closes every squared
+month at midnight, so a squared month an admin had just reopened would be
+locked again within hours. The month remembers it was reopened
+(`reopened_at`) and the job skips it: it closes only when an admin does it
+again. The unlock lives in the database (`reopen_month()`, admin only), not
+just in a hidden button, for the same reason the lock does.
+
 ## Try it
 
 1. In `closing_a_month.sql`, change check 17's percentages to 90/10
