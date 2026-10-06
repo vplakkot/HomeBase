@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Meal Plans, fixed: after a phone's screen locked while a recipe video was
+  sending, the page could keep saying "Sending the video" while the "Recipe
+  ready" note already showed on top. The note is what keeps asking the
+  server; the page is drawn once. Now, whenever the note hears that an
+  import moved on (sending, reading, ready, failed, or gone), the open Meal
+  Plan page redraws and agrees with it. Not tried on an iPhone: the cause
+  was found by reading the code and the fix is tested, not reproduced.
 - The release you're on is shown for everyone, not just in the admin console:
   beside "Account" in the account menu on a phone (for example v3.1.0), and
   under the HomeBase name at the top of the desktop sidebar.

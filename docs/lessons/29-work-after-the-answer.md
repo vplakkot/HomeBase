@@ -92,3 +92,19 @@ it cuts the frame at the second Gemini named. It's an architect who
 tells you which window to photograph, while only you hold the camera.
 The catch is plain: close HomeBase first and there's no camera, so the
 card gets no photo, and the draft says so.
+
+## A page is a photograph, not a window
+
+A server-drawn page is a photograph taken when it was opened. The Meal
+Plan overview said "Sending the video" because that is what was true
+at the moment of the photo. The toast at the bottom is different: it
+keeps asking the server, like a window. After a phone screen lock the
+window showed "Recipe ready" while the photograph still said "Sending"
+(REQ-167). Two things on one screen, two different ages.
+
+The fix isn't to make the photograph poll too. The toast already
+knows when what it hears has changed, so it just says so (an event in
+the browser), and the Meal Plan page, which was listening, takes a new
+photograph (`router.refresh()`). One thing asks the server; everything
+else follows it. Not every change counts: the first answer, or the same
+answer again, redraws nothing.

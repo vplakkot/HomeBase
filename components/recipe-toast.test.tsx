@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { markImportSeen, myRecipeImports } from "../app/meal-plans/actions";
-import { forgetImports, rememberImports } from "../lib/meal-plans/import-flag";
+import { forgetImports, IMPORTS_CHANGED, rememberImports } from "../lib/meal-plans/import-flag";
 import { hasVideo, keepVideo, takeVideo } from "../lib/meal-plans/kept-video";
 import { RecipeToast } from "./recipe-toast";
 
@@ -89,5 +89,78 @@ describe("the note goes at the first tap (REQ-166)", () => {
     render(<RecipeToast />);
     await waitFor(() => expect(myRecipeImports).toHaveBeenCalledTimes(2));
     expect(screen.queryByText("Recipe ready: Test pasta")).toBeNull();
+  });
+});
+
+// REQ-167: the screen locked mid-send; on return the toast said "Recipe
+// ready" while the Meal Plan page still said "Sending the video". The page
+// is drawn by the server once; the toast is what keeps asking, so it says
+// when what it hears has changed.
+describe("the page is told when an import moves on (REQ-167)", () => {
+  const comesBack = () => document.dispatchEvent(new Event("visibilitychange"));
+  const told = vi.fn();
+  const listen = () => window.addEventListener(IMPORTS_CHANGED, told);
+
+  afterEach(() => window.removeEventListener(IMPORTS_CHANGED, told));
+
+  it("says so when an import moves on while the phone was locked", async () => {
+    listen();
+    rememberImports();
+    vi.mocked(myRecipeImports).mockResolvedValue([item("uploading")] as never);
+    render(<RecipeToast />);
+    await waitFor(() => expect(myRecipeImports).toHaveBeenCalledTimes(1));
+    expect(told).not.toHaveBeenCalled();
+
+    vi.mocked(myRecipeImports).mockResolvedValue([item("ready")] as never);
+    comesBack();
+    expect(await screen.findByText("Recipe ready: Test pasta")).toBeTruthy();
+    await waitFor(() => expect(told).toHaveBeenCalledTimes(1));
+  });
+
+  it("says so at each stage, not just the last", async () => {
+    listen();
+    rememberImports();
+    vi.mocked(myRecipeImports).mockResolvedValue([item("uploading")] as never);
+    render(<RecipeToast />);
+    await waitFor(() => expect(myRecipeImports).toHaveBeenCalledTimes(1));
+    vi.mocked(myRecipeImports).mockResolvedValue([item("processing")] as never);
+    comesBack();
+    await waitFor(() => expect(told).toHaveBeenCalledTimes(1));
+    vi.mocked(myRecipeImports).mockResolvedValue([item("failed")] as never);
+    comesBack();
+    await waitFor(() => expect(told).toHaveBeenCalledTimes(2));
+  });
+
+  it("says so when an import is gone (removed from another page or device)", async () => {
+    listen();
+    rememberImports();
+    vi.mocked(myRecipeImports).mockResolvedValue([item("processing")] as never);
+    render(<RecipeToast />);
+    await waitFor(() => expect(myRecipeImports).toHaveBeenCalledTimes(1));
+    vi.mocked(myRecipeImports).mockResolvedValue([] as never);
+    comesBack();
+    await waitFor(() => expect(told).toHaveBeenCalledTimes(1));
+  });
+
+  it("says nothing when nothing changed", async () => {
+    listen();
+    rememberImports();
+    vi.mocked(myRecipeImports).mockResolvedValue([item("processing")] as never);
+    render(<RecipeToast />);
+    await waitFor(() => expect(myRecipeImports).toHaveBeenCalledTimes(1));
+    comesBack();
+    await waitFor(() => expect(myRecipeImports).toHaveBeenCalledTimes(2));
+    comesBack();
+    await waitFor(() => expect(myRecipeImports).toHaveBeenCalledTimes(3));
+    expect(told).not.toHaveBeenCalled();
+  });
+
+  it("says nothing just because the first answer arrived", async () => {
+    listen();
+    rememberImports();
+    vi.mocked(myRecipeImports).mockResolvedValue([item("ready")] as never);
+    render(<RecipeToast />);
+    await screen.findByText("Recipe ready: Test pasta");
+    expect(told).not.toHaveBeenCalled();
   });
 });
