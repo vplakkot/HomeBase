@@ -16,13 +16,16 @@ const ENTRY = "11111111-1111-4111-8111-111111111111";
 
 let fake: ReturnType<typeof fakeSupabase>;
 
-// archivedFiles: how many paperwork files the box holds.
-function given(archivedFiles = 0, permissions = ["use_modules"]) {
+// archivedFiles: how many paperwork files the box holds; archivedDocuments:
+// how many single documents sit in its archive (REQ-153).
+function given(archivedFiles = 0, permissions = ["use_modules"], archivedDocuments = 0) {
   fake = fakeSupabase({
     permissions,
     tables: {
       storage_entries: [{ id: ENTRY, number: 12 }],
       paperwork_files: Array.from({ length: archivedFiles }, (_, index) => ({ id: `f-${index}` })),
+      paperwork_archives: archivedDocuments > 0 ? [{ id: "a-1" }] : [],
+      paperwork: Array.from({ length: archivedDocuments }, (_, index) => ({ id: `p-${index}` })),
     },
   });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
@@ -116,5 +119,29 @@ describe("removing an entry (REQ-87)", () => {
     given(1);
     expect((await removeEntry({}, form({ id: ENTRY }))).error).toContain("1 archived paperwork file.");
     expect(fake.from).not.toHaveBeenCalledWith("storage_entries");
+  });
+
+  it("asks for documents archived in its archive to come back first (REQ-153)", async () => {
+    given(0, ["use_modules"], 3);
+    const { error } = await removeEntry({}, form({ id: ENTRY }));
+    expect(error).toContain("3 archived documents");
+    expect(error).toContain("first");
+    expect(fake.from).not.toHaveBeenCalledWith("storage_entries");
+  });
+
+  it("names both when it holds files and documents", async () => {
+    given(1, ["use_modules"], 1);
+    expect((await removeEntry({}, form({ id: ENTRY }))).error).toContain("1 archived paperwork file and 1 archived document");
+  });
+
+  it("removes a box whose archive is empty (the archive goes with it)", async () => {
+    given(0);
+    await expect(removeEntry({}, form({ id: ENTRY }))).rejects.toThrow("REDIRECT:/storage");
+  });
+
+  it("also stops a box with archived documents from becoming a plain entry (REQ-153)", async () => {
+    given(0, ["use_modules"], 2);
+    const result = await updateEntry({}, form({ id: ENTRY, name: "Shoes" }));
+    expect(result.error).toContain("2 archived documents");
   });
 });

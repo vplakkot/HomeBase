@@ -1,20 +1,24 @@
 "use client";
 
-import { useActionState, useEffect, useId, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { buttonClass } from "../../components/button";
 import styles from "../../components/cards.module.css";
 import type { Person } from "../../lib/finances/budget-year";
-import { keepUntil, labelText, type Category, type Paper, type PaperFile } from "../../lib/paperwork/paperwork";
+import { keepUntil, labelText, type Category, type Location, type Paper, type PaperFile } from "../../lib/paperwork/paperwork";
 import { entryId, type StorageEntry } from "../../lib/storage/storage";
 import {
   addCategory,
+  addLocation,
   archiveFile,
+  archivePaper,
   bringBackFile,
+  deleteLocation,
   filePaper,
   logPaper,
   makeFile,
   removeCategory,
   removeFile,
+  renameLocation,
   updateCategory,
   updateFile,
   updatePaper,
@@ -37,30 +41,42 @@ function Outcome({ state, saved }: { state: FormState; saved: string }) {
   return null;
 }
 
-// The places already in use, offered as the location field is typed, so
-// one place keeps one spelling (REQ-100).
+// Where a file is kept (REQ-179): pick from the locations, or "New
+// location…" to name one on the spot. There's no free typing into the
+// list, so one place keeps one spelling.
 function LocationField({
   label,
-  placeholder,
   locations,
   defaultValue,
 }: {
   label: string;
-  placeholder: string;
-  locations: string[];
+  locations: Location[];
   defaultValue?: string;
 }) {
-  const listId = useId();
+  const [choice, setChoice] = useState(defaultValue ?? "");
   return (
-    <label className={styles.field}>
-      <span>{label}</span>
-      <input name="location" required placeholder={placeholder} list={listId} defaultValue={defaultValue ?? ""} />
-      <datalist id={listId}>
-        {locations.map((name) => (
-          <option key={name} value={name} />
-        ))}
-      </datalist>
-    </label>
+    <>
+      <label className={styles.field}>
+        <span>{label}</span>
+        <select name="locationId" required value={choice} onChange={(event) => setChoice(event.target.value)}>
+          <option value="" disabled>
+            Choose a location
+          </option>
+          {locations.map((location) => (
+            <option key={location.id} value={location.id}>
+              {location.name}
+            </option>
+          ))}
+          <option value="new">New location…</option>
+        </select>
+      </label>
+      {choice === "new" ? (
+        <label className={styles.field}>
+          <span>New location name</span>
+          <input name="newLocation" required placeholder="Office · Cabinet" />
+        </label>
+      ) : null}
+    </>
   );
 }
 
@@ -74,7 +90,7 @@ function NewFileFields({
   onCategory,
 }: {
   categories: Category[];
-  locations: string[];
+  locations: Location[];
   file?: PaperFile;
   location?: string;
   onCategory?: (id: string) => void;
@@ -99,12 +115,7 @@ function NewFileFields({
           ))}
         </select>
       </label>
-      <LocationField
-        label="Location"
-        placeholder="Office · Cabinet"
-        locations={locations}
-        defaultValue={file?.location ?? location}
-      />
+      <LocationField label="Location" locations={locations} defaultValue={file?.location_id ?? location} />
       <label className={styles.field}>
         <span>Label name (optional)</span>
         <input name="label" defaultValue={file?.label ?? ""} />
@@ -126,7 +137,7 @@ function FileChooser({
 }: {
   files: PaperFile[];
   categories: Category[];
-  locations: string[];
+  locations: Location[];
   allowUnfiled: boolean;
   label?: string;
   onCategory: (id: string | null) => void;
@@ -220,7 +231,7 @@ export function PaperForm({
   people: Person[];
   files: PaperFile[];
   categories: Category[];
-  locations: string[];
+  locations: Location[];
   today: string;
   paper?: Paper;
   intoFile?: PaperFile;
@@ -296,7 +307,7 @@ export function FileItForm({
   paper: Paper;
   files: PaperFile[];
   categories: Category[];
-  locations: string[];
+  locations: Location[];
   moving?: boolean;
   onSaved?: (state: FormState) => void;
 }) {
@@ -332,7 +343,7 @@ export function NewFileForm({
   onSaved,
 }: {
   categories: Category[];
-  locations: string[];
+  locations: Location[];
   location?: string;
   onSaved?: (state: FormState) => void;
 }) {
@@ -358,7 +369,7 @@ export function FileEditForm({
 }: {
   file: PaperFile;
   categories: Category[];
-  locations: string[];
+  locations: Location[];
   onSaved?: (state: FormState) => void;
 }) {
   const [state, formAction, pending] = useActionState(updateFile, initialState);
@@ -500,7 +511,7 @@ export function BringBackForm({
   onSaved,
 }: {
   file: PaperFile;
-  locations: string[];
+  locations: Location[];
   onSaved?: (state: FormState) => void;
 }) {
   const [state, formAction, pending] = useActionState(bringBackFile, initialState);
@@ -508,11 +519,84 @@ export function BringBackForm({
   return (
     <form action={formAction} className={styles.form}>
       <input type="hidden" name="id" value={file.id} />
-      <LocationField label="New location" placeholder="Where the file is kept now" locations={locations} />
+      <LocationField label="New location" locations={locations} />
       <button type="submit" className={buttonClass} disabled={pending}>
         {pending ? "Saving…" : "Bring it back"}
       </button>
       <Outcome state={state} saved="Back in the office." />
+    </form>
+  );
+}
+
+// REQ-153: archive a single document into a storage box's archive. Only
+// boxes are offered.
+export function ArchivePaperForm({
+  paper,
+  boxes,
+  onSaved,
+}: {
+  paper: Paper;
+  boxes: StorageEntry[];
+  onSaved?: (state: FormState) => void;
+}) {
+  const [state, formAction, pending] = useActionState(archivePaper, initialState);
+  useOnSaved(state, onSaved);
+  return (
+    <form action={formAction} className={styles.form}>
+      <input type="hidden" name="id" value={paper.id} />
+      <label className={styles.field}>
+        <span>Box</span>
+        <select name="boxId" required defaultValue="">
+          <option value="" disabled>
+            Choose a box
+          </option>
+          {boxes.map((box) => (
+            <option key={box.id} value={box.id}>
+              {entryId(box)} · {box.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="submit" className={buttonClass} disabled={pending || boxes.length === 0}>
+        {pending ? "Archiving…" : `Archive ${paper.name}`}
+      </button>
+      <Outcome state={state} saved="Archived." />
+    </form>
+  );
+}
+
+// REQ-179: add a location, or (with `location`) rename it. A name that
+// matches another is refused.
+export function LocationForm({ location, onSaved }: { location?: Location; onSaved?: (state: FormState) => void }) {
+  const [state, formAction, pending] = useActionState(location ? renameLocation : addLocation, initialState);
+  useOnSaved(state, onSaved);
+  return (
+    <form action={formAction} className={styles.form}>
+      {location ? <input type="hidden" name="id" value={location.id} /> : null}
+      <label className={styles.field}>
+        <span>Name</span>
+        <input name="name" required defaultValue={location?.name ?? ""} placeholder="Office · Cabinet" />
+      </label>
+      <button type="submit" className={buttonClass} disabled={pending}>
+        {pending ? "Saving…" : location ? "Save the name" : "Add the location"}
+      </button>
+      <Outcome state={state} saved="Saved." />
+    </form>
+  );
+}
+
+// REQ-179: remove an empty location. The sheet it sits in is the "are you
+// sure?".
+export function DeleteLocationForm({ location }: { location: Location }) {
+  const [state, formAction, pending] = useActionState(deleteLocation, initialState);
+  return (
+    <form action={formAction} className={styles.form}>
+      <input type="hidden" name="id" value={location.id} />
+      <p className={styles.check}>Remove {location.name}?</p>
+      <button type="submit" className={buttonClass} disabled={pending}>
+        Yes, remove the location
+      </button>
+      <Outcome state={state} saved="Removed." />
     </form>
   );
 }

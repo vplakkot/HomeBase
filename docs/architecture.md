@@ -1001,8 +1001,10 @@ anything can be found without searching the cupboards.
 | Table | One row is | Key facts |
 |---|---|---|
 | `paperwork_categories` | a category the admin made | `name` unique ignoring case, `keep_years` optional (1–100); only `manage_paperwork` (Admin) adds, changes or removes; one in use can't be removed (`on delete restrict`) |
-| `paperwork_files` | a physical file with a printed label | `number` handed out by the database (`generated always as identity`): it counts up, can't be chosen or changed, and a removed file's number never returns; shown as `F-0042`; `category_id`, `location` (the last office location), `label` optional, `status` active/archived; archived means `storage_entry_id` names the box it's in, and the database holds the two together (REQ-98) |
-| `paperwork` | one paper | `name`, `owner_id` (null = Joint), `document_date`, `notes`, `keep_until`, `logged_on` (household's today); `file_id` null = Unfiled; removing a file sets its papers back to Unfiled |
+| `paperwork_locations` | a place files are kept (REQ-179) | `name`, unique ignoring case and extra spaces; any member adds, renames or removes one; a location with any file (active or archived) can't be removed (`on delete restrict`) |
+| `paperwork_files` | a physical file with a printed label | `number` handed out by the database (`generated always as identity`): it counts up, can't be chosen or changed, and a removed file's number never returns; shown as `F-0042`; `category_id`, `location_id` (the last office location; the old `location` text is kept in step by a trigger until a later migration drops it), `label` optional, `status` active/archived; archived means `storage_entry_id` names the box it's in, and the database holds the two together (REQ-98) |
+| `paperwork_archives` | a storage box's archive of single documents (REQ-153) | `storage_entry_id` (unique, a box only); made the first time a document is archived into the box; no F-ID, category or label, so it never uses a file number; nobody changes or removes one, it goes with its box, and a box whose archive holds documents can't be removed |
+| `paperwork` | one paper | `name`, `owner_id` (null = Joint), `document_date`, `notes`, `keep_until`, `logged_on` (household's today); `file_id` null = Unfiled; `archive_id` set = archived on its own (never both: the database refuses); removing a file sets its papers back to Unfiled |
 
 Every member reads everything and logs, files, moves and removes files
 and paperwork. [`lib/paperwork/paperwork.ts`](../lib/paperwork/paperwork.ts)
@@ -1012,11 +1014,17 @@ plus the category's years).
 
 The screens work like a filing cabinet (REQ-100) and follow the module
 home rules (DESIGN.md §11): Overview → a location's files → a file's
-documents (the UI calls each paper a document). A location is the files'
-free-text `location`, grouped ignoring case, spacing and dots, so there's
-no table of places; a storage box holding archived files is a place too.
+documents (the UI calls each paper a document). A location is a record
+(`paperwork_locations`, REQ-179): the Overview lists every one, empty
+ones too, with Add location; a location's screen has a Manage location
+menu (Rename; Delete only when nothing is in it). A file picks its
+location from that list or makes a new one inline, never free text. A
+storage box holding archived files, or an archive of single documents
+(REQ-153), is a place too. An archive shows beside its box's files; a
+document is archived from its own page and brought back to Unfiled.
 Routes: `/paperwork` (action item, summary, locations, archived boxes),
-`/paperwork/locations/[name]`, `/paperwork/boxes/[id]`,
+`/paperwork/locations/[id]`, `/paperwork/boxes/[id]`,
+`/paperwork/archives/[id]`,
 `/paperwork/files/[id]`, `/paperwork/items/[id]`, `/paperwork/unfiled`,
 `/paperwork/categories` and `/paperwork/categories/[id]` (every member
 browses a category's documents by year, with empty years shown as gaps,

@@ -6,14 +6,17 @@ import { BottomSheet } from "../../components/bottom-sheet";
 import { ButtonLink, buttonClass } from "../../components/button";
 import { SettingsIcon } from "../../components/icons";
 import type { Person } from "../../lib/finances/budget-year";
-import type { Category, Paper, PaperFile } from "../../lib/paperwork/paperwork";
+import type { Category, Location, Paper, PaperFile } from "../../lib/paperwork/paperwork";
 import type { StorageEntry } from "../../lib/storage/storage";
 import type { FormState } from "./actions";
 import {
   ArchiveFileForm,
+  ArchivePaperForm,
   BringBackForm,
+  DeleteLocationForm,
   FileEditForm,
   FileItForm,
+  LocationForm,
   NewFileForm,
   PaperForm,
   RemoveFileForm,
@@ -25,7 +28,7 @@ export type PaperworkChoices = {
   people: Person[];
   files: PaperFile[];
   categories: Category[];
-  locations: string[];
+  locations: Location[];
   today: string;
 };
 
@@ -284,6 +287,102 @@ export function NewFile({ location, choices }: { location?: string; choices: Pap
         ) : null}
       </BottomSheet>
       {sheet.notice}
+    </>
+  );
+}
+
+// REQ-179: "Add location" on the Paperwork home, in a sheet.
+export function AddLocation() {
+  const sheet = useSheet();
+  return (
+    <>
+      <button type="button" className={buttonClass} onClick={() => sheet.setOpen(true)}>
+        Add location
+      </button>
+      <BottomSheet open={sheet.open} onClose={() => sheet.setOpen(false)} title="Add location">
+        {sheet.open ? <LocationForm onSaved={sheet.saved} /> : null}
+      </BottomSheet>
+    </>
+  );
+}
+
+// REQ-179: everything done to a location lives behind one menu, like a
+// file's. Delete is only there for an empty one; otherwise the menu says
+// why not.
+export function ManageLocation({ location, files }: { location: Location; files: number }) {
+  const [menu, setMenu] = useState(false);
+  const [open, setOpen] = useState<"rename" | "delete" | null>(null);
+  const closer = (which: "rename" | "delete") => () => setOpen((now) => (now === which ? null : now));
+  const choose = (which: "rename" | "delete") => {
+    setMenu(false);
+    setOpen(which);
+  };
+  const close = useCallback(() => setOpen(null), []);
+  return (
+    <>
+      <button
+        type="button"
+        className={buttonClass}
+        aria-expanded={menu}
+        aria-controls="manage-location"
+        onClick={() => setMenu((now) => !now)}
+      >
+        Manage location
+        <ChevronIcon />
+      </button>
+      {menu ? (
+        <ul id="manage-location" className={styles.menu} aria-label="Manage location">
+          <li>
+            <button type="button" className={styles.menuItem} onClick={() => choose("rename")}>
+              Rename
+            </button>
+          </li>
+          <li className={styles.divider} aria-hidden="true" />
+          <li>
+            {files === 0 ? (
+              <button type="button" className={styles.menuItem} onClick={() => choose("delete")}>
+                Delete
+              </button>
+            ) : (
+              <p className={styles.menuNote}>It must be empty before it can be deleted.</p>
+            )}
+          </li>
+        </ul>
+      ) : null}
+      <BottomSheet open={open === "rename"} onClose={closer("rename")} title="Rename the location">
+        {open === "rename" ? <LocationForm location={location} onSaved={close} /> : null}
+      </BottomSheet>
+      <BottomSheet open={open === "delete"} onClose={closer("delete")} title="Delete the location">
+        {open === "delete" ? <DeleteLocationForm location={location} /> : null}
+      </BottomSheet>
+    </>
+  );
+}
+
+// REQ-153: "Archive" on a document, to a storage box's archive, in a
+// sheet. With no box yet, it points to Storage.
+export function ArchivePaperButton({ paper, boxes }: { paper: Paper; boxes: StorageEntry[] }) {
+  const sheet = useSheet();
+  return (
+    <>
+      <button type="button" className={buttonClass} onClick={() => sheet.setOpen(true)}>
+        Archive
+      </button>
+      <BottomSheet open={sheet.open} onClose={() => sheet.setOpen(false)} title={`Archive ${paper.name}`}>
+        {!sheet.open ? null : boxes.length === 0 ? (
+          <div className={styles.sheetBody}>
+            <p className={styles.empty}>There are no storage boxes yet.</p>
+            <Link href="/storage" className={buttonClass}>
+              Go to Storage to add a box
+            </Link>
+          </div>
+        ) : (
+          <div className={styles.sheetBody}>
+            <p className={styles.empty}>It leaves its file and goes into the box's archive.</p>
+            <ArchivePaperForm paper={paper} boxes={boxes} onSaved={sheet.saved} />
+          </div>
+        )}
+      </BottomSheet>
     </>
   );
 }

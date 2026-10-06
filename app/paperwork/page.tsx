@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { ButtonLink } from "../../components/button";
 import { UNFILED_HREF, unfiledItem } from "../../lib/paperwork/action-items";
-import { documentsCount, filesCount, places, type PlaceCard } from "../../lib/paperwork/paperwork";
+import { cardFiles, documentsCount, filesCount, places, type PlaceCard } from "../../lib/paperwork/paperwork";
 import { Fact, PaperworkScreen, Section, paperworkViewer } from "./frame";
 import styles from "./paperwork.module.css";
+import { AddLocation } from "./sheets";
 import band from "../../components/band.module.css";
 
 // Paperwork's Overview (REQ-100, DESIGN.md §11): the filing cabinet from
@@ -13,7 +14,14 @@ import band from "../../components/band.module.css";
 export default async function PaperworkPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const viewer = await paperworkViewer();
   const { q = "" } = await searchParams;
-  const { office, archived } = places(viewer.files, viewer.categories, viewer.papers, viewer.storage);
+  const { office, archived } = places(
+    viewer.files,
+    viewer.categories,
+    viewer.papers,
+    viewer.storage,
+    viewer.locations,
+    viewer.archives,
+  );
   const item = unfiledItem(viewer.papers);
 
   return (
@@ -42,14 +50,14 @@ export default async function PaperworkPage({ searchParams }: { searchParams: Pr
       <section className={styles.card} aria-label="Summary">
         <dl className={styles.summary}>
           <Fact label="Locations" value={office.length + archived.length} />
-          <Fact label="Files" value={viewer.files.length} />
+          <Fact label="Files" value={viewer.files.length + viewer.archives.length} />
           <Fact label="Documents" value={viewer.papers.length} />
         </dl>
       </section>
 
-      <Section id="locations" title="Locations">
+      <Section id="locations" title="Locations" action={<AddLocation />}>
         {office.length === 0 ? (
-          <p className={styles.empty}>No files yet. Log a document and choose New file… to make the first.</p>
+          <p className={styles.empty}>No locations yet. Add one, then make a file in it.</p>
         ) : (
           <Places cards={office} />
         )}
@@ -72,7 +80,7 @@ function Places({ cards }: { cards: PlaceCard[] }) {
           <Link href={card.href} className={styles.linkCard}>
             <span className={`${styles.cardTitle} ${band.band}`}>{card.name}</span>
             <span className={styles.cardDetail}>
-              {filesCount(card.files.length)} · {documentsCount(card.items)}
+              {filesCount(cardFiles(card))} · {documentsCount(card.items)}
             </span>
           </Link>
         </li>

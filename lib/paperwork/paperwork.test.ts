@@ -5,8 +5,13 @@ import {
   categoryCards,
   countUnfiled,
   documentsByYear,
-  officeLocations,
+  archiveName,
+  cardFiles,
+  placeOf,
+  places,
   sameLocation,
+  sortedLocations,
+  tidyName,
   fileId,
   fileRows,
   keepUntil,
@@ -14,7 +19,9 @@ import {
   ownerName,
   search,
   unfiled,
+  type Archive,
   type Category,
+  type Location,
   type Paper,
   type PaperFile,
 } from "./paperwork";
@@ -26,7 +33,7 @@ const file = (number: number, category: Category, label: string | null = null): 
   id: `f-${number}`,
   number,
   category_id: category.id,
-  location: "Hall cupboard, top shelf",
+  location_id: "l-hall",
   label,
   status: "active",
   storage_entry_id: null,
@@ -39,6 +46,7 @@ const paper = (id: string, name: string, file_id: string | null, owner_id: strin
   notes: null,
   keep_until: null,
   file_id,
+  archive_id: null,
   logged_on: "2026-09-24",
 });
 
@@ -126,6 +134,10 @@ describe("paperwork", () => {
     expect(unfiled(PAPERS).map((row) => row.id)).toEqual(["p4"]);
   });
 
+  it("is not Unfiled once archived on its own (REQ-153)", () => {
+    expect(unfiled([...PAPERS, { ...paper("p5", "Old lease", null), archive_id: "a-1" }]).map((row) => row.id)).toEqual(["p4"]);
+  });
+
   it("belongs to a member or is Joint", () => {
     const people = [{ user_id: "u-alex", name: "Alex" }];
     expect(ownerName(paper("x", "x", null, "u-alex"), people)).toBe("Alex");
@@ -161,22 +173,65 @@ describe("countUnfiled (REQ-97)", () => {
     const query = fake.from.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
     expect(query.select).toHaveBeenCalledWith("id", { count: "exact", head: true });
     expect(query.is).toHaveBeenCalledWith("file_id", null);
+    expect(query.is).toHaveBeenCalledWith("archive_id", null);
   });
 });
 
-describe("locations (REQ-100)", () => {
-  it("are the same place however the case, spacing or dots differ", () => {
-    expect(sameLocation("Office · Cabinet", "office cabinet")).toBe(true);
-    expect(sameLocation("Hall cupboard", "hall  cupboard.")).toBe(true);
+describe("locations (REQ-179)", () => {
+  const HALL: Location = { id: "l-hall", name: "Hall cupboard" };
+  const OFFICE: Location = { id: "l-office", name: "Office · Cabinet" };
+  const SHED: Location = { id: "l-shed", name: "Shed" };
+
+  it("are the same place however the case or spacing differs, but not the dots", () => {
+    expect(sameLocation("Office · Cabinet", "office  ·  cabinet")).toBe(true);
+    expect(sameLocation(" Hall cupboard ", "hall   CUPBOARD")).toBe(true);
+    expect(sameLocation("Hall cupboard", "hall cupboard.")).toBe(false);
     expect(sameLocation("Office · Cabinet", "Office · Desk")).toBe(false);
   });
 
-  it("are suggested once each, in the first spelling used", () => {
-    const at = (location: string, number: number) => ({ ...file(number, TAXES), location });
-    expect(officeLocations([at("Office · Cabinet", 1), at("office cabinet", 2), at("Glovebox", 3)])).toEqual([
-      "Glovebox",
-      "Office · Cabinet",
+  it("are saved with their spaces tidied", () => {
+    expect(tidyName("  Hall   cupboard ")).toBe("Hall cupboard");
+  });
+
+  it("are listed by name for the pickers", () => {
+    expect(sortedLocations([SHED, HALL, OFFICE]).map((row) => row.name)).toEqual(["Hall cupboard", "Office · Cabinet", "Shed"]);
+  });
+
+  it("each get a card, an empty one too, with its files and documents", () => {
+    const { office } = places(FILES, [TAXES, CAR], PAPERS, [], [HALL, SHED]);
+    expect(office.map((card) => [card.name, card.href, card.files.length, card.items])).toEqual([
+      ["Hall cupboard", "/paperwork/locations/l-hall", 3, 3],
+      ["Shed", "/paperwork/locations/l-shed", 0, 0],
     ]);
+  });
+
+  it("name where a file is by its location record", () => {
+    expect(placeOf(FILES[0], [], [OFFICE, HALL])).toEqual({ name: "Hall cupboard", href: "/paperwork/locations/l-hall" });
+  });
+});
+
+describe("archives (REQ-153)", () => {
+  const BOX = { id: "s-1", number: 3, name: "Basement box", is_box: true, contents: null, note: null };
+  const ARCHIVE: Archive = { id: "a-1", storage_entry_id: "s-1" };
+  const archived = (id: string, name: string) => ({ ...paper(id, name, null), archive_id: "a-1" });
+
+  it("are named for their box, never given an F-ID", () => {
+    expect(archiveName(BOX)).toBe("Archive · S-003");
+  });
+
+  it("show on their box's card beside its archived files, counted as a file", () => {
+    const stored = { ...file(9, CAR), status: "archived" as const, storage_entry_id: "s-1" };
+    const { archived: cards } = places([stored], [CAR], [archived("p1", "Old lease"), archived("p2", "Old policy")], [BOX], [], [ARCHIVE]);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].href).toBe("/paperwork/boxes/s-1");
+    expect(cards[0].archive?.count).toBe(2);
+    expect(cardFiles(cards[0])).toBe(2);
+    expect(cards[0].items).toBe(2);
+  });
+
+  it("make a card for a box that holds only an archive", () => {
+    const { archived: cards } = places([], [], [archived("p1", "Old lease")], [BOX], [], [ARCHIVE]);
+    expect(cards.map((card) => [card.name, cardFiles(card), card.items])).toEqual([["Box S-003 · Basement box", 1, 1]]);
   });
 });
 
@@ -186,6 +241,7 @@ describe("Paperwork's own action item (REQ-100)", () => {
       { ...paper("a", "Water bill notice", null), logged_on: "2026-09-20" },
       { ...paper("b", "Parking permit", null), logged_on: "2026-09-12" },
       paper("c", "2024 federal return", "f-42"),
+      { ...paper("d", "Old lease", null), archive_id: "a-1" },
     ];
     expect(unfiledItem(desk)).toEqual({ text: "2 documents unfiled on your desk", detail: "Oldest logged 12 Sep" });
     expect(unfiledItem([{ ...paper("a", "One", null) }])?.text).toBe("1 document unfiled on your desk");

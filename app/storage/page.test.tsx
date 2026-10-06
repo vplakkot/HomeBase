@@ -59,14 +59,19 @@ const ARCHIVED = {
   storage_entry_id: "s3",
 };
 
-function given(permissions = ["use_modules"]) {
+// The Shoes box's archive of single documents (REQ-153), with one document.
+const SHOES_ARCHIVE = { id: "a3", storage_entry_id: "s3" };
+const ARCHIVED_PAPER = { ...PAPER, id: "p-2", name: "Old lease", file_id: null, archive_id: "a3" };
+
+function given(permissions = ["use_modules"], withArchive = false) {
   const fake = fakeSupabase({
     permissions,
     tables: {
       storage_entries: ENTRIES,
       paperwork_categories: [TAXES],
       paperwork_files: [ARCHIVED, UNLABELLED],
-      paperwork: [PAPER],
+      paperwork: withArchive ? [PAPER, ARCHIVED_PAPER] : [PAPER],
+      paperwork_archives: withArchive ? [SHOES_ARCHIVE] : [],
     },
   });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
@@ -191,6 +196,16 @@ describe("a Storage entry (REQ-107, REQ-98)", () => {
       "F-0011No label0 documents",
     ]);
     expect(within(files).getAllByRole("link")[0].getAttribute("href")).toBe("/paperwork/files/f-9");
+  });
+
+  it("lists the box's archive with its files, counted as a file (REQ-153)", async () => {
+    given(["use_modules"], true);
+    render(await open("s3"));
+    const files = screen.getByRole("region", { name: "3 archived paperwork files" });
+    expect(within(files).getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")])[0]).toEqual([
+      "Archive · S-0031 document",
+      "/paperwork/archives/a3",
+    ]);
   });
 
   it("shows no forms until Manage is opened, and its menu has edit, label and remove", async () => {

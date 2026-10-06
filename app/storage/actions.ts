@@ -51,18 +51,37 @@ function entryFields(formData: FormData) {
   return { name, is_box, contents, note: text(formData, "note") || null };
 }
 
-// How many archived paperwork files a box holds (REQ-87, REQ-98).
-async function filesInside(supabase: SupabaseClient, id: string): Promise<number | { error: string }> {
-  const { count, error } = await supabase
+// What a box holds from Paperwork (REQ-87, REQ-98, REQ-153): archived
+// files, and documents archived on their own into its archive.
+async function holdings(supabase: SupabaseClient, id: string): Promise<{ files: number; documents: number } | { error: string }> {
+  const { count: files, error } = await supabase
     .from("paperwork_files")
     .select("id", { count: "exact", head: true })
     .eq("storage_entry_id", id);
   if (error) return { error: error.message };
-  return count ?? 0;
+  const { data: archive, error: archiveError } = await supabase
+    .from("paperwork_archives")
+    .select("id")
+    .eq("storage_entry_id", id)
+    .maybeSingle();
+  if (archiveError) return { error: archiveError.message };
+  if (!archive) return { files: files ?? 0, documents: 0 };
+  const { count: documents, error: documentsError } = await supabase
+    .from("paperwork")
+    .select("id", { count: "exact", head: true })
+    .eq("archive_id", (archive as { id: string }).id);
+  if (documentsError) return { error: documentsError.message };
+  return { files: files ?? 0, documents: documents ?? 0 };
 }
 
-const moveFirst = (count: number) =>
-  `It holds ${count === 1 ? "1 archived paperwork file" : `${count} archived paperwork files`}. Bring ${count === 1 ? "it" : "them"} back or archive ${count === 1 ? "it" : "them"} to another box first.`;
+const moveFirst = ({ files, documents }: { files: number; documents: number }) => {
+  const parts = [
+    files > 0 ? (files === 1 ? "1 archived paperwork file" : `${files} archived paperwork files`) : null,
+    documents > 0 ? (documents === 1 ? "1 archived document" : `${documents} archived documents`) : null,
+  ].filter(Boolean);
+  const them = files + documents === 1 ? "it" : "them";
+  return `It holds ${parts.join(" and ")}. Bring ${them} back or archive ${them} to another box first.`;
+};
 
 // REQ-87, REQ-107: a new entry gets the next ID. The sheet it was added
 // from closes and a one-time notice shows the ID for the label printer,
@@ -86,9 +105,9 @@ export async function updateEntry(_previous: FormState, formData: FormData): Pro
   const fields = entryFields(formData);
   if ("error" in fields) return { error: fields.error };
   if (!fields.is_box) {
-    const count = await filesInside(supabase, id);
-    if (typeof count !== "number") return count;
-    if (count > 0) return { error: moveFirst(count) };
+    const held = await holdings(supabase, id);
+    if ("error" in held) return held;
+    if (held.files + held.documents > 0) return { error: moveFirst(held) };
   }
   const { error } = await supabase.from("storage_entries").update(fields).eq("id", id);
   if (error) return { error: error.message };
@@ -102,9 +121,9 @@ export async function removeEntry(_previous: FormState, formData: FormData): Pro
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to remove." };
-  const count = await filesInside(supabase, id);
-  if (typeof count !== "number") return count;
-  if (count > 0) return { error: moveFirst(count) };
+  const held = await holdings(supabase, id);
+  if ("error" in held) return held;
+  if (held.files + held.documents > 0) return { error: moveFirst(held) };
   const { error } = await supabase.from("storage_entries").delete().eq("id", id);
   if (error) return { error: error.message };
   refresh();
