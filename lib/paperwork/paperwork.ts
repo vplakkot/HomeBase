@@ -281,7 +281,9 @@ export async function readPaperwork(
       .from("paperwork_drive_documents")
       .select("drive_id, name, mime_type, link, drive_owner_email, parent_id, owner_id, owner_set, missing")
       .order("name"),
-    supabase.from("household_members").select("user_id, google_email"),
+    // Each member's Google account for matching Drive owners: the one the
+    // admin saved, else their sign-in email.
+    supabase.rpc("paperwork_member_accounts"),
   ]);
   for (const result of [categories, files, papers, locations, archives, connection, folders, documents, members]) {
     if (result.error) throw new Error(`Could not read Paperwork: ${result.error.message}`);

@@ -12,7 +12,7 @@
   Drive names, each opening in Google Drive; a document that arrives without
   being filed here shows "Owner not set" until someone sets it (or takes the
   household member whose Google account owns it, once the admin has saved
-  that account's email on the member). Loose documents show in "Unfiled ·
+  that account's email on the member, or else the email they sign in with). Loose documents show in "Unfiled ·
   Google Drive", and filing one moves it into the File's folder and confirms
   the owner. Opening Paperwork or tapping Refresh re-reads the folder;
   anything deleted in Drive shows as Missing and the admin can remove its

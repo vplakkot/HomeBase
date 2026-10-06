@@ -43,7 +43,7 @@ export async function syncDrive(supabase: SupabaseClient): Promise<{ error?: str
       supabase
         .from("paperwork_drive_documents")
         .select("drive_id, name, mime_type, link, drive_owner_email, parent_id, owner_id, owner_set, missing"),
-      supabase.from("household_members").select("user_id, google_email"),
+      supabase.rpc("paperwork_member_accounts"),
     ]);
     for (const result of [files, folders, documents, members]) {
       if (result.error) return { error: result.error.message };

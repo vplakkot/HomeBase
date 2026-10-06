@@ -14,6 +14,26 @@
 alter table public.household_members
   add column google_email text check (google_email is null or btrim(google_email) <> '');
 
+-- Which Google account each member's documents are under: the one an
+-- admin saved, else the email they sign in with (often the same). Members
+-- can't read each other's sign-in emails, so this hands back only the
+-- address used for matching, for members of the household.
+create function public.paperwork_member_accounts()
+returns table (user_id uuid, google_email text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select hm.user_id, coalesce(hm.google_email, u.email::text)
+  from public.household_members hm
+  join auth.users u on u.id = hm.user_id
+  where (select public.is_member());
+$$;
+
+revoke all on function public.paperwork_member_accounts() from public, anon;
+grant execute on function public.paperwork_member_accounts() to authenticated;
+
 -- Google Drive is a place files are kept, built in: it can't be renamed
 -- or removed, and no physical file can be put there.
 alter table public.paperwork_locations

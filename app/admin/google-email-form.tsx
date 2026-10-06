@@ -15,7 +15,7 @@ export function GoogleEmailForm({ userId, current, label }: { userId: string; cu
         type="email"
         name="googleEmail"
         defaultValue={current ?? ""}
-        placeholder="Google account email (optional)"
+        placeholder="Google email (default: sign-in email)"
         aria-label={label}
       />{" "}
       <button type="submit" disabled={pending}>
