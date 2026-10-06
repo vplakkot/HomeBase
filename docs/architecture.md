@@ -255,6 +255,15 @@ No address comes from the link.
   recovery link goes to the new address: the first-time sign-in. Duplicates
   are refused against the household's own member list first.
 
+Confirming an email change then ends every session on the account
+(`signOut({ scope: "global" })`, which includes the one the link just
+made), clears that person's `push_subscriptions` and this browser's
+`homebase-device` note, and lands on `/sign-in?link=email-changed`. The
+address is how they sign in, so it takes a fresh sign-in, and a session left
+open elsewhere can't outlive the change for long: other devices drop within
+up to an access-token lifetime (about an hour by default), since the proxy
+checks the token locally. Unproven until a real run.
+
 Same account throughout, so data, role, notification switch and module
 settings never move.
 
