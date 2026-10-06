@@ -38,7 +38,7 @@ begin
   -- 0b. While it's closed, the bill can't change.
   begin
     update public.month_bills set amount = 200 where month_id = the_month;
-    report := report || E'0b. a closed month's bill CHANGED -- WRONG\n';
+    report := report || E'0b. a closed month''s bill CHANGED -- WRONG\n';
   exception when others then
     report := report || format('0b. a closed month refuses a change (wants this): %s%s', sqlerrm, E'\n');
   end;
