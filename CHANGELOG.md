@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- The release you're on is shown for everyone, not just in the admin console:
+  beside "Account" in the account menu on a phone (for example v3.1.0), and
+  under the HomeBase name at the top of the desktop sidebar.
+- Desktop sidebar: the HomeBase name at the top is now the way Home, and the
+  separate "Home" row is gone (phones keep their Home button).
 - Paperwork, Google Drive: a File can live in one shared Google Drive
   folder. An admin connects the folder in Paperwork settings (the app shows
   the robot's email to share it with, and checks it can read the folder and
