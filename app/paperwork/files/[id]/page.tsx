@@ -19,14 +19,14 @@ export default async function FilePage({
 }) {
   const [{ id }, { q = "" }] = await Promise.all([params, searchParams]);
   const viewer = await paperworkViewer();
-  const { people, categories, files, papers, storage, choices } = viewer;
+  const { people, categories, files, papers, storage, locations, choices } = viewer;
   const file = files.find((row) => row.id === id);
   if (!file) notFound();
   const label = labelText(
     file,
     categories.find((row) => row.id === file.category_id),
   );
-  const place = placeOf(file, storage);
+  const place = placeOf(file, storage, locations);
   const inside = papers.filter((paper) => paper.file_id === file.id);
   const archived = file.status === "archived";
 

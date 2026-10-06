@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRightIcon } from "../../../../components/icons";
-import { documentsCount, fileId } from "../../../../lib/paperwork/paperwork";
+import { archiveName, documentsCount, fileId } from "../../../../lib/paperwork/paperwork";
 import { contentLines, entryId } from "../../../../lib/storage/storage";
 import { StorageScreen, filesArchived, storageViewer } from "../../frame";
 import { ManageEntry } from "../../sheets";
@@ -26,6 +26,8 @@ export default async function EntryPage({
   const label = entryId(entry);
   const lines = contentLines(entry);
   const archived = viewer.files.filter((file) => file.storage_entry_id === entry.id);
+  const archive = viewer.archives.find((row) => row.storage_entry_id === entry.id);
+  const filesAndArchive = archived.length + (archive ? 1 : 0);
 
   return (
     <StorageScreen viewer={viewer} here={`/storage/entries/${entry.id}`} query={q} crumb={label}>
@@ -57,12 +59,25 @@ export default async function EntryPage({
           <h3 className={styles.cardLabel}>Note</h3>
           {entry.note ? <p>{entry.note}</p> : <p className={styles.note}>No note</p>}
         </section>
-        {archived.length > 0 ? (
+        {filesAndArchive > 0 ? (
           <section className={`${styles.card} ${styles.rows}`} aria-labelledby="archived">
             <h3 id="archived" className={`${styles.cardLabel} ${styles.cardHead}`}>
-              {filesArchived(archived.length)}
+              {filesArchived(filesAndArchive)}
             </h3>
             <ul className={styles.rows}>
+              {archive ? (
+                <li>
+                  <Link href={`/paperwork/archives/${archive.id}`} className={styles.fileRow}>
+                    <span className={`${styles.fileName} ${band.band}`}>
+                      {archiveName(entry)}
+                    </span>
+                    <span className={styles.cardDetail}>
+                      {documentsCount(viewer.papers.filter((paper) => paper.archive_id === archive.id).length)}
+                    </span>
+                    <ChevronRightIcon />
+                  </Link>
+                </li>
+              ) : null}
               {archived.map((file) => (
                 <li key={file.id}>
                   <Link href={`/paperwork/files/${file.id}`} className={styles.fileRow}>

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Paperwork, manage locations: a location is now its own record. The
+  Overview has "Add location" (a location can exist with no files, shown
+  with 0 files), and each location's page has "Manage location" with Rename
+  and, only when nothing is in it (archived files count), Delete. A name
+  that matches another ignoring case and extra spaces is refused. A file's
+  location is chosen from the list, or made inline with "New location…"; it
+  can no longer be typed freely. Existing files keep their location: each
+  distinct text became a location. (The Google Drive built-in location waits
+  for the Drive batch.) The migration is proven on a real Postgres, not
+  through the app's sign-in.
+- Paperwork, archive one document: a document (filed or unfiled) has an
+  "Archive" button that moves it, with no file, into the chosen Storage box's
+  archive, made the first time one goes in. The archive shows beside its
+  box's files (Overview, the box's page, and the box in Storage), has no
+  F-ID, category or label, and can't be renamed or deleted. "Bring back" on an
+  archived document returns it to Unfiled. A box whose archive holds
+  documents can't be removed. The Google Drive half waits for the Drive batch.
 - After an email change is confirmed, every device on that account is signed
   out (other devices within about an hour at most), the one that followed the
   link at once, and the sign-in page says to use

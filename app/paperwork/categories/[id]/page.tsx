@@ -76,7 +76,7 @@ export default async function CategoryPage({
                             <span className={`${styles.rowName} ${band.band}`}>{paper.name}</span>
                             <span className={styles.rowCell}>{ownerName(paper, people)}</span>
                             <span className={styles.rowCell}>
-                              {fileId(file)} · {placeOf(file, storage).name}
+                              {fileId(file)} · {placeOf(file, storage, viewer.locations).name}
                             </span>
                           </Link>
                         </li>

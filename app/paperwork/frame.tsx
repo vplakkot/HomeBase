@@ -6,15 +6,17 @@ import { readAccount } from "../../lib/account";
 import { hasPermission } from "../../lib/auth/permissions";
 import { householdToday, listPeople } from "../../lib/finances/budget-year";
 import {
+  archiveName,
+  boxName,
   documentsCount,
   fileId,
   fileRows,
   filesCount,
   labelText,
-  officeLocations,
   placeOf,
   readPaperwork,
   search,
+  sortedLocations,
 } from "../../lib/paperwork/paperwork";
 import { readStorage } from "../../lib/storage/storage";
 import { createClient } from "../../lib/supabase/server";
@@ -43,7 +45,7 @@ export async function paperworkViewer() {
     people,
     files: paperwork.files,
     categories: paperwork.categories,
-    locations: officeLocations(paperwork.files),
+    locations: sortedLocations(paperwork.locations),
     today: householdToday(),
   };
   return { canManageMembers, canManagePaperwork, account, people, ...paperwork, storage, choices };
@@ -156,7 +158,7 @@ export function Fact({ label, value }: { label: string; value: string | number }
 // REQ-100's search: files by ID, label name or category, and documents by
 // name, grouped. Each document says which file it's in and where that is.
 function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: string }) {
-  const { files, categories, papers, storage } = viewer;
+  const { files, categories, papers, storage, locations, archives } = viewer;
   const found = search(fileRows(files, categories, papers), papers, query, null);
   const fileOf = (id: string | null) => files.find((file) => file.id === id);
   return (
@@ -171,7 +173,7 @@ function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: stri
                 <Link href={`/paperwork/files/${file.id}`} className={styles.linkCard}>
                   <span className={`${styles.cardTitle} ${band.band}`}>{labelText(file, category)}</span>
                   <span className={styles.cardDetail}>
-                    {[file.label, placeOf(file, storage).name, documentsCount(count)].filter(Boolean).join(" · ")}
+                    {[file.label, placeOf(file, storage, locations).name, documentsCount(count)].filter(Boolean).join(" · ")}
                   </span>
                 </Link>
               </li>
@@ -191,12 +193,18 @@ function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: stri
             </li>
             {found.papers.map((paper) => {
               const file = fileOf(paper.file_id);
+              const archive = archives.find((row) => row.id === paper.archive_id);
+              const box = storage.find((entry) => entry.id === archive?.storage_entry_id);
               return (
                 <li key={paper.id}>
                   <Link href={`/paperwork/items/${paper.id}`} className={`${styles.row} ${styles.found}`}>
                     <span className={`${styles.rowName} ${band.band}`}>{paper.name}</span>
-                    <span className={styles.rowCell}>{file ? fileId(file) : "Unfiled"}</span>
-                    <span className={styles.rowCell}>{file ? placeOf(file, storage).name : "Your desk"}</span>
+                    <span className={styles.rowCell}>
+                      {file ? fileId(file) : archive ? archiveName(box) : "Unfiled"}
+                    </span>
+                    <span className={styles.rowCell}>
+                      {file ? placeOf(file, storage, locations).name : box ? boxName(box) : "Your desk"}
+                    </span>
                   </Link>
                 </li>
               );

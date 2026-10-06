@@ -28,9 +28,9 @@ export function paperworkTile(unfiled: number): ModuleStatus {
 // REQ-100: the same item on Paperwork's own page, where it says where
 // they are and how long the oldest has waited. None when all are filed.
 export function unfiledItem(
-  papers: readonly Pick<Paper, "file_id" | "logged_on">[],
+  papers: readonly Pick<Paper, "file_id" | "archive_id" | "logged_on">[],
 ): { text: string; detail: string } | null {
-  const waiting = papers.filter((paper) => paper.file_id === null);
+  const waiting = papers.filter((paper) => paper.file_id === null && paper.archive_id === null);
   if (waiting.length === 0) return null;
   const oldest = waiting.map((paper) => paper.logged_on).sort()[0];
   return {

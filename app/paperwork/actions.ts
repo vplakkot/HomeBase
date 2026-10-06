@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hasPermission } from "../../lib/auth/permissions";
-import { labelText } from "../../lib/paperwork/paperwork";
+import { labelText, tidyName } from "../../lib/paperwork/paperwork";
 import { createClient } from "../../lib/supabase/server";
 
 // newFile: the label of a file the form just made ("F-0005 · Taxes"),
@@ -42,16 +42,39 @@ function refresh() {
   revalidatePath("/");
 }
 
+// Which location a form chose (REQ-179): one that exists, or (choice
+// "new") one made on the spot from the name typed beside it, with the same
+// duplicate check as Add.
+async function chosenLocation(
+  supabase: SupabaseClient,
+  formData: FormData,
+): Promise<{ location_id: string } | { error: string }> {
+  const choice = text(formData, "locationId");
+  if (choice === "new") {
+    const name = tidyName(text(formData, "newLocation"));
+    if (name === "") return { error: "Name the new location." };
+    const { data, error } = await supabase.from("paperwork_locations").insert({ name }).select("id").single();
+    if (error || !data) return { error: locationError(error?.message, error?.code, name) };
+    return { location_id: (data as { id: string }).id };
+  }
+  if (!UUID.test(choice)) return { error: "Choose where the file is kept." };
+  return { location_id: choice };
+}
+
+function locationError(message: string | undefined, code: string | undefined, name: string): string {
+  return code === "23505" ? `There's already a location called ${name}.` : (message ?? "Could not save the location.");
+}
+
 // A new file's fields, from a form that makes one. The form then shows
 // the label to print, and leaves you where you were (REQ-100).
-type NewFile = { category_id: string; location: string; label: string | null };
+type NewFile = { category_id: string; location_id: string; label: string | null };
 
-function newFileFields(formData: FormData): NewFile | { error: string } {
+async function newFileFields(supabase: SupabaseClient, formData: FormData): Promise<NewFile | { error: string }> {
   const category_id = text(formData, "categoryId");
-  const location = text(formData, "location");
   if (!UUID.test(category_id)) return { error: "Choose the file's category." };
-  if (location === "") return { error: "Say where the file is kept." };
-  return { category_id, location, label: text(formData, "label") || null };
+  const location = await chosenLocation(supabase, formData);
+  if ("error" in location) return location;
+  return { category_id, ...location, label: text(formData, "label") || null };
 }
 
 async function createFile(
@@ -78,7 +101,7 @@ async function chosenFile(
   const choice = text(formData, "fileId");
   if (choice === "") return { fileId: null };
   if (choice === "new") {
-    const fields = newFileFields(formData);
+    const fields = await newFileFields(supabase, formData);
     if ("error" in fields) return fields;
     const made = await createFile(supabase, fields);
     return "error" in made ? made : { fileId: made.id, newFile: made.label };
@@ -161,6 +184,53 @@ export async function filePaper(_previous: FormState, formData: FormData): Promi
   return done(file.newFile);
 }
 
+// REQ-153: archive a single document (filed or unfiled) into a storage
+// box's archive, made the first time one goes in. It leaves its file.
+export async function archivePaper(_previous: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const id = rowId(formData);
+  if (!id) return { error: "Nothing to change." };
+  const box = text(formData, "boxId");
+  if (!UUID.test(box)) return { error: "Choose the box it goes in." };
+  const archive = await archiveOf(supabase, box);
+  if ("error" in archive) return archive;
+  const { error } = await supabase.from("paperwork").update({ archive_id: archive.id, file_id: null }).eq("id", id);
+  if (error) return { error: error.message };
+  refresh();
+  revalidatePath("/storage", "layout");
+  return { saved: true };
+}
+
+// A box's archive, made if the box has none. Two people archiving into a
+// fresh box at once: the second insert is refused as a duplicate, so it
+// reads the one the first made.
+async function archiveOf(supabase: SupabaseClient, box: string): Promise<{ id: string } | { error: string }> {
+  const find = async () =>
+    supabase.from("paperwork_archives").select("id").eq("storage_entry_id", box).maybeSingle();
+  const existing = await find();
+  if (existing.error) return { error: existing.error.message };
+  if (existing.data) return existing.data as { id: string };
+  const made = await supabase.from("paperwork_archives").insert({ storage_entry_id: box }).select("id").single();
+  if (made.data) return made.data as { id: string };
+  if (made.error?.code === "23505") {
+    const again = await find();
+    if (again.data) return again.data as { id: string };
+  }
+  return { error: made.error?.message ?? "Could not make the archive." };
+}
+
+// REQ-153: an archived document comes back to Unfiled.
+export async function bringBackPaper(formData: FormData): Promise<void> {
+  const supabase = await requireMember();
+  const id = rowId(formData);
+  if (!id) redirect("/paperwork");
+  const { error } = await supabase.from("paperwork").update({ archive_id: null }).eq("id", id);
+  if (error) throw new Error(`Could not bring the document back: ${error.message}`);
+  refresh();
+  revalidatePath("/storage", "layout");
+  redirect(`/paperwork/items/${id}`);
+}
+
 // Back to the file it was in, or the unfiled list.
 export async function removePaper(formData: FormData): Promise<void> {
   const supabase = await requireMember();
@@ -170,13 +240,16 @@ export async function removePaper(formData: FormData): Promise<void> {
   if (error) throw new Error(`Could not remove the paperwork: ${error.message}`);
   refresh();
   const fileId = text(formData, "fileId");
-  redirect(UUID.test(fileId) ? `/paperwork/files/${fileId}` : "/paperwork/unfiled");
+  const boxId = text(formData, "boxId");
+  redirect(
+    UUID.test(fileId) ? `/paperwork/files/${fileId}` : UUID.test(boxId) ? `/paperwork/boxes/${boxId}` : "/paperwork/unfiled",
+  );
 }
 
 // REQ-88: a new file gets the next number, and the form shows its label.
 export async function makeFile(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
-  const fields = newFileFields(formData);
+  const fields = await newFileFields(supabase, formData);
   if ("error" in fields) return { error: fields.error };
   const made = await createFile(supabase, fields);
   if ("error" in made) return { error: made.error };
@@ -189,7 +262,7 @@ export async function updateFile(_previous: FormState, formData: FormData): Prom
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to change." };
-  const fields = newFileFields(formData);
+  const fields = await newFileFields(supabase, formData);
   if ("error" in fields) return { error: fields.error };
   const { error } = await supabase.from("paperwork_files").update(fields).eq("id", id);
   if (error) return { error: error.message };
@@ -293,14 +366,56 @@ export async function bringBackFile(_previous: FormState, formData: FormData): P
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to change." };
-  const location = text(formData, "location");
-  if (location === "") return { error: "Say where the file is kept now." };
+  const location = await chosenLocation(supabase, formData);
+  if ("error" in location) return { error: location.error };
   const { error } = await supabase
     .from("paperwork_files")
-    .update({ status: "active", storage_entry_id: null, location })
+    .update({ status: "active", storage_entry_id: null, ...location })
     .eq("id", id);
   if (error) return { error: error.message };
   refresh();
   revalidatePath("/storage", "layout");
   return { saved: true };
+}
+
+// REQ-179: add a location before any file uses it. A name that matches one
+// that exists (ignoring case and extra spaces) is refused.
+export async function addLocation(_previous: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const name = tidyName(text(formData, "name"));
+  if (name === "") return { error: "Give the location a name." };
+  const { error } = await supabase.from("paperwork_locations").insert({ name });
+  if (error) return { error: locationError(error.message, error.code, name) };
+  refresh();
+  return { saved: true };
+}
+
+// REQ-179: the new name shows everywhere, on every file in it.
+export async function renameLocation(_previous: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const id = rowId(formData);
+  if (!id) return { error: "Nothing to change." };
+  const name = tidyName(text(formData, "name"));
+  if (name === "") return { error: "Give the location a name." };
+  const { error } = await supabase.from("paperwork_locations").update({ name }).eq("id", id);
+  if (error) return { error: locationError(error.message, error.code, name) };
+  refresh();
+  return { saved: true };
+}
+
+// REQ-179: only an empty location goes (no files, active or archived).
+export async function deleteLocation(_previous: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const id = rowId(formData);
+  if (!id) return { error: "Nothing to remove." };
+  const { count, error: countError } = await supabase
+    .from("paperwork_files")
+    .select("id", { count: "exact", head: true })
+    .eq("location_id", id);
+  if (countError) return { error: countError.message };
+  if ((count ?? 0) > 0) return { error: "It has files. Move them first." };
+  const { error } = await supabase.from("paperwork_locations").delete().eq("id", id);
+  if (error) return { error: error.message };
+  refresh();
+  redirect("/paperwork");
 }

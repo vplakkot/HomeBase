@@ -37,6 +37,10 @@ function archivedCounts(viewer: StorageViewer): Map<string, number> {
   for (const file of viewer.files) {
     if (file.storage_entry_id) counts.set(file.storage_entry_id, (counts.get(file.storage_entry_id) ?? 0) + 1);
   }
+  // A box's archive is listed with its files (REQ-153).
+  for (const archive of viewer.archives) {
+    counts.set(archive.storage_entry_id, (counts.get(archive.storage_entry_id) ?? 0) + 1);
+  }
   return counts;
 }
 

@@ -3,14 +3,19 @@ import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
 import {
   addCategory,
+  addLocation,
   archiveFile,
+  archivePaper,
   bringBackFile,
+  bringBackPaper,
+  deleteLocation,
   filePaper,
   logPaper,
   makeFile,
   removeCategory,
   removeFile,
   removePaper,
+  renameLocation,
   updateFile,
   updatePaper,
 } from "./actions";
@@ -30,13 +35,20 @@ const TAXES = "33333333-3333-4333-8333-333333333333";
 const CAR = "44444444-4444-4444-8444-444444444444";
 const ALEX = "55555555-5555-4555-8555-555555555555";
 const P1 = "66666666-6666-4666-8666-666666666666";
+const HALL = "88888888-8888-4888-8888-888888888888";
+const ARCHIVE = "99999999-9999-4999-8999-999999999999";
 
 let fake: ReturnType<typeof fakeSupabase>;
 
 function given(permissions: string[] = ["use_modules"], tables: Record<string, unknown[]> = {}) {
   fake = fakeSupabase({
     permissions,
-    tables: { paperwork_files: [{ id: NEW_FILE, number: 5 }], paperwork_categories: [{ name: "Taxes" }], ...tables },
+    tables: {
+      paperwork_files: [{ id: NEW_FILE, number: 5 }],
+      paperwork_categories: [{ name: "Taxes" }],
+      paperwork_locations: [{ id: HALL }],
+      ...tables,
+    },
   });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
 }
@@ -88,19 +100,19 @@ describe("logPaper (REQ-97)", () => {
   // REQ-100: you stay where you were; the form shows the label to print.
   it("makes a new file on the way, and says its label instead of opening it", async () => {
     given();
-    const fields = { ...PAPER, fileId: "new", categoryId: TAXES, location: "Desk drawer", label: "" };
+    const fields = { ...PAPER, fileId: "new", categoryId: TAXES, locationId: HALL, label: "" };
     expect(await logPaper({}, form(fields))).toEqual({ saved: true, newFile: "F-0005 · Taxes" });
-    expect(on("paperwork_files")[0].insert).toHaveBeenCalledWith({ category_id: TAXES, location: "Desk drawer", label: null });
+    expect(on("paperwork_files")[0].insert).toHaveBeenCalledWith({ category_id: TAXES, location_id: HALL, label: null });
     expect(on("paperwork")[0].insert.mock.calls[0][0].file_id).toBe(NEW_FILE);
   });
 
   it("asks for a new file's category and location", async () => {
     given();
-    expect(await logPaper({}, form({ ...PAPER, fileId: "new", categoryId: "", location: "x" }))).toEqual({
+    expect(await logPaper({}, form({ ...PAPER, fileId: "new", categoryId: "", locationId: HALL }))).toEqual({
       error: "Choose the file's category.",
     });
-    expect(await logPaper({}, form({ ...PAPER, fileId: "new", categoryId: TAXES, location: " " }))).toEqual({
-      error: "Say where the file is kept.",
+    expect(await logPaper({}, form({ ...PAPER, fileId: "new", categoryId: TAXES, locationId: "" }))).toEqual({
+      error: "Choose where the file is kept.",
     });
     expect(on("paperwork_files")).toEqual([]);
   });
@@ -176,7 +188,7 @@ describe("filePaper (REQ-97)", () => {
 
   it("can make a new file for it", async () => {
     given();
-    const fields = { id: P1, fileId: "new", categoryId: CAR, location: "Glovebox", label: "Hatchback", keepUntil: "" };
+    const fields = { id: P1, fileId: "new", categoryId: CAR, locationId: HALL, label: "Hatchback", keepUntil: "" };
     expect(await filePaper({}, form(fields))).toEqual({ saved: true, newFile: "F-0005 · Taxes" });
     expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_id: NEW_FILE, keep_until: null });
   });
@@ -195,22 +207,22 @@ describe("filePaper (REQ-97)", () => {
 describe("files (REQ-88)", () => {
   it("makes a file and says its label to print", async () => {
     given();
-    expect(await makeFile({}, form({ categoryId: TAXES, location: "Hall cupboard", label: "Returns" }))).toEqual({
+    expect(await makeFile({}, form({ categoryId: TAXES, locationId: HALL, label: "Returns" }))).toEqual({
       saved: true,
       newFile: "F-0005 · Taxes",
     });
     expect(on("paperwork_files")[0].insert).toHaveBeenCalledWith({
       category_id: TAXES,
-      location: "Hall cupboard",
+      location_id: HALL,
       label: "Returns",
     });
   });
 
   it("replaces the location when a file moves, never touching its number", async () => {
     given();
-    await updateFile({}, form({ id: FILE, categoryId: TAXES, location: "Basement box", label: "" }));
+    await updateFile({}, form({ id: FILE, categoryId: TAXES, locationId: HALL, label: "" }));
     const update = on("paperwork_files")[0].update.mock.calls[0][0];
-    expect(update).toEqual({ category_id: TAXES, location: "Basement box", label: null });
+    expect(update).toEqual({ category_id: TAXES, location_id: HALL, label: null });
     expect(update).not.toHaveProperty("number");
   });
 
@@ -287,18 +299,160 @@ describe("archiving a file to storage (REQ-98)", () => {
 
   it("brings it back to a new office location, Active again", async () => {
     given();
-    expect(await bringBackFile({}, form({ id: FILE, location: " Study drawer " }))).toEqual({ saved: true });
+    expect(await bringBackFile({}, form({ id: FILE, locationId: HALL }))).toEqual({ saved: true });
     expect(on("paperwork_files")[0].update).toHaveBeenCalledWith({
       status: "active",
       storage_entry_id: null,
-      location: "Study drawer",
+      location_id: HALL,
     });
   });
 
   it("needs the new location to bring it back", async () => {
     given();
-    expect(await bringBackFile({}, form({ id: FILE, location: "" }))).toEqual({
-      error: "Say where the file is kept now.",
+    expect(await bringBackFile({}, form({ id: FILE, locationId: "" }))).toEqual({
+      error: "Choose where the file is kept.",
     });
+  });
+});
+
+describe("locations (REQ-179)", () => {
+  // The fake never fails; this one answers the location insert with a
+  // duplicate refusal, as the unique name does.
+  function refusingDuplicates() {
+    const real = fake.from.getMockImplementation()!;
+    fake.from.mockImplementation((table: string) =>
+      table === "paperwork_locations"
+        ? ({
+            insert: vi.fn(() => ({
+              select: () => ({ single: async () => ({ data: null, error: { code: "23505", message: "duplicate" } }) }),
+              then: (resolve: (value: unknown) => unknown) => resolve({ error: { code: "23505", message: "duplicate" } }),
+            })),
+            update: vi.fn(() => ({ eq: async () => ({ error: { code: "23505", message: "duplicate" } }) })),
+          } as never)
+        : real(table),
+    );
+  }
+
+  it("adds one with its spaces tidied, even with no files in it", async () => {
+    given();
+    expect(await addLocation({}, form({ name: "  Office   Cabinet " }))).toEqual({ saved: true });
+    expect(on("paperwork_locations")[0].insert).toHaveBeenCalledWith({ name: "Office Cabinet" });
+  });
+
+  it("needs a name", async () => {
+    given();
+    expect(await addLocation({}, form({ name: "  " }))).toEqual({ error: "Give the location a name." });
+    expect(fake.from).not.toHaveBeenCalledWith("paperwork_locations");
+  });
+
+  it("refuses a name that matches another, adding or renaming", async () => {
+    given();
+    refusingDuplicates();
+    expect(await addLocation({}, form({ name: "hall cupboard" }))).toEqual({
+      error: "There's already a location called hall cupboard.",
+    });
+    expect(await renameLocation({}, form({ id: HALL, name: "Shed" }))).toEqual({
+      error: "There's already a location called Shed.",
+    });
+  });
+
+  it("renames one in place, so every file in it shows the new name", async () => {
+    given();
+    expect(await renameLocation({}, form({ id: HALL, name: " Linen  closet" }))).toEqual({ saved: true });
+    const [rename] = on("paperwork_locations");
+    expect(rename.update).toHaveBeenCalledWith({ name: "Linen closet" });
+    expect(rename.eq).toHaveBeenCalledWith("id", HALL);
+  });
+
+  it("deletes an empty one", async () => {
+    given(["use_modules"], { paperwork_files: [] });
+    await expect(deleteLocation({}, form({ id: HALL }))).rejects.toThrow("REDIRECT:/paperwork");
+    expect(on("paperwork_locations")[0].delete).toHaveBeenCalled();
+  });
+
+  it("won't delete one that has files, archived ones included", async () => {
+    given();
+    expect(await deleteLocation({}, form({ id: HALL }))).toEqual({ error: "It has files. Move them first." });
+    expect(on("paperwork_locations")).toEqual([]);
+  });
+
+  it("makes a new one inline when a file is made, with the same tidy name", async () => {
+    given();
+    const fields = { categoryId: TAXES, locationId: "new", newLocation: " Desk  drawer ", label: "" };
+    expect(await makeFile({}, form(fields))).toEqual({ saved: true, newFile: "F-0005 · Taxes" });
+    expect(on("paperwork_locations")[0].insert).toHaveBeenCalledWith({ name: "Desk drawer" });
+    expect(on("paperwork_files")[0].insert).toHaveBeenCalledWith({ category_id: TAXES, location_id: HALL, label: null });
+  });
+
+  it("needs a name for an inline new location, and makes no file without one", async () => {
+    given();
+    expect(await makeFile({}, form({ categoryId: TAXES, locationId: "new", newLocation: " ", label: "" }))).toEqual({
+      error: "Name the new location.",
+    });
+    expect(on("paperwork_files")).toEqual([]);
+  });
+
+  it("refuses a duplicate inline new location, and makes no file", async () => {
+    given();
+    refusingDuplicates();
+    expect(await makeFile({}, form({ categoryId: TAXES, locationId: "new", newLocation: "Hall Cupboard", label: "" }))).toEqual({
+      error: "There's already a location called Hall Cupboard.",
+    });
+    expect(on("paperwork_files")).toEqual([]);
+  });
+});
+
+describe("archiving a document (REQ-153)", () => {
+  const BOX = "77777777-7777-4777-8777-777777777777";
+
+  it("moves it out of its file into the box's archive", async () => {
+    given(["use_modules"], { paperwork_archives: [{ id: ARCHIVE }] });
+    expect(await archivePaper({}, form({ id: P1, boxId: BOX }))).toEqual({ saved: true });
+    expect(on("paperwork_archives")[0].eq).toHaveBeenCalledWith("storage_entry_id", BOX);
+    expect(on("paperwork_archives")).toHaveLength(1);
+    const [update] = on("paperwork");
+    expect(update.update).toHaveBeenCalledWith({ archive_id: ARCHIVE, file_id: null });
+    expect(update.eq).toHaveBeenCalledWith("id", P1);
+  });
+
+  it("makes the box's archive the first time, with no F-ID or category", async () => {
+    given(["use_modules"], { paperwork_archives: [] });
+    // Nothing found, so the insert's answer is the row it made.
+    const real = fake.from.getMockImplementation()!;
+    let calls = 0;
+    fake.from.mockImplementation((table: string) => {
+      if (table !== "paperwork_archives") return real(table);
+      calls += 1;
+      const query = real(table);
+      if (calls === 2) {
+        const insert = vi.fn(() => ({ select: () => ({ single: async () => ({ data: { id: ARCHIVE }, error: null }) }) }));
+        return { ...query, insert } as never;
+      }
+      return query;
+    });
+    expect(await archivePaper({}, form({ id: P1, boxId: BOX }))).toEqual({ saved: true });
+    expect(on("paperwork").at(-1)!.update).toHaveBeenCalledWith({ archive_id: ARCHIVE, file_id: null });
+  });
+
+  it("needs a box, and changes nothing without one", async () => {
+    given();
+    expect(await archivePaper({}, form({ id: P1, boxId: "" }))).toEqual({ error: "Choose the box it goes in." });
+    expect(fake.from).not.toHaveBeenCalledWith("paperwork");
+  });
+
+  it("is refused to someone who can't use modules", async () => {
+    given([]);
+    await expect(archivePaper({}, form({ id: P1, boxId: BOX }))).rejects.toThrow("REDIRECT:/paperwork");
+  });
+
+  it("brings an archived document back to Unfiled", async () => {
+    given();
+    await expect(bringBackPaper(form({ id: P1 }))).rejects.toThrow(`REDIRECT:/paperwork/items/${P1}`);
+    expect(on("paperwork")[0].update).toHaveBeenCalledWith({ archive_id: null });
+  });
+
+  it("goes back to the box when an archived document is removed", async () => {
+    given();
+    await expect(removePaper(form({ id: P1, fileId: "", boxId: BOX }))).rejects.toThrow(`REDIRECT:/paperwork/boxes/${BOX}`);
   });
 });
