@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 3.1.0 - 2026-10-06
+
+Paperwork learns Google Drive: Files can live in one shared Drive folder
+and are tracked like physical ones, with locations you can manage, single
+documents you can archive, and Restore everywhere. Meal Plans' page now follows
+the recipe note after a screen lock. Everyone can see which release they're
+on, and the desktop sidebar's HomeBase name is the way Home.
+
 - Meal Plans, fixed: after a phone's screen locked while a recipe video was
   sending, the page could keep saying "Sending the video" while the "Recipe
   ready" note already showed on top. The note is what keeps asking the
