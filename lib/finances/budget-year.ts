@@ -26,6 +26,31 @@ export function parsePercent(text: string): number | null {
   return hundredths <= 100_00 ? hundredths : null;
 }
 
+// With two people the shares always add to 100, so typing one fills in the
+// other: "60" gives "40", "33.33" gives "66.67". Nothing for text that isn't
+// a share yet (empty, or half typed like "6."), so the other box is left alone.
+export function otherShare(typed: string): string | null {
+  const hundredths = parsePercent(typed);
+  if (hundredths === null) return null;
+  const rest = 100_00 - hundredths;
+  return (rest / 100).toFixed(2).replace(/\.?0+$/, "");
+}
+
+// What the boxes hold after `who` is typed in: with exactly two people the
+// other box is filled in too; otherwise only `who` changes.
+export function withOtherShare(
+  typed: Record<string, string>,
+  ids: string[],
+  who: string,
+  value: string,
+): Record<string, string> {
+  const next = { ...typed, [who]: value };
+  const other = ids.length === 2 ? ids.find((id) => id !== who) : undefined;
+  const rest = other ? otherShare(value) : null;
+  if (other && rest !== null) next[other] = rest;
+  return next;
+}
+
 export function formatPercent(hundredths: number): string {
   return `${(hundredths / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}%`;
 }

@@ -90,6 +90,19 @@ describe("Log payment", () => {
     expect(log.textContent).toContain("Alex is paid up · Sam still owes $890.00");
   });
 
+  // Vin, 2026-10-06: the line sat outside the box, which pushed the two boxes
+  // out of line. It is inside the box, so both headings are one line.
+  it("keeps the who-still-owes line inside the form's box, beside nothing but the heading", async () => {
+    given();
+    await page();
+    const log = screen.getByRole("region", { name: "Log a payment" });
+    const header = log.querySelector("header")!;
+    expect(header.textContent).toBe("Log a payment");
+    const note = within(log).getByText(/still owes/);
+    expect(header.contains(note)).toBe(false);
+    expect(log.contains(note)).toBe(true);
+  });
+
   // REQ-91: an item about a bill opens Log payment with that bill picked.
   it("picks the bill an action item named", async () => {
     given();

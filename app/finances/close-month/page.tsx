@@ -1,5 +1,5 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ButtonLink, buttonClass } from "../../../components/button";
 import styles from "../../../components/cards.module.css";
 import { householdToday, listPeople, listSplits, monthLabel, monthStart } from "../../../lib/finances/budget-year";
 import {
@@ -66,8 +66,8 @@ export default async function CloseMonthPage({ searchParams }: { searchParams: P
           </header>
           <div className={styles.addBlock}>
             {allEntered ? (
-              <>
-                <p className={styles.empty}>
+              <div className={styles.form}>
+                <p className={styles.note}>
                   {owing.length > 0
                     ? `${owing.join(" · ")}. Closing records that and locks ${label}; nothing carries into next month.`
                     : squared
@@ -77,16 +77,18 @@ export default async function CloseMonthPage({ searchParams }: { searchParams: P
                 </p>
                 <form action={closeMonthWithBalance}>
                   <input type="hidden" name="monthId" value={month.id} />
-                  <button type="submit" className={buttonClass}>
+                  <button type="submit" className={styles.primary}>
                     Close {label}
                   </button>
                 </form>
-              </>
+              </div>
             ) : (
-              <>
-                <p className={styles.empty}>Enter every bill first.</p>
-                <ButtonLink href={`/finances/monthly-entry?month=${at}`}>Enter numbers</ButtonLink>
-              </>
+              <div className={styles.form}>
+                <p className={styles.note}>Enter every bill first.</p>
+                <Link href={`/finances/monthly-entry?month=${at}`} className={styles.primary}>
+                  Enter numbers
+                </Link>
+              </div>
             )}
           </div>
         </section>

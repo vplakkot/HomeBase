@@ -440,3 +440,9 @@ legend .info {
   font-size: var(--text-body-sm);
   font-weight: 500;
 }
+
+/* A line of context at the top of a card's box, inset like the form under
+   it (Log a payment's "who still owes what"). */
+.blockNote {
+  padding: var(--space-3) var(--space-4) 0;
+}
