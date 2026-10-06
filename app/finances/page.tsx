@@ -10,6 +10,7 @@ import { monthSummary, progress } from "../../lib/finances/overview";
 import { acknowledge, readFinanceSnapshot } from "../../lib/finances/snapshot";
 import { acknowledgeItem } from "./actions";
 import { FinancesFrame, financesViewer } from "./frame";
+import { Paid } from "./paid-mark";
 import styles from "./page.module.css";
 import band from "../../components/band.module.css";
 
@@ -122,7 +123,8 @@ export default async function FinancesPage({
                       Acknowledge
                     </button>
                   </form>
-                ) : (
+                ) : item.href === `/finances?month=${at}` ? null : (
+                  // A button to the month already on screen would lead nowhere.
                   <ButtonLink href={item.href}>{item.button}</ButtonLink>
                 )}
               </li>
@@ -210,7 +212,7 @@ export default async function FinancesPage({
                   </span>
                   <span className={styles.figureLine}>
                     <span className={styles.personFigure}>
-                      {month?.settled ? "Settled" : settled ? "Paid" : formatMoney(person.outstanding)}
+                      {month?.settled ? "Settled" : settled ? <Paid /> : formatMoney(person.outstanding)}
                     </span>
                     {settled ? null : <span className={styles.note}>outstanding</span>}
                   </span>
@@ -302,7 +304,7 @@ export default async function FinancesPage({
                         )}
                       </td>
                       <td className={`${styles.right} ${styles.strong}`}>
-                        {!row.entered ? "—" : row.left > 0 ? formatMoney(row.left) : "Paid"}
+                        {!row.entered ? "—" : row.left > 0 ? formatMoney(row.left) : <Paid />}
                       </td>
                     </tr>
                   ))}
@@ -319,6 +321,23 @@ export default async function FinancesPage({
           )}
         </div>
       </section>
+
+      {/* An admin can close any open month by hand, squared or not. */}
+      {canManageBudget && month && !month.closed_at ? (
+        <section className={styles.section} aria-labelledby="close-month">
+          <div className={styles.sectionHead}>
+            <h2 id="close-month" className={styles.sectionTitle}>
+              Close the month
+            </h2>
+          </div>
+          <div className={`${styles.card} ${styles.itemRow}`}>
+            <span className={styles.itemText}>
+              <span className={styles.note}>Locks {monthLabel(startsOn)}: bills and payments can&apos;t change after.</span>
+            </span>
+            <ButtonLink href={`/finances/close-month?month=${at}`}>Close {monthName}</ButtonLink>
+          </div>
+        </section>
+      ) : null}
     </FinancesFrame>
   );
 }

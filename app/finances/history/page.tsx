@@ -10,10 +10,10 @@ import { FinancesFrame, financesViewer } from "../frame";
 
 const SECTION = "History";
 
-// How a month gone by stands. REQ-148: one added later says so too.
+// How a month gone by stands. (A month added later used to say so too; Vin
+// had that text taken out, 2026-10-06.)
 function standing(month: MonthListed): string {
-  const state = month.settled ? "Settled" : month.closed ? "Closed" : "Open";
-  return month.addedLater ? `${state} · Added later` : state;
+  return month.settled ? "Settled" : month.closed ? "Closed" : "Open";
 }
 
 // Where Previous months goes (REQ-102): every month there has been, newest
@@ -52,9 +52,13 @@ export default async function HistoryPage() {
               return (
                 <li key={startsOn} className={styles.linkRow}>
                   <span className={styles.strong}>
-                    <span className={band.band}>{monthLabel(startsOn)}</span>
+                    <span className={band.band}>
+                      <span className={styles.bandRow}>
+                        {monthLabel(startsOn)}
+                        <span className={styles.note}>Not entered</span>
+                      </span>
+                    </span>
                   </span>
-                  <span className={styles.note}>Not entered</span>
                   <form action={addPastMonth}>
                     <input type="hidden" name="month" value={startsOn.slice(0, 7)} />
                     <button type="submit" className={buttonClass} aria-label={`Add ${monthLabel(startsOn)}`}>
@@ -68,10 +72,14 @@ export default async function HistoryPage() {
               <li key={startsOn}>
                 <Link href={`/finances?month=${startsOn.slice(0, 7)}`} className={styles.linkRow}>
                   <span className={styles.strong}>
-                    <span className={band.band}>{monthLabel(startsOn)}</span>
-                  </span>
-                  <span className={styles.note}>
-                    {startsOn === current ? "This month" : month ? standing(month) : "Open"}
+                    <span className={band.band}>
+                      <span className={styles.bandRow}>
+                        {monthLabel(startsOn)}
+                        <span className={styles.note}>
+                          {startsOn === current ? "This month" : month ? standing(month) : "Open"}
+                        </span>
+                      </span>
+                    </span>
                   </span>
                   <ChevronRightIcon />
                 </Link>

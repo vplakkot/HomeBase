@@ -208,13 +208,25 @@ describe("Finances action items (REQ-93)", () => {
 
   it("tells both a squared month closes tonight, without a push", () => {
     const squared = month("2026-09-01", [rent({ payments: [pay(ALEX, 1000, "2026-09-02"), pay(BLAIR, 1000, "2026-09-03")] })]);
-    for (const person of [ALEX, BLAIR]) {
-      expect(find(financeItems(snapshot({ months: [squared] }), person), "squared:")).toMatchObject({
-        text: "September is squared",
-        detail: "Closes tonight",
-        push: null,
-      });
-    }
+    expect(find(financeItems(snapshot({ months: [squared] }), BLAIR), "squared:")).toMatchObject({
+      text: "September is squared",
+      detail: "Closes tonight",
+      href: "/finances?month=2026-09",
+      button: "View month",
+      push: null,
+    });
+  });
+
+  // Vin, 2026-10-06: a squared month can be closed by hand, by an admin.
+  it("lets the admin close a squared month now, and says so", () => {
+    const squared = month("2026-09-01", [rent({ payments: [pay(ALEX, 1000, "2026-09-02"), pay(BLAIR, 1000, "2026-09-03")] })]);
+    expect(find(financeItems(snapshot({ months: [squared] }), ALEX), "squared:")).toMatchObject({
+      text: "September is squared",
+      detail: "Closes tonight, or close it now",
+      href: "/finances/close-month?month=2026-09",
+      button: "Close month",
+      push: null,
+    });
   });
 
   it("flags a cash gap to both at Balances, until each acknowledges it", () => {
