@@ -182,18 +182,20 @@ async function showMonth({
   permissions = ADMIN,
   today = "2026-09-22T16:00:00Z",
   month,
+  people = ME,
 }: {
   months?: Record<string, unknown>[];
   bills?: Record<string, unknown>[];
   permissions?: string[];
   today?: string;
   month?: string;
+  people?: typeof ME;
 } = {}) {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(today));
   fake = fakeSupabase({
     permissions,
-    people: ME,
+    people,
     tables: { splits: [MY_SPLIT], bills, months },
   });
   vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
@@ -309,7 +311,57 @@ describe("Finances home", () => {
     const headings = within(screen.getByRole("main"))
       .getAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent);
-    expect(headings).toEqual(["Action items 4", "Progress", "Outstanding balances", "Bills"]);
+    expect(headings).toEqual(["Action items 4", "Progress", "Outstanding balances", "Bills", "Close the month"]);
+  });
+
+  // Vin, 2026-10-06: any open month can be closed by hand, squared or not.
+  it("gives an admin Close the month for an open month, linking to the page that explains it", async () => {
+    await showMonth();
+    const card = region("Close the month");
+    expect(within(card).getByRole("link", { name: "Close September" }).getAttribute("href")).toBe(
+      "/finances/close-month?month=2026-09",
+    );
+  });
+
+  it("keeps Close the month from a member, and from a month already closed", async () => {
+    await showMonth({ permissions: MEMBER });
+    expect(screen.queryByRole("region", { name: "Close the month" })).toBeNull();
+    cleanup();
+    await showMonth({ months: [{ ...SEPTEMBER, closed_at: "2026-10-01T04:00:00Z" }], month: "2026-09" });
+    expect(screen.queryByRole("region", { name: "Close the month" })).toBeNull();
+  });
+
+  // A backfilled April, paid in full: the item is news, and the page is April's.
+  const PAID_APRIL = {
+    ...SEPTEMBER,
+    id: "m-apr",
+    starts_on: "2026-04-01",
+    added_later: true,
+    settled: false,
+    bills: [
+      {
+        ...SEPTEMBER.bills[0],
+        payments: [
+          { id: "p-a", payer_id: "user-1", amount: "1200.00", created_at: "2026-04-02T15:00:00Z" },
+          { id: "p-s", payer_id: "u-sam", amount: "800.00", created_at: "2026-04-03T15:00:00Z" },
+        ],
+      },
+    ],
+  };
+
+  it("offers the admin Close month on a squared month, to close it now", async () => {
+    await showMonth({ months: [PAID_APRIL, SEPTEMBER], month: "2026-04" });
+    const row = within(screen.getByRole("region", { name: /^Action items/ })).getByText("April is squared").closest("li")!;
+    expect(row.textContent).toContain("Closes tonight, or close it now");
+    expect(within(row).getByRole("link", { name: "Close month" }).getAttribute("href")).toBe("/finances/close-month?month=2026-04");
+  });
+
+  it("gives no View month button for the month already on screen", async () => {
+    const asMember = ME.map((person) => ({ ...person, manages_budget: false }));
+    await showMonth({ months: [PAID_APRIL, SEPTEMBER], month: "2026-04", permissions: MEMBER, people: asMember });
+    const row = within(screen.getByRole("region", { name: /^Action items/ })).getByText("April is squared").closest("li")!;
+    expect(row.textContent).toContain("Closes tonight");
+    expect(within(row).queryByRole("link")).toBeNull();
   });
 
   it("gives each action item its own button on the right", async () => {
@@ -361,6 +413,20 @@ describe("Finances home", () => {
     expect(within(region("Outstanding balances")).getAllByRole("listitem")[1].textContent).toBe(
       "Alex60% sharePaidPaid $1,200.00 of $1,200.00",
     );
+  });
+
+  // Vin chose a tick in a rounded square, dark green, 2026-10-06.
+  it("puts a tick beside Paid, for a person and for a bill, as decoration only", async () => {
+    const paid = {
+      ...SEPTEMBER,
+      bills: [{ ...SEPTEMBER.bills[0], payments: [{ id: "p-1", payer_id: "user-1", amount: "2000.00", created_at: "2026-09-20T15:00:00Z" }] }],
+    };
+    await showMonth({ months: [paid] });
+    const person = within(region("Outstanding balances")).getAllByRole("listitem")[1];
+    expect(person.querySelector("svg[aria-hidden='true']")).not.toBeNull();
+    const rent = within(region("Bills")).getAllByRole("row")[1];
+    expect(rent.textContent).toContain("Paid");
+    expect(rent.querySelector("svg[aria-hidden='true']")).not.toBeNull();
   });
 
   it("lists each bill with its due date, progress and what's left; a late one reads Overdue", async () => {

@@ -10,6 +10,22 @@ documents you can archive, and Restore everywhere. Meal Plans' page now follows
 the recipe note after a screen lock. Everyone can see which release they're
 on, and the desktop sidebar's HomeBase name is the way Home.
 
+- Finances, close any month by hand: an admin can now close a month that is
+  squared, still running, or has a balance, not only one that ended owing.
+  The month's page has a "Close the month" card (admin only), the "squared"
+  item gives the admin a "Close month" button ("Closes tonight, or close it
+  now"), and the close page says what it does (who owes what, or that
+  everything is paid, and that it locks the month; for a month still running,
+  that nothing more can be added). Squared months still close on their own at
+  midnight. No database change: the closing function already allowed it.
+- Finances, fixed: an item about the month you are already viewing ("April is
+  squared", "numbers are ready") no longer has a "View month" button that
+  led back to the same page. Home keeps it.
+- Finances: a dark green tick in a rounded square now sits beside "Paid", for
+  a person and for a bill.
+- Finances, Previous months: the status ("This month", "Open", "Closed",
+  "Settled", "Not entered") now sits inside the light band with the month's
+  name instead of spilling out of it, and the "Added later" text is gone.
 - Meal Plans, fixed: after a phone's screen locked while a recipe video was
   sending, the page could keep saying "Sending the video" while the "Recipe
   ready" note already showed on top. The note is what keeps asking the
