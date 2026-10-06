@@ -63,10 +63,38 @@ describe("Close month", () => {
     await expect(show(["use_modules"])).rejects.toThrow("REDIRECT:/finances");
   });
 
-  it("sends the admin back for a month still running or already closed", async () => {
-    await expect(show(["use_modules", "manage_budget"], AUGUST, "2026-08-20T16:00:00Z")).rejects.toThrow("REDIRECT:/finances");
+  it("sends the admin back for a month already closed", async () => {
     await expect(
       show(["use_modules", "manage_budget"], { ...AUGUST, closed_at: "2026-09-01T04:00:00Z" }),
     ).rejects.toThrow("REDIRECT:/finances");
+  });
+
+  // Vin, 2026-10-06: every open month can be closed by hand.
+  const PAID = {
+    ...AUGUST,
+    bills: [
+      {
+        ...AUGUST.bills[0],
+        payments: [
+          { id: "p-1", payer_id: "u-alex", amount: "1200.00", created_at: "2026-08-02T15:00:00Z" },
+          { id: "p-2", payer_id: "u-sam", amount: "800.00", created_at: "2026-08-03T15:00:00Z" },
+        ],
+      },
+    ],
+  };
+
+  it("lets the admin close a squared month, saying everything is paid and not 'with a balance'", async () => {
+    render(await show(["use_modules", "manage_budget"], PAID));
+    const card = screen.getByRole("region", { name: "Close August 2026" });
+    expect(card.textContent).toContain("Everything is paid. Closing locks August 2026");
+    expect(screen.queryByText(/with a balance/)).toBeNull();
+    expect(new FormData(screen.getByRole("button", { name: "Close August 2026" }).closest("form")!).get("monthId")).toBe("m-aug");
+  });
+
+  it("lets the admin close the month now running, and says nothing more can be added", async () => {
+    render(await show(["use_modules", "manage_budget"], PAID, "2026-08-20T16:00:00Z"));
+    const card = screen.getByRole("region", { name: "Close August 2026" });
+    expect(card.textContent).toContain("August 2026 isn't over yet");
+    expect(screen.getByRole("button", { name: "Close August 2026" })).toBeDefined();
   });
 });

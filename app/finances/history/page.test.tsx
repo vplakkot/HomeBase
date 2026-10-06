@@ -71,9 +71,9 @@ describe("History", () => {
       "September 2026This month",
       "August 2026Open",
       "July 2026Not enteredAdd",
-      "June 2026Settled · Added later",
-      "May 2026Open · Added later",
-      "April 2026Closed · Added later",
+      "June 2026Settled",
+      "May 2026Open",
+      "April 2026Closed",
     ]);
     // A month never opened is added, not opened as a link.
     const july = within(rows[2]);
@@ -98,3 +98,23 @@ describe("History", () => {
   });
 });
 
+
+// Vin, 2026-10-06: the status sits inside the light band with the month's
+// name, so a row reads as one clean piece; "Added later" is gone.
+describe("History rows", () => {
+  it("put the status inside the band, and never say Added later", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-22T16:00:00Z"));
+    const fake = fakeSupabase({
+      permissions: ["use_modules"],
+      tables: { months: [{ id: "m-aug", starts_on: "2026-08-01", closed_at: null, added_later: true, settled: false }] },
+    });
+    vi.mocked(createClient).mockResolvedValue(fake as unknown as Awaited<ReturnType<typeof createClient>>);
+    render(await HistoryPage());
+    vi.useRealTimers();
+    const august = screen.getByRole("link", { name: /August 2026/ });
+    const band = august.querySelector("[class*='band']") as HTMLElement;
+    expect(band.textContent).toBe("August 2026Open");
+    expect(screen.queryByText(/Added later/)).toBeNull();
+  });
+});

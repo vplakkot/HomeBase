@@ -155,6 +155,20 @@
   flex: 1;
 }
 
+/* The band bleeds a little past its box on each side; the gap before the
+   chevron or Add button is wider than that, so it never touches them. */
+.linkRow {
+  gap: var(--space-5);
+}
+
+/* A month's name on the left of its band, how it stands on the right. */
+.bandRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 /* The summary: still to pay, large, then three facts, one bar. Sizes
    come from tokens.css, not the mockup (its 48px and 32px have none). */
 .summaryTop {
@@ -341,4 +355,28 @@
   flex-direction: column;
   gap: var(--space-1);
   min-width: 8rem;
+}
+
+/* "Paid" and its tick (paid-mark.tsx): a rounded square in the success
+   green with a surface-coloured tick. */
+.paid {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.paidTick {
+  flex-shrink: 0;
+}
+
+.paidBox {
+  fill: var(--color-success);
+}
+
+.paidCheck {
+  fill: none;
+  stroke: var(--color-surface);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }

@@ -92,10 +92,12 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
       items.push({
         key: `squared:${month.starts_on}`,
         text: `${name} is squared`,
-        detail: "Closes tonight",
+        // An admin can close it by hand now instead of waiting for tonight's
+        // automatic close; anyone else is just told.
+        detail: me.manages_budget ? "Closes tonight, or close it now" : "Closes tonight",
         rank: RANKS.squared,
-        href: `/finances?month=${at}`,
-        button: "View month",
+        href: me.manages_budget ? `/finances/close-month?month=${at}` : `/finances?month=${at}`,
+        button: me.manages_budget ? "Close month" : "View month",
         push: null,
       });
       continue;
