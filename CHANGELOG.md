@@ -8,7 +8,8 @@ Paperwork learns Google Drive: Files can live in one shared Drive folder
 and are tracked like physical ones, with locations you can manage, single
 documents you can archive, and Restore everywhere. Meal Plans' page now follows
 the recipe note after a screen lock. Everyone can see which release they're
-on, and the desktop sidebar's HomeBase name is the way Home.
+on, and the desktop sidebar's HomeBase name is the way Home. Finances
+lets an admin close any month by hand and tidies Previous months.
 
 - Finances, close any month by hand: an admin can now close a month that is
   squared, still running, or has a balance, not only one that ended owing.
