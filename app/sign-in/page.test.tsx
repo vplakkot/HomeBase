@@ -33,6 +33,12 @@ describe("SignInPage", () => {
     expect(screen.getByRole("alert").textContent).toMatch(/expired or was already used/);
   });
 
+  it("tells someone whose email was just changed to sign in with the new address", async () => {
+    givenHouseholdExists(true);
+    render(await SignInPage({ searchParams: Promise.resolve({ link: "email-changed" }) }));
+    expect(screen.getByRole("status").textContent).toMatch(/Sign in with the new address/);
+  });
+
   it("says nothing about a link unless one failed", async () => {
     givenHouseholdExists(true);
     render(await SignInPage());

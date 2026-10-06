@@ -1,4 +1,6 @@
+import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
+import { DEVICE_COOKIE } from "../../../lib/notifications/device";
 import { createAdminClient } from "../../../lib/supabase/admin";
 import { createClient } from "../../../lib/supabase/server";
 
@@ -11,6 +13,11 @@ import { createClient } from "../../../lib/supabase/server";
 //   sends them to choose a new one, through the same "must set a password"
 //   step that follows a temporary one.
 // email_change: the new address is confirmed; the change takes effect now.
+//   Then every session on the account ends, this browser's too, and the
+//   person signs in again with the new address and their password. The
+//   address is how they sign in, so changing it is a reason to prove they
+//   still know the password; and an old session left open elsewhere (a
+//   phone handed on, a stolen cookie) must not outlive the change.
 //
 // Not behind the sign-in proxy (it's left out of its matcher), because a
 // person who is signed out has to be able to arrive here.
@@ -39,7 +46,19 @@ export async function GET(request: NextRequest) {
   }
 
   if (type === "email_change") {
-    return go(request, "/");
+    // Ends every session on the account, including the one this link just made.
+    const { error: signOutError } = await supabase.auth.signOut({ scope: "global" });
+    if (signOutError) console.error("Could not end the sessions after an email change", signOutError.message);
+    // Their devices were signed up for notifications under sessions that no
+    // longer exist, and a device signed out must stop receiving (lesson 14),
+    // so they go too. Signing in again, they turn notifications back on.
+    const { error: devicesError } = await createAdminClient()
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", data.user.id);
+    if (devicesError) console.error("Could not clear the devices after an email change", devicesError.message);
+    (await cookies()).delete(DEVICE_COOKIE);
+    return go(request, "/sign-in?link=email-changed");
   }
 
   // Recovery: flag the account so the next step is choosing a password, then

@@ -25,6 +25,9 @@ export default async function SignInPage({
   return (
     <AuthPage>
       <h1>Sign in</h1>
+      {link === "email-changed" ? (
+        <p role="status">Your email is changed. Sign in with the new address and your password.</p>
+      ) : null}
       {link === "invalid" ? (
         <p role="alert">That link has expired or was already used. Ask for a new one below.</p>
       ) : null}
