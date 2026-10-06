@@ -1,10 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { markImportSeen, myRecipeImports } from "../app/meal-plans/actions";
 import { cutDraftPhotos } from "../lib/meal-plans/draft-photo";
-import { dismissNote, forgetImports, importsRemembered, noteDismissed } from "../lib/meal-plans/import-flag";
+import {
+  announceImportsChanged,
+  dismissNote,
+  forgetImports,
+  importsRemembered,
+  noteDismissed,
+} from "../lib/meal-plans/import-flag";
 import type { RecipeImport } from "../lib/meal-plans/recipes";
 import { currentUploads, watchUploads, type UploadProgress } from "../lib/meal-plans/video-upload";
 import styles from "./recipe-toast.module.css";
@@ -27,6 +33,8 @@ const NO_UPLOADS: UploadProgress[] = [];
 export function RecipeToast() {
   const uploads = useSyncExternalStore(watchUploads, currentUploads, () => NO_UPLOADS);
   const [imports, setImports] = useState<RecipeImport[]>([]);
+  // What the server said last time (id → stage), to notice a change (REQ-167).
+  const heard = useRef<Map<string, string> | null>(null);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -40,6 +48,12 @@ export function RecipeToast() {
       await cutDraftPhotos(found);
       if (stopped) return;
       setImports(found.filter((item) => !noteDismissed(item.id)));
+      const now = new Map(found.map((item) => [item.id, item.status]));
+      const before = heard.current;
+      heard.current = now;
+      if (before && (now.size !== before.size || [...now].some(([id, status]) => before.get(id) !== status))) {
+        announceImportsChanged();
+      }
       const going = found.some((item) => item.status === "uploading" || item.status === "processing") || currentUploads().length > 0;
       if (found.length === 0 && !going) forgetImports();
       if (going) timer = setTimeout(check, CHECK_MS);

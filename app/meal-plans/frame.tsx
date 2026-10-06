@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ImportWatch } from "./import-watch";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { ButtonLink } from "../../components/button";
@@ -71,6 +72,7 @@ export function MealPlansScreen({
       }
     >
       <div className={styles.screen}>
+        <ImportWatch />
         {crumb ? (
           <nav aria-label="Breadcrumb">
             <ol className={styles.crumbs}>

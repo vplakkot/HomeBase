@@ -22,6 +22,16 @@ export function noteDismissed(id: string): boolean {
   return dismissed.has(id);
 }
 
+// REQ-167: the Meal Plan pages are drawn by the server once, so the "On
+// their way" list can't change by itself. The toast is what keeps asking;
+// when what it hears differs from last time, it says so with this event, and
+// whichever Meal Plan page is open redraws itself (import-watch.tsx).
+export const IMPORTS_CHANGED = "homebase:imports-changed";
+
+export function announceImportsChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(IMPORTS_CHANGED));
+}
+
 export function forgetImports() {
   dismissed.clear();
   try {
