@@ -1096,7 +1096,8 @@ folder itself can't be seen, sync says so and marks nothing Missing.
 so a refusal from Drive leaves HomeBase unchanged. The app is the source
 of truth for names: a linked folder named differently shows the admin
 "Folder name doesn't follow convention" with a Fix that renames it, and
-renaming a category renames its folders. Category names can't contain
+renaming a category, or changing a File's category or label, renames its
+folders. Category names can't contain
 "_". Drive documents go only into Drive Files and physical paperwork only
 into physical Files. Routes added: `/paperwork/archives/drive` (the Drive
 archive File: `Archived`'s loose documents, with archived Drive Files).

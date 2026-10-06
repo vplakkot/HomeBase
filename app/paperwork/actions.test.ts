@@ -519,6 +519,31 @@ describe("Google Drive files (REQ-152)", () => {
     expect(update).toEqual({ category_id: CAR, label: "Loan" });
   });
 
+  it("renames that file's Drive folder to match once its category or label changes", async () => {
+    const drive = await import("../../lib/paperwork/drive");
+    const rename = vi.spyOn(drive, "renameItem").mockResolvedValue(undefined);
+    given(["use_modules"], {
+      paperwork_files: [{ id: FILE, is_drive: true, number: 5, label: "Loan", drive_folder_id: "fold-5" }],
+      paperwork_categories: [{ name: "Car" }],
+      paperwork_drive_folders: [{ drive_id: "fold-5", name: "F-0005_Taxes_Returns", missing: false }],
+    });
+    expect(await updateFile({}, form({ id: FILE, categoryId: CAR, label: "Loan" }))).toEqual({ saved: true });
+    expect(rename).toHaveBeenCalledWith("fold-5", "F-0005_Car_Loan");
+    rename.mockRestore();
+  });
+
+  it("says when the folder couldn't be renamed, the edit still saved", async () => {
+    const drive = await import("../../lib/paperwork/drive");
+    const rename = vi.spyOn(drive, "renameItem").mockRejectedValue(new drive.DriveError("nope"));
+    given(["use_modules"], {
+      paperwork_files: [{ id: FILE, is_drive: true, number: 5, label: "Loan", drive_folder_id: "fold-5" }],
+      paperwork_categories: [{ name: "Car" }],
+      paperwork_drive_folders: [{ drive_id: "fold-5", name: "F-0005_Taxes_Returns", missing: false }],
+    });
+    expect((await updateFile({}, form({ id: FILE, categoryId: CAR, label: "Loan" }))).error).toMatch(/couldn't be renamed/);
+    rename.mockRestore();
+  });
+
   it("rejects a category name with an underscore, since folder names are split there", async () => {
     given(["use_modules", "manage_paperwork"]);
     const result = await addCategory({}, form({ name: "Car_loans", keepYears: "" }));

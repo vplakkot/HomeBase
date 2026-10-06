@@ -94,17 +94,23 @@ export async function syncDrive(supabase: SupabaseClient): Promise<{ error?: str
   }
 }
 
-// REQ-152: a renamed category renames every linked Drive folder in it, so
-// the folders keep matching their Files. Returns how many couldn't be
+// REQ-152: a renamed category renames every linked Drive folder in it (or,
+// with `onlyFile`, just that File's, after its category or label changed),
+// so the folders keep matching their Files. Returns how many couldn't be
 // renamed (they show "Folder name doesn't follow convention" until fixed).
-export async function renameFoldersInCategory(supabase: SupabaseClient, category: Category): Promise<number> {
+export async function renameFoldersInCategory(
+  supabase: SupabaseClient,
+  category: Category,
+  onlyFile?: string,
+): Promise<number> {
+  const query = supabase
+    .from("paperwork_files")
+    .select("id, number, label, drive_folder_id")
+    .eq("is_drive", true)
+    .eq("category_id", category.id)
+    .not("drive_folder_id", "is", null);
   const [files, folders] = await Promise.all([
-    supabase
-      .from("paperwork_files")
-      .select("id, number, label, drive_folder_id")
-      .eq("is_drive", true)
-      .eq("category_id", category.id)
-      .not("drive_folder_id", "is", null),
+    onlyFile ? query.eq("id", onlyFile) : query,
     supabase.from("paperwork_drive_folders").select("drive_id, name, missing"),
   ]);
   const known = (folders.data ?? []) as Pick<DriveFolder, "drive_id" | "name" | "missing">[];

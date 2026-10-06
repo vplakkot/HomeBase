@@ -276,7 +276,13 @@ export async function updateFile(_previous: FormState, formData: FormData): Prom
       .update({ category_id, label: text(formData, "label") || null })
       .eq("id", id);
     if (error) return { error: error.message };
+    // REQ-152: the folder follows, so there's no name to fix by hand.
+    const { data: category } = await supabase.from("paperwork_categories").select("name").eq("id", category_id).maybeSingle();
+    const failed = category
+      ? await renameFoldersInCategory(supabase, { id: category_id, name: (category as { name: string }).name, keep_years: null }, id)
+      : 0;
     refresh();
+    if (failed > 0) return { error: "Saved, but its Drive folder couldn't be renamed. Use Fix on the file." };
     return { saved: true };
   }
   const fields = await newFileFields(supabase, formData);

@@ -18,7 +18,8 @@
   anything deleted in Drive shows as Missing and the admin can remove its
   record. The admin also sees folders nobody has linked (link to a waiting
   File, or ignore) and "Folder name doesn't follow convention" with a Fix
-  that renames the folder; renaming a category renames its folders, and a
+  that renames the folder; renaming a category, or changing a File's category
+  or label, renames its folders, and a
   category name can no longer contain "_". Drive Files archive by moving
   their folder into `Archived` and come back to the top level; a single
   Drive document can be archived there and brought back to Unfiled, and
