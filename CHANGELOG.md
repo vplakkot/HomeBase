@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Meal Plans, the plan's add control is tidier: Recipe, Size and Meal on one
+  row, Add to plan and Eating out under them, and the new-recipe name and
+  button on their own line below.
+
 - Meal Plans, edit a recipe (REQ-181): ingredients and steps are now rows you
   can add, remove, change and move with up and down arrows (one box per step
   instead of one box of lines). Change an ingredient's amount and the steps

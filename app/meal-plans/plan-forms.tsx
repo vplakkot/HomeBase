@@ -168,55 +168,61 @@ export function AddToPlanForm({
     else if (!state.error) setPicked("");
   }
   return (
-    <form action={formAction} className={styles.inline} aria-label="Add to the plan">
+    <form action={formAction} className={styles.addForm} aria-label="Add to the plan">
       <input type="hidden" name="plan_id" value={planId} />
-      {recipes.length > 0 ? (
-        <>
-          <label className={styles.control}>
-            <span>Recipe</span>
-            <select key={picked} name="recipe_id" defaultValue={picked}>
-              <option value="" disabled>
-                Choose a recipe
-              </option>
-              {recipes.map((recipe) => (
-                <option key={recipe.id} value={recipe.id}>
-                  {recipe.name}
+      <div className={styles.inline}>
+        {recipes.length > 0 ? (
+          <>
+            <label className={`${styles.control} ${styles.grow}`}>
+              <span>Recipe</span>
+              <select key={picked} name="recipe_id" defaultValue={picked}>
+                <option value="" disabled>
+                  Choose a recipe
                 </option>
-              ))}
-            </select>
-          </label>
-          <label className={styles.control}>
-            <span>Size</span>
-            <SizeSelect defaultValue={2} onChange={(event) => setSize(Number(event.currentTarget.value) as EntrySize)} />
-          </label>
-        </>
-      ) : null}
-      <label className={styles.control}>
-        <span>Meal</span>
-        <select key={size} name="meal" defaultValue="">
-          <option value="">Next free meal</option>
-          {(size === 2 ? choices.two : choices.one).map((meal) => (
-            <option key={meal.value} value={meal.value}>
-              {meal.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      {recipes.length > 0 ? (
-        <button type="submit" name="intent" value="recipe" className={buttonClass} disabled={pending}>
-          Add to plan
+                {recipes.map((recipe) => (
+                  <option key={recipe.id} value={recipe.id}>
+                    {recipe.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.control}>
+              <span>Size</span>
+              <SizeSelect defaultValue={2} onChange={(event) => setSize(Number(event.currentTarget.value) as EntrySize)} />
+            </label>
+          </>
+        ) : null}
+        <label className={styles.control}>
+          <span>Meal</span>
+          <select key={size} name="meal" defaultValue="">
+            <option value="">Next free meal</option>
+            {(size === 2 ? choices.two : choices.one).map((meal) => (
+              <option key={meal.value} value={meal.value}>
+                {meal.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className={styles.inline}>
+        {recipes.length > 0 ? (
+          <button type="submit" name="intent" value="recipe" className={buttonClass} disabled={pending}>
+            Add to plan
+          </button>
+        ) : null}
+        <button type="submit" name="intent" value="eating_out" className={buttonClass} disabled={pending}>
+          Eating out
         </button>
-      ) : null}
-      <button type="submit" name="intent" value="eating_out" className={buttonClass} disabled={pending}>
-        Eating out
-      </button>
-      <label className={styles.control}>
-        <span>New recipe</span>
-        <input type="text" name="new_name" placeholder="Name, to fill in later" autoComplete="off" />
-      </label>
-      <button type="submit" name="intent" value="new_recipe" className={buttonClass} disabled={pending}>
-        Add new recipe
-      </button>
+      </div>
+      <div className={`${styles.inline} ${styles.newRecipe}`}>
+        <label className={`${styles.control} ${styles.grow}`}>
+          <span>Or a new recipe, by name</span>
+          <input type="text" name="new_name" placeholder="Name, to fill in later" autoComplete="off" />
+        </label>
+        <button type="submit" name="intent" value="new_recipe" className={buttonClass} disabled={pending}>
+          Add new recipe
+        </button>
+      </div>
       <Outcome state={state} />
     </form>
   );

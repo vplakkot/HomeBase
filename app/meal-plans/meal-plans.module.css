@@ -272,6 +272,28 @@
   gap: var(--space-3);
 }
 
+/* The plan's add control: pick a recipe, then the new-recipe line apart. */
+.addForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.grow {
+  flex: 1 1 14rem;
+}
+
+.grow select,
+.grow input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.newRecipe {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-line-soft);
+}
+
 /* A link inside text, in ink like the rest of the app, not browser blue. */
 .textLink {
   color: var(--color-ink);
