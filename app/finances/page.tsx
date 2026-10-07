@@ -174,24 +174,27 @@ export default async function FinancesPage({
           </div>
           <ul className={`${styles.card} ${styles.rows}`}>
             {items.map((item) => (
-              <li key={item.key} className={styles.itemRow}>
-                <span className={styles.itemText}>
-                  <span className={styles.itemTitle}>
-                    <span className={styles.dot} aria-hidden="true" />
-                    {item.text}
-                  </span>
-                  <span className={styles.note}>{item.detail}</span>
-                </span>
+              <li key={item.key}>
                 {item.button === "Acknowledge" ? (
                   <form action={acknowledgeItem}>
                     <input type="hidden" name="key" value={item.key} />
-                    <button type="submit" className={buttonClass}>
-                      Acknowledge
+                    <button type="submit" className={styles.itemRow}>
+                      <span className={styles.itemLine}>{item.line}</span>
+                      <span className={styles.itemAction}>Acknowledge</span>
                     </button>
                   </form>
-                ) : item.href === `/finances?month=${at}` ? null : (
-                  // A button to the month already on screen would lead nowhere.
-                  <ButtonLink href={item.href}>{item.button}</ButtonLink>
+                ) : item.href === `/finances?month=${at}` ? (
+                  // A link to the month already on screen would lead nowhere.
+                  <div className={styles.itemRow}>
+                    <span className={styles.itemLine}>{item.line}</span>
+                  </div>
+                ) : (
+                  <Link href={item.href} className={styles.itemRow}>
+                    <span className={styles.itemLine}>{item.line}</span>
+                    <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" className={styles.chevron}>
+                      <path d="M7 4l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </Link>
                 )}
               </li>
             ))}

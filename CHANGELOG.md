@@ -10,10 +10,11 @@
   check appears beside the button instead of "Sent to 1 device", so the
   button no longer jumps. Only a partly delivered test still gets words.
 - Finances home: Outstanding balances now come first, with the signed-in
-  person's own card on top, then Action items, then Progress. Action items
-  are plainer: one card, a row per item with a small red dot, the title and
-  detail, and the button beside them (under them on a narrow phone), instead
-  of pink bars. Names on action items no longer sit on a band.
+  person's own card on top, then Action items, then Progress. Each action item
+  is now one short line in one white card ("October · 1 bill needs updating",
+  "Update 2026 Q3 balances"), and the whole row is the link, with a chevron,
+  instead of a pink bar, detail line and button. Items that were only news show
+  "Acknowledge" at the right of the row.
 
 ## 3.1.0 - 2026-10-06
 
