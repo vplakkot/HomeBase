@@ -6,6 +6,9 @@
   switch in the admin console turns on too. Before, it stayed off, so the
   phone said "on" while nothing was ever sent to it. The app's automatic
   re-sign-up when it opens does not touch the switch.
+- Admin, Send test: when a person's test reaches every device, a small green
+  check appears beside the button instead of "Sent to 1 device", so the
+  button no longer jumps. Only a partly delivered test still gets words.
 
 ## 3.1.0 - 2026-10-06
 
