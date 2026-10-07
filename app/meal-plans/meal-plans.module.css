@@ -289,10 +289,6 @@
   box-sizing: border-box;
 }
 
-.newRecipe {
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-line-soft);
-}
 
 /* A link inside text, in ink like the rest of the app, not browser blue. */
 .textLink {

@@ -172,26 +172,30 @@ export function AddToPlanForm({
       <input type="hidden" name="plan_id" value={planId} />
       <div className={styles.inline}>
         {recipes.length > 0 ? (
-          <>
-            <label className={`${styles.control} ${styles.grow}`}>
-              <span>Recipe</span>
-              <select key={picked} name="recipe_id" defaultValue={picked}>
-                <option value="" disabled>
-                  Choose a recipe
+          <label className={`${styles.control} ${styles.grow}`}>
+            <span>Recipe</span>
+            <select key={picked} name="recipe_id" defaultValue={picked}>
+              <option value="" disabled>
+                Choose a recipe
+              </option>
+              {recipes.map((recipe) => (
+                <option key={recipe.id} value={recipe.id}>
+                  {recipe.name}
                 </option>
-                {recipes.map((recipe) => (
-                  <option key={recipe.id} value={recipe.id}>
-                    {recipe.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={styles.control}>
-              <span>Size</span>
-              <SizeSelect defaultValue={2} onChange={(event) => setSize(Number(event.currentTarget.value) as EntrySize)} />
-            </label>
-          </>
+              ))}
+            </select>
+          </label>
         ) : null}
+        <label className={`${styles.control} ${styles.grow}`}>
+          <span>{recipes.length > 0 ? "Or a new recipe" : "New recipe"}</span>
+          <input type="text" name="new_name" placeholder="Recipe name" autoComplete="off" />
+        </label>
+      </div>
+      <div className={styles.inline}>
+        <label className={styles.control}>
+          <span>Size</span>
+          <SizeSelect defaultValue={2} onChange={(event) => setSize(Number(event.currentTarget.value) as EntrySize)} />
+        </label>
         <label className={styles.control}>
           <span>Meal</span>
           <select key={size} name="meal" defaultValue="">
@@ -210,17 +214,11 @@ export function AddToPlanForm({
             Add to plan
           </button>
         ) : null}
-        <button type="submit" name="intent" value="eating_out" className={buttonClass} disabled={pending}>
-          Eating out
-        </button>
-      </div>
-      <div className={`${styles.inline} ${styles.newRecipe}`}>
-        <label className={`${styles.control} ${styles.grow}`}>
-          <span>Or a new recipe, by name</span>
-          <input type="text" name="new_name" placeholder="Name, to fill in later" autoComplete="off" />
-        </label>
         <button type="submit" name="intent" value="new_recipe" className={buttonClass} disabled={pending}>
           Add new recipe
+        </button>
+        <button type="submit" name="intent" value="eating_out" className={buttonClass} disabled={pending}>
+          Eating out
         </button>
       </div>
       <Outcome state={state} />

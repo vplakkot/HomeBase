@@ -603,6 +603,12 @@ describe("a plan is a run of meals (REQ-168)", () => {
     expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ plan_id: PLAN, recipe_id: card.id, meals: 2 });
   });
 
+  it("puts a new recipe at the meal picked, like any other dish", async () => {
+    const fake = given({ meal_plans: [PLAN_ROW], recipes: [RECIPE] });
+    await addToPlan({}, form({ plan_id: PLAN, intent: "new_recipe", new_name: "Test fish tacos", meals: "2", meal: "2026-09-29:dinner" }));
+    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ meal_on: "2026-09-29", meal: "dinner", meals: 2 });
+  });
+
   it("refuses an empty name, and a name that is already a recipe, offering that recipe instead", async () => {
     const fake = given({ meal_plans: [PLAN_ROW], recipes: [RECIPE] });
     expect(await addToPlan({}, form({ plan_id: PLAN, intent: "new_recipe", new_name: "  ", meals: "2" }))).toEqual({ error: "Give the recipe a name." });

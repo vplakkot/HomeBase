@@ -54,12 +54,15 @@ describe("adding a new recipe from the plan (REQ-180)", () => {
     expect(screen.getByRole("button", { name: "Add new recipe" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Eating out" })).toBeTruthy();
     expect(screen.queryByRole("combobox", { name: "Recipe" })).toBeNull();
+    // The meal and size chosen apply to a new recipe too.
+    expect(screen.getByRole("combobox", { name: "Meal" })).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: "Size" })).toBeTruthy();
   });
 
   it("picks the recipe that already has that name, so one tap adds it", async () => {
     vi.mocked(addToPlan).mockResolvedValue({ error: "Chilli is already a recipe. Pick it from the list and add it.", existingId: "r2" });
     render(<AddToPlanForm planId="p" recipes={[{ id: "r1", name: "Soup" }, { id: "r2", name: "Chilli" }]} choices={choices} />);
-    fireEvent.change(screen.getByPlaceholderText("Name, to fill in later"), { target: { value: "chilli" } });
+    fireEvent.change(screen.getByPlaceholderText("Recipe name"), { target: { value: "chilli" } });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Add new recipe" }));
     });
