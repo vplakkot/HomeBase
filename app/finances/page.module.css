@@ -124,7 +124,22 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3) var(--space-6);
-  padding: var(--space-4) var(--space-6);
+  padding: var(--space-3) var(--space-4);
+}
+
+.itemTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--module-loud);
 }
 
 /* The button stays on the right even when a narrow screen drops it
@@ -135,7 +150,7 @@
 
 .itemText {
   display: flex;
-  flex: 1 1 16rem;
+  flex: 1 1 10rem;
   flex-direction: column;
   gap: var(--space-1);
 }

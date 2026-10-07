@@ -306,12 +306,12 @@ describe("the Finances tabs", () => {
 
 // REQ-103: Finances home, top to bottom.
 describe("Finances home", () => {
-  it("runs Action items, Progress, Outstanding balances, Bills, in that order, each under a heading", async () => {
+  it("runs Outstanding balances, Action items, Progress, Bills, in that order, each under a heading", async () => {
     await showMonth();
     const headings = within(screen.getByRole("main"))
       .getAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent);
-    expect(headings).toEqual(["Action items 4", "Progress", "Outstanding balances", "Bills", "Close the month"]);
+    expect(headings).toEqual(["Outstanding balances", "Action items 4", "Progress", "Bills", "Close the month"]);
   });
 
   // Vin, 2026-10-06: any open month can be closed by hand, squared or not.
@@ -394,12 +394,13 @@ describe("Finances home", () => {
     );
   });
 
-  it("gives each person a card: outstanding, share, a bar, paid of owed", async () => {
+  // Vin, 2026-10-07: the signed-in person's own balance comes first.
+  it("gives each person a card, the signed-in person's first: outstanding, share, a bar, paid of owed", async () => {
     await showMonth();
     const people = within(region("Outstanding balances")).getAllByRole("listitem");
     expect(people.map((person) => person.textContent)).toEqual([
-      "Sam40% share$1,040.00outstandingPaid $0.00 of $1,040.00",
       "Alex60% share$360.00outstandingPaid $1,200.00 of $1,560.00",
+      "Sam40% share$1,040.00outstandingPaid $0.00 of $1,040.00",
     ]);
     expect(region("Outstanding balances").textContent).toContain("How this was worked out");
   });
@@ -410,7 +411,7 @@ describe("Finances home", () => {
       bills: [{ ...SEPTEMBER.bills[0], payments: [{ id: "p-1", payer_id: "user-1", amount: "1200.00", created_at: "2026-09-20T15:00:00Z" }] }],
     };
     await showMonth({ months: [paid] });
-    expect(within(region("Outstanding balances")).getAllByRole("listitem")[1].textContent).toBe(
+    expect(within(region("Outstanding balances")).getAllByRole("listitem")[0].textContent).toBe(
       "Alex60% sharePaidPaid $1,200.00 of $1,200.00",
     );
   });
@@ -422,7 +423,7 @@ describe("Finances home", () => {
       bills: [{ ...SEPTEMBER.bills[0], payments: [{ id: "p-1", payer_id: "user-1", amount: "2000.00", created_at: "2026-09-20T15:00:00Z" }] }],
     };
     await showMonth({ months: [paid] });
-    const person = within(region("Outstanding balances")).getAllByRole("listitem")[1];
+    const person = within(region("Outstanding balances")).getAllByRole("listitem")[0];
     expect(person.querySelector("svg[aria-hidden='true']")).not.toBeNull();
     const rent = within(region("Bills")).getAllByRole("row")[1];
     expect(rent.textContent).toContain("Paid");
@@ -552,13 +553,13 @@ describe("Finances home", () => {
     expect(texts.length).toBeGreaterThan(1);
   });
 
-  // REQ-151: names on the band, headings plain.
-  it("puts each action item's title on the band, and leaves the heading plain", async () => {
+  // Vin, 2026-10-07: action items are plain rows, title and detail beside the
+  // button, not names on a band.
+  it("shows each action item as a plain row with its title, not on a band", async () => {
     const april = { ...SEPTEMBER, id: "m-apr", starts_on: "2026-04-01", added_later: true, settled: false, closed_at: null };
     await showMonth({ months: [april, SEPTEMBER], month: "2026-04" });
     const items = screen.getByRole("region", { name: /^Action items/ });
-    expect(within(items).getByText("April ended, not squared").className).toContain("band");
-    expect(within(items).getByRole("heading").className).not.toContain("band");
+    expect(within(items).getByText("April ended, not squared").className).not.toContain("band");
   });
 
   it("says a month not open yet will open on its own", async () => {
