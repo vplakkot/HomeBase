@@ -451,7 +451,10 @@ check", never "untagged".
 place anything is sent. It reads who is switched on
 (`household_members.notifications_enabled`) and their devices
 (`push_subscriptions`) with the **secret key**, because both are private
-to their owner and a scheduled job has nobody signed in. It signs and
+to their owner and a scheduled job has nobody signed in. Turning
+notifications on by hand on a phone (`saveDevice`, not its quiet sign-up)
+also sets that person's switch on, with the same key, so the phone and the
+admin console agree. It signs and
 encrypts each message with `web-push` — a new dependency, and the
 standard one for this — using `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and
 `VAPID_PRIVATE_KEY` from Vercel, with the app's own address as the
