@@ -16,11 +16,10 @@ import band from "../../components/band.module.css";
 
 // The Finances module's home: one month, the one running unless History
 // asked for another (docs/design/DESIGN.md §6–§7, REQ-103). Top to
-// bottom: the module's action items, each with its button (REQ-93; "Close
-// month" lives only there); the summary — still to pay, the bills, paid
-// so far and the split, under Progress; outstanding balances, one card
-// per person (REQ-56, 58);
-// and the bills with due dates and progress. Every card is white with a
+// bottom: outstanding balances, one card per person, the signed-in
+// person's first (REQ-56, 58); the module's action items, each with its
+// button (REQ-93; "Close month" lives only there); the summary — still to
+// pay, the bills, paid so far and the split, under Progress; and the bills with due dates and progress. Every card is white with a
 // module-colour border, and status is plain text. Until a split covers
 // this month, the page is one card asking for setup. Savings is paused,
 // so its verdict card isn't shown. Opening a month someone else entered
@@ -102,6 +101,70 @@ export default async function FinancesPage({
 
   return (
     <FinancesFrame {...frame} section={OVERVIEW} month={{ startsOn, closed: Boolean(month?.closed_at) }}>
+      {totals && totals.people.length > 0 ? (
+        <section className={styles.section} aria-labelledby="who-owes">
+          <div className={styles.sectionHead}>
+            <h2 id="who-owes" className={styles.sectionTitle}>
+              Outstanding balances
+            </h2>
+          </div>
+          <ul className={styles.people}>
+            {[...totals.people].sort((one, other) => Number(other.user_id === userId) - Number(one.user_id === userId)).map((person) => {
+              // REQ-148: a month settled between us outside the app owes
+              // nothing, whatever was logged in it.
+              const settled = person.outstanding <= 0 || month?.settled === true;
+              return (
+                <li key={person.user_id} className={`${styles.card} ${styles.person}`}>
+                  <span className={styles.personHead}>
+                    <span className={`${styles.strong} ${band.band}`}>{nameOf.get(person.user_id) ?? "Someone"}</span>
+                    <span className={styles.note}>{person.percent}% share</span>
+                  </span>
+                  <span className={styles.figureLine}>
+                    <span className={styles.personFigure}>
+                      {month?.settled ? "Settled" : settled ? <Paid /> : formatMoney(person.outstanding)}
+                    </span>
+                    {settled ? null : <span className={styles.note}>outstanding</span>}
+                  </span>
+                  <Bar percent={progress(person.paid, person.obligation)} />
+                  <span className={styles.note}>
+                    Paid {formatMoney(person.paid)} of {formatMoney(person.obligation)}
+                    {person.outstanding < 0 && !month?.settled ? ` · ${formatMoney(-person.outstanding)} credit` : ""}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <details className={styles.workings}>
+            <summary>How this was worked out</summary>
+            <dl className={styles.sums}>
+              <dt>Bills entered</dt>
+              <dd>{formatMoney(totals.expenses)}</dd>
+              <dt>Less personal charges</dt>
+              <dd>− {formatMoney(totals.personal)}</dd>
+              <dt>Plus One-time Payments</dt>
+              <dd>+ {formatMoney(totals.direct)}</dd>
+              <dt>Shared</dt>
+              <dd>{formatMoney(totals.sharedBase)}</dd>
+            </dl>
+            {totals.people.map((person) => (
+              <p key={person.user_id} className={styles.note}>
+                {nameOf.get(person.user_id) ?? "Someone"}: {person.percent}% of {formatMoney(totals.sharedBase)} ={" "}
+                {formatMoney(person.share)}
+                {person.personal > 0
+                  ? `, plus ${formatMoney(person.personal)} of their own personal charges = ${formatMoney(person.obligation)}`
+                  : ""}{" "}
+                owed. Paid {formatMoney(person.paid)}
+                {person.fronted > 0 ? ` (${formatMoney(person.fronted)} of it in One-time Payments)` : ""}.
+              </p>
+            ))}
+            <p className={styles.note}>
+              Together that&apos;s {formatMoney(totals.expenses + totals.direct)}: the bills plus the One-time
+              Payments.
+            </p>
+          </details>
+        </section>
+      ) : null}
+
       {items.length > 0 ? (
         <section className={styles.section} aria-labelledby="action-items">
           <div className={styles.sectionHead}>
@@ -111,21 +174,27 @@ export default async function FinancesPage({
           </div>
           <ul className={`${styles.card} ${styles.rows}`}>
             {items.map((item) => (
-              <li key={item.key} className={styles.itemRow}>
-                <span className={styles.itemText}>
-                  <span className={`${styles.strong} ${band.band}`}>{item.text}</span>
-                  <span className={styles.note}>{item.detail}</span>
-                </span>
+              <li key={item.key}>
                 {item.button === "Acknowledge" ? (
                   <form action={acknowledgeItem}>
                     <input type="hidden" name="key" value={item.key} />
-                    <button type="submit" className={buttonClass}>
-                      Acknowledge
+                    <button type="submit" className={styles.itemRow}>
+                      <span className={styles.itemLine}>{item.line}</span>
+                      <span className={styles.itemAction}>Acknowledge</span>
                     </button>
                   </form>
-                ) : item.href === `/finances?month=${at}` ? null : (
-                  // A button to the month already on screen would lead nowhere.
-                  <ButtonLink href={item.href}>{item.button}</ButtonLink>
+                ) : item.href === `/finances?month=${at}` ? (
+                  // A link to the month already on screen would lead nowhere.
+                  <div className={styles.itemRow}>
+                    <span className={styles.itemLine}>{item.line}</span>
+                  </div>
+                ) : (
+                  <Link href={item.href} className={styles.itemRow}>
+                    <span className={styles.itemLine}>{item.line}</span>
+                    <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" className={styles.chevron}>
+                      <path d="M7 4l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </Link>
                 )}
               </li>
             ))}
@@ -200,70 +269,6 @@ export default async function FinancesPage({
               </button>
             </form>
           ) : null}
-        </section>
-      ) : null}
-
-      {totals && totals.people.length > 0 ? (
-        <section className={styles.section} aria-labelledby="who-owes">
-          <div className={styles.sectionHead}>
-            <h2 id="who-owes" className={styles.sectionTitle}>
-              Outstanding balances
-            </h2>
-          </div>
-          <ul className={styles.people}>
-            {totals.people.map((person) => {
-              // REQ-148: a month settled between us outside the app owes
-              // nothing, whatever was logged in it.
-              const settled = person.outstanding <= 0 || month?.settled === true;
-              return (
-                <li key={person.user_id} className={`${styles.card} ${styles.person}`}>
-                  <span className={styles.personHead}>
-                    <span className={`${styles.strong} ${band.band}`}>{nameOf.get(person.user_id) ?? "Someone"}</span>
-                    <span className={styles.note}>{person.percent}% share</span>
-                  </span>
-                  <span className={styles.figureLine}>
-                    <span className={styles.personFigure}>
-                      {month?.settled ? "Settled" : settled ? <Paid /> : formatMoney(person.outstanding)}
-                    </span>
-                    {settled ? null : <span className={styles.note}>outstanding</span>}
-                  </span>
-                  <Bar percent={progress(person.paid, person.obligation)} />
-                  <span className={styles.note}>
-                    Paid {formatMoney(person.paid)} of {formatMoney(person.obligation)}
-                    {person.outstanding < 0 && !month?.settled ? ` · ${formatMoney(-person.outstanding)} credit` : ""}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          <details className={styles.workings}>
-            <summary>How this was worked out</summary>
-            <dl className={styles.sums}>
-              <dt>Bills entered</dt>
-              <dd>{formatMoney(totals.expenses)}</dd>
-              <dt>Less personal charges</dt>
-              <dd>− {formatMoney(totals.personal)}</dd>
-              <dt>Plus One-time Payments</dt>
-              <dd>+ {formatMoney(totals.direct)}</dd>
-              <dt>Shared</dt>
-              <dd>{formatMoney(totals.sharedBase)}</dd>
-            </dl>
-            {totals.people.map((person) => (
-              <p key={person.user_id} className={styles.note}>
-                {nameOf.get(person.user_id) ?? "Someone"}: {person.percent}% of {formatMoney(totals.sharedBase)} ={" "}
-                {formatMoney(person.share)}
-                {person.personal > 0
-                  ? `, plus ${formatMoney(person.personal)} of their own personal charges = ${formatMoney(person.obligation)}`
-                  : ""}{" "}
-                owed. Paid {formatMoney(person.paid)}
-                {person.fronted > 0 ? ` (${formatMoney(person.fronted)} of it in One-time Payments)` : ""}.
-              </p>
-            ))}
-            <p className={styles.note}>
-              Together that&apos;s {formatMoney(totals.expenses + totals.direct)}: the bills plus the One-time
-              Payments.
-            </p>
-          </details>
         </section>
       ) : null}
 

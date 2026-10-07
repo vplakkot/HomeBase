@@ -25,6 +25,9 @@ export type FinanceItem = ActionItem & {
   // The label on its button on Finances home (DESIGN.md §6). "Acknowledge"
   // marks the one item that's only news and is cleared right there.
   button: string;
+  // The whole item on one line, for Finances home, where each item is one
+  // tappable row. Home keeps `text` and `detail`.
+  line: string;
   // Also what an acknowledgement records, for the two items that take one.
   key: string;
   // In-app only when null. No dollar figures, ever (DESIGN.md §10).
@@ -106,6 +109,7 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
         rank: RANKS.squared,
         href: me.manages_budget ? `/finances/close-month?month=${at}` : `/finances?month=${at}`,
         button: me.manages_budget ? "Close month" : "View month",
+        line: month.reopened_at ? `${name} reopened` : `${name} is squared`,
         push: null,
       });
       continue;
@@ -125,6 +129,7 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
           rank: RANKS.ended,
           href: `/finances/log-payment?month=${at}`,
           button: "Log payment",
+          line: `${name} ended · you owe ${formatMoney(mine.outstanding)}`,
           push,
         });
       } else if (me.manages_budget) {
@@ -135,6 +140,7 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
           rank: RANKS.ended,
           href: `/finances/close-month?month=${at}`,
           button: "Close month",
+          line: `${name} ended · close it with the balance left`,
           push,
         });
       }
@@ -145,7 +151,7 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
     items.push(...overBudget(snapshot, month, totals, acked, viewer));
     const toEnter = month.bills.filter((bill) => !billEntered(bill)).length;
     if (toEnter > 0) {
-      items.push(enterItem(month.starts_on, `${toEnter} bill${toEnter === 1 ? "" : "s"} still to enter`));
+      items.push(enterItem(month.starts_on, `${toEnter} bill${toEnter === 1 ? "" : "s"} still to enter`, `${toEnter} bill${toEnter === 1 ? " needs" : "s need"} updating`));
     } else {
       const enteredBy = new Set(month.bills.map((bill) => bill.entered_by).filter(Boolean));
       const key = `ready:${month.starts_on}`;
@@ -158,6 +164,7 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
           rank: RANKS.ready,
           href: `/finances?month=${at}`,
           button: "View month",
+          line: `${name}'s numbers are ready`,
           push: { topic: key, body: `${name}'s numbers are in.` },
         });
       }
@@ -176,6 +183,7 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
         rank: RANKS.dueSoon,
         href: `/finances/log-payment?month=${at}&bill=${bill.id}`,
         button: "Log payment",
+        line: `${bill.name} ${dueWords(due, today)} · ${formatMoney(left)} left`,
         push: null,
       });
     }
@@ -190,6 +198,7 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
           rank: RANKS.noPayment,
           href: `/finances/log-payment?month=${at}`,
           button: "Log payment",
+          line: `No payment in ${QUIET_DAYS} days · you owe ${formatMoney(mine.outstanding)}`,
           push: {
             topic: `nudge:${month.starts_on}:${since}`,
             body: `You have a balance on ${name} and no payment in ${QUIET_DAYS} days.`,
@@ -217,6 +226,7 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
       rank: RANKS.balances,
       href: `/finances/balances?month=${quarter.month.slice(0, 7)}`,
       button: "Update balances",
+      line: `Update ${quarter.month.slice(0, 4)} Q${Math.ceil(Number(quarter.month.slice(5, 7)) / 3)} balances`,
       // Pushed once the quarter has actually ended, not on its last day.
       push: quarter.ended ? { topic: key, body: "A quarter has ended. Time to update balances." } : null,
     });
@@ -234,6 +244,7 @@ export function financeItems(everything: FinanceSnapshot, viewer: string): Finan
       rank: RANKS.recalibrate,
       href: "/finances/budget-year",
       button: "Review split",
+      line: `Review the split from ${monthLabel(april)}`,
       push: { topic: key, body: "It's March: time to review the split for April." },
     });
   }
@@ -256,7 +267,7 @@ export function itemsForMonth(items: FinanceItem[], startsOn: string, today: str
   return items.filter((item) => itemMonth(item) === startsOn);
 }
 
-function enterItem(startsOn: string, detail: string): FinanceItem {
+function enterItem(startsOn: string, detail: string, short = detail): FinanceItem {
   const key = `enter:${startsOn}`;
   const name = monthName(startsOn);
   return {
@@ -266,6 +277,7 @@ function enterItem(startsOn: string, detail: string): FinanceItem {
     rank: RANKS.enter,
     href: `/finances/monthly-entry?month=${startsOn.slice(0, 7)}`,
     button: "Enter numbers",
+    line: `${name} · ${short}`,
     push: { topic: key, body: `Time to enter ${name}'s numbers.` },
   };
 }
@@ -315,6 +327,7 @@ function cashGap(snapshot: FinanceSnapshot): FinanceItem | null {
       rank: RANKS.cashGap,
       href: `/finances/balances?month=${latest.slice(0, 7)}`,
       button: "Acknowledge",
+      line: `Cash gap in ${monthName(latest)}`,
       push: null,
     };
   }
@@ -347,6 +360,7 @@ function overBudget(
       rank: RANKS.householdOver,
       href,
       button: "Acknowledge",
+      line: "Household over budget",
       push: null,
     });
   }
@@ -360,6 +374,7 @@ function overBudget(
       rank: RANKS.overBudget,
       href,
       button: "Acknowledge",
+      line: person.user_id === viewer ? "You'll be over budget" : `${who} will be over budget`,
       push: null,
     });
   }
@@ -389,6 +404,7 @@ function threePaychecks(snapshot: FinanceSnapshot, viewer: string): FinanceItem[
       rank: RANKS.threePaychecks,
       href: "/finances/income",
       button: "View income",
+      line: "Three-paycheck month next",
       push: null,
     }));
 }
