@@ -41,8 +41,15 @@ function given({ mine = true, removedMark = false, cookieValue = ENDPOINT as str
   } as unknown as Awaited<ReturnType<typeof createClient>>);
 
   const markDeleted = vi.fn();
+  const switchedOn = vi.fn();
   const admin = {
     from: vi.fn(() => ({
+      update: (values: unknown) => ({
+        eq: async (_column: string, userId: string) => {
+          switchedOn(values, userId);
+          return { error: null };
+        },
+      }),
       select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: removedMark ? { endpoint_hash: "x" } : null, error: null }) }) }),
       delete: () => ({
         eq: async (_column: string, hash: string) => {
@@ -62,7 +69,7 @@ function given({ mine = true, removedMark = false, cookieValue = ENDPOINT as str
   vi.mocked(headers).mockResolvedValue(
     new Headers({ host: "homebase.example", "user-agent": "x" }) as unknown as Awaited<ReturnType<typeof headers>>,
   );
-  return { upsert, markDeleted, del };
+  return { upsert, markDeleted, del, switchedOn };
 }
 
 beforeEach(() => {
@@ -92,6 +99,20 @@ describe("a removed device (REQ-160)", () => {
     const { upsert } = given({ removedMark: false });
     expect(await saveDevice(subscription, { quiet: true })).toEqual({ saved: true });
     expect(upsert).toHaveBeenCalled();
+  });
+});
+
+describe("turning notifications on by hand", () => {
+  it("also switches the person on in the admin console", async () => {
+    const { switchedOn } = given();
+    expect(await saveDevice(subscription)).toEqual({ saved: true });
+    expect(switchedOn).toHaveBeenCalledWith({ notifications_enabled: true }, "u1");
+  });
+
+  it("is not done by the quiet sign-up, so an admin's off stays off", async () => {
+    const { switchedOn } = given();
+    await saveDevice(subscription, { quiet: true });
+    expect(switchedOn).not.toHaveBeenCalled();
   });
 });
 

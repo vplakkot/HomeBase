@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Notifications: when someone turns notifications on from their phone, their
+  switch in the admin console turns on too. Before, it stayed off, so the
+  phone said "on" while nothing was ever sent to it. The app's automatic
+  re-sign-up when it opens does not touch the switch.
+
 ## 3.1.0 - 2026-10-06
 
 Paperwork learns Google Drive: Files can live in one shared Drive folder

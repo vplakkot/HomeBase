@@ -99,10 +99,36 @@ export async function saveDevice(
     return { saved: false, error: "Couldn't save this device. Try again in a moment." };
   }
 
+  // Turning notifications on by hand also switches the person on in the
+  // admin console, so the two never disagree. The quiet sign-up skips this:
+  // it is not a decision, and must not undo an admin who switched them off.
+  if (options.quiet !== true) await switchPersonOn(claimsUserId(data.claims));
+
   // Remember which device this browser is, so signing out can end
   // notifications for this one and leave their other devices alone.
   (await cookies()).set(DEVICE_COOKIE, endpoint, DEVICE_COOKIE_OPTIONS);
   return { saved: true };
+}
+
+function claimsUserId(claims: { sub?: unknown }): string | null {
+  return typeof claims.sub === "string" ? claims.sub : null;
+}
+
+// The switch column is closed to signed-in people, so this uses the secret
+// key. A failure is logged and the device stays saved: the person can still
+// be switched on from the admin console.
+async function switchPersonOn(userId: string | null) {
+  if (!userId) return;
+  try {
+    const { error } = await createAdminClient()
+      .from("household_members")
+      .update({ notifications_enabled: true })
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    revalidatePath("/admin");
+  } catch (reason) {
+    console.error("Could not switch notifications on", reason instanceof Error ? reason.message : reason);
+  }
 }
 
 // Whether this address was removed from the list. A quiet sign-up must
