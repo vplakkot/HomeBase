@@ -1326,7 +1326,14 @@ there. Every other way to add (video, images, page link, web search, typed
 text) can instead fill an existing "Recipe missing" card: its draft carries
 the card's id in `recipe_imports.recipe_id`, checked again when the draft is
 made and when it is saved, so the card keeps its id and with it its ratings
-and cooked history. The library's filters end with "Not set" for cuisine,
+and cooked history. The plan's add control can also make one (REQ-180): "Add new recipe"
+sends the same name-only card (`createNameOnly` in
+`lib/meal-plans/name-only.ts`, shared with `saveForNow`) through
+`addToPlan`, which makes it only once its meal is certain and puts it in
+the plan without leaving the page. A name already used by a recipe, hidden
+ones included and ignoring capitals and extra spaces, makes no card: the
+form picks that recipe instead. The week's list marks such a card
+"Recipe missing". The library's filters end with "Not set" for cuisine,
 main meat, method and cook time; a recipe without a cook time is ranked on
 rating and days since last cooked at the middling gap.
 

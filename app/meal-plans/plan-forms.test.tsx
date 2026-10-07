@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PlannedControls } from "./plan-forms";
-import { setPlanMeals } from "./plan-actions";
+import { AddToPlanForm, PlannedControls } from "./plan-forms";
+import { addToPlan, setPlanMeals } from "./plan-actions";
 
 vi.mock("./plan-actions", () => ({
   addToPlan: vi.fn(),
@@ -42,5 +42,28 @@ describe("the size picker (REQ-176)", () => {
     expect(vi.mocked(setPlanMeals).mock.calls[1][1].get("meals")).toBe("1");
     await act(async () => rerender(controls(1)));
     expect(picker().value).toBe("1");
+  });
+});
+
+// REQ-180: a new recipe is added by name, right in the plan's add control.
+describe("adding a new recipe from the plan (REQ-180)", () => {
+  const choices = { one: [], two: [] };
+
+  it("offers New recipe even when there are no recipes yet, beside Eating out", () => {
+    render(<AddToPlanForm planId="p" recipes={[]} choices={choices} />);
+    expect(screen.getByRole("button", { name: "Add new recipe" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Eating out" })).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: "Recipe" })).toBeNull();
+  });
+
+  it("picks the recipe that already has that name, so one tap adds it", async () => {
+    vi.mocked(addToPlan).mockResolvedValue({ error: "Chilli is already a recipe. Pick it from the list and add it.", existingId: "r2" });
+    render(<AddToPlanForm planId="p" recipes={[{ id: "r1", name: "Soup" }, { id: "r2", name: "Chilli" }]} choices={choices} />);
+    fireEvent.change(screen.getByPlaceholderText("Name, to fill in later"), { target: { value: "chilli" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Add new recipe" }));
+    });
+    expect((screen.getByRole("combobox", { name: "Recipe" }) as HTMLSelectElement).value).toBe("r2");
+    expect(screen.getByRole("alert").textContent).toContain("already a recipe");
   });
 });

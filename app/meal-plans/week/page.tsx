@@ -13,7 +13,7 @@ import {
   type MealPlan,
 } from "../../../lib/meal-plans/plan";
 import { averageRatings, readRatingPrompts, readRatings } from "../../../lib/meal-plans/ratings";
-import { readRecipes, type Recipe } from "../../../lib/meal-plans/recipes";
+import { readRecipes, recipeMissing, type Recipe } from "../../../lib/meal-plans/recipes";
 import { suggestions } from "../../../lib/meal-plans/suggest";
 import { MealPlansScreen, mealPlansViewer } from "../frame";
 import { AddToPlanForm, AddToWeekButton, ChangeStartForm, DaysOffForm, MoveControls, PlanAheadForm, PlannedControls, RateRecipeForm, StartPlanForm } from "../plan-forms";
@@ -44,6 +44,7 @@ function PlanCard({ plan, recipes, names, ahead, planned }: { plan: MealPlan; re
   const dishes = entries.filter((entry) => !entry.eating_out).sort((a, b) => startOf(a) - startOf(b));
   // What can be added: not already planned, unless the repeat setting is on (REQ-172),
   // when `planned` is empty.
+  const missing = new Set(recipes.filter(recipeMissing).map((recipe) => recipe.id));
   const addable = recipes.filter((recipe) => !recipe.hidden && !planned.has(recipe.id));
   const daysOff = [...plan.daysOff].sort().map((day) => ({ day, label: dayLabel(day) }));
   return (
@@ -91,6 +92,7 @@ function PlanCard({ plan, recipes, names, ahead, planned }: { plan: MealPlan; re
                     {name}
                   </Link>
                 )}
+                {entry.recipe_id && missing.has(entry.recipe_id) ? <span className={styles.planEmpty}>Recipe missing</span> : null}
                 {entry.eating_out ? null : (
                   <PlannedControls planId={plan.id} entryId={entry.id} name={name} meals={entry.meals} />
                 )}

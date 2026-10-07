@@ -23,6 +23,7 @@ import {
   type Sited,
 } from "../../lib/meal-plans/meals";
 import { ENTRY_COLUMNS, hasDishes, isPlanSize, nextPlanStart, readStoredPlans, saveLayout, syncAheadStart, type MealPlan, type PlannedRecipe, type PlanStatus } from "../../lib/meal-plans/plan";
+import { createNameOnly, findByName } from "../../lib/meal-plans/name-only";
 import { readRecipe } from "../../lib/meal-plans/recipes";
 import { readSettings } from "../../lib/meal-plans/settings";
 import { isFactor, scaleRecipe } from "../../lib/meal-plans/scale";
@@ -32,7 +33,8 @@ import { createClient } from "../../lib/supabase/server";
 // (REQ-114), and the week's plan (REQ-115). Batch 3: closing a week,
 // carrying a recipe over and rating (REQ-116).
 
-export type PlanFormState = { error?: string; notice?: string };
+// `existingId`: a new recipe's name was already a recipe; the form picks it.
+export type PlanFormState = { error?: string; notice?: string; existingId?: string };
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -254,17 +256,24 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
   const supabase = await requireMember();
   const planId = idFrom(formData.get("plan_id"));
   const eatingOut = formData.get("intent") === "eating_out";
-  const recipeId = eatingOut ? null : idFrom(formData.get("recipe_id"));
+  const newRecipe = formData.get("intent") === "new_recipe";
+  const newName = newRecipe ? String(formData.get("new_name") ?? "").trim().replace(/\s+/g, " ") : "";
+  let recipeId = eatingOut || newRecipe ? null : idFrom(formData.get("recipe_id"));
   const size = eatingOut ? 1 : Number(formData.get("meals") ?? 2);
   const chosen = String(formData.get("meal") ?? "").trim();
   let notice: string | undefined;
   if (!planId) return { error: "Start a plan first." };
-  if (!eatingOut && !recipeId) return { error: "Choose a recipe to add." };
+  if (newRecipe && !newName) return { error: "Give the recipe a name." };
+  if (!eatingOut && !newRecipe && !recipeId) return { error: "Choose a recipe to add." };
   if (!isPlanSize(size)) return { error: "A dish is 2 meals or 1 meal." };
   if (chosen && !parseMealKey(chosen)) return { error: "Choose a meal from the list." };
   try {
     const plan = await loadPlan(supabase, planId);
     if (!plan) return { error: "That plan is gone." };
+    if (newRecipe) {
+      const found = await findByName(supabase, newName);
+      if (found) return { error: `${found.name} is already a recipe. Pick it from the list and add it.`, existingId: found.id };
+    }
     const entry = { id: crypto.randomUUID(), eating_out: eatingOut, meals: size };
     const locked = lockedBefore(plan);
     const at = chosen ? parseMealKey(chosen) : nextFreeMeal(plan, plan.recipes, entry, plan.daysOff, locked);
@@ -280,6 +289,13 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
     } else if (taken) {
       return { error: await takenMessage(supabase, taken) };
     } else {
+      // REQ-180: the card is made only once its place is certain, so a full
+      // slot leaves no stray card behind.
+      if (newRecipe) {
+        const made = await createNameOnly(supabase, newName);
+        if ("error" in made) return { error: made.error };
+        recipeId = made.id;
+      }
       // REQ-172: a recipe can repeat only when the setting says so; otherwise it can
       // be in just one of the plan we're on and next week's plan.
       if (recipeId && !(await readSettings(supabase)).repeatRecipes) {
