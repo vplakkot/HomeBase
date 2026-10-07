@@ -120,4 +120,6 @@ later. The later job reads the note, uses it, and throws it away: the
 columns are emptied whether the reading worked or failed, and also when the
 upload is abandoned. Screenshots are never kept longer than the work needs
 them, and the row still tells nobody else's story: only its own person can
-read it.
+read it. "Always" has two honest gaps: the clearing update isn't checked for
+failure, and if the background job dies the caption waits until its owner
+next opens the app and the give-up check clears it. Nothing sweeps old rows.
