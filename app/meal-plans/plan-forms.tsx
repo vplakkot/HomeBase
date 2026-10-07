@@ -159,6 +159,14 @@ export function AddToPlanForm({
 }) {
   const [state, formAction, pending] = useActionState(addToPlan, initialState);
   const [size, setSize] = useState<EntrySize>(2);
+  // REQ-180: a name that is already a recipe picks that recipe in the list.
+  const [picked, setPicked] = useState("");
+  const [seen, setSeen] = useState<PlanFormState>(initialState);
+  if (state !== seen) {
+    setSeen(state);
+    if (state.existingId && recipes.some((recipe) => recipe.id === state.existingId)) setPicked(state.existingId);
+    else if (!state.error) setPicked("");
+  }
   return (
     <form action={formAction} className={styles.inline} aria-label="Add to the plan">
       <input type="hidden" name="plan_id" value={planId} />
@@ -166,7 +174,7 @@ export function AddToPlanForm({
         <>
           <label className={styles.control}>
             <span>Recipe</span>
-            <select name="recipe_id" defaultValue="">
+            <select key={picked} name="recipe_id" defaultValue={picked}>
               <option value="" disabled>
                 Choose a recipe
               </option>
@@ -201,6 +209,13 @@ export function AddToPlanForm({
       ) : null}
       <button type="submit" name="intent" value="eating_out" className={buttonClass} disabled={pending}>
         Eating out
+      </button>
+      <label className={styles.control}>
+        <span>New recipe</span>
+        <input type="text" name="new_name" placeholder="Name, to fill in later" autoComplete="off" />
+      </label>
+      <button type="submit" name="intent" value="new_recipe" className={buttonClass} disabled={pending}>
+        Add new recipe
       </button>
       <Outcome state={state} />
     </form>

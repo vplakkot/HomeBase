@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Meal Plans, new recipe from the plan (REQ-180): the plan's add control has
+  "Add new recipe". Type a name and it is saved as a name-only "Recipe missing"
+  card and put in the plan, so you can keep planning and fill the recipe in
+  later in Recipes. A name that is already a recipe (capitals and spaces
+  ignored) makes no second card: that recipe is picked for you. A planned dish
+  with no recipe yet shows "Recipe missing" in the week.
+
 ## 3.1.1 - 2026-10-07
 
 A bug-fix release. Turning notifications on from a phone now switches the

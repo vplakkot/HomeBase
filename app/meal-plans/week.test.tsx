@@ -37,6 +37,10 @@ vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: vi.fn(async () => ({ get: () => undefined })) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/server", () => ({ after: vi.fn() }));
+vi.mock("../../lib/meal-plans/gemini", async (original) => ({
+  ...(await original<typeof import("../../lib/meal-plans/gemini")>()),
+  cuisineFromName: vi.fn(async () => null),
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
   usePathname: () => "/meal-plans",
@@ -563,7 +567,7 @@ describe("a plan is a run of meals (REQ-168)", () => {
       "Lunch MonOn your own",
       "Dinner MonEating out",
       "Lunch TueOn your own",
-      "Dinner Tue · Lunch WedTest lentil soup",
+      "Dinner Tue · Lunch WedTest lentil soupRecipe missing",
     ]);
     expect(screen.getByRole("heading", { name: "Sun, Sep 27 Dinner – Wed, Sep 30 Lunch" })).toBeTruthy();
     // An evening out has no cooked or carry-over tick.
@@ -588,6 +592,33 @@ describe("a plan is a run of meals (REQ-168)", () => {
     expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ plan_id: PLAN, recipe_id: null, eating_out: true, meals: 1, meal_on: "2026-09-27", meal: "dinner" });
     // Never at a lunch.
     expect(await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-09-28:lunch" }))).toEqual({ error: "Eating out takes a dinner." });
+  });
+
+  // REQ-180: a recipe found while planning is added by name, in place.
+  it("adds a new recipe by name: a name-only card, put in the plan at once", async () => {
+    const fake = given({ meal_plans: [PLAN_ROW], recipes: [RECIPE] });
+    expect(await addToPlan({}, form({ plan_id: PLAN, intent: "new_recipe", new_name: "  Test   fish tacos ", meals: "2" }))).toEqual({});
+    const card = sent(fake, "recipes", "insert") as { id: string; name: string };
+    expect(card.name).toBe("Test fish tacos");
+    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ plan_id: PLAN, recipe_id: card.id, meals: 2 });
+  });
+
+  it("refuses an empty name, and a name that is already a recipe, offering that recipe instead", async () => {
+    const fake = given({ meal_plans: [PLAN_ROW], recipes: [RECIPE] });
+    expect(await addToPlan({}, form({ plan_id: PLAN, intent: "new_recipe", new_name: "  ", meals: "2" }))).toEqual({ error: "Give the recipe a name." });
+    expect(await addToPlan({}, form({ plan_id: PLAN, intent: "new_recipe", new_name: `  ${RECIPE.name.toUpperCase()} `, meals: "2" }))).toEqual({
+      error: `${RECIPE.name} is already a recipe. Pick it from the list and add it.`,
+      existingId: RECIPE.id,
+    });
+    expect(sent(fake, "recipes", "insert")).toBeUndefined();
+    expect(sent(fake, "meal_plan_recipes", "insert")).toBeUndefined();
+  });
+
+  it("leaves no stray card when the meal chosen is taken", async () => {
+    const fake = given({ meal_plans: [PLAN_ROW], recipes: [SECOND], meal_plan_recipes: [planned(OTHER, 2, "2026-09-27", "dinner", false, false, E2)] });
+    const result = await addToPlan({}, form({ plan_id: PLAN, intent: "new_recipe", new_name: "Test fish tacos", meals: "1", meal: "2026-09-28:lunch" }));
+    expect(result).toHaveProperty("error");
+    expect(sent(fake, "recipes", "insert")).toBeUndefined();
   });
 
   it("puts a new dish on the next free meal it can start at, or on the meal picked", async () => {
