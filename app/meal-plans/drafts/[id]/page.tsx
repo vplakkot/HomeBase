@@ -56,6 +56,12 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
             <p>Fill the card in below, or remove it.</p>
           </div>
         ) : null}
+        {/* REQ-182: a caption Gemini couldn't read is said so, not made up. */}
+        {draft.status === "ready" && draft.error ? (
+          <div className={styles.notice} role="status">
+            <p>{draft.error}</p>
+          </div>
+        ) : null}
         {draft.status === "ready" || draft.status === "failed" ? (
           <RecipeForm
             importId={draft.id}

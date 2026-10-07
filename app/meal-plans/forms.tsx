@@ -7,13 +7,15 @@ import cards from "../../components/cards.module.css";
 import { buttonClass } from "../../components/button";
 import { Hint } from "../../components/hint";
 import { shrinkPhoto } from "../../lib/drinks/shrink-photo";
-import { MAX_IMAGES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
+import { MAX_CAPTION_IMAGES, MAX_CAPTION_TEXT, MAX_IMAGES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
 import { COOKING_METHODS, MAIN_MEATS, type Ingredient, type Recipe, type RecipeDraft } from "../../lib/meal-plans/recipes";
+import { amountChanged, moveRow, stepsToCheck } from "../../lib/meal-plans/edit-list";
 import { rememberImports } from "../../lib/meal-plans/import-flag";
 import { sendVideo } from "../../lib/meal-plans/video-upload";
 import { keepVideo } from "../../lib/meal-plans/kept-video";
 import {
   addRecipe,
+  addRecipeNote,
   draftFromLink,
   draftFromPage,
   draftFromText,
@@ -169,19 +171,35 @@ function VideoForm({ recipeId }: { recipeId?: string }) {
   const picker = useRef<HTMLInputElement>(null);
   const [chosen, setChosen] = useState<string | null>(null);
   const picked = () => setChosen(picker.current?.files?.[0]?.name ?? null);
+  // REQ-182: the caption under the video, as screenshots and/or text.
+  const shots = useRef<HTMLInputElement>(null);
+  const [shotCount, setShotCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const file = form.get("video");
-    if (!(file instanceof File) || file.size === 0) {
+    const file = picker.current?.files?.[0];
+    if (!file || file.size === 0) {
       setError("Choose the video.");
+      return;
+    }
+    const screenshots = Array.from(shots.current?.files ?? []);
+    if (screenshots.length > MAX_CAPTION_IMAGES) {
+      setError(`Up to ${MAX_CAPTION_IMAGES} caption screenshots.`);
       return;
     }
     setBusy(true);
     setError(null);
     const data = new FormData();
+    try {
+      for (const shot of screenshots) data.append("caption_image", (await shrinkPhoto(shot)).full, "caption.jpg");
+    } catch {
+      setError("One of those couldn't be read as an image.");
+      setBusy(false);
+      return;
+    }
+    data.set("caption_text", String(form.get("caption_text") ?? ""));
     // No name asked for: the video says what the dish is (Vin, 2026-09-29).
     data.set("name", "");
     if (recipeId) data.set("recipe_id", recipeId);
@@ -218,6 +236,29 @@ function VideoForm({ recipeId }: { recipeId?: string }) {
           {chosen ?? "Choose the video"}
         </button>
       </div>
+      <div className={cards.field}>
+        <span className={styles.labelRow}>
+          The caption (optional)
+          <Hint text="Many videos list the ingredients and steps in the caption under them, which a downloaded video leaves out. Add up to 2 screenshots of it, paste its text, or both, and Gemini reads them with the video. The screenshots aren't kept." />
+        </span>
+        <input
+          ref={shots}
+          name="caption_images"
+          type="file"
+          accept="image/*"
+          multiple
+          className={styles.hidden}
+          aria-label="Caption screenshots"
+          onChange={() => setShotCount(shots.current?.files?.length ?? 0)}
+        />
+        <button type="button" className={styles.linkButton} onClick={() => shots.current?.click()}>
+          {shotCount === 0 ? "Choose caption screenshots" : shotCount === 1 ? "1 screenshot chosen" : `${shotCount} screenshots chosen`}
+        </button>
+      </div>
+      <label className={cards.field}>
+        <span>Or paste the caption</span>
+        <textarea name="caption_text" maxLength={MAX_CAPTION_TEXT} className={styles.recipeInput} />
+      </label>
       {error ? (
         <p role="alert" className={cards.error}>
           {error}
@@ -527,53 +568,127 @@ function TextForm({ from = null, recipeId, startName = "" }: { from?: TypeIn | n
 
 const EMPTY_INGREDIENT: Ingredient = { quantity: "", unit: "", item: "", note: "" };
 
-function Ingredients({ initial }: { initial: Ingredient[] }) {
-  const [rows, setRows] = useState<{ key: number; value: Ingredient }[]>(() =>
-    (initial.length > 0 ? initial : [EMPTY_INGREDIENT]).map((value, key) => ({ key, value })),
-  );
-  const [next, setNext] = useState(rows.length);
+type Row<T> = { key: number; value: T };
+
+function Arrows({ label, index, count, move }: { label: string; index: number; count: number; move: (by: -1 | 1) => void }) {
   return (
-    <fieldset className={styles.ingredientList}>
-      <legend>Ingredients</legend>
-      {rows.map(({ key, value }, index) => (
-        <div key={key} className={styles.ingredientRow}>
-          <label className={`${cards.field} ${styles.item}`}>
-            <span>Ingredient</span>
-            <input name="item" defaultValue={value.item} autoComplete="off" />
-          </label>
-          <button
-            type="button"
-            className={styles.remove}
-            aria-label={`Remove ingredient ${index + 1}`}
-            onClick={() => setRows(rows.filter((row) => row.key !== key))}
-          >
-            ×
-          </button>
-          <label className={`${cards.field} ${styles.quantity}`}>
-            <span>Amount</span>
-            <input name="quantity" defaultValue={value.quantity} autoComplete="off" />
-          </label>
-          <label className={`${cards.field} ${styles.unit}`}>
-            <span>Unit</span>
-            <input name="unit" defaultValue={value.unit} autoComplete="off" />
-          </label>
-          <label className={`${cards.field} ${styles.note}`}>
-            <span>Note (optional)</span>
-            <input name="note" defaultValue={value.note} autoComplete="off" />
-          </label>
-        </div>
-      ))}
-      <button
-        type="button"
-        className={styles.linkButton}
-        onClick={() => {
-          setRows([...rows, { key: next, value: EMPTY_INGREDIENT }]);
-          setNext(next + 1);
-        }}
-      >
-        Add an ingredient
+    <span className={styles.moves}>
+      <button type="button" className={styles.remove} aria-label={`Move ${label} up`} disabled={index === 0} onClick={() => move(-1)}>
+        ↑
       </button>
-    </fieldset>
+      <button type="button" className={styles.remove} aria-label={`Move ${label} down`} disabled={index === count - 1} onClick={() => move(1)}>
+        ↓
+      </button>
+    </span>
+  );
+}
+
+// REQ-181: ingredients and steps can be added, removed, changed and moved
+// (arrows, no dragging). When an ingredient's amount differs from the saved
+// one, the steps that name it are marked, so their own amounts get fixed in
+// the same edit.
+function Lists({ ingredients: initialIngredients, steps: initialSteps }: { ingredients: Ingredient[]; steps: string[] }) {
+  const [rows, setRows] = useState<Row<Ingredient>[]>(() =>
+    (initialIngredients.length > 0 ? initialIngredients : [EMPTY_INGREDIENT]).map((value, key) => ({ key, value })),
+  );
+  const [nextRow, setNextRow] = useState(rows.length);
+  const [stepRows, setStepRows] = useState<Row<string>[]>(() => (initialSteps.length > 0 ? initialSteps : [""]).map((value, key) => ({ key, value })));
+  const [nextStep, setNextStep] = useState(stepRows.length);
+  // A row's key is its place in the saved list, so what it was is known.
+  const changed = rows.filter((row) => amountChanged(row.value, initialIngredients[row.key]) && row.value.item.trim());
+  const flagged = stepsToCheck(
+    stepRows.map((row) => row.value),
+    changed.map((row) => row.value),
+  );
+  const change = (key: number, field: keyof Ingredient, value: string) =>
+    setRows(rows.map((row) => (row.key === key ? { key, value: { ...row.value, [field]: value } } : row)));
+  return (
+    <>
+      <fieldset className={styles.ingredientList}>
+        <legend>Ingredients</legend>
+        {rows.map(({ key, value }, index) => (
+          <div key={key} className={styles.ingredientRow}>
+            <label className={`${cards.field} ${styles.item}`}>
+              <span>Ingredient</span>
+              <input name="item" value={value.item} onChange={(event) => change(key, "item", event.target.value)} autoComplete="off" />
+            </label>
+            <Arrows label={`ingredient ${index + 1}`} index={index} count={rows.length} move={(by) => setRows(moveRow(rows, index, by))} />
+            <button
+              type="button"
+              className={`${styles.remove} ${styles.removeCell}`}
+              aria-label={`Remove ingredient ${index + 1}`}
+              onClick={() => setRows(rows.filter((row) => row.key !== key))}
+            >
+              ×
+            </button>
+            <label className={`${cards.field} ${styles.quantity}`}>
+              <span>Amount</span>
+              <input name="quantity" value={value.quantity} onChange={(event) => change(key, "quantity", event.target.value)} autoComplete="off" />
+            </label>
+            <label className={`${cards.field} ${styles.unit}`}>
+              <span>Unit</span>
+              <input name="unit" value={value.unit} onChange={(event) => change(key, "unit", event.target.value)} autoComplete="off" />
+            </label>
+            <label className={`${cards.field} ${styles.note}`}>
+              <span>Note (optional)</span>
+              <input name="note" value={value.note} onChange={(event) => change(key, "note", event.target.value)} autoComplete="off" />
+            </label>
+          </div>
+        ))}
+        <button
+          type="button"
+          className={styles.linkButton}
+          onClick={() => {
+            setRows([...rows, { key: nextRow + 1000, value: EMPTY_INGREDIENT }]);
+            setNextRow(nextRow + 1);
+          }}
+        >
+          Add an ingredient
+        </button>
+      </fieldset>
+      <fieldset className={styles.ingredientList}>
+        <legend>Steps</legend>
+        {flagged.size > 0 ? (
+          <p role="status" className={styles.stepsCheck}>
+            An amount changed. Check the marked steps for it.
+          </p>
+        ) : null}
+        {stepRows.map(({ key, value }, index) => (
+          <div key={key} className={`${styles.stepRow} ${flagged.has(index) ? styles.stepFlagged : ""}`}>
+            <label className={cards.field}>
+              <span>
+                Step {index + 1}
+                {flagged.has(index) ? <em className={styles.unsure}> · check the amount</em> : null}
+              </span>
+              <textarea
+                name="step"
+                value={value}
+                onChange={(event) => setStepRows(stepRows.map((row) => (row.key === key ? { key, value: event.target.value } : row)))}
+              />
+            </label>
+            <Arrows label={`step ${index + 1}`} index={index} count={stepRows.length} move={(by) => setStepRows(moveRow(stepRows, index, by))} />
+            <button
+              type="button"
+              className={`${styles.remove} ${styles.removeCell}`}
+              aria-label={`Remove step ${index + 1}`}
+              onClick={() => setStepRows(stepRows.filter((row) => row.key !== key))}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className={styles.linkButton}
+          onClick={() => {
+            setStepRows([...stepRows, { key: nextStep + 1000, value: "" }]);
+            setNextStep(nextStep + 1);
+          }}
+        >
+          Add a step
+        </button>
+      </fieldset>
+    </>
   );
 }
 
@@ -677,11 +792,7 @@ export function RecipeForm({
           )}
         </fieldset>
       ) : null}
-      <Ingredients initial={v?.ingredients ?? []} />
-      <label className={cards.field}>
-        <span>Steps, one per line</span>
-        <textarea name="steps" className={styles.stepsInput} defaultValue={(v?.steps ?? []).join("\n")} />
-      </label>
+      <Lists ingredients={v?.ingredients ?? []} steps={v?.steps ?? []} />
       <label className={cards.field}>
         <span>Notes (optional)</span>
         <textarea name="notes" defaultValue={v?.notes ?? ""} />
@@ -712,6 +823,32 @@ export function RecipeForm({
         )}
       </div>
     </form>
+  );
+}
+
+// REQ-181: a note from the open card, without opening the edit view.
+export function AddNote({ recipeId }: { recipeId: string }) {
+  const [state, formAction, pending] = useActionState(async (prev: FormState, data: FormData) => {
+    const result = await addRecipeNote(prev, data);
+    if (result.saved) formRef.current?.reset();
+    return result;
+  }, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+  return (
+    <details className={styles.startDay}>
+      <summary className={styles.linkButton}>Add note</summary>
+      <form ref={formRef} action={formAction} className={cards.form}>
+        <input type="hidden" name="id" value={recipeId} />
+        <label className={cards.field}>
+          <span>Note</span>
+          <textarea name="note" required placeholder="What we learned" />
+        </label>
+        <Outcome state={state} />
+        <button type="submit" className={buttonClass} disabled={pending}>
+          {pending ? "Saving…" : "Save note"}
+        </button>
+      </form>
+    </details>
   );
 }
 

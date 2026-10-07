@@ -1498,6 +1498,25 @@ toast (every page) ──myRecipeImports every 15 s──▶ "Recipe ready"
   qualified, the card has no photo and the review says which. Nothing
   random is used. `recipe_imports.source` ('video' or 'images') says
   which kind a draft is, for the BETA label and the photo choice.
+- REQ-182, the video's caption: a downloaded video lacks the text under
+  it, so Add recipe → From a video also takes up to 2 screenshots of it
+  (shrunk to JPEG on the phone) and/or pasted text. They travel with
+  `startVideoImport` and wait on the import row (`recipe_imports.caption_text`,
+  `caption_images`, base64 JPEGs) because Gemini reads the video in a later
+  request. `processVideoImport` hands them to Gemini beside the video, for
+  one card from both, then empties both columns, on success, on failure and
+  when an upload is given up on. If Gemini says it couldn't read the
+  screenshots (`caption_unreadable`), the ready draft's `error` holds a
+  one-line note that the review page shows; nothing is invented in its
+  place. With no caption the request is exactly the video-only one.
+- REQ-181, editing a card: ingredients and steps are rows with up and down
+  arrows (`lib/meal-plans/edit-list.ts`); one `step` box per step is sent
+  (an older single `steps` box of lines is still read). When an
+  ingredient's amount or unit differs from the saved one, the steps that
+  name it are marked in the same edit. The open card has "Add note"
+  (`addRecipeNote`), which appends to the card's notes and touches nothing
+  else; saving an edit writes only the card's own fields, so times cooked,
+  date last cooked and each person's rating are untouched.
 - The phone never reads Google's answer to the last piece: once a video
   sent in pieces is complete, Google's answer lacks the header that
   lets a browser read it (seen 2026-09-26). The server asks instead,

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Meal Plans, edit a recipe (REQ-181): ingredients and steps are now rows you
+  can add, remove, change and move with up and down arrows (one box per step
+  instead of one box of lines). Change an ingredient's amount and the steps
+  that name it are marked, so their own amounts get fixed in the same edit.
+  The open recipe card has "Add note", which adds a line to the notes without
+  opening the edit view.
+- Meal Plans, caption for a video recipe (REQ-182): adding a recipe from a
+  video can now take the video's caption too, as up to 2 screenshots, pasted
+  text, or both, and Gemini drafts one card from the video and the caption
+  together. With no caption nothing changes. If the screenshots can't be read
+  the draft says so, and the screenshots are deleted once read. Needs a
+  database migration (two empty columns).
+
 - Meal Plans, new recipe from the plan (REQ-180): the plan's add control has
   "Add new recipe". Type a name and it is saved as a name-only "Recipe missing"
   card and put in the plan, so you can keep planning and fill the recipe in

@@ -108,3 +108,16 @@ the browser), and the Meal Plan page, which was listening, takes a new
 photograph (`router.refresh()`). One thing asks the server; everything
 else follows it. Not every change counts: the first answer, or the same
 answer again, redraws nothing.
+
+## A note left on the desk for the later job
+
+A video's caption (REQ-182) is typed or photographed *now*, but Gemini
+reads the video minutes later, in a different request, once Google has the
+whole file. The two requests share nothing, so the caption has to wait
+somewhere. It waits on the import's own row (`caption_text`,
+`caption_images`) like a note left on a desk for the person who comes in
+later. The later job reads the note, uses it, and throws it away: the
+columns are emptied whether the reading worked or failed, and also when the
+upload is abandoned. Screenshots are never kept longer than the work needs
+them, and the row still tells nobody else's story: only its own person can
+read it.

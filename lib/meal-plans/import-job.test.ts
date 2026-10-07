@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { fakeSupabase } from "../../test/fake-supabase";
-import { processImageImport, processVideoImport, waitUntilReady } from "./import-job";
+import { CAPTION_UNREADABLE, captionFrom, processImageImport, processVideoImport, waitUntilReady } from "./import-job";
 
 const ID = "22222222-2222-4222-8222-222222222222";
 const wait = vi.fn(async () => {});
 
-function admin(status = "processing", gemini_file = "files/abc", name = "Test pasta") {
-  return fakeSupabase({ tables: { recipe_imports: [{ id: ID, name, gemini_file, status }] } });
+function admin(status = "processing", gemini_file = "files/abc", name = "Test pasta", extra: object = {}) {
+  return fakeSupabase({ tables: { recipe_imports: [{ id: ID, name, gemini_file, status, ...extra }] } });
 }
 
 const updates = (fake: ReturnType<typeof fakeSupabase>) =>
@@ -23,7 +23,7 @@ describe("reading an uploaded video after the phone moves on (REQ-112)", () => {
     const read = vi.fn(async () => ({ draft: DRAFT, photoAt: 12.5 }));
     const discard = vi.fn(async () => {});
     await processVideoImport(fake as never, ID, { wait, check, read, discard });
-    expect(read).toHaveBeenCalledWith("Test pasta", { uri: "u", mimeType: "video/mp4" });
+    expect(read).toHaveBeenCalledWith("Test pasta", { uri: "u", mimeType: "video/mp4" }, undefined);
     expect(updates(fake)).toEqual([expect.objectContaining({ status: "ready", draft: DRAFT, gemini_file: null, photo_at: 12.5 })]);
     expect(discard).toHaveBeenCalledWith("files/abc");
   });
@@ -33,7 +33,7 @@ describe("reading an uploaded video after the phone moves on (REQ-112)", () => {
     const check = vi.fn().mockResolvedValue({ state: "ACTIVE", uri: "u", mimeType: "video/mp4" });
     const read = vi.fn(async () => ({ draft: { ...DRAFT, name: "Test tikka" }, photoAt: null }));
     await processVideoImport(fake as never, ID, { wait, check, read, discard: vi.fn(async () => {}) });
-    expect(read).toHaveBeenCalledWith("", { uri: "u", mimeType: "video/mp4" });
+    expect(read).toHaveBeenCalledWith("", { uri: "u", mimeType: "video/mp4" }, undefined);
     expect(updates(fake)).toEqual([expect.objectContaining({ status: "ready", name: "Test tikka" })]);
   });
 
@@ -130,5 +130,42 @@ describe("reading pictures after the phone moves on (REQ-157)", () => {
     const read = vi.fn();
     await processImageImport(admin("failed", "") as never, ID, images, { read });
     expect(read).not.toHaveBeenCalled();
+  });
+});
+
+describe("the caption that came with a video (REQ-182)", () => {
+  const check = vi.fn(async () => ({ state: "ACTIVE" as const, uri: "u", mimeType: "video/mp4" }));
+  const shot = { mime: "image/jpeg", data: "AAAA" };
+
+  it("hands the stored text and screenshots to Gemini with the video, then empties them", async () => {
+    const fake = admin("processing", "files/abc", "Test pasta", { caption_text: " 2 cups dal ", caption_images: [shot] });
+    const read = vi.fn(async () => ({ draft: DRAFT, photoAt: null }));
+    await processVideoImport(fake as never, ID, { wait, check, read, discard: vi.fn(async () => {}) });
+    expect(read).toHaveBeenCalledWith("Test pasta", { uri: "u", mimeType: "video/mp4" }, { text: "2 cups dal", images: [shot] });
+    expect(updates(fake)).toEqual([expect.objectContaining({ status: "ready", caption_text: null, caption_images: null })]);
+  });
+
+  it("passes no caption when none was given", async () => {
+    const fake = admin();
+    const read = vi.fn(async () => ({ draft: DRAFT, photoAt: null }));
+    await processVideoImport(fake as never, ID, { wait, check, read, discard: vi.fn(async () => {}) });
+    expect(read).toHaveBeenCalledWith("Test pasta", expect.anything(), undefined);
+  });
+
+  it("empties the caption when the reading fails too", async () => {
+    const fake = admin("processing", "files/abc", "Test pasta", { caption_images: [shot] });
+    await processVideoImport(fake as never, ID, { wait, check, read: vi.fn(async () => ({ error: "Gemini found no recipe in it." })), discard: vi.fn(async () => {}) });
+    expect(updates(fake)).toEqual([expect.objectContaining({ status: "failed", caption_images: null, caption_text: null })]);
+  });
+
+  it("keeps a note on the draft when Gemini couldn't read the screenshots, and none otherwise", async () => {
+    const fake = admin("processing", "files/abc", "Test pasta", { caption_images: [shot] });
+    await processVideoImport(fake as never, ID, { wait, check, read: vi.fn(async () => ({ draft: DRAFT, photoAt: null, captionUnreadable: true as const })), discard: vi.fn(async () => {}) });
+    expect(updates(fake)).toEqual([expect.objectContaining({ status: "ready", error: CAPTION_UNREADABLE })]);
+  });
+
+  it("drops anything stored that isn't a JPEG with data", () => {
+    expect(captionFrom("", [{ mime: "text/html", data: "x" }, { mime: "image/jpeg" }, null])).toBeUndefined();
+    expect(captionFrom(null, [shot, { mime: "image/jpeg", data: "BBBB" }])?.images).toHaveLength(2);
   });
 });

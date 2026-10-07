@@ -287,3 +287,40 @@ describe("a cuisine from the name alone (REQ-174)", () => {
   });
 });
 
+
+describe("the video's caption, read with it (REQ-182)", () => {
+  const answer = (extra: object) =>
+    new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ found: true, name: "Test dal", ingredients: [{ item: "dal", quantity: "1", unit: "cup" }], steps: ["Boil 1 cup dal."], guessed: [], photo_at: 4, ...extra }) }] } }] }));
+  const file = { uri: "https://files.example/v", mimeType: "video/mp4" };
+  const shot = { mime: "image/jpeg", data: "AAAA" };
+
+  it("sends the typed caption and each screenshot beside the video, and asks for one card from all of them", async () => {
+    fetchMock.mockResolvedValue(answer({}));
+    await recipeFromVideo("", file, { text: "2 cups dal", images: [shot, shot] });
+    const parts = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts;
+    expect(parts[0]).toHaveProperty("file_data");
+    expect(parts.filter((part: object) => "inline_data" in part)).toHaveLength(2);
+    expect(JSON.stringify(parts)).toContain("2 cups dal");
+    const prompt = parts[parts.length - 1].text;
+    expect(prompt).toContain("from the video and the caption together");
+    expect(prompt).toContain("never make up ingredients or steps");
+  });
+
+  it("works exactly as before with no caption: the video-only prompt, no extra parts", async () => {
+    fetchMock.mockResolvedValue(answer({}));
+    await recipeFromVideo("", file);
+    const parts = JSON.parse(fetchMock.mock.calls[0][1].body).contents[0].parts;
+    expect(parts).toHaveLength(2);
+    expect(parts[1].text).toContain("from this cooking video only");
+    expect(parts[1].text).not.toContain("caption");
+  });
+
+  it("says when screenshots couldn't be read, and only then", async () => {
+    fetchMock.mockResolvedValue(answer({ caption_unreadable: true }));
+    expect(await recipeFromVideo("", file, { text: "", images: [shot] })).toEqual(expect.objectContaining({ captionUnreadable: true }));
+    fetchMock.mockResolvedValue(answer({ caption_unreadable: true }));
+    expect(await recipeFromVideo("", file, { text: "2 cups dal", images: [] })).not.toHaveProperty("captionUnreadable");
+    fetchMock.mockResolvedValue(answer({}));
+    expect(await recipeFromVideo("", file, { text: "", images: [shot] })).not.toHaveProperty("captionUnreadable");
+  });
+});

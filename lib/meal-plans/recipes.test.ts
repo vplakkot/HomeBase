@@ -95,3 +95,18 @@ describe("how a card reads", () => {
     expect(cookTimeText(null)).toBeNull();
   });
 });
+
+describe("steps from the edit form, one box each (REQ-181)", () => {
+  const withSteps = (...steps: string[]) => {
+    const data = new FormData();
+    data.set("name", "Test curry");
+    for (const step of steps) data.append("step", step);
+    return recipeFieldsFrom(data);
+  };
+  it("keeps the boxes in order and drops empty ones", () => {
+    expect(withSteps("Fry 1 onion.", "  ", "Add 1 tsp cumin.")).toEqual(expect.objectContaining({ steps: ["Fry 1 onion.", "Add 1 tsp cumin."] }));
+  });
+  it("saves a card with every step removed", () => {
+    expect(withSteps("")).toEqual(expect.objectContaining({ steps: [] }));
+  });
+});

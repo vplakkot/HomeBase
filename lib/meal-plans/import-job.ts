@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { deleteVideo, isGeminiFile, recipeFromImages, recipeFromVideo, videoState, type ImageFile, type VideoState } from "./gemini";
+import { deleteVideo, isGeminiFile, recipeFromImages, recipeFromVideo, videoState, type Caption, type ImageFile, type VideoState } from "./gemini";
 import { UNNAMED_IMAGES, UNNAMED_RECIPE } from "./video-types";
 
 // Reading an uploaded video, after the phone has finished sending it
@@ -37,6 +37,17 @@ export async function waitUntilReady(
   return { error: "Google took too long to process the video." };
 }
 
+export const CAPTION_UNREADABLE = "Gemini couldn't read the caption screenshots, so this card comes from the video alone.";
+
+// What was stored with the import, checked: anything out of shape is dropped.
+export function captionFrom(text: unknown, images: unknown): Caption | undefined {
+  const typed = typeof text === "string" ? text.trim() : "";
+  const pictures = (Array.isArray(images) ? images : []).flatMap((item): ImageFile[] =>
+    item && typeof item.data === "string" && item.mime === "image/jpeg" ? [{ mime: "image/jpeg", data: item.data }] : [],
+  );
+  return typed || pictures.length ? { text: typed, images: pictures } : undefined;
+}
+
 export async function processVideoImport(
   admin: SupabaseClient,
   importId: string,
@@ -44,7 +55,7 @@ export async function processVideoImport(
 ): Promise<void> {
   const { data: row } = await admin
     .from("recipe_imports")
-    .select("id, name, gemini_file, status")
+    .select("id, name, gemini_file, status, caption_text, caption_images")
     .eq("id", importId)
     .maybeSingle();
   if (!row || row.status !== "processing" || !isGeminiFile(row.gemini_file)) return;
@@ -52,7 +63,8 @@ export async function processVideoImport(
   const finish = (fields: Record<string, unknown>) =>
     admin
       .from("recipe_imports")
-      .update({ ...fields, gemini_file: null, updated_at: new Date().toISOString() })
+      // REQ-182: the caption is only kept until it has been read.
+      .update({ ...fields, gemini_file: null, caption_text: null, caption_images: null, updated_at: new Date().toISOString() })
       .eq("id", importId)
       // Removed or given up on meanwhile: leave it be.
       .eq("status", "processing");
@@ -64,9 +76,11 @@ export async function processVideoImport(
     }
     // A video sent without a name is read for its own: Gemini names it.
     const unnamed = row.name === UNNAMED_RECIPE;
-    const reading = await (deps.read ?? recipeFromVideo)(unnamed ? "" : row.name, { uri: ready.uri!, mimeType: ready.mimeType ?? "video/mp4" });
+    const caption = captionFrom(row.caption_text, row.caption_images);
+    const reading = await (deps.read ?? recipeFromVideo)(unnamed ? "" : row.name, { uri: ready.uri!, mimeType: ready.mimeType ?? "video/mp4" }, caption);
     if ("error" in reading) await finish({ status: "failed", error: reading.error });
-    else await finish({ status: "ready", draft: reading.draft, error: null, photo_at: reading.photoAt, ...(unnamed && reading.draft.name ? { name: reading.draft.name } : {}) });
+    // REQ-182: a screenshot Gemini couldn't read is said so on the draft, never filled in.
+    else await finish({ status: "ready", draft: reading.draft, error: reading.captionUnreadable ? CAPTION_UNREADABLE : null, photo_at: reading.photoAt, ...(unnamed && reading.draft.name ? { name: reading.draft.name } : {}) });
   } catch (error) {
     await finish({ status: "failed", error: error instanceof Error ? error.message : "Something went wrong." });
   } finally {
