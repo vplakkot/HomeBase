@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 3.1.1 - 2026-10-07
+
+A bug-fix release. Turning notifications on from a phone now switches the
+person on in the admin console, the Send test button stops jumping, and the
+Finances home shows what each person owes first, with action items as single
+short lines.
+
 - Notifications: when someone turns notifications on from their phone, their
   switch in the admin console turns on too. Before, it stayed off, so the
   phone said "on" while nothing was ever sent to it. The app's automatic
