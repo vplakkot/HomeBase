@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ButtonLink, buttonClass } from "../../../components/button";
 import { notFound } from "next/navigation";
 import { readPeople } from "../../../lib/drinks/drinks";
 import { signedPhotoLinks } from "../../../lib/drinks/photos";
@@ -70,10 +71,12 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         {recipeMissing(recipe) ? (
           <section className={styles.missing} aria-label="Recipe missing">
             <p>Recipe missing</p>
-            <Link href={`/meal-plans/${recipe.id}/edit`}>Type it in</Link>
-            <details className={styles.startDay}>
-              <summary className={styles.linkButton}>Add details</summary>
-              <AddRecipe fill={{ id: recipe.id, name: recipe.name }} />
+            <ButtonLink href={`/meal-plans/${recipe.id}/edit`}>Type it in</ButtonLink>
+            <details className={styles.missingMore}>
+              <summary className={buttonClass}>Add details</summary>
+              <div className={styles.missingForm}>
+                <AddRecipe fill={{ id: recipe.id, name: recipe.name }} />
+              </div>
             </details>
           </section>
         ) : null}
