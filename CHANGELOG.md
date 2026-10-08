@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Meal Plans, the plan's add control has one Add to plan button: pick a recipe
+  or type a new name (picking one clears the other). Eating out stays its own
+  button.
+
 - Meal Plans, the plan's add control is tidier: the recipe list and the
   new-recipe name side by side, then Size and Meal (which apply to either),
   then Add to plan, Add new recipe and Eating out.
