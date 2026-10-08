@@ -84,6 +84,80 @@ describe("a recipe card (REQ-110)", () => {
   });
 });
 
+describe("editing a saved recipe (REQ-181)", () => {
+  const open = async () => {
+    given({ recipes: [RECIPE], cuisines: [] });
+    render(await EditRecipePage({ params: Promise.resolve({ id: ID }) }));
+  };
+  const items = () => screen.getAllByRole("textbox", { name: "Ingredient" }).map((box) => (box as HTMLInputElement).value);
+  const steps = () => screen.getAllByRole("textbox", { name: /^Step \d/ }).map((box) => (box as HTMLTextAreaElement).value);
+
+  it("fills in every field of the card, ingredients and steps as rows", async () => {
+    await open();
+    expect((screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement).value).toBe("Test pasta");
+    expect((screen.getByRole("textbox", { name: /Video link/ }) as HTMLInputElement).value).toBe(RECIPE.video_url);
+    expect((screen.getByRole("textbox", { name: /Recipe page link/ }) as HTMLInputElement).value).toBe(RECIPE.page_url);
+    expect((screen.getByRole("textbox", { name: /Notes/ }) as HTMLTextAreaElement).value).toBe("Good cold too.");
+    expect(items()).toEqual(["pasta", "Greek yogurt"]);
+    expect(steps()).toEqual(RECIPE.steps);
+  });
+
+  it("moves ingredients and steps with arrows, and the ends can't move off the list", async () => {
+    await open();
+    expect((screen.getByRole("button", { name: "Move ingredient 1 up" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Move ingredient 1 down" }));
+    expect(items()).toEqual(["Greek yogurt", "pasta"]);
+    fireEvent.click(screen.getByRole("button", { name: "Move step 2 up" }));
+    expect(steps()).toEqual([RECIPE.steps[1], RECIPE.steps[0]]);
+    expect((screen.getByRole("button", { name: "Move step 2 down" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("adds and removes ingredients and steps", async () => {
+    await open();
+    fireEvent.click(screen.getByRole("button", { name: "Add a step" }));
+    expect(steps()).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "Remove step 1" }));
+    expect(steps()).toEqual([RECIPE.steps[1], ""]);
+    fireEvent.click(screen.getByRole("button", { name: "Add an ingredient" }));
+    expect(items()).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "Remove ingredient 1" }));
+    expect(items()).toEqual(["Greek yogurt", ""]);
+  });
+
+  it("marks the steps that name an ingredient whose amount changed, and clears the mark when it's put back", async () => {
+    await open();
+    expect(screen.queryByText(/check the amount/)).toBeNull();
+    const amount = screen.getAllByRole("textbox", { name: "Amount" })[1];
+    fireEvent.change(amount, { target: { value: "500" } });
+    expect(screen.getByRole("status").textContent).toContain("An amount changed");
+    expect(screen.getAllByText(/check the amount/)).toHaveLength(1);
+    expect(screen.getByText(/^Step 2/).textContent).toContain("check the amount");
+    fireEvent.change(amount, { target: { value: "250" } });
+    expect(screen.queryByText(/check the amount/)).toBeNull();
+  });
+
+  it("doesn't mark steps for a changed note, only for an amount", async () => {
+    await open();
+    fireEvent.change(screen.getAllByRole("textbox", { name: "Note (optional)" })[1], { target: { value: "extra" } });
+    expect(screen.queryByText(/check the amount/)).toBeNull();
+  });
+
+  it("opens a card with no recipe the same way, empty and ready to fill in", async () => {
+    given({ recipes: [{ ...RECIPE, ingredients: [], steps: [] }], cuisines: [] });
+    render(await EditRecipePage({ params: Promise.resolve({ id: ID }) }));
+    expect(items()).toEqual([""]);
+    expect(steps()).toEqual([""]);
+  });
+
+  it("offers Add note on the open card, without the edit view", async () => {
+    given({ recipes: [RECIPE] });
+    render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
+    const card = screen.getByRole("article", { name: "Test pasta" });
+    expect(within(card).getByText("Add note")).toBeTruthy();
+    expect(within(card).getByRole("button", { name: "Save note" })).toBeTruthy();
+  });
+});
+
 describe("where you are, under the module's name", () => {
   it("says Recipes on a recipe's Edit page, not Overview", async () => {
     given({ recipes: [RECIPE] });
@@ -185,7 +259,7 @@ describe("reviewing a draft before it's saved (REQ-111, REQ-112)", () => {
     expect(screen.getByText(/^Cuisine/).textContent).toContain("check this");
     expect(screen.getByText(/^Cook time/).textContent).toContain("check this");
     expect(screen.getByText(/^Servings/).textContent).not.toContain("check this");
-    expect((screen.getByRole("textbox", { name: /Steps/ }) as HTMLTextAreaElement).value).toBe("Fry 200 g chicken.");
+    expect((screen.getByRole("textbox", { name: /Step 1/ }) as HTMLTextAreaElement).value).toBe("Fry 200 g chicken.");
     expect((screen.getByRole("textbox", { name: /Video link/ }) as HTMLInputElement).value).toBe("https://www.tiktok.com/@someone/video/1");
     expect(screen.getByRole("button", { name: "Save recipe" })).toBeTruthy();
   });
@@ -194,7 +268,7 @@ describe("reviewing a draft before it's saved (REQ-111, REQ-112)", () => {
     given({ recipe_imports: [draftRow({ status: "failed", draft: null, error: "Gemini found no recipe in it." })], cuisines: [] });
     render(await DraftPage({ params: Promise.resolve({ id: ID }) }));
     expect(screen.getByRole("alert").textContent).toContain("Gemini couldn't read a recipe from this video. Gemini found no recipe in it.");
-    expect((screen.getByRole("textbox", { name: /Steps/ }) as HTMLTextAreaElement).value).toBe("");
+    expect((screen.getByRole("textbox", { name: /Step 1/ }) as HTMLTextAreaElement).value).toBe("");
     // REQ-155: Cancel is the way out of a draft; no second "remove" beside it.
     expect(screen.getByRole("button", { name: "Cancel" }).getAttribute("value")).toBe(ID);
     expect(screen.queryByRole("button", { name: "Remove this draft" })).toBeNull();

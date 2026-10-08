@@ -18,7 +18,7 @@ import {
   uploadProgress,
 } from "../../lib/meal-plans/gemini";
 import { isPublicPage, readImage, readPage, readRecipePage, titleFrom, type SearchResult } from "../../lib/meal-plans/recipe-search";
-import { MAX_IMAGES, MAX_IMAGES_BYTES, MAX_VIDEO_BYTES, UNNAMED_IMAGES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
+import { MAX_CAPTION_IMAGES, MAX_CAPTION_TEXT, MAX_IMAGES, MAX_IMAGES_BYTES, MAX_VIDEO_BYTES, UNNAMED_IMAGES, UNNAMED_RECIPE, VIDEO_TYPES } from "../../lib/meal-plans/video-types";
 import { createNameOnly } from "../../lib/meal-plans/name-only";
 import { framePath, removeFrames } from "../../lib/meal-plans/frames";
 import { PROCESSING_GIVES_UP_MS, UPLOAD_GIVES_UP_MS, processImageImport, processVideoImport } from "../../lib/meal-plans/import-job";
@@ -246,16 +246,34 @@ export async function startVideoImport(formData: FormData): Promise<VideoStart> 
   if (size > MAX_VIDEO_BYTES) return { error: "That video is over 500 MB. Try a shorter one." };
   const target = await fillTarget(supabase, formData.get("recipe_id"));
   if ("error" in target) return target;
+  const caption = await captionFromForm(formData);
+  if ("error" in caption) return caption;
   const id = crypto.randomUUID();
   try {
     const uploadUrl = await openVideoUpload(size, mime, name);
-    const { error } = await supabase.from("recipe_imports").insert({ id, name, video_url, source: "video", status: "uploading", upload_url: uploadUrl, recipe_id: target.recipeId });
+    const { error } = await supabase
+      .from("recipe_imports")
+      .insert({ id, name, video_url, source: "video", status: "uploading", upload_url: uploadUrl, recipe_id: target.recipeId, ...caption });
     if (error) throw new Error(error.message);
     return { id, uploadUrl };
   } catch (error) {
     Sentry.captureException(error);
     return { error: "The upload couldn't start. Try again." };
   }
+}
+
+// REQ-182: the caption sent with a video: pasted text and up to 2 shrunk
+// screenshots. Kept on the import only until Gemini has read them.
+async function captionFromForm(formData: FormData): Promise<{ caption_text: string | null; caption_images: { mime: string; data: string }[] | null } | { error: string }> {
+  const text = String(formData.get("caption_text") ?? "").trim();
+  if (text.length > MAX_CAPTION_TEXT) return { error: "That caption is too long. Keep just the recipe part." };
+  const files = formData.getAll("caption_image");
+  if (files.length > MAX_CAPTION_IMAGES) return { error: `Up to ${MAX_CAPTION_IMAGES} caption screenshots.` };
+  const blobs = files.filter((item): item is File => item instanceof File && item.size > 0);
+  if (blobs.length !== files.length) return { error: "A caption screenshot didn't arrive. Try again." };
+  if (blobs.some((blob) => blob.type !== "image/jpeg" || blob.size > MAX_PHOTO_UPLOAD)) return { error: "Screenshots are sent as JPEG, under 1 MB each." };
+  const images = await Promise.all(blobs.map(async (blob) => ({ mime: "image/jpeg", data: Buffer.from(await blob.arrayBuffer()).toString("base64") })));
+  return { caption_text: text || null, caption_images: images.length > 0 ? images : null };
 }
 
 export type ImagesStart = { id: string } | { error: string };
@@ -365,7 +383,7 @@ export async function uploadFailed(id: string): Promise<void> {
   if (!importId) return;
   await supabase
     .from("recipe_imports")
-    .update({ status: "failed", error: "The upload didn't finish.", upload_url: null, updated_at: new Date().toISOString() })
+    .update({ status: "failed", error: "The upload didn't finish.", upload_url: null, caption_text: null, caption_images: null, updated_at: new Date().toISOString() })
     .eq("id", importId)
     .eq("status", "uploading");
 }
@@ -394,7 +412,7 @@ export async function myRecipeImports(): Promise<RecipeImport[] | null> {
       item.error = "It stopped before finishing.";
       await supabase
         .from("recipe_imports")
-        .update({ status: "failed", error: item.error, upload_url: null, updated_at: new Date().toISOString() })
+        .update({ status: "failed", error: item.error, upload_url: null, caption_text: null, caption_images: null, updated_at: new Date().toISOString() })
         .eq("id", item.id)
         .eq("status", was);
     }
@@ -520,6 +538,32 @@ export async function updateRecipe(_prev: FormState, formData: FormData): Promis
   }
   refresh();
   redirect(`/meal-plans/${id}`);
+}
+
+const MAX_NOTE = 2000;
+
+// REQ-181: a note added straight from the open card, on a new line after
+// the notes already there. Nothing else on the card is touched.
+export async function addRecipeNote(_prev: FormState, formData: FormData): Promise<FormState> {
+  const supabase = await requireMember();
+  const id = idFrom(formData.get("id"));
+  if (!id) return { error: "That recipe is gone." };
+  const note = String(formData.get("note") ?? "").trim();
+  if (!note) return { error: "Type the note first." };
+  if (note.length > MAX_NOTE) return { error: `Keep a note to ${MAX_NOTE} letters or fewer.` };
+  try {
+    const { data: recipe, error: readError } = await supabase.from("recipes").select("notes").eq("id", id).maybeSingle();
+    if (readError) throw new Error(readError.message);
+    if (!recipe) return { error: "That recipe is gone." };
+    const notes = recipe.notes ? `${recipe.notes}\n${note}` : note;
+    const { error } = await supabase.from("recipes").update({ notes }).eq("id", id);
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    Sentry.captureException(error);
+    return { error: "The note couldn't be saved. Try again." };
+  }
+  refresh();
+  return { saved: true };
 }
 
 // REQ-110: either of us can replace the photo with our own.

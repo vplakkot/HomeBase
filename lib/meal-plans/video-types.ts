@@ -25,3 +25,7 @@ export const UNNAMED_IMAGES = "Recipe from images";
 export const MAX_IMAGES = 3;
 export const MAX_IMAGES_BYTES = 2.5 * 1024 * 1024;
 
+
+// REQ-182: a video's caption, as up to 2 screenshots and/or pasted text.
+export const MAX_CAPTION_IMAGES = 2;
+export const MAX_CAPTION_TEXT = 8000;

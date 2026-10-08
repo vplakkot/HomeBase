@@ -9,7 +9,7 @@ import { readRatings, starsText } from "../../../lib/meal-plans/ratings";
 import { cookTimeText, readRecipe, recipeMissing } from "../../../lib/meal-plans/recipes";
 import { mainMeatIndex } from "../../../lib/meal-plans/scale";
 import { removeRecipe } from "../actions";
-import { AddRecipe, AiGenerated } from "../forms";
+import { AddNote, AddRecipe, AiGenerated } from "../forms";
 import { MealPlansScreen, mealPlansViewer } from "../frame";
 import { clearRecipeRating, setHidden } from "../plan-actions";
 import { AddToWeekButton, RateRecipeForm } from "../plan-forms";
@@ -144,6 +144,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
             <p>{recipe.notes}</p>
           </section>
         ) : null}
+        <AddNote recipeId={recipe.id} />
         {/* REQ-114: a recipe we won't make again leaves the library, kept. */}
         <form action={setHidden}>
           <input type="hidden" name="id" value={recipe.id} />

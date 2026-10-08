@@ -22,6 +22,7 @@ import {
   saveForNow,
   saveRecipeMissing,
   updateRecipe,
+  addRecipeNote,
   myRecipeImports,
   removeRecipe,
   saveDraft,
@@ -745,3 +746,72 @@ describe("adding details to a Recipe missing card (REQ-174)", () => {
   });
 });
 
+
+describe("the caption sent with a video (REQ-182)", () => {
+  const video = { name: "", size: "1000", mime: "video/mp4" };
+
+  it("keeps pasted text and up to 2 screenshots on the import until Gemini has read them", async () => {
+    given();
+    const data = form({ ...video, caption_text: "  2 cups dal  " });
+    data.append("caption_image", jpeg(), "a.jpg");
+    data.append("caption_image", jpeg(), "b.jpg");
+    expect(await startVideoImport(data)).toHaveProperty("uploadUrl");
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(
+      expect.objectContaining({ caption_text: "2 cups dal", caption_images: [{ mime: "image/jpeg", data: "eA==" }, { mime: "image/jpeg", data: "eA==" }] }),
+    );
+  });
+
+  it("stores no caption when none is given, so the flow is as before", async () => {
+    given();
+    await startVideoImport(form(video));
+    expect(on("recipe_imports")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ caption_text: null, caption_images: null }));
+  });
+
+  it("refuses a third screenshot, a non-JPEG, or an over-long caption, before opening an upload", async () => {
+    given();
+    const three = form(video);
+    for (let i = 0; i < 3; i++) three.append("caption_image", jpeg(), "a.jpg");
+    expect(await startVideoImport(three)).toEqual({ error: "Up to 2 caption screenshots." });
+    const png = form(video);
+    png.append("caption_image", new Blob(["x"], { type: "image/png" }), "a.png");
+    expect(await startVideoImport(png)).toEqual({ error: "Screenshots are sent as JPEG, under 1 MB each." });
+    expect(await startVideoImport(form({ ...video, caption_text: "x".repeat(8001) }))).toEqual({ error: "That caption is too long. Keep just the recipe part." });
+    expect(openVideoUpload).not.toHaveBeenCalled();
+  });
+});
+
+describe("a note added from the open card (REQ-181)", () => {
+  it("adds it on a new line after the notes already there, changing nothing else", async () => {
+    given({ recipes: [{ notes: "Serve hot." }] });
+    expect(await addRecipeNote({}, form({ id: RECIPE, note: "  Onions need 2 more minutes.  " }))).toEqual({ saved: true });
+    expect(on("recipes")[1].update).toHaveBeenCalledWith({ notes: "Serve hot.\nOnions need 2 more minutes." });
+  });
+
+  it("starts the notes when there are none, and keeps the AI-generated label", async () => {
+    given({ recipes: [{ notes: null }] });
+    await addRecipeNote({}, form({ id: RECIPE, note: "Needs salt." }));
+    expect(on("recipes")[1].update).toHaveBeenCalledWith({ notes: "Needs salt." });
+  });
+
+  it("refuses an empty note, a gone recipe, and anyone without the permission", async () => {
+    given({ recipes: [{ notes: null }] });
+    expect(await addRecipeNote({}, form({ id: RECIPE, note: "  " }))).toEqual({ error: "Type the note first." });
+    given({ recipes: [] });
+    expect(await addRecipeNote({}, form({ id: RECIPE, note: "Hi" }))).toEqual({ error: "That recipe is gone." });
+    given({}, []);
+    await expect(addRecipeNote({}, form({ id: RECIPE, note: "Hi" }))).rejects.toThrow("REDIRECT:/meal-plans");
+  });
+});
+
+describe("saving an edit leaves cooking history and ratings alone (REQ-181)", () => {
+  it("writes only the card's own fields", async () => {
+    given();
+    await expect(updateRecipe({}, form({ id: RECIPE, name: "Test curry", item: "chicken", step: "Fry it." }))).rejects.toThrow(`REDIRECT:/meal-plans/${RECIPE}`);
+    const written = on("recipes")[0].update.mock.calls[0][0];
+    expect(Object.keys(written).sort()).toEqual(
+      ["ai_generated", "cook_minutes", "cooking_method", "cuisine", "ingredients", "main_meat", "name", "notes", "page_url", "servings", "steps", "video_url"],
+    );
+    expect(written.steps).toEqual(["Fry it."]);
+    expect(fake.from).not.toHaveBeenCalledWith("recipe_ratings");
+  });
+});

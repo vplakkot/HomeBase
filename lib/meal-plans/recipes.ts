@@ -131,6 +131,17 @@ export function draftFrom(value: unknown): RecipeDraft | null {
   };
 }
 
+// REQ-181: one box per step, in order. A form that still sends one box
+// of lines ("steps") is read line by line, dropping step numbers.
+function stepsFrom(formData: FormData): string[] {
+  const boxes = formData.getAll("step").map(text).filter(Boolean);
+  if (boxes.length > 0 || formData.has("step")) return boxes;
+  return text(formData.get("steps"))
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*\d+[.)]\s*/, "").trim())
+    .filter(Boolean);
+}
+
 // The review and edit form, as a row. Ingredients come as parallel lists
 // (quantity, unit, item, note per row); a row without an item is dropped.
 export function recipeFieldsFrom(formData: FormData): RecipeFields | { error: string } {
@@ -159,11 +170,7 @@ export function recipeFieldsFrom(formData: FormData): RecipeFields | { error: st
     cook_minutes: positiveInt(formData.get("cook_minutes")),
     servings: positiveInt(formData.get("servings")),
     ingredients,
-    // One step per line.
-    steps: text(formData.get("steps"))
-      .split(/\r?\n/)
-      .map((line) => line.replace(/^\s*\d+[.)]\s*/, "").trim())
-      .filter(Boolean),
+    steps: stepsFrom(formData),
     notes: orNull(formData.get("notes")),
     video_url,
     page_url,

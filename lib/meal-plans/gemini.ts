@@ -152,6 +152,10 @@ export const VIDEO_SCHEMA = {
   required: [...RECIPE_SCHEMA.required, "photo_at"],
   properties: {
     ...RECIPE_SCHEMA.properties,
+    caption_unreadable: {
+      type: "boolean",
+      description: "True only if caption screenshots were given and none of their text could be read; false otherwise.",
+    },
     photo_at: {
       type: "number",
       description: "The second of the video where the finished, plated dish is shown clearly, with no person or any part of one (face, hands, body) in view; -1 if no moment qualifies.",
@@ -159,11 +163,18 @@ export const VIDEO_SCHEMA = {
   },
 };
 
-export function videoPrompt(name: string): string {
+// REQ-182: the text under the video, as typed in and as screenshots.
+export type Caption = { text: string; images: ImageFile[] };
+
+export function videoPrompt(name: string, caption?: Caption): string {
   const which = name ? ` for "${name}"` : "";
   const naming = name ? "" : " For name, give the dish's own name as the video calls it or shows it.";
+  const given = caption ? [caption.text ? "typed text" : "", caption.images.length ? `${caption.images.length} screenshot${caption.images.length === 1 ? "" : "s"}` : ""].filter(Boolean).join(" and ") : "";
+  const captionRule = given
+    ? `\nThe video's caption came with it, as ${given}. Read the recipe from the video and the caption together, as one card: the caption often lists the ingredients and steps. If they differ, keep what the caption states. Don't add anything neither shows or says. If screenshots were given and none of their text can be read, set caption_unreadable to true and use only the video and any typed text; never make up ingredients or steps in its place.`
+    : "";
   return `${CARD_RULES}
-Read the recipe${which} from this cooking video only: what is shown, said aloud, and written on screen. Don't add anything the video doesn't show or say.${naming}
+Read the recipe${which} from this cooking video${given ? " and its caption" : " only"}: what is shown, said aloud, and written on screen. Don't add anything the video doesn't show or say.${naming}${captionRule}
 Also give photo_at, as a photo for the recipe card: never a moment with any person in view, a dish still being made, loose ingredients, or text on screen.`;
 }
 
@@ -247,16 +258,25 @@ function answerFrom(reply: unknown): unknown {
   }
 }
 
-export type VideoReading = { draft: RecipeDraft; photoAt: number | null } | { error: string };
+export type VideoReading = { draft: RecipeDraft; photoAt: number | null; captionUnreadable?: true } | { error: string };
 
-export async function recipeFromVideo(name: string, file: { uri: string; mimeType: string }): Promise<VideoReading> {
-  const response = await generate([{ file_data: { mime_type: file.mimeType, file_uri: file.uri } }, { text: videoPrompt(name) }], 240_000, VIDEO_SCHEMA);
+export async function recipeFromVideo(name: string, file: { uri: string; mimeType: string }, caption?: Caption): Promise<VideoReading> {
+  const parts: Part[] = [{ file_data: { mime_type: file.mimeType, file_uri: file.uri } }];
+  if (caption?.text) parts.push({ text: `The video's caption, typed in:\n"""\n${caption.text}\n"""` });
+  caption?.images.forEach((image, index) => parts.push({ text: `Caption screenshot ${index + 1}:` }, { inline_data: { mime_type: image.mime, data: image.data } }));
+  parts.push({ text: videoPrompt(name, caption) });
+  const response = await generate(parts, 240_000, VIDEO_SCHEMA);
   if (!(response instanceof Response)) return response;
   const reply = await response.json();
   const reading = readingFrom(reply);
   if ("error" in reading) return reading;
-  const at = (answerFrom(reply) as { photo_at?: unknown })?.photo_at;
-  return { draft: reading.draft, photoAt: typeof at === "number" && Number.isFinite(at) && at >= 0 ? at : null };
+  const answer = answerFrom(reply) as { photo_at?: unknown; caption_unreadable?: unknown } | undefined;
+  const at = answer?.photo_at;
+  return {
+    draft: reading.draft,
+    photoAt: typeof at === "number" && Number.isFinite(at) && at >= 0 ? at : null,
+    ...(caption?.images.length && answer?.caption_unreadable === true ? { captionUnreadable: true as const } : {}),
+  };
 }
 
 // REQ-157: a recipe from pictures (a carousel, screenshots). The pictures
