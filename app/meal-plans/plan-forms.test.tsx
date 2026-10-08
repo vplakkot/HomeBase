@@ -51,8 +51,9 @@ describe("adding a new recipe from the plan (REQ-180)", () => {
 
   it("offers New recipe even when there are no recipes yet, beside Eating out", () => {
     render(<AddToPlanForm planId="p" recipes={[]} choices={choices} />);
-    expect(screen.getByRole("button", { name: "Add new recipe" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add to plan" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Eating out" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Add new recipe" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Recipe" })).toBeNull();
     // The meal and size chosen apply to a new recipe too.
     expect(screen.getByRole("combobox", { name: "Meal" })).toBeTruthy();
@@ -64,9 +65,23 @@ describe("adding a new recipe from the plan (REQ-180)", () => {
     render(<AddToPlanForm planId="p" recipes={[{ id: "r1", name: "Soup" }, { id: "r2", name: "Chilli" }]} choices={choices} />);
     fireEvent.change(screen.getByPlaceholderText("Recipe name"), { target: { value: "chilli" } });
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Add new recipe" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add to plan" }));
     });
     expect((screen.getByRole("combobox", { name: "Recipe" }) as HTMLSelectElement).value).toBe("r2");
     expect(screen.getByRole("alert").textContent).toContain("already a recipe");
+  });
+});
+
+describe("one Add to plan button", () => {
+  it("clears the list when a name is typed, and the name when a recipe is picked", () => {
+    render(<AddToPlanForm planId="p" recipes={[{ id: "r1", name: "Soup" }]} choices={{ one: [], two: [] }} />);
+    const list = () => screen.getByRole("combobox", { name: "Recipe" }) as HTMLSelectElement;
+    const name = screen.getByPlaceholderText("Recipe name") as HTMLInputElement;
+    fireEvent.change(list(), { target: { value: "r1" } });
+    expect(list().value).toBe("r1");
+    fireEvent.change(name, { target: { value: "Tacos" } });
+    expect(list().value).toBe("");
+    fireEvent.change(list(), { target: { value: "r1" } });
+    expect(name.value).toBe("");
   });
 });

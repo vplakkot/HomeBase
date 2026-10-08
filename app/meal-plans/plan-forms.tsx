@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import cards from "../../components/cards.module.css";
 import { buttonClass } from "../../components/button";
 import type { EntrySize } from "../../lib/meal-plans/meals";
@@ -161,6 +161,9 @@ export function AddToPlanForm({
   const [size, setSize] = useState<EntrySize>(2);
   // REQ-180: a name that is already a recipe picks that recipe in the list.
   const [picked, setPicked] = useState("");
+  // Only one of the list and the name box is filled at a time.
+  const [fresh, setFresh] = useState(0);
+  const nameBox = useRef<HTMLInputElement>(null);
   const [seen, setSeen] = useState<PlanFormState>(initialState);
   if (state !== seen) {
     setSeen(state);
@@ -174,7 +177,7 @@ export function AddToPlanForm({
         {recipes.length > 0 ? (
           <label className={`${styles.control} ${styles.grow}`}>
             <span>Recipe</span>
-            <select key={picked} name="recipe_id" defaultValue={picked}>
+            <select key={`${picked}-${fresh}`} name="recipe_id" defaultValue={picked} onChange={() => { if (nameBox.current) nameBox.current.value = ""; }}>
               <option value="" disabled>
                 Choose a recipe
               </option>
@@ -188,7 +191,7 @@ export function AddToPlanForm({
         ) : null}
         <label className={`${styles.control} ${styles.grow}`}>
           <span>{recipes.length > 0 ? "Or a new recipe" : "New recipe"}</span>
-          <input type="text" name="new_name" placeholder="Recipe name" autoComplete="off" />
+          <input ref={nameBox} type="text" name="new_name" placeholder="Recipe name" autoComplete="off" onChange={(event) => { if (event.currentTarget.value) { setPicked(""); setFresh((count) => count + 1); } }} />
         </label>
       </div>
       <div className={styles.inline}>
@@ -209,13 +212,8 @@ export function AddToPlanForm({
         </label>
       </div>
       <div className={styles.inline}>
-        {recipes.length > 0 ? (
-          <button type="submit" name="intent" value="recipe" className={buttonClass} disabled={pending}>
-            Add to plan
-          </button>
-        ) : null}
-        <button type="submit" name="intent" value="new_recipe" className={buttonClass} disabled={pending}>
-          Add new recipe
+        <button type="submit" name="intent" value="recipe" className={buttonClass} disabled={pending}>
+          Add to plan
         </button>
         <button type="submit" name="intent" value="eating_out" className={buttonClass} disabled={pending}>
           Eating out
