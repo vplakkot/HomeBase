@@ -256,15 +256,17 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
   const supabase = await requireMember();
   const planId = idFrom(formData.get("plan_id"));
   const eatingOut = formData.get("intent") === "eating_out";
-  const newRecipe = formData.get("intent") === "new_recipe";
-  const newName = newRecipe ? String(formData.get("new_name") ?? "").trim().replace(/\s+/g, " ") : "";
+  // One Add button: a recipe chosen from the list, else a name typed (REQ-180).
+  const typedName = String(formData.get("new_name") ?? "").trim().replace(/\s+/g, " ");
+  const newRecipe = formData.get("intent") === "new_recipe" || (formData.get("intent") === "recipe" && !idFrom(formData.get("recipe_id")) && typedName !== "");
+  const newName = newRecipe ? typedName : "";
   let recipeId = eatingOut || newRecipe ? null : idFrom(formData.get("recipe_id"));
   const size = eatingOut ? 1 : Number(formData.get("meals") ?? 2);
   const chosen = String(formData.get("meal") ?? "").trim();
   let notice: string | undefined;
   if (!planId) return { error: "Start a plan first." };
   if (newRecipe && !newName) return { error: "Give the recipe a name." };
-  if (!eatingOut && !newRecipe && !recipeId) return { error: "Choose a recipe to add." };
+  if (!eatingOut && !newRecipe && !recipeId) return { error: "Choose a recipe, or type a name." };
   if (!isPlanSize(size)) return { error: "A dish is 2 meals or 1 meal." };
   if (chosen && !parseMealKey(chosen)) return { error: "Choose a meal from the list." };
   try {

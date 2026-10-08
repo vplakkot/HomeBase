@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Meal Plans, the plan's add control has one Add to plan button: pick a recipe
+  or type a new name (picking one clears the other). Eating out stays its own
+  button.
+
+- Meal Plans, the plan's add control is tidier: the recipe list and the
+  new-recipe name side by side, then Size and Meal (which apply to either),
+  then Add to plan, Add new recipe and Eating out.
+
 - Meal Plans, edit a recipe (REQ-181): ingredients and steps are now rows you
   can add, remove, change and move with up and down arrows (one box per step
   instead of one box of lines). Change an ingredient's amount and the steps
@@ -14,6 +22,10 @@
   together. With no caption nothing changes. If the screenshots can't be read
   the draft says so, and the screenshots are deleted once read. Needs a
   database migration (two empty columns).
+- Meal Plans, a "Recipe missing" card is tidier: Type it in and Add details
+  sit side by side, and Add details opens one column under them with a single
+  left edge, full-width fields, and the two file pickers drawn as fields
+  instead of links.
 
 - Meal Plans, new recipe from the plan (REQ-180): the plan's add control has
   "Add new recipe". Type a name and it is saved as a name-only "Recipe missing"

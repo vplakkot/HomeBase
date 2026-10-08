@@ -357,7 +357,9 @@ describe("finding a recipe on the web (REQ-112, flows 2 and 3)", () => {
     render(await RecipePage({ params: Promise.resolve({ id: ID }) }));
     const missing = within(screen.getByRole("region", { name: "Recipe missing" }));
     expect(missing.getByRole("link", { name: "Type it in" }).getAttribute("href")).toBe(`/meal-plans/${ID}/edit`);
-    expect(missing.getByText("Add details")).toBeTruthy();
+    // Add details opens the methods under the two buttons.
+    expect(missing.queryByRole("combobox", { name: /Source/ })).toBeNull();
+    fireEvent.click(missing.getByRole("button", { name: "Add details" }));
     const source = missing.getByRole("combobox", { name: /Source/ }) as HTMLSelectElement;
     expect(Array.from(source.options).map((option) => option.text)).toEqual([
       "From a video",
