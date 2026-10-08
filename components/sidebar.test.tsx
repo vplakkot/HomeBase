@@ -49,7 +49,7 @@ describe("the desktop sidebar", () => {
     expect(items).toEqual([
       "Finances",
       "Calendar, coming soon",
-      "Pets, coming soon",
+      "Pets",
       "Drinks",
       "Meal Plans",
       "Health, coming soon",
@@ -63,7 +63,7 @@ describe("the desktop sidebar", () => {
   it("links only the modules that open", () => {
     render(<Sidebar current="home" canAdminister={false} account={TEST_ACCOUNT} />);
     const links = within(sidebar()).getAllByRole("link").map((link) => link.getAttribute("href"));
-    expect(links).toEqual(["/", "/finances", "/drinks", "/meal-plans", "/paperwork", "/storage", "/restaurants"]);
+    expect(links).toEqual(["/", "/finances", "/pets", "/drinks", "/meal-plans", "/paperwork", "/storage", "/restaurants"]);
   });
 
   it("offers the admin console to admins, at the bottom", () => {

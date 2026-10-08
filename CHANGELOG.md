@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Pets, a new module (REQ-186 to REQ-189). The Pets home has a card for each
+  pet with its photo and the food it's on. A profile holds the pet's name,
+  nickname, species and photo, and any member can edit it, archive it (kept,
+  hidden, restorable) or add another. Vaccines: log each dose with the next
+  due date you type, see the latest per vaccine as current, due soon (30
+  days) or overdue, and keep every earlier dose in its history. Diet: set
+  commercial, prescription or home-cooked food with grams and meals; changing
+  the food or amounts starts a new entry so the history stays, changing only
+  notes edits in place. Medications and preventives: one product can be
+  linked to several pets, Mark given logs the dose and moves the next one on
+  (with Undo for the last), and its supply works out the run-out date, the
+  order-by date and a gap warning when it would run out before the next
+  delivery; Mark delivery received tops it up. Everything entered can be
+  removed. The sick log link on the profile waits for its own requirement.
+  Needs a database migration (new tables and a private photo bucket).
+
 ## 3.2.0 - 2026-10-14
 
 A Meal Plans release. The plan is a tile for each lunch and dinner, a day at a

@@ -104,14 +104,14 @@ describe("the pinned action", () => {
 });
 
 describe("the module switcher", () => {
-  it("lists all nine modules, opening Finances, the one you're in, Drinks, Meal Plans, Paperwork, Storage and Restaurants", () => {
+  it("lists all nine modules, opening Finances, the one you're in, Pets, Drinks, Meal Plans, Paperwork, Storage and Restaurants", () => {
     render(<ModuleBar module={finances} others={ALL} />);
     fireEvent.click(within(bar()).getByRole("button", { name: "Other modules" }));
     const sheet = openSheet();
     expect(within(sheet).getAllByRole("listitem").map((row) => row.textContent)).toEqual([
       "Finances",
       "CalendarComing soon",
-      "PetsComing soon",
+      "Pets",
       "Drinks",
       "Meal Plans",
       "HealthComing soon",
@@ -120,7 +120,7 @@ describe("the module switcher", () => {
       "Restaurants",
     ]);
     const links = within(sheet).getAllByRole("link");
-    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/finances", "/drinks", "/meal-plans", "/paperwork", "/storage", "/restaurants"]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/finances", "/pets", "/drinks", "/meal-plans", "/paperwork", "/storage", "/restaurants"]);
     expect(links[0].getAttribute("aria-current")).toBe("page");
   });
 
@@ -131,7 +131,7 @@ describe("the module switcher", () => {
     fireEvent.click(within(bar()).getByRole("button", { name: "Other modules" }));
     const names = within(openSheet()).getAllByRole("listitem").map((row) => row.textContent);
     expect(names).not.toContain("Drinks");
-    expect(names).not.toContain("PetsComing soon");
+    expect(names).not.toContain("Pets");
     expect(names).toContain("Restaurants");
   });
 });
