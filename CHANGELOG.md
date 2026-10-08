@@ -18,6 +18,10 @@
   together. With no caption nothing changes. If the screenshots can't be read
   the draft says so, and the screenshots are deleted once read. Needs a
   database migration (two empty columns).
+- Meal Plans, a "Recipe missing" card is tidier: Type it in and Add details
+  sit side by side, and Add details opens one column under them with a single
+  left edge, full-width fields, and the two file pickers drawn as fields
+  instead of links.
 
 - Meal Plans, new recipe from the plan (REQ-180): the plan's add control has
   "Add new recipe". Type a name and it is saved as a name-only "Recipe missing"

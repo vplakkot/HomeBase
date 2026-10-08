@@ -486,12 +486,49 @@
 /* REQ-110: a card with no recipe yet, and what to do about it. */
 .missing {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   background: var(--module-quiet);
+}
+
+/* Type it in and Add details, side by side; the opened form sits under them. */
+.missingRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.missingForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 32rem;
+}
+
+.missingForm form {
+  padding: 0;
+}
+
+.missingForm input:not([type="checkbox"], [type="radio"], [type="file"]),
+.missingForm select,
+.missingForm textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* The file pickers look like the fields above them, not like links. */
+.missingForm .linkButton {
+  align-self: stretch;
+  min-height: var(--tap-target-min);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-ground);
+  text-align: left;
+  text-decoration: none;
 }
 
 .missing > p {
