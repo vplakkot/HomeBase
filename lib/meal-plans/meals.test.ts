@@ -3,6 +3,7 @@ import {
   blockerAt,
   canStartAt,
   capMeal,
+  coveredMeals,
   entryMeals,
   isWeekendDay,
   layoutPlan,
@@ -15,6 +16,8 @@ import {
   planEnd,
   pushBack,
   reflow,
+  seat,
+  secondChoices,
   slide,
   startChoices,
   swapWithNeighbour,
@@ -319,3 +322,79 @@ describe("Eating out pushes dishes back (REQ-169)", () => {
     expect(push([out("Y", TUE)], x, { day: TUE, meal: "dinner" })).toBeNull();
   });
 });
+
+// REQ-196: a 2-meal dish's second meal has a place of its own.
+describe("a second meal of its own (REQ-196)", () => {
+  const FRI = "2026-10-09";
+  const split = (id: string, meal_on: string, meal: MealKind, second_on: string, second_meal: MealKind): Sited => ({ ...dish(id, meal_on, meal), second_on, second_meal });
+
+  it("puts the second meal on the next lunch after a dinner, and on the next day's dinner after a lunch", () => {
+    expect(seat({ eating_out: false, meals: 2 }, { day: MON, meal: "dinner" })).toEqual({ meal_on: MON, meal: "dinner", second_on: TUE, second_meal: "lunch" });
+    expect(seat({ eating_out: false, meals: 2 }, { day: FRI, meal: "lunch" })).toEqual({ meal_on: FRI, meal: "lunch", second_on: SAT, second_meal: "dinner" });
+    expect(seat({ eating_out: false, meals: 1 }, { day: FRI, meal: "lunch" })).toEqual({ meal_on: FRI, meal: "lunch", second_on: null, second_meal: null });
+  });
+
+  it("keeps the second meal where it was written, or right after the first when none was", () => {
+    expect(coveredNames(split("a", MON, "dinner", THU, "dinner"))).toEqual(["dinner 2026-10-05", "dinner 2026-10-08"]);
+    expect(coveredNames(dish("a", MON, "dinner"))).toEqual(["dinner 2026-10-05", "lunch 2026-10-06"]);
+    expect(planEnd([split("a", MON, "dinner", THU, "dinner")])).toEqual({ day: THU, meal: "dinner" });
+  });
+
+  it("keeps its distance when the first meal moves to the same kind of meal, and resets on another kind", () => {
+    const a = split("a", MON, "dinner", THU, "dinner");
+    expect(seat(a, { day: TUE, meal: "dinner" })).toMatchObject({ second_on: FRI, second_meal: "dinner" });
+    expect(seat(a, { day: TUE, meal: "lunch" })).toMatchObject({ second_on: WED, second_meal: "dinner" });
+  });
+
+  it("refuses a move onto a meal that is a second meal, and says who is on it", () => {
+    const a = split("a", MON, "dinner", THU, "dinner");
+    expect(blockerAt([a], dish("b", THU, "dinner", 1), { day: THU, meal: "dinner" })?.by.id).toBe("a");
+    // A 2-meal dish whose usual second meal is taken can't start there either.
+    expect(blockerAt([dish("c", TUE, "lunch", 1)], dish("b", MON, "dinner"), { day: MON, meal: "dinner" })?.by.id).toBe("c");
+  });
+
+  it("lays a split dish out as one card at its first meal, with the meals between left open", () => {
+    const rows = layoutPlan({ starts_on: MON, starts_meal: "dinner" }, [split("a", MON, "dinner", WED, "dinner")]).rows;
+    expect(rows.map((row) => (row.kind === "entry" ? `${row.entry.id}: ${entryMeals(row.meals)}` : `${row.label} ${mealKey(row.meal)}`))).toEqual([
+      "a: Dinner Mon · Dinner Wed",
+      "On your own 2026-10-06:lunch",
+      "Not planned 2026-10-06:dinner",
+      "On your own 2026-10-07:lunch",
+    ]);
+  });
+
+  it("lets a dish go between the two meals of another", () => {
+    const a = split("a", MON, "dinner", THU, "dinner");
+    expect(blockerAt([a], dish("b", TUE, "dinner"), { day: TUE, meal: "dinner" })).toBeNull();
+  });
+
+  it("slides the second meal with the first, and settles round it", () => {
+    const a = split("a", FRI, "lunch", SAT, "dinner");
+    expect(where(slide([a], 1, new Set([SAT, FRI])))).toEqual({ a: "lunch 2026-10-10" });
+    expect(slide([a], 1, new Set([SAT, FRI]))[0]).toMatchObject({ second_on: "2026-10-11", second_meal: "dinner" });
+    // Sat is a weekend day anyway; a slide onto a weekday lunch goes to that day's dinner, second meal reset.
+    const moved = slide([split("a", SUN, "lunch", MON, "dinner")], 1, NONE)[0];
+    expect(moved).toMatchObject({ meal_on: MON, meal: "dinner", second_on: TUE, second_meal: "lunch" });
+  });
+
+  it("shrinks a dish to 1 meal when Eating out takes its second meal, and pushes dishes that start on the dinner", () => {
+    const a = split("a", FRI, "lunch", SAT, "dinner");
+    const shrunk = pushBack({ starts_on: SUN }, [a], out("o", SAT), { day: SAT, meal: "dinner" }, new Set([FRI]));
+    expect(shrunk?.entries.find((entry) => entry.id === "a")).toMatchObject({ meals: 1, second_on: null, second_meal: null });
+    const b = split("b", MON, "dinner", TUE, "lunch");
+    const pushed = pushBack({ starts_on: SUN }, [b], out("o", MON), { day: MON, meal: "dinner" }, NONE);
+    expect(pushed?.entries.find((entry) => entry.id === "b")).toMatchObject({ meal_on: TUE, second_on: WED });
+  });
+
+  it("offers every meal after the first for the second, from today on", () => {
+    const first = { meal_on: MON, meal: "dinner" as MealKind };
+    const all = secondChoices({ starts_on: SUN, starts_meal: "dinner" }, first, null);
+    expect(all[0]).toEqual({ day: TUE, meal: "lunch" });
+    expect(all.at(-1)).toEqual({ day: "2026-10-11", meal: "dinner" });
+    expect(secondChoices({ starts_on: SUN, starts_meal: "dinner" }, first, THU)[0]).toEqual({ day: THU, meal: "lunch" });
+  });
+});
+
+function coveredNames(entry: Sited) {
+  return coveredMeals(entry).map((meal) => `${meal.meal} ${meal.day}`);
+}

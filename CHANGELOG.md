@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Meal Plans, the second meal of a 2-meal dish has its own place (REQ-196). A
+  dish cooked at lunch now has its second meal on the next day's dinner, not
+  the same day's; one cooked at dinner still has it on the next lunch. Each
+  2-meal dish has a "Move 2nd meal" list to put it on any free later meal.
+  Dishes already in a plan keep the meals they show today. Needs a database
+  migration (empty columns only).
+- Meal Plans, a plan nobody started that slides forward now says "Moved from
+  Oct 4" until it is started (REQ-197), so a plan that was cooked anyway can
+  be put back with "Change the start day".
+
 - Meal Plans, the plan's add control has one Add to plan button: pick a recipe
   or type a new name (picking one clears the other). Eating out stays its own
   button.

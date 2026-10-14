@@ -20,6 +20,9 @@ export type PlannedRecipe = {
   meals: EntrySize;
   meal_on: string;
   meal: MealKind;
+  // REQ-196: where a 2-meal dish's second meal sits; null until one is written (the meal after the first).
+  second_on?: string | null;
+  second_meal?: MealKind | null;
   cooked: boolean;
   carry_over: boolean;
   didnt_cook: boolean;
@@ -37,6 +40,8 @@ export type MealPlan = {
   start_prompted_on: string | null;
   // Who pressed Start (REQ-163), to tell the other person who opens the start notification late.
   began_by: string | null;
+  // REQ-197: the day a new plan was meant to start before it slid; null if it never slid.
+  slid_from?: string | null;
   recipes: PlannedRecipe[];
   daysOff: Set<string>;
 };
@@ -51,7 +56,7 @@ export function isPlanSize(value: number): value is EntrySize {
   return value === 1 || value === 2;
 }
 
-export const ENTRY_COLUMNS = "id, recipe_id, eating_out, meals, meal_on, meal, cooked, carry_over, didnt_cook, added_at";
+export const ENTRY_COLUMNS = "id, recipe_id, eating_out, meals, meal_on, meal, second_on, second_meal, cooked, carry_over, didnt_cook, added_at";
 
 type PlanRowFromDb = {
   id: string;
@@ -61,6 +66,7 @@ type PlanRowFromDb = {
   status: PlanStatus | null;
   start_prompted_on: string | null;
   began_by: string | null;
+  slid_from: string | null;
   meal_plan_recipes: PlannedRecipe[] | null;
   meal_plan_days_off: { day: string }[] | null;
 };
@@ -71,7 +77,7 @@ type PlanRowFromDb = {
 export async function readStoredPlans(supabase: SupabaseClient): Promise<{ current: MealPlan | null; ahead: MealPlan | null }> {
   const { data, error } = await supabase
     .from("meal_plans")
-    .select(`id, starts_on, starts_meal, ahead, status, start_prompted_on, began_by, meal_plan_recipes(${ENTRY_COLUMNS}), meal_plan_days_off(day)`)
+    .select(`id, starts_on, starts_meal, ahead, status, start_prompted_on, began_by, slid_from, meal_plan_recipes(${ENTRY_COLUMNS}), meal_plan_days_off(day)`)
     .is("closed_at", null);
   if (error) throw new Error(`Could not read the plan: ${error.message}`);
   // An open plan is never closed; the filter is the database's, this keeps a closed row out whatever it sent.
@@ -84,6 +90,7 @@ export async function readStoredPlans(supabase: SupabaseClient): Promise<{ curre
     status: row.status ?? (row.ahead === true ? ("new" as const) : ("started" as const)),
     start_prompted_on: row.start_prompted_on ?? null,
     began_by: row.began_by ?? null,
+    slid_from: row.slid_from ?? null,
     recipes: (row.meal_plan_recipes ?? []).filter((entry) => entry.meal_on && entry.meal && entry.meals).sort((a, b) => startOf(a) - startOf(b) || a.added_at.localeCompare(b.added_at)),
     daysOff: new Set((row.meal_plan_days_off ?? []).map((off) => off.day)),
   }));
@@ -105,7 +112,7 @@ export async function readOpenPlan(supabase: SupabaseClient): Promise<MealPlan |
 
 // Write a plan's start and where each entry sits, in one step on the database.
 export async function saveLayout(supabase: SupabaseClient, planId: string, startsOn: string, startsMeal: MealKind, entries: readonly Sited[]): Promise<void> {
-  const layout = entries.map((entry) => ({ id: entry.id, meal_on: entry.meal_on, meal: entry.meal, meals: entry.meals }));
+  const layout = entries.map((entry) => ({ id: entry.id, meal_on: entry.meal_on, meal: entry.meal, meals: entry.meals, second_on: entry.second_on ?? null, second_meal: entry.second_meal ?? null }));
   const { error } = await supabase.rpc("set_plan_layout", { p_plan: planId, p_starts_on: startsOn, p_starts_meal: startsMeal, p_layout: layout });
   if (error) throw new Error(`Could not save the plan: ${error.message}`);
 }

@@ -12,6 +12,7 @@ import {
   clearRecipeRating,
   closePlan,
   moveEntry,
+  moveSecondMeal,
   rateRecipe,
   removePlan,
   reopenPlan,
@@ -293,7 +294,7 @@ describe("the week's plan (REQ-115)", () => {
   it("changes size and takes a recipe off, which simply leaves the plan", async () => {
     let fake = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(ID, 2)] });
     expect(await setPlanMeals({}, form({ plan_id: PLAN, entry_id: E1, meals: "1" }))).toEqual({});
-    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ meals: 1 });
+    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ meals: 1, second_on: null, second_meal: null });
     fake = given({});
     await takeOffPlan(form({ plan_id: PLAN, entry_id: E1 }));
     expect(fake.from.mock.results.some((result) => vi.mocked(result.value.delete).mock.calls.length > 0)).toBe(true);
@@ -665,7 +666,7 @@ describe("a plan is a run of meals (REQ-168)", () => {
   it("frees the second meal when a dish goes from 2 meals to 1, and needs the next meal free to go back", async () => {
     let fake = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(ID, 2)] });
     expect(await setPlanMeals({}, form({ plan_id: PLAN, entry_id: E1, meals: "1" }))).toEqual({});
-    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ meals: 1 });
+    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ meals: 1, second_on: null, second_meal: null });
     fake = given({ meal_plans: [PLAN_ROW], recipes: [SECOND], meal_plan_recipes: [planned(ID, 1), planned(OTHER, 1, "2026-09-28", "lunch", false, false, E2)] });
     expect(await setPlanMeals({}, form({ plan_id: PLAN, entry_id: E1, meals: "2" }))).toEqual({ error: "Lunch Mon is taken by Test lentil soup." });
     expect(sent(fake, "meal_plan_recipes", "update")).toBeUndefined();
@@ -805,7 +806,7 @@ describe("Eating out pushes dishes back (REQ-169)", () => {
     expect(await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-10-03:dinner" }))).toEqual({});
     const call = pushCall(fake);
     expect(call?.p_drop).toEqual([]);
-    expect(call?.p_layout).toEqual([{ id: E1, meal_on: "2026-10-03", meal: "lunch", meals: 1 }]);
+    expect(call?.p_layout).toEqual([{ id: E1, meal_on: "2026-10-03", meal: "lunch", meals: 1, second_on: null, second_meal: null }]);
     expect(call?.p_eating_out).toMatchObject({ meal_on: "2026-10-03" });
   });
 
@@ -1204,5 +1205,62 @@ describe("module home actions and suggestions (REQ-165)", () => {
     given({ meal_plans: [openPlan([])], recipes: many, meal_plan_recipes: [] });
     render(await WeekPage({ searchParams: Promise.resolve({}) }));
     expect(within(screen.getByRole("region", { name: "Suggestions" })).getAllByRole("listitem")).toHaveLength(3);
+  });
+});
+
+// REQ-196: the second meal of a 2-meal dish has a place of its own.
+describe("a second meal of its own (REQ-196)", () => {
+  it("puts a weekend-lunch dish's second meal on the next day's dinner, and a dinner dish's on the next lunch", async () => {
+    let fake = given({ meal_plans: [PLAN_ROW] });
+    await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "2", meal: "2026-09-27:lunch" }));
+    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ meal_on: "2026-09-27", meal: "lunch", second_on: "2026-09-28", second_meal: "dinner" });
+    fake = given({ meal_plans: [PLAN_ROW] });
+    await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "2", meal: "2026-09-29:dinner" }));
+    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ second_on: "2026-09-30", second_meal: "lunch" });
+    fake = given({ meal_plans: [PLAN_ROW] });
+    await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "1", meal: "2026-09-29:dinner" }));
+    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ second_on: null, second_meal: null });
+  });
+
+  it("moves the second meal on its own to a free later meal", async () => {
+    const fake = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(ID, 2)] });
+    expect(await moveSecondMeal({}, form({ plan_id: PLAN, entry_id: E1, meal: "2026-09-30:dinner" }))).toEqual({});
+    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ second_on: "2026-09-30", second_meal: "dinner" });
+  });
+
+  it("refuses a taken meal, a meal before the first, and a day that has passed", async () => {
+    const fake = given({ meal_plans: [PLAN_ROW], recipes: [SECOND], meal_plan_recipes: [planned(ID, 2, "2026-09-28", "dinner"), planned(OTHER, 1, "2026-09-30", "dinner", false, false, E2)] });
+    expect(await moveSecondMeal({}, form({ plan_id: PLAN, entry_id: E1, meal: "2026-09-30:dinner" }))).toEqual({ error: "Dinner Wed is taken by Test lentil soup." });
+    expect(await moveSecondMeal({}, form({ plan_id: PLAN, entry_id: E1, meal: "2026-09-28:dinner" }))).toEqual({ error: "The second meal comes after the first." });
+    expect(await moveSecondMeal({}, form({ plan_id: PLAN, entry_id: E1, meal: "2026-09-26:dinner" }))).toEqual({ error: "That day has passed." });
+    expect(sent(fake, "meal_plan_recipes", "update")).toBeUndefined();
+  });
+
+  it("goes back to 2 meals with the second where it usually goes", async () => {
+    const fake = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(ID, 1, "2026-09-27", "lunch")] });
+    expect(await setPlanMeals({}, form({ plan_id: PLAN, entry_id: E1, meals: "2" }))).toEqual({});
+    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ meals: 2, second_on: "2026-09-28", second_meal: "dinner" });
+  });
+
+  it("shows a split dish as one card naming both meals, with a picker for the second", async () => {
+    given({ meal_plans: [openPlan([{ ...planned(ID, 2, "2026-09-27", "lunch"), second_on: "2026-09-28", second_meal: "dinner" }])], recipes: [RECIPE] });
+    render(await WeekPage());
+    const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
+    expect(rows[0].textContent).toContain("Lunch Sun · Dinner Mon");
+    expect(screen.getByRole("combobox", { name: /second meal of Test chicken rice/ })).toBeTruthy();
+  });
+
+  it("says when a plan slid, and says nothing once it is started or back on its day (REQ-197)", async () => {
+    given({ meal_plans: [{ ...openPlan([planned(ID, 2)]), status: "new", slid_from: "2026-09-24" }], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.getByText("Moved from Thu, Sep 24")).toBeTruthy();
+    cleanup();
+    given({ meal_plans: [{ ...openPlan([planned(ID, 2)]), status: "new", slid_from: "2026-09-27" }], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.queryByText(/Moved from/)).toBeNull();
+    cleanup();
+    given({ meal_plans: [{ ...openPlan([planned(ID, 2)]), status: "started", slid_from: "2026-09-24" }], recipes: [RECIPE] });
+    render(await WeekPage());
+    expect(screen.queryByText(/Moved from/)).toBeNull();
   });
 });

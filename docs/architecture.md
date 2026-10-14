@@ -1352,8 +1352,13 @@ start out, so a page is right even if a write was missed.
 `id` and is either a dish (once per plan) or an evening out
 (`eating_out`, no recipe), with an optional cooked tick. Each entry is
 written onto the meal it starts at (`meal_on`, a day, and `meal`, lunch
-or dinner) with a size of `meals` 1 or 2; a 2-meal dish also covers the
-meal after, its leftovers. A plan stores its `starts_meal` (dinner, or
+or dinner) with a size of `meals` 1 or 2. A 2-meal dish also has a second meal of its
+own (REQ-196: `second_on`, `second_meal`), anywhere after the first and
+moved on its own; by default the next lunch after a dinner, and the next
+day's dinner after a lunch. An entry with no second meal written (every
+one saved before that) has it on the meal right after the first, so
+nothing was converted. A plan that slid also remembers `slid_from`, the
+day it was meant to start (REQ-197), to say so until it is started. A plan stores its `starts_meal` (dinner, or
 lunch on a weekend day when we choose), and `meal_plan_days_off` holds the
 days we marked as a Day off, which count as weekend days for it. The rules
 (where an entry can start, the next free meal, the reflow when a start
@@ -1361,7 +1366,7 @@ slides or a dish is swapped, how far a plan reaches) are plain code in
 `lib/meal-plans/meals.ts`, which never touches the database. Writes go
 through `set_plan_layout`, one step on the database, run as the person
 asking so the same row rules apply; it also refuses two entries on one
-meal. Placement lives on the entry and says nothing about its recipe, so
+meal (`plan_has_overlap`, which counts both meals of every entry). Placement lives on the entry and says nothing about its recipe, so
 a later change can give an entry several recipes. Removing a plan removes
 its rows. `position` and `servings` are left from the earlier model and
 are dropped by a later migration. Days before today (ET) are locked in a

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { householdToday } from "../../../lib/finances/budget-year";
-import { dayLabel, entryMeals, layoutPlan, mealKey, mealName, mealPlace, planStartMeal, startChoices, startOf, type Meal } from "../../../lib/meal-plans/meals";
+import { coveredMeals, dayLabel, entryMeals, layoutPlan, mealKey, mealName, mealPlace, planStartMeal, secondChoices, startChoices, startOf, type Meal } from "../../../lib/meal-plans/meals";
 import {
   hasDishes,
   planStats,
@@ -16,7 +16,7 @@ import { averageRatings, readRatingPrompts, readRatings } from "../../../lib/mea
 import { readRecipes, recipeMissing, type Recipe } from "../../../lib/meal-plans/recipes";
 import { suggestions } from "../../../lib/meal-plans/suggest";
 import { MealPlansScreen, mealPlansViewer } from "../frame";
-import { AddToPlanForm, AddToWeekButton, ChangeStartForm, DaysOffForm, MoveControls, PlanAheadForm, PlannedControls, RateRecipeForm, StartPlanForm } from "../plan-forms";
+import { AddToPlanForm, AddToWeekButton, ChangeStartForm, DaysOffForm, MoveControls, PlanAheadForm, PlannedControls, RateRecipeForm, SecondMealControl, StartPlanForm } from "../plan-forms";
 import { closePlan, removePlan, reopenPlan, setDidntCook, skipRating, startPlanNow, takeOffPlan } from "../plan-actions";
 import { readPeople } from "../../../lib/drinks/drinks";
 import { readSettings } from "../../../lib/meal-plans/settings";
@@ -55,6 +55,7 @@ function PlanCard({ plan, recipes, names, ahead, planned }: { plan: MealPlan; re
           <PlanRange plan={plan} />
         </h2>
       </div>
+      {!ahead && plan.status === "new" && plan.slid_from && plan.slid_from !== plan.starts_on ? <p className={styles.summary}>Moved from {dayLabel(plan.slid_from)}</p> : null}
       {!ahead && plan.status === "new" ? (
         <div className={styles.inline}>
           <p>Not started. First meal: {mealPlace(planStartMeal(plan))}</p>
@@ -96,6 +97,9 @@ function PlanCard({ plan, recipes, names, ahead, planned }: { plan: MealPlan; re
                 {entry.eating_out ? null : (
                   <PlannedControls planId={plan.id} entryId={entry.id} name={name} meals={entry.meals} />
                 )}
+                {entry.meals === 2 && !entry.eating_out ? (
+                  <SecondMealControl planId={plan.id} entryId={entry.id} name={name} current={mealKey(coveredMeals(entry)[1])} meals={secondChoices(plan, entry, locked).map(asOption)} />
+                ) : null}
                 <MoveControls
                   planId={plan.id}
                   entryId={entry.id}

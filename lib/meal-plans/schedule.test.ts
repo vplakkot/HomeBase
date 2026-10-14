@@ -72,7 +72,7 @@ describe("what the schedule decides (REQ-163)", () => {
 describe("running the schedule (REQ-163)", () => {
   const rpc = vi.fn(async () => ({ error: null }));
   const claim = vi.fn(async () => ({ data: [{ id: "p1" }], error: null }));
-  const update = vi.fn(() => ({ eq: () => ({ or: () => ({ select: claim }) }) }));
+  const update = vi.fn(() => ({ eq: () => Object.assign(Promise.resolve({ error: null }), { or: () => ({ select: claim }) }) }));
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -132,6 +132,11 @@ describe("running the schedule (REQ-163)", () => {
     expect(saved[2]).toBe("2026-10-06");
     expect(saved[4]).toEqual([expect.objectContaining({ id: "e1", meal_on: "2026-10-06", meal: "dinner", meals: 2 })]);
     expect(syncAheadStart).toHaveBeenCalledTimes(1);
+    // REQ-197: the plan remembers where it was meant to start, and keeps the first such day if it slides again.
+    expect(update).toHaveBeenCalledWith({ slid_from: "2026-10-04" });
+    vi.mocked(readStoredPlans).mockResolvedValue({ current: plan({ status: "new", starts_on: "2026-10-06", slid_from: "2026-10-04" }), ahead: null });
+    await runMealPlanSchedule({ subject: "s", now: new Date("2026-10-07T16:00:00Z") });
+    expect(update).toHaveBeenLastCalledWith({ slid_from: "2026-10-04" });
   });
 
   it("keeps closing and sliding while Meal Plans is switched off, but asks nobody", async () => {

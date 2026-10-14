@@ -8,13 +8,19 @@ import { householdToday } from "../../lib/finances/budget-year";
 import {
   blockerAt,
   cantStartBecause,
+  coveredMeals,
   daysBetween,
   isWeekendDay,
+  mealIndex,
+  mealKey,
   mealName,
   mealPlace,
   nextFreeMeal,
+  occupant,
   parseMealKey,
   pushBack,
+  seat,
+  secondChoices,
   slide,
   startOf,
   swapWithNeighbour,
@@ -122,8 +128,8 @@ export async function startPlan(_prev: PlanFormState, formData: FormData): Promi
 
 // A plan as the rules see it: its start, its entries and its days off.
 async function loadPlan(supabase: Supabase, planId: string): Promise<MealPlan | null> {
-  const { data } = await supabase.from("meal_plans").select("id, starts_on, starts_meal, ahead, status, start_prompted_on, began_by").eq("id", planId).is("closed_at", null).maybeSingle();
-  const plan = data as { id: string; starts_on: string; starts_meal: MealKind; ahead: boolean | null; status: PlanStatus | null; start_prompted_on: string | null; began_by: string | null } | null;
+  const { data } = await supabase.from("meal_plans").select("id, starts_on, starts_meal, ahead, status, start_prompted_on, began_by, slid_from").eq("id", planId).is("closed_at", null).maybeSingle();
+  const plan = data as { id: string; starts_on: string; starts_meal: MealKind; ahead: boolean | null; status: PlanStatus | null; start_prompted_on: string | null; began_by: string | null; slid_from: string | null } | null;
   if (!plan) return null;
   const [entries, off] = await Promise.all([
     supabase.from("meal_plan_recipes").select(ENTRY_COLUMNS).eq("plan_id", planId),
@@ -138,6 +144,7 @@ async function loadPlan(supabase: Supabase, planId: string): Promise<MealPlan | 
     status: plan.status ?? (plan.ahead === true ? "new" : "started"),
     start_prompted_on: plan.start_prompted_on ?? null,
     began_by: plan.began_by ?? null,
+    slid_from: plan.slid_from ?? null,
     recipes,
     daysOff: new Set(((off.data ?? []) as { day: string }[]).map((row) => row.day)),
   };
@@ -159,7 +166,7 @@ const PASSED = "That day has passed.";
 async function pushForEatingOut(supabase: Supabase, plan: MealPlan, eatingOut: PlannedRecipe, at: Meal, isNew: boolean): Promise<string | undefined> {
   const pushed = pushBack(plan, plan.recipes, eatingOut, at, plan.daysOff);
   if (!pushed) return undefined;
-  const layout = pushed.entries.filter((entry) => !(isNew && entry.id === eatingOut.id)).map((entry) => ({ id: entry.id, meal_on: entry.meal_on, meal: entry.meal, meals: entry.meals }));
+  const layout = pushed.entries.filter((entry) => !(isNew && entry.id === eatingOut.id)).map((entry) => ({ id: entry.id, meal_on: entry.meal_on, meal: entry.meal, meals: entry.meals, second_on: entry.second_on ?? null, second_meal: entry.second_meal ?? null }));
   const { error } = await supabase.rpc("push_plan_back", {
     p_plan: plan.id,
     p_layout: layout,
@@ -286,7 +293,7 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
     const taken = blockerAt(plan.recipes, entry, at);
     if (taken && eatingOut && !taken.by.eating_out) {
       // Eating out on a dinner that has a dish pushes the dish back (REQ-169).
-      const added: PlannedRecipe = { ...entry, recipe_id: null, meal_on: at.day, meal: "dinner", meals: 1, cooked: false, carry_over: false, didnt_cook: false, added_at: new Date().toISOString() };
+      const added: PlannedRecipe = { ...entry, recipe_id: null, meal_on: at.day, meal: "dinner", meals: 1, second_on: null, second_meal: null, cooked: false, carry_over: false, didnt_cook: false, added_at: new Date().toISOString() };
       notice = await pushForEatingOut(supabase, plan, added, at, true);
     } else if (taken) {
       return { error: await takenMessage(supabase, taken) };
@@ -306,7 +313,7 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
           return { error: `${await entryName(supabase, { eating_out: false, recipe_id: recipeId })} is already planned.` };
         }
       }
-      const { error } = await supabase.from("meal_plan_recipes").insert({ ...entry, plan_id: planId, recipe_id: recipeId, meal_on: at.day, meal: at.meal });
+      const { error } = await supabase.from("meal_plan_recipes").insert({ ...entry, plan_id: planId, recipe_id: recipeId, ...seat(entry, at) });
       if (error) throw new Error(error.message);
       // Planned again: no longer waiting to be proposed.
       if (recipeId) await supabase.from("meal_plan_proposed_next").delete().eq("recipe_id", recipeId);
@@ -342,18 +349,51 @@ export async function setPlanMeals(_prev: PlanFormState, formData: FormData): Pr
     const locked = lockedBefore(plan);
     if (locked && entry.meal_on < locked) return { error: PASSED };
     if (size === 2) {
-      const grown = { ...entry, meals: size };
+      // The second meal goes where it usually does (REQ-196), not beside the first.
       const at = { day: entry.meal_on, meal: entry.meal };
+      const grown = { id: entry.id, eating_out: entry.eating_out, meals: size };
       const cant = cantStartBecause(grown, at, plan.daysOff);
       if (cant) return { error: cant };
       const taken = blockerAt(plan.recipes, grown, at);
       if (taken) return { error: await takenMessage(supabase, taken) };
     }
-    const { error } = await supabase.from("meal_plan_recipes").update({ meals: size }).eq("plan_id", row.planId).eq("id", row.entryId);
+    const placed = seat({ eating_out: entry.eating_out, meals: size }, { day: entry.meal_on, meal: entry.meal });
+    const { error } = await supabase.from("meal_plan_recipes").update({ meals: size, second_on: placed.second_on, second_meal: placed.second_meal }).eq("plan_id", row.planId).eq("id", row.entryId);
     if (error) throw new Error(error.message);
   } catch (error) {
     Sentry.captureException(error);
     return { error: "The size couldn't be changed. Try again." };
+  }
+  await syncAhead(supabase);
+  refresh();
+  return {};
+}
+
+// REQ-196: a 2-meal dish's second meal moves on its own, to any free meal
+// after the first. The first meal and the arrows work as before.
+export async function moveSecondMeal(_prev: PlanFormState, formData: FormData): Promise<PlanFormState> {
+  const supabase = await requireMember();
+  const row = entryFrom(formData);
+  if (!row) return { error: "That dish is gone." };
+  const at = parseMealKey(formData.get("meal"));
+  if (!at) return { error: "Choose a meal from the list." };
+  try {
+    const plan = await loadPlan(supabase, row.planId);
+    const entry = plan?.recipes.find((item) => item.id === row.entryId);
+    if (!plan || !entry) return { error: "That dish is gone." };
+    if (entry.eating_out || entry.meals !== 2) return { error: "Only a 2-meal dish has a second meal." };
+    const locked = lockedBefore(plan);
+    const current = coveredMeals(entry)[1];
+    if (locked && (current.day < locked || at.day < locked)) return { error: PASSED };
+    if (mealIndex(at) <= startOf(entry)) return { error: "The second meal comes after the first." };
+    if (!secondChoices(plan, entry, locked).some((choice) => mealKey(choice) === mealKey(at))) return { error: "That meal is out of reach for this plan." };
+    const taken = occupant(plan.recipes, at, entry.id);
+    if (taken) return { error: await takenMessage(supabase, { meal: at, by: taken }) };
+    const { error } = await supabase.from("meal_plan_recipes").update({ second_on: at.day, second_meal: at.meal }).eq("plan_id", row.planId).eq("id", row.entryId);
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    Sentry.captureException(error);
+    return { error: "The second meal couldn't be moved. Try again." };
   }
   await syncAhead(supabase);
   refresh();
@@ -462,7 +502,7 @@ export async function moveEntry(_prev: PlanFormState, formData: FormData): Promi
       } else if (taken) {
         return { error: await takenMessage(supabase, taken) };
       } else {
-        moved = plan.recipes.map((item) => (item.id === entry.id ? { ...item, meal_on: at.day, meal: at.meal } : item));
+        moved = plan.recipes.map((item) => (item.id === entry.id ? { ...item, ...seat(item, at) } : item));
       }
     } else if (step !== 0) {
       const swapped = swapWithNeighbour(plan.recipes, entry.id, step, plan.daysOff);

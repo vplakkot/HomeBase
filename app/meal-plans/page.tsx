@@ -4,7 +4,7 @@ import { ButtonLink } from "../../components/button";
 import { householdToday } from "../../lib/finances/budget-year";
 import { homeStats, ratingText } from "../../lib/meal-plans/home";
 import { signedPhotoLinks, thumbPath } from "../../lib/drinks/photos";
-import { entryMeals, layoutPlan } from "../../lib/meal-plans/meals";
+import { dayLabel, entryMeals, layoutPlan } from "../../lib/meal-plans/meals";
 import { RECIPE_PHOTOS } from "../../lib/meal-plans/photos";
 import { planStats, readPlans, readPlanRows, type MealPlan } from "../../lib/meal-plans/plan";
 import { averageRatings, readRatingPrompts, readRatings } from "../../lib/meal-plans/ratings";
@@ -47,6 +47,7 @@ function MenuCard({ label, plan, byId, thumbs }: { label: string; plan: MealPlan
           <h2 className={styles.title}>
             <PlanRange plan={plan} />
           </h2>
+          {!plan.ahead && plan.status === "new" && plan.slid_from && plan.slid_from !== plan.starts_on ? <p className={styles.summary}>Moved from {dayLabel(plan.slid_from)}</p> : null}
           {dishes.length > 0 ? (
             <ul className={styles.menu} aria-label={`${label}: dishes`}>
               {dishes.map(({ entry, meals }) => {
