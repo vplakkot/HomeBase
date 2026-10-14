@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Meal Plans, every meal can be moved by hand (bug): moving a dish's first
+  meal no longer fails because its second meal's usual place is taken (the
+  second meal stays where it is, and moves on its own with its own Edit); a
+  2-meal dish can go on a weekday lunch; and Eating out can go on a lunch, so
+  a day off can have a lunch out. The usual places still decide where a dish
+  goes when you don't pick a meal. Needs a small database migration.
+
 - Meal Plans, bug (#355): the hourly plan job was being answered with the
   sign-in page, so plans never closed on their own, never slid forward, and
   never asked "Start this week's plan?". Its address is now let through (it
