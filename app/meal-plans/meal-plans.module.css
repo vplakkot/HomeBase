@@ -282,34 +282,32 @@
   list-style: none;
 }
 
+/* A meal with a dish is a card like a recipe card: the module colour on
+   its border, the name on a band, the details under it. A meal with nothing
+   in it is solid in the module colour, so it stands out. */
 .slot {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  composes: card;
+  gap: var(--space-2);
   min-width: 0;
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--module-loud);
-  color: var(--module-on-loud);
+  padding: var(--space-4);
 }
 
 .slotLunch { grid-column: 1; }
 .slotDinner { grid-column: 2; }
 
 .slotEmpty {
-  background: var(--module-quiet);
-  color: var(--color-muted);
+  background: var(--module-loud);
+  color: var(--module-on-loud);
+}
+
+.slotEmpty .slotMeal {
+  color: inherit;
 }
 
 .slotMeal {
   font-size: var(--text-body-sm);
   font-weight: 600;
-  opacity: 0.85;
-}
-
-.slotName {
-  font-weight: 700;
-  overflow-wrap: anywhere;
+  color: var(--color-muted);
 }
 
 .slot a {
@@ -317,8 +315,8 @@
   text-decoration: underline;
 }
 
-.slotNote {
-  font-size: var(--text-body-sm);
+.slotEmpty span:last-child {
+  font-weight: 700;
 }
 
 .slotEdit > summary {

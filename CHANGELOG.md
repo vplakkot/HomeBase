@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Meal Plans, the plan's tiles look like recipe cards (REQ-198): a planned
+  meal has the recipe's name on a band with the meal above it and its
+  details below (cuisine, main meat, cook time, "2nd meal"), and a meal with
+  nothing planned is solid in the Meal Plan colour so it stands out.
+
 - Meal Plans, bug (#355): the hourly plan job was being answered with the
   sign-in page, so plans never closed on their own, never slid forward, and
   never asked "Start this week's plan?". Its address is now let through (it
