@@ -90,3 +90,18 @@ cookies) and confirm the first stays signed in after the second signs in.
 Persistence: the `sb-*` cookies carry a `Max-Age`, so they outlive a
 browser restart; the installed-iPhone version of that check belongs with
 REQ-19, which makes the app installable.
+
+## A door that nobody signed in can use (#355)
+
+The proxy is a doorman: anyone without a session is sent to the sign-in
+page. Our hourly jobs have no session; they carry a shared secret and the
+route checks it itself. So each job's address has to be on the doorman's
+guest list (the matcher). The Meal Plan job was never added, so for weeks
+the database knocked every hour, was handed the sign-in page with a "200
+OK", and counted that as success. Nothing closed, slid or asked to start.
+
+How it showed: the database's cron log said "succeeded" (that only means
+the request was sent). The real answer is in `net._http_response`: a JSON
+body is the job; HTML is the sign-in page. When you add a scheduled job,
+add its address to the matcher and its test in the same change.
+

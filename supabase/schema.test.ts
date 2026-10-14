@@ -1113,3 +1113,40 @@ describe("reopening a month (Vin, 2026-10-06)", () => {
     expect(reopen).toMatch(/where closed_at is null and reopened_at is null/);
   });
 });
+
+describe("meal plan: a second meal of its own, and a plan that slid (REQ-196, REQ-197)", () => {
+  const second = readMigration("20261014100000");
+
+  it("only adds columns, so the running app keeps working until the new code is live", () => {
+    expect(second).not.toMatch(/drop (column|table)/);
+    expect(second).toMatch(/add column second_on date,\s+add column second_meal text check \(second_meal in \('lunch', 'dinner'\)\)/);
+    expect(second).toMatch(/check \(\(second_on is null\) = \(second_meal is null\)\)/);
+    expect(second).toMatch(/add constraint meal_plan_second_meal_is_later/);
+    expect(second).toMatch(/alter table public\.meal_plans\s+add column slid_from date;/);
+  });
+
+  it("converts only lunch-start 2-meal dishes in open plans, to the next day's lunch, when it is free", () => {
+    expect(second).toMatch(/update public\.meal_plan_recipes e\s+set second_on = e\.meal_on \+ 1,\s+second_meal = 'lunch'/);
+    expect(second).toMatch(/p\.closed_at is null/);
+    expect(second).toMatch(/and e\.meal = 'lunch'/);
+    expect(second).toMatch(/and e\.second_on is null/);
+    expect(second).toMatch(/and not exists \(/);
+    // Everything else keeps its meals: an entry with no second meal written has it right after the first.
+    expect(second).toMatch(/\(meal_on - date '2000-01-01'\) \* 2 \+ \(meal = 'dinner'\)::integer \+ 1/);
+  });
+
+  it("checks both meals of every entry for overlap, in the layout and the push, as the person asking", () => {
+    expect(second).toMatch(/create or replace function public\.plan_has_overlap\(p_plan uuid\)[\s\S]*security invoker/);
+    expect(second).toMatch(/create or replace function public\.set_plan_layout\(p_plan uuid, p_starts_on date, p_starts_meal text, p_layout jsonb\)[\s\S]*security invoker/);
+    expect(second).toMatch(/create or replace function public\.push_plan_back\(p_plan uuid, p_layout jsonb, p_drop uuid\[\], p_eating_out jsonb\)[\s\S]*security invoker/);
+    expect(second.match(/if public\.plan_has_overlap\(p_plan\) then/g)).toHaveLength(2);
+    expect(second.match(/second_on = \(l\.value ->> 'second_on'\)::date/g)).toHaveLength(2);
+  });
+
+  it("keeps the same permissions on the functions it replaces", () => {
+    for (const signature of ["plan_has_overlap\\(uuid\\)", "set_plan_layout\\(uuid, date, text, jsonb\\)", "push_plan_back\\(uuid, jsonb, uuid\\[\\], jsonb\\)"]) {
+      expect(second).toMatch(new RegExp(`revoke all on function public\\.${signature} from public, anon;`));
+      expect(second).toMatch(new RegExp(`grant execute on function public\\.${signature} to authenticated;`));
+    }
+  });
+});

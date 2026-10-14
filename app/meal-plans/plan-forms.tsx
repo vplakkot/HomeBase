@@ -10,6 +10,7 @@ import {
   changePlanStart,
   markDayOff,
   moveEntry,
+  moveSecondMeal,
   rateRecipe,
   setPlanMeals,
   setRepeatRecipes,
@@ -291,6 +292,33 @@ export function MoveControls({
         </form>
       ))}
     </>
+  );
+}
+
+// REQ-196: a 2-meal dish's second meal, moved on its own. It shows the meal
+// it is on now and picks any later meal.
+export function SecondMealControl({ planId, entryId, name, current, meals }: { planId: string; entryId: string; name: string; current: string; meals: readonly MealOption[] }) {
+  const [state, formAction] = useActionState(moveSecondMeal, initialState);
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="plan_id" value={planId} />
+      <input type="hidden" name="entry_id" value={entryId} />
+      <label>
+        <span className={styles.hidden}>Move the second meal of {name} to</span>
+        <select name="meal" defaultValue="" onChange={submitForm}>
+          <option value="" disabled>
+            Move 2nd meal…
+          </option>
+          {meals.map((meal) => (
+            <option key={meal.value} value={meal.value}>
+              {meal.label}
+              {meal.value === current ? " (now)" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <Outcome state={state} />
+    </form>
   );
 }
 

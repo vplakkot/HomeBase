@@ -68,8 +68,8 @@ export async function proxy(request: NextRequest) {
 // The service worker (sw.js) is another: the phone re-checks it in the
 // background, and a service worker that answers with a redirect is refused
 // outright, so a lapsed sign-in must never turn into one.
-// The Finances reminders' address is next: the hourly schedule runs in the
-// database with nobody signed in, and proves itself with a shared secret
+// The Finances reminders' address and the Meal Plan job's (/api/notifications/meal-plan)
+// are next: the hourly schedules run in the database with nobody signed in, and proves itself with a shared secret
 // instead. Sent through here it would be answered with the sign-in page,
 // and the schedule would quietly send nothing.
 // The email-link address (/auth/confirm) is another: a person arriving from
@@ -81,6 +81,6 @@ export async function proxy(request: NextRequest) {
 // one-message token it was sent (REQ-22).
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest$|sw\\.js$|api/notifications/(?:receipt|finances)$|auth/confirm$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest$|sw\\.js$|api/notifications/(?:receipt|finances|meal-plan)$|auth/confirm$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
