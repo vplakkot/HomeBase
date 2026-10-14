@@ -668,8 +668,9 @@ describe("a plan is a run of meals (REQ-168)", () => {
     expect(await setPlanMeals({}, form({ plan_id: PLAN, entry_id: E1, meals: "1" }))).toEqual({});
     expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ meals: 1, second_on: null, second_meal: null });
     fake = given({ meal_plans: [PLAN_ROW], recipes: [SECOND], meal_plan_recipes: [planned(ID, 1), planned(OTHER, 1, "2026-09-28", "lunch", false, false, E2)] });
-    expect(await setPlanMeals({}, form({ plan_id: PLAN, entry_id: E1, meals: "2" }))).toEqual({ error: "Lunch Mon is taken by Test lentil soup." });
-    expect(sent(fake, "meal_plan_recipes", "update")).toBeUndefined();
+    // Mon lunch is taken, so the second meal goes to the next free one: Mon dinner.
+    expect(await setPlanMeals({}, form({ plan_id: PLAN, entry_id: E1, meals: "2" }))).toEqual({});
+    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ meals: 2, second_on: "2026-09-28", second_meal: "dinner" });
   });
 
   it("moves a dish to a meal it can start at in one step on the database, and refuses a taken one", async () => {

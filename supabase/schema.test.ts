@@ -1121,6 +1121,7 @@ describe("meal plan: a second meal of its own, and a plan that slid (REQ-196, RE
     expect(second).not.toMatch(/drop (column|table)/);
     expect(second).toMatch(/add column second_on date,\s+add column second_meal text check \(second_meal in \('lunch', 'dinner'\)\)/);
     expect(second).toMatch(/check \(\(second_on is null\) = \(second_meal is null\)\)/);
+    expect(second).toMatch(/add constraint meal_plan_second_meal_is_later/);
     expect(second).toMatch(/alter table public\.meal_plans\s+add column slid_from date;/);
   });
 

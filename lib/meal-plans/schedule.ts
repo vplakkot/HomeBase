@@ -59,10 +59,11 @@ export async function runMealPlanSchedule({ subject, now = new Date() }: { subje
       continue;
     }
     if (shouldSlide(current, today)) {
-      await saveLayout(admin, current.id, today, current.starts_meal, slide(current.recipes, daysBetween(current.starts_on, today), current.daysOff));
-      // REQ-197: remember where it was meant to start, so the plan can say it moved.
+      // REQ-197: remember where it was meant to start, so the plan can say it moved. First,
+      // so a failure here leaves a plan that hasn't slid and tries again next hour.
       const { error } = await admin.from("meal_plans").update({ slid_from: current.slid_from ?? current.starts_on }).eq("id", current.id);
       if (error) throw new Error(`Could not note the slide: ${error.message}`);
+      await saveLayout(admin, current.id, today, current.starts_meal, slide(current.recipes, daysBetween(current.starts_on, today), current.daysOff));
       // Next week's plan follows the one we're on.
       await syncAheadStart(admin);
       slid += 1;

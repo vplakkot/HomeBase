@@ -173,6 +173,16 @@ describe("proxy", () => {
   });
 
 
+  // The Meal Plan job (REQ-163) was answered with the sign-in page for weeks,
+  // so no plan closed, slid or asked to start (#355).
+  it("lets the Meal Plan hourly job reach its own address, and nothing beside it", () => {
+    const [pattern] = config.matcher;
+    const regex = new RegExp(`^${pattern}$`);
+    expect(regex.test("/api/notifications/meal-plan")).toBe(false);
+    expect(regex.test("/api/notifications/meal-plan/extra")).toBe(true);
+    expect(regex.test("/api/notifications/meal-plans")).toBe(true);
+  });
+
   // An emailed link (REQ-158, #80) is opened by someone who may be signed out
   // or signed in as another person; the proxy would bounce either.
   it("lets an emailed link reach /auth/confirm without a sign-in", () => {

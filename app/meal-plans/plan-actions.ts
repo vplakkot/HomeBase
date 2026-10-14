@@ -8,6 +8,7 @@ import { householdToday } from "../../lib/finances/budget-year";
 import {
   blockerAt,
   cantStartBecause,
+  fitSeat,
   coveredMeals,
   daysBetween,
   isWeekendDay,
@@ -26,6 +27,7 @@ import {
   swapWithNeighbour,
   type Meal,
   type MealKind,
+  type Seat,
   type Sited,
 } from "../../lib/meal-plans/meals";
 import { ENTRY_COLUMNS, hasDishes, isPlanSize, nextPlanStart, readStoredPlans, saveLayout, syncAheadStart, type MealPlan, type PlannedRecipe, type PlanStatus } from "../../lib/meal-plans/plan";
@@ -286,11 +288,13 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
     const entry = { id: crypto.randomUUID(), eating_out: eatingOut, meals: size };
     const locked = lockedBefore(plan);
     const at = chosen ? parseMealKey(chosen) : nextFreeMeal(plan, plan.recipes, entry, plan.daysOff, locked);
-    if (!at) return { error: "The plan is full for the week." };
+    if (!at) return { error: size === 2 ? "No room for a 2-meal dish this week. Try 1 meal, or move a dish." : "The plan is full for the week." };
     const cant = cantStartBecause(entry, at, plan.daysOff);
     if (cant) return { error: cant };
     if (locked && at.day < locked) return { error: PASSED };
-    const taken = blockerAt(plan.recipes, entry, at);
+    const fit = fitSeat(plan, plan.recipes, entry, at);
+    if ("full" in fit) return { error: "No free meal for its second meal. Try 1 meal, or move a dish." };
+    const taken = "taken" in fit ? fit.taken : null;
     if (taken && eatingOut && !taken.by.eating_out) {
       // Eating out on a dinner that has a dish pushes the dish back (REQ-169).
       const added: PlannedRecipe = { ...entry, recipe_id: null, meal_on: at.day, meal: "dinner", meals: 1, second_on: null, second_meal: null, cooked: false, carry_over: false, didnt_cook: false, added_at: new Date().toISOString() };
@@ -313,7 +317,7 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
           return { error: `${await entryName(supabase, { eating_out: false, recipe_id: recipeId })} is already planned.` };
         }
       }
-      const { error } = await supabase.from("meal_plan_recipes").insert({ ...entry, plan_id: planId, recipe_id: recipeId, ...seat(entry, at) });
+      const { error } = await supabase.from("meal_plan_recipes").insert({ ...entry, plan_id: planId, recipe_id: recipeId, ...("seat" in fit ? fit.seat : {}) });
       if (error) throw new Error(error.message);
       // Planned again: no longer waiting to be proposed.
       if (recipeId) await supabase.from("meal_plan_proposed_next").delete().eq("recipe_id", recipeId);
@@ -348,17 +352,19 @@ export async function setPlanMeals(_prev: PlanFormState, formData: FormData): Pr
     if (entry.eating_out || entry.meals === size) return {};
     const locked = lockedBefore(plan);
     if (locked && entry.meal_on < locked) return { error: PASSED };
+    let grownSeat: Seat | null = null;
     if (size === 2) {
       // The second meal goes where it usually does (REQ-196), not beside the first.
       const at = { day: entry.meal_on, meal: entry.meal };
       const grown = { id: entry.id, eating_out: entry.eating_out, meals: size };
       const cant = cantStartBecause(grown, at, plan.daysOff);
       if (cant) return { error: cant };
-      const taken = blockerAt(plan.recipes, grown, at);
-      if (taken) return { error: await takenMessage(supabase, taken) };
+      const fit = fitSeat(plan, plan.recipes, grown, at);
+      if ("full" in fit) return { error: "No free meal for its second meal." };
+      if ("taken" in fit) return { error: await takenMessage(supabase, fit.taken) };
+      grownSeat = fit.seat;
     }
-    const placed = seat({ eating_out: entry.eating_out, meals: size }, { day: entry.meal_on, meal: entry.meal });
-    const { error } = await supabase.from("meal_plan_recipes").update({ meals: size, second_on: placed.second_on, second_meal: placed.second_meal }).eq("plan_id", row.planId).eq("id", row.entryId);
+    const { error } = await supabase.from("meal_plan_recipes").update({ meals: size, second_on: grownSeat?.second_on ?? null, second_meal: grownSeat?.second_meal ?? null }).eq("plan_id", row.planId).eq("id", row.entryId);
     if (error) throw new Error(error.message);
   } catch (error) {
     Sentry.captureException(error);

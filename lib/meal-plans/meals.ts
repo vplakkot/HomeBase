@@ -187,9 +187,32 @@ export function secondChoices(plan: PlanStart, entry: Pick<Sited, "meal_on" | "m
   return choices;
 }
 
+// REQ-196: where a new dish (or one growing from 1 meal to 2) sits once its
+// first meal is `at`. Its second meal goes where it usually does; when that
+// is taken it goes to the first free meal after the first, as far as a
+// second meal can reach. `taken` is the dish on the first meal; `full` is
+// no free meal for the second.
+export type Fit<T extends Sited = Sited> = { seat: Seat } | { taken: { meal: Meal; by: T } } | { full: true };
+
+export function fitSeat<T extends Sited>(plan: PlanStart, entries: readonly T[], entry: Placeable & { id: string }, at: Meal): Fit<T> {
+  const by = occupant(entries, at, entry.id);
+  if (by) return { taken: { meal: at, by } };
+  const usual = seat(entry, at);
+  if (usual.second_on === null || usual.second_meal === null) return { seat: usual };
+  const first = mealIndex(at);
+  const reach = mealIndex(capMeal(plan.starts_on)) + 2;
+  const wanted = mealIndex({ day: usual.second_on, meal: usual.second_meal });
+  for (const index of [wanted, ...Array.from({ length: Math.max(0, reach - first) }, (_, i) => first + 1 + i)]) {
+    if (index <= first || occupant(entries, mealAtIndex(index), entry.id)) continue;
+    const second = mealAtIndex(index);
+    return { seat: { ...usual, second_on: second.day, second_meal: second.meal } };
+  }
+  return { full: true };
+}
+
 // The first free meal an entry can start at; null when the plan is full.
 export function nextFreeMeal<T extends Sited>(plan: PlanStart, entries: readonly T[], entry: Placeable & { id: string }, daysOff: ReadonlySet<string>, lockedBefore: string | null): Meal | null {
-  return startChoices(plan, entry, daysOff, lockedBefore).find((at) => !blockerAt(entries, entry, at)) ?? null;
+  return startChoices(plan, entry, daysOff, lockedBefore).find((at) => "seat" in fitSeat(plan, entries, entry, at)) ?? null;
 }
 
 // Where next week's plan starts (REQ-170): at the meal right after the

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Meal Plans, bug (#355): the hourly plan job was being answered with the
+  sign-in page, so plans never closed on their own, never slid forward, and
+  never asked "Start this week's plan?". Its address is now let through (it
+  checks its own secret).
+- Meal Plans, adding a 2-meal dish finds room for its second meal: when the
+  usual place is taken it goes to the next free meal, and "plan is full" is
+  only said when there really is none (and then offers 1 meal).
+
 - Meal Plans, the second meal of a 2-meal dish has its own place (REQ-196). A
   dish cooked at lunch now has its second meal on the next day's dinner, not
   the same day's; one cooked at dinner still has it on the next lunch. Each

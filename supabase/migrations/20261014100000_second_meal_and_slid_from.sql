@@ -13,7 +13,14 @@ alter table public.meal_plan_recipes
   add column second_on date,
   add column second_meal text check (second_meal in ('lunch', 'dinner')),
   add constraint meal_plan_second_meal_is_whole
-    check ((second_on is null) = (second_meal is null));
+    check ((second_on is null) = (second_meal is null)),
+  -- The second meal comes after the first: a later day, or the same day's dinner after its lunch.
+  add constraint meal_plan_second_meal_is_later
+    check (
+      second_on is null
+      or (second_on - date '2000-01-01') * 2 + (second_meal = 'dinner')::integer
+         > (meal_on - date '2000-01-01') * 2 + (meal = 'dinner')::integer
+    );
 
 alter table public.meal_plans
   add column slid_from date;

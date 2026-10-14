@@ -5,6 +5,7 @@ import {
   capMeal,
   coveredMeals,
   entryMeals,
+  fitSeat,
   isWeekendDay,
   layoutPlan,
   mealAtIndex,
@@ -148,10 +149,29 @@ describe("the next free meal (REQ-168)", () => {
     expect(nextFreeMeal(plan, [dish("a", SUN, "dinner", 1)], candidate(1), NONE, null)).toEqual({ day: MON, meal: "lunch" });
   });
 
-  it("needs both meals of a 2-meal dish to be free", () => {
-    // Tue lunch is taken by a 1-meal dish, so Mon dinner (with Tue lunch) won't do either.
+  it("gives a 2-meal dish a second meal that is free, the next one after the usual place if that is taken (REQ-196)", () => {
+    // Tue lunch is taken by a 1-meal dish: Mon dinner still works, its second meal going to Tue dinner.
     const taken = [dish("a", SUN, "dinner"), dish("b", TUE, "lunch", 1)];
-    expect(nextFreeMeal(plan, taken, candidate(2), NONE, null)).toEqual({ day: TUE, meal: "dinner" });
+    expect(nextFreeMeal(plan, taken, candidate(2), NONE, null)).toEqual({ day: MON, meal: "dinner" });
+    expect(fitSeat(plan, taken, candidate(2), { day: MON, meal: "dinner" })).toEqual({ seat: { meal_on: MON, meal: "dinner", second_on: TUE, second_meal: "dinner" } });
+    expect(fitSeat(plan, taken, candidate(2), { day: SUN, meal: "dinner" })).toMatchObject({ taken: { by: { id: "a" } } });
+  });
+
+  it("says full only when no meal is left for the second meal, and can still fit a 1-meal dish (REQ-196)", () => {
+    // Dinner Sat is free, but the two meals a second meal can reach after it (Sun lunch and dinner) are taken.
+    const sat = { day: SAT, meal: "dinner" as MealKind };
+    const sunday = [dish("s1", "2026-10-11", "lunch", 1), dish("s2", "2026-10-11", "dinner", 1)];
+    expect(fitSeat(plan, sunday, candidate(2), sat)).toEqual({ full: true });
+    expect(fitSeat(plan, sunday, candidate(1), sat)).toEqual({ seat: { meal_on: SAT, meal: "dinner", second_on: null, second_meal: null } });
+    expect(fitSeat(plan, [sunday[0]], candidate(2), sat)).toMatchObject({ seat: { second_on: "2026-10-11", second_meal: "dinner" } });
+  });
+
+  it("fits a 2-meal dish into the week Vin hit on 2026-10-14, where it said the plan was full (REQ-196)", () => {
+    // Tue dinner Eating out; Wed lunch+dinner; Thu dinner+Fri lunch; Sat lunch+dinner. Fri dinner is free.
+    const week = { starts_on: "2026-10-13", starts_meal: "dinner" as const };
+    const entries = [out("o", "2026-10-13"), dish("a", "2026-10-14", "lunch"), dish("b", "2026-10-15", "dinner"), dish("c", "2026-10-17", "lunch")];
+    expect(nextFreeMeal(week, entries, candidate(2), NONE, null)).toEqual({ day: "2026-10-16", meal: "dinner" });
+    expect(fitSeat(week, entries, candidate(2), { day: "2026-10-16", meal: "dinner" })).toMatchObject({ seat: { second_on: "2026-10-18", second_meal: "lunch" } });
   });
 
   it("says which dish is in the way of a move", () => {
