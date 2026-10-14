@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 3.2.0 - 2026-10-14
+
+A Meal Plans release. The plan is a tile for each lunch and dinner, a day at a
+time, and every meal can be moved by hand: a 2-meal dish's second meal has its
+own place, Eating out can go on a lunch, and nothing is refused for what a
+dish is. A plan that slides forward says so. The hourly plan job now reaches
+the app, so plans close, slide and ask to start on their own. Recipes can be
+edited and a video's caption can be added when importing it, and a new recipe
+can be added by name from the plan.
+
 - Meal Plans, the plan's tiles look like recipe cards (REQ-198): a planned
   meal has the recipe's name on a band with the meal above it and its
   details below (cuisine, main meat, cook time, "2nd meal"), and a meal with
