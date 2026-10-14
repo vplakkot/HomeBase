@@ -1150,3 +1150,19 @@ describe("meal plan: a second meal of its own, and a plan that slid (REQ-196, RE
     }
   });
 });
+
+describe("meal plan: Eating out on any meal", () => {
+  const out = readMigration("20261014200000");
+
+  it("only relaxes the rule: one meal, any lunch or dinner", () => {
+    expect(out).toMatch(/drop constraint eating_out_is_one_dinner,\s+add constraint eating_out_is_one_meal\s+check \(not eating_out or meal is null or meals = 1\);/);
+    expect(out).not.toMatch(/drop (column|table)/);
+  });
+
+  it("writes the Eating out on the meal the app sends, a dinner when none, as the person asking", () => {
+    expect(out).toMatch(/create or replace function public\.push_plan_back\(p_plan uuid, p_layout jsonb, p_drop uuid\[\], p_eating_out jsonb\)[\s\S]*security invoker/);
+    expect(out).toMatch(/coalesce\(p_eating_out ->> 'meal', 'dinner'\)/);
+    expect(out).toMatch(/revoke all on function public\.push_plan_back\(uuid, jsonb, uuid\[\], jsonb\) from public, anon;/);
+    expect(out).toMatch(/grant execute on function public\.push_plan_back\(uuid, jsonb, uuid\[\], jsonb\) to authenticated;/);
+  });
+});

@@ -108,20 +108,26 @@ export function seat(entry: Placeable, at: Meal): Seat {
 
 type Shape = Pick<Sited, "eating_out" | "meals">;
 
-// Eating out takes a dinner. A 1-meal dish can sit on any meal. A 2-meal
-// dish covers its meal and the next, so it starts at a dinner, or at a
-// lunch on a weekend day: a weekday lunch is the leftovers of the night
-// before.
-export function canStartAt(entry: Shape, at: Meal, daysOff: ReadonlySet<string>): boolean {
-  if (entry.eating_out) return at.meal === "dinner";
-  if (entry.meals === 1) return true;
-  return at.meal === "dinner" || isWeekendDay(at.day, daysOff);
+// Anything can be put on any meal, lunch or dinner, a weekday lunch
+// included, Eating out too: the plan is ours to arrange (Vin, 2026-10-14).
+// Only the automatic choices keep to `usualStart`.
+export function canStartAt(_entry: Shape, _at: Meal, _daysOff: ReadonlySet<string>): boolean {
+  return true;
 }
 
-// Why an entry can't start there, in words, or null when it can.
+// Where an entry is put when nobody picks a meal: Eating out at a dinner, a
+// 2-meal dish at a dinner or at a lunch on a weekend day (a weekday lunch is
+// usually the leftovers of the night before). Not a rule for moving things
+// by hand.
+export function usualStart(entry: Shape, at: Meal, daysOff: ReadonlySet<string>): boolean {
+  if (entry.eating_out) return at.meal === "dinner";
+  return entry.meals === 1 || at.meal === "dinner" || isWeekendDay(at.day, daysOff);
+}
+
+// Why an entry can't start there, in words, or null when it can: nothing is
+// refused for what the entry is, only for what is already on the meal.
 export function cantStartBecause(entry: Shape, at: Meal, daysOff: ReadonlySet<string>): string | null {
-  if (canStartAt(entry, at, daysOff)) return null;
-  return entry.eating_out ? "Eating out takes a dinner." : "A 2-meal dish can't start at a weekday lunch.";
+  return canStartAt(entry, at, daysOff) ? null : "That meal can't take it.";
 }
 
 // The last meal anything in the plan covers; null for an empty plan.
@@ -210,9 +216,26 @@ export function fitSeat<T extends Sited>(plan: PlanStart, entries: readonly T[],
   return { full: true };
 }
 
+// Moving a dish's first meal to `at` (Vin, 2026-10-14: every meal can be
+// tinkered with). The second meal stays where it is when it is still after
+// the first and free; otherwise it goes where it usually does, or the next
+// free meal. `taken` is the dish on the new first meal; `full` is no free
+// meal for the second.
+export function refit<T extends Sited>(plan: PlanStart, entries: readonly T[], entry: T, at: Meal): Fit<T> {
+  const by = occupant(entries, at, entry.id);
+  if (by) return { taken: { meal: at, by } };
+  if (entry.eating_out || entry.meals !== 2) return { seat: seat(entry, at) };
+  const kept = secondIndex(entry);
+  if (kept !== null && kept > mealIndex(at) && !occupant(entries, mealAtIndex(kept), entry.id)) {
+    const second = mealAtIndex(kept);
+    return { seat: { meal_on: at.day, meal: at.meal, second_on: second.day, second_meal: second.meal } };
+  }
+  return fitSeat(plan, entries, { id: entry.id, eating_out: false, meals: 2 }, at);
+}
+
 // The first free meal an entry can start at; null when the plan is full.
 export function nextFreeMeal<T extends Sited>(plan: PlanStart, entries: readonly T[], entry: Placeable & { id: string }, daysOff: ReadonlySet<string>, lockedBefore: string | null): Meal | null {
-  return startChoices(plan, entry, daysOff, lockedBefore).find((at) => "seat" in fitSeat(plan, entries, entry, at)) ?? null;
+  return startChoices(plan, entry, daysOff, lockedBefore).find((at) => usualStart(entry, at, daysOff) && "seat" in fitSeat(plan, entries, entry, at)) ?? null;
 }
 
 // Where next week's plan starts (REQ-170): at the meal right after the
@@ -226,9 +249,9 @@ export function nextWeekStart(plan: PlanStart, entries: readonly (Pick<Sited, "m
 }
 
 // Settling a shift (the reflow rule). Dishes keep their order and what
-// kind of meal they are. A dish that lands where it can't start goes to
-// the next meal it can start at, and if that is taken the dishes after it
-// move along, in order, to their next valid meals. Eating out stays where
+// kind of meal they are. A dish whose meals are taken goes to the next
+// meal of its own kind that is free, and the dishes after it move along, in
+// order. A dish is never moved off a meal just because of what it is. Eating out stays where
 // it was put and dishes go round it. A dish's size never changes and a
 // shift is never refused. Each entry arrives already shifted to where it
 // would like to be.
@@ -239,7 +262,10 @@ export function reflow<T extends Sited>(entries: readonly T[], daysOff: Readonly
   const settled: T[] = [];
   let from = -Infinity;
   for (const dish of dishes) {
-    let index = Math.max(startOf(dish), from);
+    // A dish keeps its kind of meal (a dinner stays a dinner): when it has to move, it goes to
+    // the next lunch or dinner of its own kind that is free.
+    let index = startOf(dish);
+    if (index < from) index = from + ((from - index) % 2);
     for (;;) {
       const at = mealAtIndex(index);
       const seated = { ...dish, ...seat(dish, at) };
@@ -250,7 +276,7 @@ export function reflow<T extends Sited>(entries: readonly T[], daysOff: Readonly
         from = index;
         break;
       }
-      index += 1;
+      index += 2;
     }
   }
   return [...fixed, ...settled];
@@ -308,16 +334,16 @@ export function pushBack<T extends Sited>(plan: Pick<PlanStart, "starts_on">, en
   if (startOf(on) < mealIndex(at)) {
     const taken = new Set([startOf(on), mealIndex(at), ...rest.filter((entry) => entry.id !== on.id).flatMap((entry) => slotsOf(entry))]);
     const reach = mealIndex(capMeal(plan.starts_on)) + 2;
-    let next = mealIndex(at) + 1;
+    let next = mealIndex(at) + (at.meal === "dinner" ? 1 : 2);
     while (next <= reach && taken.has(next)) next += 1;
     const second = next <= reach ? mealAtIndex(next) : null;
     const kept = rest.map((entry) => (entry.id === on.id ? { ...entry, meals: second ? (2 as const) : (1 as const), second_on: second?.day ?? null, second_meal: second?.meal ?? null } : entry));
-    return { entries: [...kept, { ...eatingOut, meal_on: at.day, meal: "dinner" as const, meals: 1 as const, second_on: null, second_meal: null }], dropped: [] };
+    return { entries: [...kept, { ...eatingOut, meal_on: at.day, meal: at.meal, meals: 1 as const, second_on: null, second_meal: null }], dropped: [] };
   }
   const first = startOf(on);
   const pushed = new Set(rest.filter((entry) => !entry.eating_out && startOf(entry) >= first).map((entry) => entry.id));
   const shifted = rest.map((entry) => (pushed.has(entry.id) ? shiftDays(entry, 1) : entry));
-  const placed = { ...eatingOut, meal_on: at.day, meal: "dinner" as const, meals: 1 as const, second_on: null, second_meal: null };
+  const placed = { ...eatingOut, meal_on: at.day, meal: at.meal, meals: 1 as const, second_on: null, second_meal: null };
   const settled = reflow([...shifted, placed], daysOff);
   const last = mealIndex(capMeal(plan.starts_on));
   const dropped = settled.filter((entry) => pushed.has(entry.id) && Math.max(...slotsOf(entry)) > last);
