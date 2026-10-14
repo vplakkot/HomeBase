@@ -45,11 +45,17 @@ then contract**.
 
 A 2-meal dish used to cover its meal and the very next one. Giving it a
 second meal of its own meant two new columns, and the easy plan was to
-fill them in for every existing dish. We didn't. An empty second meal
-simply *means* "the meal after the first", in the app and in the database
-check for two dishes on one meal. So almost nothing is converted (one small, guarded update moved
-lunch-start dishes that were clearly wrong), every other dish
-keeps the meals it shows, and the old app (which never writes the new
-columns) stays correct. Only a dish someone moves gets a second meal
-written. When a missing value can carry the old meaning, prefer that to a
-backfill: there is nothing to get wrong and nothing to undo.
+fill them in for every existing dish. We mostly didn't. An empty second
+meal simply *means* "the meal after the first", in the app and in the
+database check for two dishes on one meal. So almost every dish keeps the
+meals it shows, and the old app (which never writes the new columns)
+stays correct for them. Only a dish someone moves gets a second meal
+written.
+
+The exception shows the cost of converting anything. One guarded update
+moved lunch-start dishes that were clearly wrong (lunch and dinner the
+same day). In the short gap between the database change and the new code
+going live, the old app still shows those on the same day's dinner, and
+anything it saves puts them back. When a missing value can carry the old
+meaning, prefer that to a backfill, and when you do convert, say what the
+gap looks like.

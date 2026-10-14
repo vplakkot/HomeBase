@@ -5,9 +5,14 @@
 -- second meal has its own place, a day plus lunch or dinner, and can be
 -- anywhere after the first. An entry with no second meal written (every
 -- existing one, and anything the previous app version saves) still has it
--- on the meal right after the first, so every dish keeps the meals it
--- shows today; nothing is converted here. This only ADDS, so the running
--- app keeps working until the new code is live.
+-- on the meal right after the first, so those dishes keep the meals they
+-- show today. One guarded update below moves lunch-start dishes in open
+-- plans off the same day's dinner. Otherwise this only ADDS. Between this
+-- migration reaching the database and the new code going live, the old app
+-- still shows a moved dish on the same day's dinner, and any layout it
+-- saves puts the second meal back; the new overlap check also counts the
+-- moved second meal, so adding a dish onto that lunch is refused until the
+-- new code is live.
 
 alter table public.meal_plan_recipes
   add column second_on date,
