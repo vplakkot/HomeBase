@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Meal Plans, the plan's tiles look like recipe cards (REQ-198): a planned
+  meal has the recipe's name on a band with the meal above it and its
+  details below (cuisine, main meat, cook time, "2nd meal"), and a meal with
+  nothing planned is solid in the Meal Plan colour so it stands out.
 - Meal Plans, every meal can be moved by hand (bug): moving a dish's first
   meal no longer fails because its second meal's usual place is taken (the
   second meal stays where it is, and moves on its own with its own Edit); a

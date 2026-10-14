@@ -13,7 +13,7 @@ import {
   type MealPlan,
 } from "../../../lib/meal-plans/plan";
 import { averageRatings, readRatingPrompts, readRatings } from "../../../lib/meal-plans/ratings";
-import { readRecipes, recipeMissing, type Recipe } from "../../../lib/meal-plans/recipes";
+import { cookTimeText, readRecipes, recipeMissing, type Recipe } from "../../../lib/meal-plans/recipes";
 import { suggestions } from "../../../lib/meal-plans/suggest";
 import { MealPlansScreen, mealPlansViewer } from "../frame";
 import { AddToPlanForm, AddToWeekButton, ChangeStartForm, DaysOffForm, MoveControls, PlanAheadForm, PlannedControls, RateRecipeForm, SecondMealControl, StartPlanForm } from "../plan-forms";
@@ -22,6 +22,7 @@ import { readPeople } from "../../../lib/drinks/drinks";
 import { readSettings } from "../../../lib/meal-plans/settings";
 import { buttonClass } from "../../../components/button";
 import { PlanRange } from "../plan-range";
+import band from "../../../components/band.module.css";
 import { RatePrompts } from "../rate-prompts";
 import styles from "../meal-plans.module.css";
 
@@ -45,6 +46,7 @@ function PlanCard({ plan, recipes, names, ahead, planned }: { plan: MealPlan; re
   // What can be added: not already planned, unless the repeat setting is on (REQ-172),
   // when `planned` is empty.
   const missing = new Set(recipes.filter(recipeMissing).map((recipe) => recipe.id));
+  const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]));
   const addable = recipes.filter((recipe) => !recipe.hidden && !planned.has(recipe.id));
   const daysOff = [...plan.daysOff].sort().map((day) => ({ day, label: dayLabel(day) }));
   return (
@@ -89,14 +91,23 @@ function PlanCard({ plan, recipes, names, ahead, planned }: { plan: MealPlan; re
                   }
                   const name = entry.eating_out ? "Eating out" : (names.get(entry.recipe_id ?? "") ?? "");
                   const place = dishes.indexOf(entry);
+                  const recipe = entry.recipe_id ? byId.get(entry.recipe_id) : undefined;
+                  const detail = [
+                    slot.kind === "second" ? "2nd meal" : null,
+                    slot.kind === "first" && entry.recipe_id && missing.has(entry.recipe_id) ? "Recipe missing" : null,
+                    recipe?.cuisine,
+                    recipe?.main_meat,
+                    recipe ? cookTimeText(recipe.cook_minutes) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
                   return (
                     <li key={mealKey(slot.meal)} className={tile}>
                       <span className={styles.slotMeal}>{kind}</span>
-                      <span className={styles.slotName}>
+                      <span className={`${styles.cardTitle} ${band.band}`}>
                         {entry.eating_out ? name : <Link href={`/meal-plans/${entry.recipe_id}`}>{name}</Link>}
                       </span>
-                      {slot.kind === "second" ? <span className={styles.slotNote}>2nd meal</span> : null}
-                      {slot.kind === "first" && entry.recipe_id && missing.has(entry.recipe_id) ? <span className={styles.slotNote}>Recipe missing</span> : null}
+                      {detail ? <span className={styles.cardDetail}>{detail}</span> : null}
                       <details className={styles.slotEdit}>
                         <summary>Edit</summary>
                         <div className={styles.slotControls}>

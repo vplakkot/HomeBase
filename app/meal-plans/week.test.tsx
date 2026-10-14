@@ -259,8 +259,8 @@ describe("the week's plan (REQ-115)", () => {
     // The start day is already the heading; changing it is folded away.
     expect(screen.getByText("Change the start day").closest("details")?.hasAttribute("open")).toBe(false);
     expect(tiles()).toEqual([
-      "Sun, Sep 27|Dinner: Test chicken rice",
-      "Mon, Sep 28|Lunch: Test chicken rice 2nd meal|Dinner: Test lentil soup Recipe missing",
+      "Sun, Sep 27|Dinner: Test chicken rice Turkish · Chicken · 25 min",
+      "Mon, Sep 28|Lunch: Test chicken rice 2nd meal · Turkish · Chicken · 25 min|Dinner: Test lentil soup Recipe missing · Turkish · Vegetarian · 25 min",
     ]);
     expect((screen.getByRole("combobox", { name: "Size of Test chicken rice" }) as HTMLSelectElement).value).toBe("2");
     expect((screen.getByRole("combobox", { name: "Size of Test lentil soup" }) as HTMLSelectElement).value).toBe("1");
@@ -579,10 +579,10 @@ describe("a plan is a run of meals (REQ-168)", () => {
     });
     render(await WeekPage());
     expect(tiles()).toEqual([
-      "Sun, Sep 27|Dinner: Test chicken rice",
+      "Sun, Sep 27|Dinner: Test chicken rice Turkish · Chicken · 25 min",
       "Mon, Sep 28|Lunch: On your own|Dinner: Eating out",
-      "Tue, Sep 29|Lunch: On your own|Dinner: Test lentil soup Recipe missing",
-      "Wed, Sep 30|Lunch: Test lentil soup 2nd meal",
+      "Tue, Sep 29|Lunch: On your own|Dinner: Test lentil soup Recipe missing · Turkish · Vegetarian · 25 min",
+      "Wed, Sep 30|Lunch: Test lentil soup 2nd meal · Turkish · Vegetarian · 25 min",
     ]);
     expect(screen.getByRole("heading", { name: "Sun, Sep 27 Dinner – Wed, Sep 30 Lunch" })).toBeTruthy();
     // An evening out has no cooked or carry-over tick.
@@ -593,10 +593,10 @@ describe("a plan is a run of meals (REQ-168)", () => {
     given({ meal_plans: [openPlan([planned(ID, 2), planned(OTHER, 2, "2026-09-29", "dinner", false, false, E2)])], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
     expect(tiles()).toEqual([
-      "Sun, Sep 27|Dinner: Test chicken rice",
-      "Mon, Sep 28|Lunch: Test chicken rice 2nd meal|Dinner: Not planned",
-      "Tue, Sep 29|Lunch: On your own|Dinner: Test lentil soup Recipe missing",
-      "Wed, Sep 30|Lunch: Test lentil soup 2nd meal",
+      "Sun, Sep 27|Dinner: Test chicken rice Turkish · Chicken · 25 min",
+      "Mon, Sep 28|Lunch: Test chicken rice 2nd meal · Turkish · Chicken · 25 min|Dinner: Not planned",
+      "Tue, Sep 29|Lunch: On your own|Dinner: Test lentil soup Recipe missing · Turkish · Vegetarian · 25 min",
+      "Wed, Sep 30|Lunch: Test lentil soup 2nd meal · Turkish · Vegetarian · 25 min",
     ]);
   });
 
@@ -1259,8 +1259,8 @@ describe("a second meal of its own (REQ-196)", () => {
     given({ meal_plans: [openPlan([{ ...planned(ID, 2, "2026-09-27", "lunch"), second_on: "2026-09-28", second_meal: "dinner" }])], recipes: [RECIPE] });
     render(await WeekPage());
     expect(tiles()).toEqual([
-      "Sun, Sep 27|Lunch: Test chicken rice|Dinner: Not planned",
-      "Mon, Sep 28|Lunch: On your own|Dinner: Test chicken rice 2nd meal",
+      "Sun, Sep 27|Lunch: Test chicken rice Turkish · Chicken · 25 min|Dinner: Not planned",
+      "Mon, Sep 28|Lunch: On your own|Dinner: Test chicken rice 2nd meal · Turkish · Chicken · 25 min",
     ]);
     // The second meal has its own Edit, with a picker for where it goes.
     expect(screen.getByRole("combobox", { name: /second meal of Test chicken rice/ })).toBeTruthy();
