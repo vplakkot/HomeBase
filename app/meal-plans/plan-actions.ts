@@ -20,6 +20,7 @@ import {
   occupant,
   parseMealKey,
   pushBack,
+  refit,
   seat,
   secondChoices,
   slide,
@@ -173,7 +174,7 @@ async function pushForEatingOut(supabase: Supabase, plan: MealPlan, eatingOut: P
     p_plan: plan.id,
     p_layout: layout,
     p_drop: pushed.dropped.map((entry) => entry.id),
-    p_eating_out: isNew ? { id: eatingOut.id, meal_on: at.day } : null,
+    p_eating_out: isNew ? { id: eatingOut.id, meal_on: at.day, meal: at.meal } : null,
   });
   if (error) throw new Error(error.message);
   if (pushed.dropped.length === 0) return undefined;
@@ -297,7 +298,7 @@ export async function addToPlan(_prev: PlanFormState, formData: FormData): Promi
     const taken = "taken" in fit ? fit.taken : null;
     if (taken && eatingOut && !taken.by.eating_out) {
       // Eating out on a dinner that has a dish pushes the dish back (REQ-169).
-      const added: PlannedRecipe = { ...entry, recipe_id: null, meal_on: at.day, meal: "dinner", meals: 1, second_on: null, second_meal: null, cooked: false, carry_over: false, didnt_cook: false, added_at: new Date().toISOString() };
+      const added: PlannedRecipe = { ...entry, recipe_id: null, meal_on: at.day, meal: at.meal, meals: 1, second_on: null, second_meal: null, cooked: false, carry_over: false, didnt_cook: false, added_at: new Date().toISOString() };
       notice = await pushForEatingOut(supabase, plan, added, at, true);
     } else if (taken) {
       return { error: await takenMessage(supabase, taken) };
@@ -500,15 +501,19 @@ export async function moveEntry(_prev: PlanFormState, formData: FormData): Promi
       if (passed(entry.meal_on) || passed(at.day)) return { error: PASSED };
       const cant = cantStartBecause(entry, at, plan.daysOff);
       if (cant) return { error: cant };
-      const taken = blockerAt(plan.recipes, entry, at);
+      const fit = refit(plan, plan.recipes, entry, at);
+      const taken = "taken" in fit ? fit.taken : null;
       if (taken && entry.eating_out && !taken.by.eating_out) {
         // An Eating out moved onto a dinner that has a dish pushes the dish back (REQ-169).
         notice = await pushForEatingOut(supabase, plan, entry, at, false);
         moved = null;
       } else if (taken) {
         return { error: await takenMessage(supabase, taken) };
+      } else if ("seat" in fit) {
+        const placed = fit.seat;
+        moved = plan.recipes.map((item) => (item.id === entry.id ? { ...item, ...placed } : item));
       } else {
-        moved = plan.recipes.map((item) => (item.id === entry.id ? { ...item, ...seat(item, at) } : item));
+        return { error: "No free meal for its second meal. Move the second meal first, or try 1 meal." };
       }
     } else if (step !== 0) {
       const swapped = swapWithNeighbour(plan.recipes, entry.id, step, plan.daysOff);
@@ -549,8 +554,7 @@ export async function markDayOff(_prev: PlanFormState, formData: FormData): Prom
   return {};
 }
 
-// Taking a Day off back can't strand a 2-meal dish that starts at that
-// day's lunch; the app says which one, and it can be moved first.
+// Taking a Day off back strands nothing: any dish can sit on any meal.
 export async function unmarkDayOff(_prev: PlanFormState, formData: FormData): Promise<PlanFormState> {
   const supabase = await requireMember();
   const planId = idFrom(formData.get("plan_id"));
@@ -559,9 +563,6 @@ export async function unmarkDayOff(_prev: PlanFormState, formData: FormData): Pr
   try {
     const plan = await loadPlan(supabase, planId);
     if (!plan) return { error: "That plan is gone." };
-    const without = new Set([...plan.daysOff].filter((off) => off !== day));
-    const stranded = plan.recipes.find((entry) => !entry.eating_out && entry.meals === 2 && entry.meal === "lunch" && entry.meal_on === day && !isWeekendDay(day, without));
-    if (stranded) return { error: `${await entryName(supabase, stranded)} starts at lunch that day. Move it first.` };
     const { error } = await supabase.from("meal_plan_days_off").delete().eq("plan_id", planId).eq("day", day);
     if (error) throw new Error(error.message);
   } catch (error) {

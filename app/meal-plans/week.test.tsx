@@ -600,12 +600,14 @@ describe("a plan is a run of meals (REQ-168)", () => {
     ]);
   });
 
-  it("adds an evening out as an entry with no recipe, taking one dinner", async () => {
+  it("adds an evening out as an entry with no recipe, taking one meal: a dinner unless a lunch is picked", async () => {
     const fake = given({ meal_plans: [PLAN_ROW] });
     expect(await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out" }))).toEqual({});
     expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ plan_id: PLAN, recipe_id: null, eating_out: true, meals: 1, meal_on: "2026-09-27", meal: "dinner" });
-    // Never at a lunch.
-    expect(await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-09-28:lunch" }))).toEqual({ error: "Eating out takes a dinner." });
+    // A lunch out is fine too (a day off).
+    const lunch = given({ meal_plans: [PLAN_ROW] });
+    expect(await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-09-28:lunch" }))).toEqual({});
+    expect(sent(lunch, "meal_plan_recipes", "insert")).toMatchObject({ eating_out: true, meals: 1, meal_on: "2026-09-28", meal: "lunch" });
   });
 
   // REQ-180: a recipe found while planning is added by name, in place.
@@ -662,11 +664,11 @@ describe("a plan is a run of meals (REQ-168)", () => {
     expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ meal_on: "2026-09-29", meal: "dinner" });
   });
 
-  it("refuses a taken meal and says which dish is there, a weekday lunch for a 2-meal dish, and a day that has passed", async () => {
+  it("refuses a taken meal and says which dish is there, and a day that has passed, but not a weekday lunch for a 2-meal dish", async () => {
     given({ meal_plans: [PLAN_ROW], recipes: [SECOND], meal_plan_recipes: [planned(OTHER, 2, "2026-09-27", "dinner", false, false, E2)] });
     expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "1", meal: "2026-09-28:lunch" }))).toEqual({ error: "Lunch Mon is taken by Test lentil soup." });
-    expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "2", meal: "2026-09-29:lunch" }))).toEqual({ error: "A 2-meal dish can't start at a weekday lunch." });
-    // Saturday's lunch is fine for a 2-meal dish; yesterday's isn't, in a started plan.
+    expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "2", meal: "2026-09-29:lunch" }))).toEqual({});
+    // Yesterday's meal isn't open, in a started plan.
     expect(await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "1", meal: "2026-09-26:dinner" }))).toEqual({ error: "That day has passed." });
   });
 
@@ -695,12 +697,12 @@ describe("a plan is a run of meals (REQ-168)", () => {
     expect(savedLayout(fake)).toBeUndefined();
   });
 
-  it("swaps a dish with the next one on an arrow, settling one that can't start where it lands", async () => {
-    // A is 2 meals from Sun dinner; B is a 1-meal dish on Tue lunch. Moving A down puts it on Tue lunch,
-    // which a 2-meal dish can't start at, so it goes to Tue dinner; B takes Sunday's dinner.
+  it("swaps a dish with the next one on an arrow, the dish keeping the kind of meal it lands on", async () => {
+    // A is 2 meals from Sun dinner; B is a 1-meal dish on Tue lunch. Moving A down puts it on Tue lunch;
+    // B takes Sunday's dinner.
     const fake = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(ID, 2), planned(OTHER, 1, "2026-09-29", "lunch", false, false, E2)] });
     expect(await moveEntry({}, form({ plan_id: PLAN, entry_id: E1, step: "down" }))).toEqual({});
-    expect(savedLayout(fake)?.at).toEqual({ [E2]: "dinner 2026-09-27", [E1]: "dinner 2026-09-29" });
+    expect(savedLayout(fake)?.at).toEqual({ [E2]: "dinner 2026-09-27", [E1]: "lunch 2026-09-29" });
     // Up from the top does nothing.
     const none = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(ID, 2), planned(OTHER, 1, "2026-09-29", "lunch", false, false, E2)] });
     await moveEntry({}, form({ plan_id: PLAN, entry_id: E1, step: "up" }));
@@ -718,31 +720,28 @@ describe("a plan is a run of meals (REQ-168)", () => {
     expect(await moveEntry({}, form({ plan_id: PLAN, entry_id: E2, meal: "2026-09-30:dinner" }))).toEqual({});
   });
 
-  it("offers each dish only the meals it can start at, from today to dinner on the first Saturday, and arrows between dishes", async () => {
+  it("offers each dish every meal, from today to dinner on the first Saturday, and arrows between dishes", async () => {
     given({ meal_plans: [openPlan([planned(ID, 2), planned(OTHER, 1, "2026-09-28", "dinner")])], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
     const labels = (name: string) => within(screen.getByRole("combobox", { name })).getAllByRole("option").map((option) => option.textContent);
     const lentil = labels("Move Test lentil soup to");
     expect(lentil.slice(0, 4)).toEqual(["Move to…", "Dinner Sun, Sep 27", "Lunch Mon, Sep 28", "Dinner Mon, Sep 28"]);
     expect(lentil.at(-1)).toBe("Dinner Sat, Oct 3");
-    // A 2-meal dish never starts at a weekday lunch; Saturday's is fine.
+    // A 2-meal dish can go on a weekday lunch too.
     const chicken = labels("Move Test chicken rice to");
-    expect(chicken).not.toContain("Lunch Mon, Sep 28");
+    expect(chicken).toContain("Lunch Mon, Sep 28");
     expect(chicken).toContain("Lunch Sat, Oct 3");
     expect((screen.getByRole("button", { name: "Move Test chicken rice up" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "Move Test lentil soup down" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole("button", { name: "Move Test lentil soup up" })).toBeTruthy();
   });
 
-  it("marks a Day off, and won't unmark one a 2-meal dish starts its lunch on", async () => {
+  it("marks a Day off, and unmarks it even when a dish sits on that day's lunch", async () => {
     let fake = given({});
     expect(await markDayOff({}, form({ plan_id: PLAN, day: "2026-09-29" }))).toEqual({});
     expect(sent(fake, "meal_plan_days_off", "upsert")).toEqual({ plan_id: PLAN, day: "2026-09-29" });
-    // Tue 29th is a Day off, so the dish may start at its lunch; taking the day off back would strand it.
+    // Any dish can sit on any lunch, so taking the day off back strands nothing.
     fake = given({ meal_plans: [PLAN_ROW], recipes: [RECIPE], meal_plan_days_off: [{ day: "2026-09-29" }], meal_plan_recipes: [planned(ID, 2, "2026-09-29", "lunch")] });
-    expect(await unmarkDayOff({}, form({ plan_id: PLAN, day: "2026-09-29" }))).toEqual({ error: "Test chicken rice starts at lunch that day. Move it first." });
-    expect(fake.from.mock.results.some((result) => vi.mocked(result.value.delete).mock.calls.length > 0)).toBe(false);
-    fake = given({ meal_plans: [PLAN_ROW], meal_plan_days_off: [{ day: "2026-09-29" }], meal_plan_recipes: [planned(ID, 1, "2026-09-29", "lunch")] });
     expect(await unmarkDayOff({}, form({ plan_id: PLAN, day: "2026-09-29" }))).toEqual({});
   });
 
@@ -755,7 +754,7 @@ describe("a plan is a run of meals (REQ-168)", () => {
 
   it("changing the start day slides the dishes by the same days and settles them", async () => {
     // A plan from Sunday lunch: A (a 2-meal dish at a weekend lunch) and B (dinner Mon). Starting a day later,
-    // A lands on a weekday lunch and goes to that day's dinner; B follows. A lunch start belongs to a weekend
+    // A lands on a weekday lunch and stays a lunch; B follows. A lunch start belongs to a weekend
     // day, so the plan now starts at dinner; moved to a Saturday it keeps its lunch start.
     const lunchStart = { ...PLAN_ROW, starts_meal: "lunch" };
     const fake = given({ meal_plans: [lunchStart], meal_plan_recipes: [planned(ID, 2, "2026-09-27", "lunch"), planned(OTHER, 2, "2026-09-28", "dinner", false, false, E2)] });
@@ -763,7 +762,7 @@ describe("a plan is a run of meals (REQ-168)", () => {
     const saved = savedLayout(fake);
     expect(saved?.p_starts_on).toBe("2026-09-28");
     expect(saved?.p_starts_meal).toBe("dinner");
-    expect(saved?.at).toEqual({ [E1]: "dinner 2026-09-28", [E2]: "dinner 2026-09-29" });
+    expect(saved?.at).toEqual({ [E1]: "lunch 2026-09-28", [E2]: "dinner 2026-09-29" });
     const weekend = given({ meal_plans: [lunchStart], meal_plan_recipes: [planned(OTHER, 1, "2026-09-28", "dinner", false, false, E2)] });
     await changePlanStart({}, form({ plan_id: PLAN, starts_on: "2026-10-03" }));
     expect(savedLayout(weekend)?.p_starts_meal).toBe("lunch");
@@ -1279,5 +1278,47 @@ describe("a second meal of its own (REQ-196)", () => {
     given({ meal_plans: [{ ...openPlan([planned(ID, 2)]), status: "started", slid_from: "2026-09-24" }], recipes: [RECIPE] });
     render(await WeekPage());
     expect(screen.queryByText(/Moved from/)).toBeNull();
+  });
+});
+
+// Vin, 2026-10-14: every meal can be tinkered with.
+describe("moving each meal on its own, and a lunch out", () => {
+  const withSecond = (recipe: string | null, meals: number, on: string, meal: string, second_on: string, second_meal: string, id: string) => ({ ...planned(recipe, meals, on, meal, false, false, id), second_on, second_meal });
+
+  it("moves a dish's first meal without refusing because of where its second meal would usually go", async () => {
+    // Egg curry Mon lunch + Tue lunch; Paneer Tue dinner + Wed lunch. Paneer's dinner moves to Mon dinner.
+    const fake = given({
+      meal_plans: [{ ...PLAN_ROW, ahead: true }],
+      meal_plan_recipes: [withSecond(ID, 2, "2026-09-28", "lunch", "2026-09-29", "lunch", E1), withSecond(OTHER, 2, "2026-09-29", "dinner", "2026-09-30", "lunch", E2)],
+    });
+    expect(await moveEntry({}, form({ plan_id: PLAN, entry_id: E2, meal: "2026-09-28:dinner" }))).toEqual({});
+    expect(savedLayout(fake)?.at).toEqual({ [E1]: "lunch 2026-09-28", [E2]: "dinner 2026-09-28" });
+    const layout = (fake.rpc.mock.calls.find(([name]) => name === "set_plan_layout")?.[1] as { p_layout: Record<string, unknown>[] }).p_layout;
+    expect(layout.find((row) => row.id === E2)).toMatchObject({ second_on: "2026-09-30", second_meal: "lunch" });
+  });
+
+  it("then moves the second meal onto the dinner the first one left", async () => {
+    const fake = given({
+      meal_plans: [{ ...PLAN_ROW, ahead: true }],
+      meal_plan_recipes: [withSecond(ID, 2, "2026-09-28", "lunch", "2026-09-29", "lunch", E1), withSecond(OTHER, 2, "2026-09-28", "dinner", "2026-09-30", "lunch", E2)],
+    });
+    expect(await moveSecondMeal({}, form({ plan_id: PLAN, entry_id: E2, meal: "2026-09-29:dinner" }))).toEqual({});
+    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ second_on: "2026-09-29", second_meal: "dinner" });
+  });
+
+  it("puts Eating out on a lunch", async () => {
+    const fake = given({ meal_plans: [PLAN_ROW] });
+    expect(await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-09-29:lunch" }))).toEqual({});
+    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ eating_out: true, meal_on: "2026-09-29", meal: "lunch" });
+  });
+
+  it("moves a dish onto a lunch with an Eating out, pushing it back", async () => {
+    const fake = given({
+      meal_plans: [PLAN_ROW],
+      meal_plan_recipes: [planned(ID, 1, "2026-09-29", "lunch"), planned(null, 1, "2026-09-30", "dinner", false, false, E3)],
+    });
+    expect(await moveEntry({}, form({ plan_id: PLAN, entry_id: E3, meal: "2026-09-29:lunch" }))).toEqual({});
+    const call = fake.rpc.mock.calls.find(([name]) => name === "push_plan_back")?.[1] as { p_layout: { id: string; meal: string; meal_on: string }[] };
+    expect(call.p_layout).toEqual(expect.arrayContaining([expect.objectContaining({ id: E3, meal: "lunch", meal_on: "2026-09-29" })]));
   });
 });
