@@ -286,10 +286,18 @@
    its border, the name on a band, the details under it. A meal with nothing
    in it is solid in the module colour, so it stands out. */
 .slot {
-  composes: card;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-2);
+  box-sizing: border-box;
   min-width: 0;
+  margin: 0;
   padding: var(--space-4);
+  overflow: hidden;
+  border: 1.5px solid var(--module-loud);
+  border-radius: var(--radius-lg);
+  background: var(--color-ground);
+  color: var(--color-ink);
 }
 
 .slotLunch { grid-column: 1; }
