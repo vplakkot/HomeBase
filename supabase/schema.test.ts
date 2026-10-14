@@ -1125,8 +1125,13 @@ describe("meal plan: a second meal of its own, and a plan that slid (REQ-196, RE
     expect(second).toMatch(/alter table public\.meal_plans\s+add column slid_from date;/);
   });
 
-  it("converts nothing: an entry with no second meal written keeps it on the meal after the first", () => {
-    expect(second).not.toMatch(/\bupdate public\.meal_plan_recipes\s+set second/);
+  it("converts only lunch-start 2-meal dishes in open plans, to the next day's lunch, when it is free", () => {
+    expect(second).toMatch(/update public\.meal_plan_recipes e\s+set second_on = e\.meal_on \+ 1,\s+second_meal = 'lunch'/);
+    expect(second).toMatch(/p\.closed_at is null/);
+    expect(second).toMatch(/and e\.meal = 'lunch'/);
+    expect(second).toMatch(/and e\.second_on is null/);
+    expect(second).toMatch(/and not exists \(/);
+    // Everything else keeps its meals: an entry with no second meal written has it right after the first.
     expect(second).toMatch(/\(meal_on - date '2000-01-01'\) \* 2 \+ \(meal = 'dinner'\)::integer \+ 1/);
   });
 

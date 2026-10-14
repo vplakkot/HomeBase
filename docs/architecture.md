@@ -1355,9 +1355,12 @@ written onto the meal it starts at (`meal_on`, a day, and `meal`, lunch
 or dinner) with a size of `meals` 1 or 2. A 2-meal dish also has a second meal of its
 own (REQ-196: `second_on`, `second_meal`), anywhere after the first and
 moved on its own; by default the next lunch after a dinner, and the next
-day's dinner after a lunch. An entry with no second meal written (every
-one saved before that) has it on the meal right after the first, so
-nothing was converted. A plan that slid also remembers `slid_from`, the
+day's lunch after a lunch. The plan screen draws a Lunch tile and a Dinner
+tile for each day (REQ-198, `layoutDays`), with the controls folded behind
+Edit. An entry with no second meal written (every
+one saved before that) has it on the meal right after the first; only a
+lunch-start dish in a plan open at the time was converted, to the next
+day's lunch. A plan that slid also remembers `slid_from`, the
 day it was meant to start (REQ-197), to say so until it is started. A plan stores its `starts_meal` (dinner, or
 lunch on a weekend day when we choose), and `meal_plan_days_off` holds the
 days we marked as a Day off, which count as weekend days for it. The rules

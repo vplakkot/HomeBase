@@ -47,7 +47,8 @@ A 2-meal dish used to cover its meal and the very next one. Giving it a
 second meal of its own meant two new columns, and the easy plan was to
 fill them in for every existing dish. We didn't. An empty second meal
 simply *means* "the meal after the first", in the app and in the database
-check for two dishes on one meal. So nothing is converted, every dish
+check for two dishes on one meal. So almost nothing is converted (one small, guarded update moved
+lunch-start dishes that were clearly wrong), every other dish
 keeps the meals it shows, and the old app (which never writes the new
 columns) stays correct. Only a dish someone moves gets a second meal
 written. When a missing value can carry the old meaning, prefer that to a

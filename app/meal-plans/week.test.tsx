@@ -108,6 +108,22 @@ function sent(fake: ReturnType<typeof fakeSupabase>, table: string, method: stri
   return index === -1 ? undefined : vi.mocked(fake.from.mock.results[index].value[method]).mock.calls[0][0];
 }
 
+// The plan's day tiles as text: each day's name, then each tile's meal and what is in it
+// (the Edit controls are left out).
+function tiles() {
+  const days = within(screen.getByRole("list", { name: /Recipes in the plan|Entries in the next plan/ })).getAllByRole("heading", { level: 3 });
+  return days.map((heading) => {
+    const day = heading.closest("li") as HTMLElement;
+    const slots = within(day).getAllByRole("listitem").map((slot) => {
+      const copy = slot.cloneNode(true) as HTMLElement;
+      copy.querySelector("details")?.remove();
+      const [meal, ...rest] = Array.from(copy.querySelectorAll("span")).map((span) => span.textContent ?? "");
+      return `${meal}: ${rest.join(" ")}`;
+    });
+    return [heading.textContent, ...slots].join("|");
+  });
+}
+
 // A write the database refuses as a duplicate (Postgres' 23505).
 function refusedAsDuplicate(fake: ReturnType<typeof fakeSupabase>) {
   const duplicate = { data: null, error: { code: "23505", message: "duplicate key value" } };
@@ -242,10 +258,10 @@ describe("the week's plan (REQ-115)", () => {
     // A 2-meal dish is a dinner and the next lunch; the 1-meal one the dinner after.
     // The start day is already the heading; changing it is folded away.
     expect(screen.getByText("Change the start day").closest("details")?.hasAttribute("open")).toBe(false);
-    const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
-    expect(rows).toHaveLength(2);
-    expect(rows[0].textContent).toMatch(/^Dinner Sun · Lunch MonTest chicken rice/);
-    expect(rows[1].textContent).toMatch(/^Dinner MonTest lentil soup/);
+    expect(tiles()).toEqual([
+      "Sun, Sep 27|Dinner: Test chicken rice",
+      "Mon, Sep 28|Lunch: Test chicken rice 2nd meal|Dinner: Test lentil soup Recipe missing",
+    ]);
     expect((screen.getByRole("combobox", { name: "Size of Test chicken rice" }) as HTMLSelectElement).value).toBe("2");
     expect((screen.getByRole("combobox", { name: "Size of Test lentil soup" }) as HTMLSelectElement).value).toBe("1");
     // Closing cards and "Didn't cook this" replaced the ticks (REQ-163).
@@ -562,13 +578,11 @@ describe("a plan is a run of meals (REQ-168)", () => {
       recipes: [RECIPE, SECOND],
     });
     render(await WeekPage());
-    const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
-    expect(rows.map((row) => row.textContent?.replace(/(Size|Move|Take|Cooked|Carry|Up|Down|Remove|Eating out Move).*/, "").slice(0, 60))).toEqual([
-      "Dinner SunTest chicken rice",
-      "Lunch MonOn your own",
-      "Dinner MonEating out",
-      "Lunch TueOn your own",
-      "Dinner Tue · Lunch WedTest lentil soupRecipe missing",
+    expect(tiles()).toEqual([
+      "Sun, Sep 27|Dinner: Test chicken rice",
+      "Mon, Sep 28|Lunch: On your own|Dinner: Eating out",
+      "Tue, Sep 29|Lunch: On your own|Dinner: Test lentil soup Recipe missing",
+      "Wed, Sep 30|Lunch: Test lentil soup 2nd meal",
     ]);
     expect(screen.getByRole("heading", { name: "Sun, Sep 27 Dinner – Wed, Sep 30 Lunch" })).toBeTruthy();
     // An evening out has no cooked or carry-over tick.
@@ -578,12 +592,11 @@ describe("a plan is a run of meals (REQ-168)", () => {
   it("names a dinner nobody has planned yet", async () => {
     given({ meal_plans: [openPlan([planned(ID, 2), planned(OTHER, 2, "2026-09-29", "dinner", false, false, E2)])], recipes: [RECIPE, SECOND] });
     render(await WeekPage());
-    const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
-    expect(rows.map((row) => row.textContent?.slice(0, 22))).toEqual([
-      "Dinner Sun · Lunch Mon",
-      "Dinner MonNot planned",
-      "Lunch TueOn your own",
-      "Dinner Tue · Lunch Wed",
+    expect(tiles()).toEqual([
+      "Sun, Sep 27|Dinner: Test chicken rice",
+      "Mon, Sep 28|Lunch: Test chicken rice 2nd meal|Dinner: Not planned",
+      "Tue, Sep 29|Lunch: On your own|Dinner: Test lentil soup Recipe missing",
+      "Wed, Sep 30|Lunch: Test lentil soup 2nd meal",
     ]);
   });
 
@@ -801,13 +814,13 @@ describe("Eating out pushes dishes back (REQ-169)", () => {
     expect(pushCall(fake)).toBeUndefined();
   });
 
-  it("shrinks a weekend-lunch dish to 1 meal when Eating out takes its leftovers' dinner, and drops nothing", async () => {
-    // A 2-meal dish from Saturday lunch (2026-10-03) covers Saturday dinner.
+  it("moves a weekend-lunch dish's second meal to the next lunch when Eating out takes its dinner, and drops nothing", async () => {
+    // A 2-meal dish from Saturday lunch (2026-10-03), second meal Saturday dinner as saved before REQ-196.
     const fake = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(ID, 2, "2026-10-03", "lunch")] });
     expect(await addToPlan({}, form({ plan_id: PLAN, intent: "eating_out", meal: "2026-10-03:dinner" }))).toEqual({});
     const call = pushCall(fake);
     expect(call?.p_drop).toEqual([]);
-    expect(call?.p_layout).toEqual([{ id: E1, meal_on: "2026-10-03", meal: "lunch", meals: 1, second_on: null, second_meal: null }]);
+    expect(call?.p_layout).toEqual([{ id: E1, meal_on: "2026-10-03", meal: "lunch", meals: 2, second_on: "2026-10-04", second_meal: "lunch" }]);
     expect(call?.p_eating_out).toMatchObject({ meal_on: "2026-10-03" });
   });
 
@@ -1211,10 +1224,10 @@ describe("module home actions and suggestions (REQ-165)", () => {
 
 // REQ-196: the second meal of a 2-meal dish has a place of its own.
 describe("a second meal of its own (REQ-196)", () => {
-  it("puts a weekend-lunch dish's second meal on the next day's dinner, and a dinner dish's on the next lunch", async () => {
+  it("puts a weekend-lunch dish's second meal on the next day's lunch, and a dinner dish's on the next lunch", async () => {
     let fake = given({ meal_plans: [PLAN_ROW] });
     await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "2", meal: "2026-09-27:lunch" }));
-    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ meal_on: "2026-09-27", meal: "lunch", second_on: "2026-09-28", second_meal: "dinner" });
+    expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ meal_on: "2026-09-27", meal: "lunch", second_on: "2026-09-28", second_meal: "lunch" });
     fake = given({ meal_plans: [PLAN_ROW] });
     await addToPlan({}, form({ plan_id: PLAN, recipe_id: ID, meals: "2", meal: "2026-09-29:dinner" }));
     expect(sent(fake, "meal_plan_recipes", "insert")).toMatchObject({ second_on: "2026-09-30", second_meal: "lunch" });
@@ -1240,14 +1253,17 @@ describe("a second meal of its own (REQ-196)", () => {
   it("goes back to 2 meals with the second where it usually goes", async () => {
     const fake = given({ meal_plans: [PLAN_ROW], meal_plan_recipes: [planned(ID, 1, "2026-09-27", "lunch")] });
     expect(await setPlanMeals({}, form({ plan_id: PLAN, entry_id: E1, meals: "2" }))).toEqual({});
-    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ meals: 2, second_on: "2026-09-28", second_meal: "dinner" });
+    expect(sent(fake, "meal_plan_recipes", "update")).toEqual({ meals: 2, second_on: "2026-09-28", second_meal: "lunch" });
   });
 
-  it("shows a split dish as one card naming both meals, with a picker for the second", async () => {
+  it("shows a split dish as a tile on each of its meals, with a picker on the second", async () => {
     given({ meal_plans: [openPlan([{ ...planned(ID, 2, "2026-09-27", "lunch"), second_on: "2026-09-28", second_meal: "dinner" }])], recipes: [RECIPE] });
     render(await WeekPage());
-    const rows = within(screen.getByRole("list", { name: "Recipes in the plan" })).getAllByRole("listitem");
-    expect(rows[0].textContent).toContain("Lunch Sun · Dinner Mon");
+    expect(tiles()).toEqual([
+      "Sun, Sep 27|Lunch: Test chicken rice|Dinner: Not planned",
+      "Mon, Sep 28|Lunch: On your own|Dinner: Test chicken rice 2nd meal",
+    ]);
+    // The second meal has its own Edit, with a picker for where it goes.
     expect(screen.getByRole("combobox", { name: /second meal of Test chicken rice/ })).toBeTruthy();
   });
 

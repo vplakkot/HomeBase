@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { householdToday } from "../../../lib/finances/budget-year";
-import { coveredMeals, dayLabel, entryMeals, layoutPlan, mealKey, mealName, mealPlace, planStartMeal, secondChoices, startChoices, startOf, type Meal } from "../../../lib/meal-plans/meals";
+import { dayLabel, layoutDays, mealKey, mealPlace, planStartMeal, secondChoices, startChoices, startOf, type Meal } from "../../../lib/meal-plans/meals";
 import {
   hasDishes,
   planStats,
@@ -36,7 +36,7 @@ const asOption = (meal: Meal) => ({ value: mealKey(meal), label: mealPlace(meal)
 // plan's last meal.
 function PlanCard({ plan, recipes, names, ahead, planned }: { plan: MealPlan; recipes: readonly Recipe[]; names: Map<string, string>; ahead: boolean; planned: ReadonlySet<string> }) {
   const entries = plan.recipes.filter((entry) => entry.eating_out || (entry.recipe_id && names.has(entry.recipe_id)));
-  const layout = layoutPlan(plan, entries);
+  const days = layoutDays(plan, entries);
   // Days before today are locked once a plan has started; a new plan hasn't (REQ-163).
   const locked = plan.status === "started" ? householdToday() : null;
   const choicesFor = (shape: { eating_out: boolean; meals: 1 | 2 }) => startChoices(plan, shape, plan.daysOff, locked).map(asOption);
@@ -69,56 +69,68 @@ function PlanCard({ plan, recipes, names, ahead, planned }: { plan: MealPlan; re
           ) : null}
         </div>
       ) : null}
-      {layout.rows.length > 0 ? (
-        <ul className={styles.planList} aria-label={ahead ? "Entries in the next plan" : "Recipes in the plan"}>
-          {layout.rows.map((row) => {
-            if (row.kind === "empty") {
-              return (
-                <li key={`empty-${mealKey(row.meal)}`} className={styles.planRow}>
-                  <span className={styles.planMeals}>{mealName(row.meal)}</span>
-                  <span className={styles.planEmpty}>{row.label}</span>
-                </li>
-              );
-            }
-            const { entry } = row;
-            const name = entry.eating_out ? "Eating out" : (names.get(entry.recipe_id ?? "") ?? "");
-            const place = dishes.indexOf(entry);
-            return (
-              <li key={entry.id} className={styles.planRow}>
-                <span className={styles.planMeals}>{entryMeals(row.meals)}</span>
-                {entry.eating_out ? (
-                  <span>{name}</span>
-                ) : (
-                  <Link href={`/meal-plans/${entry.recipe_id}`}>
-                    {name}
-                  </Link>
-                )}
-                {entry.recipe_id && missing.has(entry.recipe_id) ? <span className={styles.planEmpty}>Recipe missing</span> : null}
-                {entry.eating_out ? null : (
-                  <PlannedControls planId={plan.id} entryId={entry.id} name={name} meals={entry.meals} />
-                )}
-                {entry.meals === 2 && !entry.eating_out ? (
-                  <SecondMealControl planId={plan.id} entryId={entry.id} name={name} current={mealKey(coveredMeals(entry)[1])} meals={secondChoices(plan, entry, locked).map(asOption)} />
-                ) : null}
-                <MoveControls
-                  planId={plan.id}
-                  entryId={entry.id}
-                  name={name}
-                  meals={choicesFor(entry)}
-                  canMoveUp={place > 0}
-                  canMoveDown={place !== -1 && place < dishes.length - 1}
-                />
-                <form action={takeOffPlan}>
-                  <input type="hidden" name="plan_id" value={plan.id} />
-                  <input type="hidden" name="entry_id" value={entry.id} />
-                  <button type="submit" className={styles.linkButton} aria-label={`Take ${name} off the plan`}>
-                    Remove
-                  </button>
-                </form>
-              </li>
-            );
-          })}
-        </ul>
+      {days.length > 0 ? (
+        <ol className={styles.days} aria-label={ahead ? "Entries in the next plan" : "Recipes in the plan"}>
+          {days.map((day) => (
+            <li key={day.day} className={styles.day}>
+              <h3 className={styles.dayName}>{dayLabel(day.day)}</h3>
+              <ul className={styles.slots}>
+                {day.slots.map((slot) => {
+                  const { entry } = slot;
+                  const tile = `${styles.slot} ${slot.meal.meal === "lunch" ? styles.slotLunch : styles.slotDinner}`;
+                  const kind = slot.meal.meal === "lunch" ? "Lunch" : "Dinner";
+                  if (!entry) {
+                    return (
+                      <li key={mealKey(slot.meal)} className={`${tile} ${styles.slotEmpty}`}>
+                        <span className={styles.slotMeal}>{kind}</span>
+                        <span>{slot.label}</span>
+                      </li>
+                    );
+                  }
+                  const name = entry.eating_out ? "Eating out" : (names.get(entry.recipe_id ?? "") ?? "");
+                  const place = dishes.indexOf(entry);
+                  return (
+                    <li key={mealKey(slot.meal)} className={tile}>
+                      <span className={styles.slotMeal}>{kind}</span>
+                      <span className={styles.slotName}>
+                        {entry.eating_out ? name : <Link href={`/meal-plans/${entry.recipe_id}`}>{name}</Link>}
+                      </span>
+                      {slot.kind === "second" ? <span className={styles.slotNote}>2nd meal</span> : null}
+                      {slot.kind === "first" && entry.recipe_id && missing.has(entry.recipe_id) ? <span className={styles.slotNote}>Recipe missing</span> : null}
+                      <details className={styles.slotEdit}>
+                        <summary>Edit</summary>
+                        <div className={styles.slotControls}>
+                          {slot.kind === "second" ? (
+                            <SecondMealControl planId={plan.id} entryId={entry.id} name={name} current={mealKey(slot.meal)} meals={secondChoices(plan, entry, locked).map(asOption)} />
+                          ) : (
+                            <>
+                              {entry.eating_out ? null : <PlannedControls planId={plan.id} entryId={entry.id} name={name} meals={entry.meals} />}
+                              <MoveControls
+                                planId={plan.id}
+                                entryId={entry.id}
+                                name={name}
+                                meals={choicesFor(entry)}
+                                canMoveUp={place > 0}
+                                canMoveDown={place !== -1 && place < dishes.length - 1}
+                              />
+                              <form action={takeOffPlan}>
+                                <input type="hidden" name="plan_id" value={plan.id} />
+                                <input type="hidden" name="entry_id" value={entry.id} />
+                                <button type="submit" className={styles.linkButton} aria-label={`Take ${name} off the plan`}>
+                                  Remove
+                                </button>
+                              </form>
+                            </>
+                          )}
+                        </div>
+                      </details>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
+        </ol>
       ) : null}
       {recipes.length === 0 ? (
         <p className={styles.empty}>

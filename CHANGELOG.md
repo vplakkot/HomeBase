@@ -11,11 +11,16 @@
   only said when there really is none (and then offers 1 meal).
 
 - Meal Plans, the second meal of a 2-meal dish has its own place (REQ-196). A
-  dish cooked at lunch now has its second meal on the next day's dinner, not
-  the same day's; one cooked at dinner still has it on the next lunch. Each
-  2-meal dish has a "Move 2nd meal" list to put it on any free later meal.
-  Dishes already in a plan keep the meals they show today. Needs a database
-  migration (empty columns only).
+  dish cooked at lunch now has its second meal on the next day's lunch (not
+  the same day's dinner); one cooked at dinner has it on the next lunch. Each
+  2-meal dish's second meal has its own Edit with a list to put it on any
+  free later meal. Eating out on a dish's second meal keeps the dish at 2
+  meals and moves that second meal to the next lunch. Lunch-start dishes in
+  plans already open move to the next day's lunch when it is free; every
+  other dish keeps the meals it shows. Needs a database migration.
+- Meal Plans, the plan is a tile for each lunch and dinner, a day at a time
+  (REQ-198): dishes in the Meal Plan colour, empty meals quiet, and the size,
+  move, up, down and remove controls folded behind Edit on each tile.
 - Meal Plans, a plan nobody started that slides forward now says "Moved from
   Oct 4" until it is started (REQ-197), so a plan that was cooked anyway can
   be put back with "Change the start day".

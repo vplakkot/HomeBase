@@ -82,9 +82,9 @@ export function coveredMeals(entry: Pick<Slotted, "meal_on" | "meal" | "meals"> 
 
 // REQ-196: nobody eats the same dish at lunch and dinner on one day. After a
 // dinner the second meal is the next lunch; after a lunch it is the next
-// day's dinner.
+// day's lunch (Vin, 2026-10-14).
 export function defaultSecondIndex(first: number): number {
-  return first % 2 === 1 ? first + 1 : first + 3;
+  return first % 2 === 1 ? first + 1 : first + 2;
 }
 
 type Placeable = Pick<Sited, "eating_out" | "meals"> & Partial<Pick<Sited, "meal_on" | "meal" | "second_on" | "second_meal">>;
@@ -294,18 +294,24 @@ export function swapWithNeighbour<T extends Sited>(entries: readonly T[], id: st
 // `at`: new, or an existing one being moved there. Returns null when no
 // dish is on that dinner, so nothing needs pushing. Eating out on the
 // leftovers of a dish that starts at the lunch before it doesn't push that
-// dish: it shrinks to 1 meal instead (Vin, 2026-10-04).
+// dish: its second meal moves to the next free meal instead (Vin, 2026-10-14).
 export type Pushed<T> = { entries: T[]; dropped: T[] };
 
 export function pushBack<T extends Sited>(plan: Pick<PlanStart, "starts_on">, entries: readonly T[], eatingOut: T, at: Meal, daysOff: ReadonlySet<string>): Pushed<T> | null {
   const rest = entries.filter((entry) => entry.id !== eatingOut.id);
   const on = occupant(rest, at);
   if (!on || on.eating_out) return null;
-  // The dinner is the leftovers of a 2-meal dish that starts at the lunch before it
-  // (a weekend lunch). The dish keeps its lunch and becomes a 1-meal dish, and
-  // Eating out takes the dinner: nothing else moves, nothing is dropped.
+  // The dinner is the second meal of a dish that starts before it. The dish stays 2 meals (it was
+  // shopped for as 2): its second meal moves to the next free meal, usually the next lunch, and
+  // Eating out takes the dinner. Nothing else moves, nothing is dropped. With no free meal in
+  // reach it shrinks to 1 meal instead.
   if (startOf(on) < mealIndex(at)) {
-    const kept = rest.map((entry) => (entry.id === on.id ? { ...entry, meals: 1 as const, second_on: null, second_meal: null } : entry));
+    const taken = new Set([startOf(on), mealIndex(at), ...rest.filter((entry) => entry.id !== on.id).flatMap((entry) => slotsOf(entry))]);
+    const reach = mealIndex(capMeal(plan.starts_on)) + 2;
+    let next = mealIndex(at) + 1;
+    while (next <= reach && taken.has(next)) next += 1;
+    const second = next <= reach ? mealAtIndex(next) : null;
+    const kept = rest.map((entry) => (entry.id === on.id ? { ...entry, meals: second ? (2 as const) : (1 as const), second_on: second?.day ?? null, second_meal: second?.meal ?? null } : entry));
     return { entries: [...kept, { ...eatingOut, meal_on: at.day, meal: "dinner" as const, meals: 1 as const, second_on: null, second_meal: null }], dropped: [] };
   }
   const first = startOf(on);
@@ -344,6 +350,32 @@ export function layoutPlan<T extends Sited>(plan: PlanStart, entries: readonly T
     }
   }
   return { rows, end };
+}
+
+// REQ-198: the plan a day at a time, a Lunch tile and a Dinner tile each.
+// A tile is a dish's first meal, its second meal, or empty; the plan's first
+// day starts at its first meal and its last day stops at its last filled one.
+export type DaySlot<T> = { meal: Meal; kind: "first" | "second" | "empty"; entry?: T; label?: "On your own" | "Not planned" };
+export type PlanDay<T> = { day: string; slots: DaySlot<T>[] };
+
+export function layoutDays<T extends Sited>(plan: PlanStart, entries: readonly T[]): PlanDay<T>[] {
+  const end = planEnd(entries);
+  if (!end) return [];
+  const owner = new Map<number, T>();
+  for (const entry of entries) for (const slot of slotsOf(entry)) owner.set(slot, entry);
+  const days: PlanDay<T>[] = [];
+  const first = Math.min(mealIndex(planStartMeal(plan)), ...entries.map(startOf));
+  for (let index = first; index <= mealIndex(end); index++) {
+    const meal = mealAtIndex(index);
+    const entry = owner.get(index);
+    const slot: DaySlot<T> = entry
+      ? { meal, kind: startOf(entry) === index ? "first" : "second", entry }
+      : { meal, kind: "empty", label: meal.meal === "lunch" ? "On your own" : "Not planned" };
+    const last = days.at(-1);
+    if (last && last.day === meal.day) last.slots.push(slot);
+    else days.push({ day: meal.day, slots: [slot] });
+  }
+  return days;
 }
 
 // "Dinner Mon"

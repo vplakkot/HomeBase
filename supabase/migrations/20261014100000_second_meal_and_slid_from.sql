@@ -25,6 +25,36 @@ alter table public.meal_plan_recipes
 alter table public.meal_plans
   add column slid_from date;
 
+-- One conversion, for plans open today: a 2-meal dish that starts at a lunch
+-- and still has its second meal on that same day's dinner (nobody eats the
+-- same dish twice in a day) goes to the next day's lunch, when that meal is
+-- free. Dishes that can't move stay as they are, and closed plans are left
+-- alone. Every other dish keeps the meals it shows.
+update public.meal_plan_recipes e
+   set second_on = e.meal_on + 1,
+       second_meal = 'lunch'
+  from public.meal_plans p
+ where p.id = e.plan_id
+   and p.closed_at is null
+   and not e.eating_out
+   and e.meals = 2
+   and e.meal = 'lunch'
+   and e.meal_on is not null
+   and e.second_on is null
+   and not exists (
+         select 1
+           from public.meal_plan_recipes o
+          where o.plan_id = e.plan_id
+            and o.id <> e.id
+            and o.meal_on is not null
+            and (e.meal_on + 1 - date '2000-01-01') * 2 in (
+                  (o.meal_on - date '2000-01-01') * 2 + (o.meal = 'dinner')::integer,
+                  case when o.meals = 2 then
+                    coalesce(
+                      (o.second_on - date '2000-01-01') * 2 + (o.second_meal = 'dinner')::integer,
+                      (o.meal_on - date '2000-01-01') * 2 + (o.meal = 'dinner')::integer + 1)
+                  end));
+
 -- Two entries on one meal, in one plan. A 1-meal entry has its first meal; a
 -- 2-meal entry also has its second (the meal after the first when none is
 -- written). Replaces the version that assumed the two were side by side.
