@@ -17,7 +17,7 @@ export default async function UnfiledPage({ searchParams }: { searchParams?: Pro
 
   return (
     <PaperworkScreen viewer={viewer} here="/paperwork/unfiled" query={q} tab="Unfiled" crumbs={[{ name: "Unfiled" }]}>
-      <Section id="desk" title="On your desk" aside={`${waiting.length} to file`}>
+      <Section id="desk" title="On your desk" aside={`${waiting.length} to File Folder`}>
         {waiting.length === 0 ? (
           <p className={styles.empty}>Everything is filed.</p>
         ) : (

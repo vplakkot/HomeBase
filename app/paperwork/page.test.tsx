@@ -7,10 +7,11 @@ import { fakeSupabase } from "../../test/fake-supabase";
 import BoxPage from "./boxes/[id]/page";
 import CategoryPage from "./categories/[id]/page";
 import CategoriesPage from "./categories/page";
-import FilePage from "./files/[id]/page";
+import FileFolderPage from "./file-folders/[id]/page";
 import { PaperForm } from "./forms";
 import PaperPage from "./items/[id]/page";
 import ArchivePage from "./archives/[id]/page";
+import NotPlacedPage from "./not-placed/page";
 import LocationPage from "./locations/[id]/page";
 import PaperworkPage from "./page";
 import PaperworkSettingsPage from "./settings/page";
@@ -39,13 +40,13 @@ const PEOPLE = [
   { user_id: "u-sam", name: "Sam", manages_budget: false },
 ];
 const TAXES = { id: "c-tax", name: "Taxes", keep_years: 7 };
-// A real-looking id, since making a file checks the category's id.
+// A real-looking id, since making a File Folder checks the category's id.
 const CAR = { id: "c0ca0000-0000-4000-8000-000000000001", name: "Car", keep_years: null };
-// Locations are records (REQ-179); the shed has no files.
+// Locations are records (REQ-179); the shed has no File Folders.
 const HALL = { id: "10ca0000-0000-4000-8000-000000000001", name: "Hall cupboard", built_in: null };
 const GLOVEBOX = { id: "10ca0000-0000-4000-8000-000000000002", name: "Glovebox" };
 const SHED = { id: "10ca0000-0000-4000-8000-000000000003", name: "Shed" };
-const file = (id: string, number: number, category_id: string, label: string | null, location_id: string) => ({
+const fileFolder = (id: string, number: number, category_id: string, label: string | null, location_id: string | null) => ({
   id,
   number,
   category_id,
@@ -55,23 +56,23 @@ const file = (id: string, number: number, category_id: string, label: string | n
   storage_entry_id: null,
 });
 const FILES = [
-  file("f-42", 42, "c-tax", "Returns", HALL.id),
-  file("f-7", 7, CAR.id, null, GLOVEBOX.id),
-  file("f-43", 43, CAR.id, null, HALL.id),
+  fileFolder("f-42", 42, "c-tax", "Returns", HALL.id),
+  fileFolder("f-7", 7, CAR.id, null, GLOVEBOX.id),
+  fileFolder("f-43", 43, CAR.id, null, HALL.id),
 ];
 const ARCHIVED = {
-  ...file("f-9", 9, "c-tax", "Old returns", HALL.id),
+  ...fileFolder("f-9", 9, "c-tax", "Old returns", HALL.id),
   status: "archived",
   storage_entry_id: "s3",
 };
-const paper = (id: string, name: string, file_id: string | null, owner_id: string | null = null) => ({
+const paper = (id: string, name: string, file_folder_id: string | null, owner_id: string | null = null) => ({
   id,
   name,
   owner_id,
   document_date: null as string | null,
   notes: null,
-  keep_until: null,
-  file_id,
+  keep_until: null as string | null,
+  file_folder_id,
   archive_id: null as string | null,
   logged_on: "2026-09-20",
 });
@@ -90,14 +91,14 @@ const SHOES_ARCHIVE = { id: "a3", storage_entry_id: "s3" };
 
 function given(
   permissions = ["use_modules"],
-  { files = [...FILES, ARCHIVED], papers = PAPERS, archives = [] as unknown[] } = {},
+  { fileFolders = [...FILES, ARCHIVED], papers = PAPERS, archives = [] as unknown[] } = {},
 ) {
   const fake = fakeSupabase({
     permissions,
     people: PEOPLE,
     tables: {
       paperwork_categories: [CAR, TAXES],
-      paperwork_files: files,
+      paperwork_file_folders: fileFolders,
       paperwork: papers,
       paperwork_locations: [GLOVEBOX, HALL, SHED],
       paperwork_archives: archives,
@@ -113,7 +114,7 @@ const card = (name: string) => screen.getByRole("region", { name });
 const q = (query = "") => Promise.resolve(query ? { q: query } : {});
 const home = (query?: string) => PaperworkPage({ searchParams: q(query) });
 const place = (id: string, query?: string) => LocationPage({ params: Promise.resolve({ id }), searchParams: q(query) });
-const openFile = (id: string) => FilePage({ params: Promise.resolve({ id }), searchParams: q() });
+const openFileFolder = (id: string) => FileFolderPage({ params: Promise.resolve({ id }), searchParams: q() });
 const crumbs = () =>
   within(screen.getByRole("navigation", { name: "Breadcrumb" }))
     .getAllByRole("listitem")
@@ -137,33 +138,33 @@ describe("the module's structure (REQ-100)", () => {
     ]);
   });
 
-  it("puts search, the settings gear, New file and Log document in the header of every screen", async () => {
+  it("puts search, the settings gear, New File Folder and Log document in the header of every screen", async () => {
     given(ADMIN);
     for (const page of [
       home(),
       place("10ca0000-0000-4000-8000-000000000001"),
-      openFile("f-42"),
+      openFileFolder("f-42"),
       UnfiledPage({ searchParams: q() }),
       CategoriesPage({}),
     ]) {
       render(await page);
       const header = screen.getByRole("banner");
-      expect(within(header).getByRole("searchbox", { name: "Search files and documents" })).toBeDefined();
+      expect(within(header).getByRole("searchbox", { name: "Search File Folders and documents" })).toBeDefined();
       expect(within(header).getByRole("link", { name: "Paperwork settings" }).getAttribute("href")).toBe(
         "/paperwork/settings",
       );
       expect(within(header).getByRole("button", { name: "Log document" })).toBeDefined();
-      // #254: a file can be made on its own, not only from Log document.
-      expect(within(header).getByRole("button", { name: "New file" })).toBeDefined();
+      // #254: a File Folder can be made on its own, not only from Log document.
+      expect(within(header).getByRole("button", { name: "New File Folder" })).toBeDefined();
       cleanup();
     }
   });
 
-  it("opens the New file form from the header (#254)", async () => {
+  it("opens the New File Folder form from the header (#254)", async () => {
     given();
     render(await home());
-    fireEvent.click(within(screen.getByRole("banner")).getByRole("button", { name: "New file" }));
-    expect(screen.getByRole("dialog", { name: "New file" })).toBeDefined();
+    fireEvent.click(within(screen.getByRole("banner")).getByRole("button", { name: "New File Folder" }));
+    expect(screen.getByRole("dialog", { name: "New File Folder" })).toBeDefined();
   });
 
   it("shows members no settings gear", async () => {
@@ -183,7 +184,7 @@ describe("the module's structure (REQ-100)", () => {
     render(await home());
     expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).toBeNull();
     cleanup();
-    render(await openFile("f-42"));
+    render(await openFileFolder("f-42"));
     expect(crumbs()).toEqual(["Paperwork", "Hall cupboard", "F-0042"]);
     const trail = screen.getByRole("navigation", { name: "Breadcrumb" });
     expect(links(trail)).toEqual([
@@ -204,19 +205,19 @@ describe("screen 1: overview (REQ-100, DESIGN.md §11)", () => {
     expect(order).toEqual(["Action items 1", "Summary", "Locations", "Archived in storage"]);
   });
 
-  it("sums up locations, files and documents", async () => {
+  it("sums up locations, File Folders and documents", async () => {
     given();
     render(await home());
-    expect(card("Summary").textContent).toBe("Locations4Files4Documents4");
+    expect(card("Summary").textContent).toBe("Locations4File Folders4Documents4");
   });
 
-  it("has a card per location with its file and document counts, an empty one too (REQ-179)", async () => {
+  it("has a card per location with its File Folder and document counts, an empty one too (REQ-179)", async () => {
     given();
     render(await home());
     expect(links(card("Locations"))).toEqual([
-      ["Glovebox1 file · 0 documents", "/paperwork/locations/10ca0000-0000-4000-8000-000000000002"],
-      ["Hall cupboard2 files · 2 documents", "/paperwork/locations/10ca0000-0000-4000-8000-000000000001"],
-      ["Shed0 files · 0 documents", "/paperwork/locations/10ca0000-0000-4000-8000-000000000003"],
+      ["Glovebox1 File Folder · 0 documents", "/paperwork/locations/10ca0000-0000-4000-8000-000000000002"],
+      ["Hall cupboard2 File Folders · 2 documents", "/paperwork/locations/10ca0000-0000-4000-8000-000000000001"],
+      ["Shed0 File Folders · 0 documents", "/paperwork/locations/10ca0000-0000-4000-8000-000000000003"],
     ]);
   });
 
@@ -229,16 +230,16 @@ describe("screen 1: overview (REQ-100, DESIGN.md §11)", () => {
     expect(within(sheet).getByRole("button", { name: "Add the location" })).toBeDefined();
   });
 
-  it("puts each box holding archived files under Archived in storage, below", async () => {
+  it("puts each box holding archived File Folders under Archived in storage, below", async () => {
     given();
     render(await home());
     expect(links(card("Archived in storage"))).toEqual([
-      ["Box S-003 · Shoes1 file · 1 document", "/paperwork/boxes/s3"],
+      ["Box S-003 · Shoes1 File Folder · 1 document", "/paperwork/boxes/s3"],
     ]);
   });
 
   it("has no Archived in storage heading when nothing is archived", async () => {
-    given(["use_modules"], { files: FILES });
+    given(["use_modules"], { fileFolders: FILES });
     render(await home());
     expect(screen.queryByRole("region", { name: "Archived in storage" })).toBeNull();
   });
@@ -252,24 +253,71 @@ describe("screen 1: overview (REQ-100, DESIGN.md §11)", () => {
     );
     expect(within(items).getByRole("link", { name: "File it" }).getAttribute("href")).toBe("/paperwork/unfiled");
     cleanup();
-    given(["use_modules"], { papers: PAPERS.filter((row) => row.file_id) });
+    given(["use_modules"], { papers: PAPERS.filter((row) => row.file_folder_id) });
     render(await home());
     expect(screen.queryByRole("region", { name: /Action items/ })).toBeNull();
   });
 });
 
-describe("screen 2: files in a place (REQ-100)", () => {
-  it("shows every file there as ID · category, label name or No label, and document count", async () => {
+describe("File Folders not placed yet (REQ-206)", () => {
+  const LOOSE = fileFolder("f-60", 60, "c-tax", "Shoebox of receipts", null);
+  const LOOSE_TWO = fileFolder("f-61", 61, CAR.id, null, null);
+
+  it("shows a Not placed section with its count beside the locations, and an action item (REQ-206)", async () => {
+    given(["use_modules"], { fileFolders: [...FILES, LOOSE, LOOSE_TWO] });
+    render(await home());
+    expect(links(card("Not placed"))).toEqual([["Not placed2 File Folders · 0 documents", "/paperwork/not-placed"]]);
+    const items = card("Action items 2");
+    expect(within(items).getByRole("link", { name: "Place them" }).getAttribute("href")).toBe("/paperwork/not-placed");
+    expect(within(items).getByText("2 File Folders not placed")).toBeDefined();
+    // Not placed isn't a location.
+    expect(card("Summary").textContent).toBe("Locations3File Folders5Documents4");
+  });
+
+  it("has no section or action item once every File Folder has a place", async () => {
+    given();
+    render(await home());
+    expect(screen.queryByRole("region", { name: "Not placed" })).toBeNull();
+    expect(screen.queryByText(/not placed/)).toBeNull();
+  });
+
+  it("lists them on the Not placed screen, and opens each one", async () => {
+    given(["use_modules"], { fileFolders: [...FILES, LOOSE] });
+    render(await NotPlacedPage({ searchParams: q() }));
+    expect(crumbs()).toEqual(["Paperwork", "Not placed"]);
+    expect(links(card("Not placed"))).toEqual([["F-0060 · TaxesShoebox of receipts0 documents", "/paperwork/file-folders/f-60"]]);
+  });
+
+  it("says Not placed on the File Folder's own screen", async () => {
+    given(["use_modules"], { fileFolders: [...FILES, LOOSE] });
+    render(await openFileFolder("f-60"));
+    expect(screen.getByRole("main").textContent).toContain("Not placed");
+  });
+
+  it("lets the location be skipped when making one, and chosen as Not placed when managing one", async () => {
+    given(["use_modules"], { fileFolders: [...FILES, LOOSE] });
+    render(await openFileFolder("f-60"));
+    fireEvent.click(screen.getByRole("button", { name: "Manage File Folder" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit category, label or location" }));
+    const picker = screen.getByLabelText("Location") as HTMLSelectElement;
+    expect(picker.value).toBe("");
+    expect(picker.required).toBe(false);
+    expect(within(picker).getAllByRole("option")[0].textContent).toBe("Not placed");
+  });
+});
+
+describe("screen 2: File Folders in a place (REQ-100)", () => {
+  it("shows every File Folder there as ID · category, label name or No label, and document count", async () => {
     given();
     render(await place("10ca0000-0000-4000-8000-000000000001"));
     expect(screen.getByRole("heading", { level: 2, name: "Hall cupboard" })).toBeDefined();
-    expect(links(screen.getByRole("main")).filter(([, href]) => href?.startsWith("/paperwork/files/"))).toEqual([
-      ["F-0042 · TaxesReturns2 documents", "/paperwork/files/f-42"],
-      ["F-0043 · CarNo label0 documents", "/paperwork/files/f-43"],
+    expect(links(screen.getByRole("main")).filter(([, href]) => href?.startsWith("/paperwork/file-folders/"))).toEqual([
+      ["F-0042 · TaxesReturns2 documents", "/paperwork/file-folders/f-42"],
+      ["F-0043 · CarNo label0 documents", "/paperwork/file-folders/f-43"],
     ]);
   });
 
-  it("has Manage location with Rename, and Delete only when it has no files (REQ-179)", async () => {
+  it("has Manage location with Rename, and Delete only when it has no File Folders (REQ-179)", async () => {
     given();
     render(await place("10ca0000-0000-4000-8000-000000000001"));
     fireEvent.click(screen.getByRole("button", { name: "Manage location" }));
@@ -279,9 +327,9 @@ describe("screen 2: files in a place (REQ-100)", () => {
     expect(menu.textContent).toContain("It must be empty before it can be deleted.");
   });
 
-  it("counts a file archived in storage as still in its location, so Delete stays unavailable (REQ-179)", async () => {
-    // Only the archived file is left in the hall cupboard.
-    given(["use_modules"], { files: [ARCHIVED] });
+  it("counts a File Folder archived in storage as still in its location, so Delete stays unavailable (REQ-179)", async () => {
+    // Only the archived File Folder is left in the hall cupboard.
+    given(["use_modules"], { fileFolders: [ARCHIVED] });
     render(await place("10ca0000-0000-4000-8000-000000000001"));
     fireEvent.click(screen.getByRole("button", { name: "Manage location" }));
     expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
@@ -314,54 +362,54 @@ describe("screen 2: files in a place (REQ-100)", () => {
     );
   });
 
-  it("is not found for a place with no files", async () => {
+  it("is not found for a place with no File Folders", async () => {
     given();
     await expect(place("Garage")).rejects.toThrow("NOT_FOUND");
   });
 });
 
-describe("screen 3: a file (REQ-100)", () => {
+describe("screen 3: a File Folder (REQ-100)", () => {
   it("heads with ID · category, label name, location and plain-text status, then lists every document", async () => {
     given();
-    render(await openFile("f-42"));
+    render(await openFileFolder("f-42"));
     expect(screen.getByRole("heading", { level: 2, name: "F-0042 · Taxes" })).toBeDefined();
     const facts = screen.getByRole("heading", { level: 2, name: "F-0042 · Taxes" }).nextElementSibling?.textContent;
     expect(facts).toBe("Returns·Hall cupboard·Active");
-    const rows = within(screen.getByRole("list", { name: "Documents in this file" })).getAllByRole("link");
+    const rows = within(screen.getByRole("list", { name: "Documents in this File Folder" })).getAllByRole("link");
     expect(rows.map((row) => row.textContent)).toEqual([
       "2024 federal returnAlexNo dateKeep",
       "2023 federal returnJointNo dateKeep",
     ]);
   });
 
-  it("shows an archived file as Archived, in its box", async () => {
+  it("shows an archived File Folder as Archived, in its box", async () => {
     given();
-    render(await openFile("f-9"));
+    render(await openFileFolder("f-9"));
     expect(screen.getByRole("heading", { level: 2, name: "F-0009 · Taxes" }).nextElementSibling?.textContent).toBe(
       "Old returns·Box S-003 · Shoes·Archived",
     );
   });
 
-  it("shows no edit forms until Manage file is opened, then one menu of four", async () => {
+  it("shows no edit forms until Manage File Folder is opened, then one menu of four", async () => {
     given();
-    render(await openFile("f-42"));
+    render(await openFileFolder("f-42"));
     expect(screen.queryByLabelText("Location")).toBeNull();
-    const manage = screen.getByRole("button", { name: "Manage file" });
+    const manage = screen.getByRole("button", { name: "Manage File Folder" });
     expect(manage.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(manage);
-    const menu = screen.getByRole("list", { name: "Manage file" });
+    const menu = screen.getByRole("list", { name: "Manage File Folder" });
     expect(
       within(menu)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Edit category, label or location", "Show label to reprint", "Archive to a storage box", "Remove file"]);
+    ).toEqual(["Edit category, label or location", "Show label to reprint", "Archive to a storage box", "Remove File Folder"]);
   });
 
-  it("edits the file, shows its label, archives it (boxes only) or removes it, each in a sheet", async () => {
+  it("edits the File Folder, shows its label, archives it (boxes only) or removes it, each in a sheet", async () => {
     given();
-    render(await openFile("f-42"));
+    render(await openFileFolder("f-42"));
     const pick = (name: string) => {
-      fireEvent.click(screen.getByRole("button", { name: "Manage file" }));
+      fireEvent.click(screen.getByRole("button", { name: "Manage File Folder" }));
       fireEvent.click(screen.getByRole("button", { name }));
     };
     pick("Edit category, label or location");
@@ -370,7 +418,7 @@ describe("screen 3: a file (REQ-100)", () => {
     expect(picker.tagName).toBe("SELECT");
     expect(picker.value).toBe("10ca0000-0000-4000-8000-000000000001");
     expect(within(picker).getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Choose a location",
+      "Not placed",
       "Glovebox",
       "Hall cupboard",
       "Shed",
@@ -385,50 +433,50 @@ describe("screen 3: a file (REQ-100)", () => {
         .getAllByRole("option")
         .map((option) => option.textContent),
     ).toEqual(["Choose a box", "S-003 · Shoes"]);
-    pick("Remove file");
-    expect(screen.getByRole("button", { name: "Yes, remove the file" })).toBeDefined();
-    // Removing leaves you in the file's location.
+    pick("Remove File Folder");
+    expect(screen.getByRole("button", { name: "Yes, remove the File Folder" })).toBeDefined();
+    // Removing leaves you in the File Folder's location.
     const back = document.querySelector("input[name=returnTo]") as HTMLInputElement;
     expect(back.value).toBe("/paperwork/locations/10ca0000-0000-4000-8000-000000000001");
   });
 
-  it("offers Restore from storage for an archived file", async () => {
+  it("offers Restore from storage for an archived File Folder", async () => {
     given();
-    render(await openFile("f-9"));
-    fireEvent.click(screen.getByRole("button", { name: "Manage file" }));
+    render(await openFileFolder("f-9"));
+    fireEvent.click(screen.getByRole("button", { name: "Manage File Folder" }));
     fireEvent.click(screen.getByRole("button", { name: "Restore from storage" }));
     expect(screen.getByLabelText("New location")).toBeDefined();
   });
 
-  it("lets a file's location be a new one made on the spot, named beside the list (REQ-179)", async () => {
+  it("lets a File Folder's location be a new one made on the spot, named beside the list (REQ-179)", async () => {
     given();
-    render(await openFile("f-42"));
-    fireEvent.click(screen.getByRole("button", { name: "Manage file" }));
+    render(await openFileFolder("f-42"));
+    fireEvent.click(screen.getByRole("button", { name: "Manage File Folder" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit category, label or location" }));
     expect(screen.queryByLabelText("New location name")).toBeNull();
     fireEvent.change(screen.getByLabelText("Location"), { target: { value: "new" } });
     expect(screen.getByLabelText("New location name")).toBeDefined();
   });
 
-  it("adds a document straight into the file: the form has no file to choose", async () => {
+  it("adds a document straight into the File Folder: the form has no File Folder to choose", async () => {
     given();
-    render(await openFile("f-42"));
+    render(await openFileFolder("f-42"));
     fireEvent.click(screen.getByRole("button", { name: "Add document" }));
     const sheet = screen.getByRole("dialog", { name: "Add document" });
-    expect(within(sheet).queryByLabelText("File")).toBeNull();
-    const hidden = sheet.querySelector("input[name=fileId]") as HTMLInputElement;
+    expect(within(sheet).queryByLabelText("File Folder")).toBeNull();
+    const hidden = sheet.querySelector("input[name=fileFolderId]") as HTMLInputElement;
     expect(hidden.value).toBe("f-42");
   });
 
-  it("opens a paper's details to edit any field, and Move to another file from there", async () => {
+  it("opens a paper's details to edit any field, and Move to another File Folder from there", async () => {
     given();
     render(await PaperPage({ params: Promise.resolve({ id: "p1" }) }));
     expect(crumbs()).toEqual(["Paperwork", "Hall cupboard", "F-0042", "2024 federal return"]);
     expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("2024 federal return");
     expect((screen.getByLabelText("Owner") as HTMLSelectElement).value).toBe("u-alex");
-    expect(screen.queryByLabelText("File")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Move to another file" }));
-    const move = within(screen.getByRole("dialog", { name: "Move to another file" })).getByLabelText("Move to");
+    expect(screen.queryByLabelText("File Folder")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Move to another File Folder" }));
+    const move = within(screen.getByRole("dialog", { name: "Move to another File Folder" })).getByLabelText("Move to");
     const options = within(move)
       .getAllByRole("option")
       .map((option) => option.textContent);
@@ -439,16 +487,16 @@ describe("screen 3: a file (REQ-100)", () => {
 });
 
 describe("screen 4: search (REQ-100)", () => {
-  it("replaces the screen with results in Files and Documents", async () => {
+  it("replaces the screen with results in File Folders and Documents", async () => {
     given();
     render(await place("10ca0000-0000-4000-8000-000000000001", "return"));
     expect(screen.queryByRole("heading", { level: 2, name: "Hall cupboard" })).toBeNull();
     expect(crumbs()).toEqual(["Paperwork", "Results for “return”"]);
-    expect(card("Files").textContent).toContain("2 files");
+    expect(card("File Folders").textContent).toContain("2 File Folders");
     expect(card("Documents").textContent).toContain("3 documents");
   });
 
-  it("matches file ID, label name and category", async () => {
+  it("matches File Folder ID, label name and category", async () => {
     given();
     for (const [query, want] of [
       ["F-0042", "F-0042 · Taxes"],
@@ -456,12 +504,12 @@ describe("screen 4: search (REQ-100)", () => {
       ["car", "F-0043 · Car"],
     ]) {
       render(await home(query));
-      expect(screen.getByRole("region", { name: /^Files/ }).textContent, query).toContain(want);
+      expect(screen.getByRole("region", { name: /^File Folders/ }).textContent, query).toContain(want);
       cleanup();
     }
   });
 
-  it("shows each document's file ID and where it is, Unfiled / Your desk when it has none", async () => {
+  it("shows each document's File Folder ID and where it is, Unfiled / Your desk when it has none", async () => {
     given();
     render(await home("e"));
     const rows = within(card("Documents")).getAllByRole("link");
@@ -498,7 +546,7 @@ describe("screen 5: unfiled (REQ-100)", () => {
 describe("flows (REQ-100)", () => {
   it("logs a document in a sheet over the screen, which closes once it's saved", async () => {
     const fake = given();
-    render(await openFile("f-42"));
+    render(await openFileFolder("f-42"));
     fireEvent.click(screen.getByRole("button", { name: "Log document" }));
     const sheet = screen.getByRole("dialog", { name: "Log document" });
     for (const label of [
@@ -506,7 +554,7 @@ describe("flows (REQ-100)", () => {
       "Owner",
       "Document date (optional)",
       "Notes (optional)",
-      "File",
+      "File Folder",
       "Keep until (optional)",
     ]) {
       expect(within(sheet).getByLabelText(label), label).toBeDefined();
@@ -517,61 +565,61 @@ describe("flows (REQ-100)", () => {
     });
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Log document" })).toBeNull());
     expect(fake.from).toHaveBeenCalledWith("paperwork");
-    // Still on the file.
+    // Still on the File Folder.
     expect(screen.getByRole("heading", { level: 2, name: "F-0042 · Taxes" })).toBeDefined();
   });
 
-  it("shows a new file's label once, and closing it leaves you where you were", async () => {
+  it("shows a new File Folder's label once, and closing it leaves you where you were", async () => {
     given();
     render(await home());
     fireEvent.click(screen.getByRole("button", { name: "Log document" }));
     const sheet = screen.getByRole("dialog", { name: "Log document" });
     fireEvent.change(within(sheet).getByLabelText("Name"), { target: { value: "Car title" } });
-    fireEvent.change(within(sheet).getByLabelText("File"), { target: { value: "new" } });
+    fireEvent.change(within(sheet).getByLabelText("File Folder"), { target: { value: "new" } });
     fireEvent.change(within(sheet).getByLabelText("Category"), { target: { value: CAR.id } });
     fireEvent.change(within(sheet).getByLabelText("Location"), { target: { value: "10ca0000-0000-4000-8000-000000000002" } });
     await act(async () => {
       fireEvent.click(within(sheet).getByRole("button", { name: "Log document" }));
     });
-    const notice = await screen.findByRole("dialog", { name: "New file: print its label" });
-    // The stand-in database hands back its first file row as the new one.
+    const notice = await screen.findByRole("dialog", { name: "New File Folder: print its label" });
+    // The stand-in database hands back its first File Folder row as the new one.
     expect(within(notice).getByLabelText(/^Label: F-/)).toBeDefined();
     fireEvent.click(within(notice).getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("dialog", { name: "New file: print its label" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "New File Folder: print its label" })).toBeNull();
     expect(screen.getByRole("region", { name: "Locations" })).toBeDefined();
   });
 });
 
-describe("keep-until pre-fills from the file's category (REQ-97)", () => {
-  const files = FILES.map((row) => ({ ...row, status: "active" as const, is_drive: false, drive_folder_id: null }));
+describe("keep-until pre-fills from the File Folder's category (REQ-97)", () => {
+  const fileFolders = FILES.map((row) => ({ ...row, status: "active" as const, is_drive: false, drive_folder_id: null }));
   const renderForm = () =>
-    render(<PaperForm people={PEOPLE} files={files} categories={[CAR, TAXES]} locations={[HALL]} today="2026-09-24" />);
+    render(<PaperForm people={PEOPLE} fileFolders={fileFolders} categories={[CAR, TAXES]} locations={[HALL]} today="2026-09-24" />);
   const keep = () => screen.getByLabelText("Keep until (optional)") as HTMLInputElement;
 
   it("from the document date plus the category's years", () => {
     renderForm();
     fireEvent.change(screen.getByLabelText("Document date (optional)"), { target: { value: "2025-04-15" } });
-    fireEvent.change(screen.getByLabelText("File"), { target: { value: "f-42" } });
+    fireEvent.change(screen.getByLabelText("File Folder"), { target: { value: "f-42" } });
     expect(keep().value).toBe("2032-04-15");
   });
 
   it("from the day it's logged when there's no document date", () => {
     renderForm();
-    fireEvent.change(screen.getByLabelText("File"), { target: { value: "f-42" } });
+    fireEvent.change(screen.getByLabelText("File Folder"), { target: { value: "f-42" } });
     expect(keep().value).toBe("2033-09-24");
   });
 
   it("stays as typed once someone edits or clears it", () => {
     renderForm();
-    fireEvent.change(screen.getByLabelText("File"), { target: { value: "f-42" } });
+    fireEvent.change(screen.getByLabelText("File Folder"), { target: { value: "f-42" } });
     fireEvent.change(keep(), { target: { value: "" } });
     fireEvent.change(screen.getByLabelText("Document date (optional)"), { target: { value: "2020-01-01" } });
     expect(keep().value).toBe("");
   });
 
-  it("for a new file, from the category chosen for it, which asks for a location too", () => {
+  it("for a new File Folder, from the category chosen for it, which asks for a location too", () => {
     renderForm();
-    fireEvent.change(screen.getByLabelText("File"), { target: { value: "new" } });
+    fireEvent.change(screen.getByLabelText("File Folder"), { target: { value: "new" } });
     expect(screen.getByLabelText("Location")).toBeDefined();
     expect(screen.getByLabelText("Label name (optional)")).toBeDefined();
     fireEvent.change(screen.getByLabelText("Category"), { target: { value: "c-tax" } });
@@ -587,7 +635,7 @@ describe("Paperwork settings (REQ-88, DESIGN.md §11)", () => {
     expect(screen.queryByRole("button", { name: "Add the category" })).toBeNull();
   });
 
-  it("let the admin add, edit and remove categories, with how long each keeps and how many files use it", async () => {
+  it("let the admin add, edit and remove categories, with how long each keeps and how many File Folders use it", async () => {
     given(ADMIN);
     render(await PaperworkSettingsPage({}));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Paperwork — Settings");
@@ -597,17 +645,17 @@ describe("Paperwork settings (REQ-88, DESIGN.md §11)", () => {
     const [car, taxes] = within(card("Categories")).getAllByRole("listitem");
     expect(car.textContent).toContain("No default");
     expect(taxes.textContent).toContain("Keep 7 yr");
-    expect(taxes.textContent).toContain("2 files");
-    // Removing Taxes asks where its files go first.
-    expect(within(taxes).getByLabelText("Move its 2 files to")).toBeDefined();
-    expect(within(taxes).getByRole("button", { name: "Move the files and remove Taxes" })).toBeDefined();
+    expect(taxes.textContent).toContain("2 File Folders");
+    // Removing Taxes asks where its File Folders go first.
+    expect(within(taxes).getByLabelText("Move its 2 File Folders to")).toBeDefined();
+    expect(within(taxes).getByRole("button", { name: "Move the File Folders and remove Taxes" })).toBeDefined();
   });
 });
 
 describe("browsing by category (REQ-105)", () => {
   // Taxes across two places, with 2021-2022 missing and one undated.
-  const dated = (id: string, name: string, file_id: string, date: string | null, owner: string | null = null) => ({
-    ...paper(id, name, file_id, owner),
+  const dated = (id: string, name: string, file_folder_id: string, date: string | null, owner: string | null = null) => ({
+    ...paper(id, name, file_folder_id, owner),
     document_date: date,
   });
   const TAX_PAPERS = [
@@ -621,7 +669,7 @@ describe("browsing by category (REQ-105)", () => {
   ];
   const openCategory = (id: string) => CategoryPage({ params: Promise.resolve({ id }) });
 
-  it("shows everyone a card per category with its files and documents", async () => {
+  it("shows everyone a card per category with its File Folders and documents", async () => {
     given(["use_modules"], { papers: TAX_PAPERS });
     render(await CategoriesPage({}));
     expect(
@@ -629,40 +677,72 @@ describe("browsing by category (REQ-105)", () => {
         .textContent,
     ).toBe("Categories");
     expect(links(card("Categories"))).toEqual([
-      ["Car2 files · 1 document", `/paperwork/categories/${CAR.id}`],
-      ["Taxes2 files · 5 documents", "/paperwork/categories/c-tax"],
+      ["Car2 File Folders · 1 document", `/paperwork/categories/${CAR.id}`],
+      ["Taxes2 File Folders · 5 documents", "/paperwork/categories/c-tax"],
     ]);
     expect(screen.queryByRole("button", { name: "Add the category" })).toBeNull();
   });
 
-  it("opens a category under a breadcrumb, with its files, documents and keep-for", async () => {
+  it("opens a category under a breadcrumb, with its File Folders, documents and keep-for", async () => {
     given(["use_modules"], { papers: TAX_PAPERS });
     render(await openCategory("c-tax"));
     expect(crumbs()).toEqual(["Paperwork", "Categories", "Taxes"]);
-    expect(card("Taxes summary").textContent).toBe("Files2Documents5Keep for7 years");
+    expect(card("Taxes summary").textContent).toBe("File Folders2Documents5Keep for7 years");
     cleanup();
     render(await openCategory(CAR.id));
-    expect(card("Car summary").textContent).toBe("Files2Documents1");
+    expect(card("Car summary").textContent).toBe("File Folders2Documents1");
   });
 
-  it("lists its documents from every file and place by year, newest first, with gaps named and undated last", async () => {
+  // REQ-204: every File Folder of the category, whatever its place, each
+  // collapsed to start; Expand lists its documents.
+  const folderRows = () =>
+    within(screen.getByRole("list", { name: "Taxes File Folders" }))
+      .getAllByRole("listitem")
+      .filter((row) => row.querySelector(":scope > div"))
+      .map((row) => (row.querySelector(":scope > div") as HTMLElement).textContent);
+
+  it("lists every File Folder in the category with ID, label name, place and document count, sorted by label (REQ-204)", async () => {
+    given(["use_modules"], { papers: TAX_PAPERS, fileFolders: [...FILES, ARCHIVED, fileFolder("f-50", 50, "c-tax", null, HALL.id), fileFolder("f-51", 51, "c-tax", null, null)] });
+    render(await openCategory("c-tax"));
+    expect(folderRows()).toEqual([
+      "F-0009Old returnsArchivedBox S-003 · Shoes2 documentsExpand",
+      "F-0042ReturnsHall cupboard3 documentsExpand",
+      "F-0050No labelHall cupboard0 documentsExpand",
+      "F-0051No labelNot placed0 documentsExpand",
+    ]);
+  });
+
+  it("starts collapsed; Expand shows documents by keep-until, soonest first, and Collapse hides them (REQ-204)", async () => {
+    const keep = (id: string, name: string, until: string | null) => ({ ...paper(id, name, "f-42"), keep_until: until });
+    given(["use_modules"], {
+      papers: [keep("k1", "Zed", null), keep("k2", "Lease", "2031-01-01"), keep("k3", "Alpha", null), keep("k4", "W-2", "2027-03-01")],
+    });
+    render(await openCategory("c-tax"));
+    expect(screen.queryByRole("list", { name: "Documents in F-0042" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Expand F-0042" }));
+    const docs = within(screen.getByRole("list", { name: "Documents in F-0042" })).getAllByRole("link");
+    expect(docs.map((doc) => [doc.textContent, doc.getAttribute("href")])).toEqual([
+      ["W-2JointNo dateKeep until 2027-03-01", "/paperwork/items/k4"],
+      ["LeaseJointNo dateKeep until 2031-01-01", "/paperwork/items/k2"],
+      ["AlphaJointNo dateKeep", "/paperwork/items/k3"],
+      ["ZedJointNo dateKeep", "/paperwork/items/k1"],
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Collapse F-0042" }));
+    expect(screen.queryByRole("list", { name: "Documents in F-0042" })).toBeNull();
+  });
+
+  it("opens the File Folder from its ID or name, not from Expand (REQ-204)", async () => {
     given(["use_modules"], { papers: TAX_PAPERS });
     render(await openCategory("c-tax"));
-    const years = within(card("Documents by year"))
-      .getAllByRole("listitem")
-      .filter((row) => row.querySelector("span")?.className.includes("year"))
-      .map((row) => row.firstElementChild?.textContent);
-    expect(years).toEqual(["2024", "2023", "2022", "2021", "2020", "No date"]);
-    expect(within(card("Documents by year")).getByText("Nothing logged for 2022")).toBeDefined();
-    expect(within(card("Documents by year")).getByText("Nothing logged for 2021")).toBeDefined();
-    const docs = within(card("Documents by year")).getAllByRole("link");
-    expect(docs.map((doc) => [doc.textContent, doc.getAttribute("href")])).toEqual([
-      ["Federal returnJointF-0042 · Hall cupboard", "/paperwork/items/t1"],
-      ["W-2AlexF-0042 · Hall cupboard", "/paperwork/items/t2"],
-      ["Federal returnJointF-0042 · Hall cupboard", "/paperwork/items/t3"],
-      ["Federal returnJointF-0009 · Box S-003 · Shoes", "/paperwork/items/t4"],
-      ["Old receiptSamF-0009 · Box S-003 · Shoes", "/paperwork/items/t5"],
-    ]);
+    const link = screen.getAllByRole("link").find((one) => one.textContent === "F-0042Returns");
+    expect(link?.getAttribute("href")).toBe("/paperwork/file-folders/f-42");
+  });
+
+  it("no longer groups by year or names gaps (REQ-204)", async () => {
+    given(["use_modules"], { papers: TAX_PAPERS });
+    render(await openCategory("c-tax"));
+    expect(screen.queryByText(/Nothing logged for/)).toBeNull();
+    expect(screen.queryByRole("region", { name: "Documents by year" })).toBeNull();
   });
 
   it("is not found for a category that doesn't exist", async () => {
@@ -687,7 +767,7 @@ describe("where you are, under the module's name", () => {
     render(await BoxPage({ params: Promise.resolve({ id: "s3" }), searchParams: q() }));
     expect(where()).toBe("Box S-003 · Shoes");
     cleanup();
-    render(await openFile("f-42"));
+    render(await openFileFolder("f-42"));
     expect(where()).toBe("F-0042");
     cleanup();
     render(await home("taxes"));
@@ -699,7 +779,7 @@ describe("where you are, under the module's name", () => {
 });
 
 describe("archiving single documents (REQ-153)", () => {
-  // The lease sits in the Shoes box's archive, not in any file.
+  // The lease sits in the Shoes box's archive, not in any File Folder.
   const LEASE = { ...paper("p5", "Old lease", null, "u-sam"), archive_id: "a3" };
   const withArchive = () => given(["use_modules"], { papers: [...PAPERS, LEASE], archives: [SHOES_ARCHIVE] });
   const item = (id: string) => PaperPage({ params: Promise.resolve({ id }) });
@@ -721,7 +801,7 @@ describe("archiving single documents (REQ-153)", () => {
     render(await item("p5"));
     expect(screen.getByRole("button", { name: "Restore" })).toBeDefined();
     expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Move to another file" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Move to another File Folder" })).toBeNull();
     expect(crumbs()).toEqual(["Paperwork", "Box S-003 · Shoes", "Archive · S-003", "Old lease"]);
   });
 
@@ -733,26 +813,26 @@ describe("archiving single documents (REQ-153)", () => {
     expect(within(list).getByText("Water bill notice")).toBeDefined();
   });
 
-  it("shows the archive on its box's card and page, as a file with no ID, label or category", async () => {
+  it("shows the archive on its box's card and page, as a File Folder with no ID, label or category", async () => {
     withArchive();
     render(await home());
     expect(links(card("Archived in storage"))).toEqual([
-      ["Box S-003 · Shoes2 files · 2 documents", "/paperwork/boxes/s3"],
+      ["Box S-003 · Shoes2 File Folders · 2 documents", "/paperwork/boxes/s3"],
     ]);
     cleanup();
     render(await BoxPage({ params: Promise.resolve({ id: "s3" }), searchParams: q() }));
     expect(
-      links(screen.getByRole("main")).filter(([, href]) => href?.startsWith("/paperwork/archives/") || href?.startsWith("/paperwork/files/")),
+      links(screen.getByRole("main")).filter(([, href]) => href?.startsWith("/paperwork/archives/") || href?.startsWith("/paperwork/file-folders/")),
     ).toEqual([
       ["Archive · S-003No label1 document", "/paperwork/archives/a3"],
-      ["F-0009 · TaxesOld returns1 document", "/paperwork/files/f-9"],
+      ["F-0009 · TaxesOld returns1 document", "/paperwork/file-folders/f-9"],
     ]);
   });
 
   it("makes a card for a box that holds only an archive", async () => {
-    given(["use_modules"], { files: FILES, papers: [...PAPERS, LEASE], archives: [SHOES_ARCHIVE] });
+    given(["use_modules"], { fileFolders: FILES, papers: [...PAPERS, LEASE], archives: [SHOES_ARCHIVE] });
     render(await home());
-    expect(links(card("Archived in storage"))).toEqual([["Box S-003 · Shoes1 file · 1 document", "/paperwork/boxes/s3"]]);
+    expect(links(card("Archived in storage"))).toEqual([["Box S-003 · Shoes1 File Folder · 1 document", "/paperwork/boxes/s3"]]);
   });
 
   it("opens the archive to list its documents, with nothing to manage", async () => {
@@ -762,7 +842,7 @@ describe("archiving single documents (REQ-153)", () => {
     expect(links(screen.getByRole("list", { name: "Documents in this archive" }))).toEqual([
       ["Old leaseSamNo dateKeep", "/paperwork/items/p5"],
     ]);
-    for (const name of ["Manage file", "Archive", "Add document"]) {
+    for (const name of ["Manage File Folder", "Archive", "Add document"]) {
       expect(screen.queryByRole("button", { name })).toBeNull();
     }
     expect(crumbs()).toEqual(["Paperwork", "Box S-003 · Shoes", "Archive · S-003"]);

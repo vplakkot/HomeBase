@@ -1,18 +1,18 @@
 import Link from "next/link";
-import { archiveName, documentsCount, labelText, type ArchiveRow, type FileRow } from "../../lib/paperwork/paperwork";
+import { archiveName, documentsCount, labelText, type ArchiveRow, type FileFolderRow } from "../../lib/paperwork/paperwork";
 import type { StorageEntry } from "../../lib/storage/storage";
 import styles from "./paperwork.module.css";
 import band from "../../components/band.module.css";
 
-// REQ-100's second screen: every file in a place as a card, ID ·
+// REQ-100's second screen: every File Folder in a place as a card, ID ·
 // category, its label name (or "No label") and how many documents it
 // holds.
-export function FileCards({
+export function FileFolderCards({
   rows,
   archive,
   box,
 }: {
-  rows: FileRow[];
+  rows: FileFolderRow[];
   archive?: ArchiveRow | null;
   box?: StorageEntry;
 }) {
@@ -27,11 +27,11 @@ export function FileCards({
           </Link>
         </li>
       ) : null}
-      {rows.map(({ file, category, count }) => (
-        <li key={file.id}>
-          <Link href={`/paperwork/files/${file.id}`} className={styles.linkCard}>
-            <span className={`${styles.cardTitle} ${band.band}`}>{labelText(file, category)}</span>
-            {file.label ? <span>{file.label}</span> : <span className={styles.noLabel}>No label</span>}
+      {rows.map(({ fileFolder, category, count }) => (
+        <li key={fileFolder.id}>
+          <Link href={`/paperwork/file-folders/${fileFolder.id}`} className={styles.linkCard}>
+            <span className={`${styles.cardTitle} ${band.band}`}>{labelText(fileFolder, category)}</span>
+            {fileFolder.label ? <span>{fileFolder.label}</span> : <span className={styles.noLabel}>No label</span>}
             <span className={styles.cardDetail}>{documentsCount(count)}</span>
           </Link>
         </li>

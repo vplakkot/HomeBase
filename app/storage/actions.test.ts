@@ -16,14 +16,14 @@ const ENTRY = "11111111-1111-4111-8111-111111111111";
 
 let fake: ReturnType<typeof fakeSupabase>;
 
-// archivedFiles: how many paperwork files the box holds; archivedDocuments:
+// archivedFiles: how many paperwork File Folders the box holds; archivedDocuments:
 // how many single documents sit in its archive (REQ-153).
-function given(archivedFiles = 0, permissions = ["use_modules"], archivedDocuments = 0) {
+function given(archivedFileFolders = 0, permissions = ["use_modules"], archivedDocuments = 0) {
   fake = fakeSupabase({
     permissions,
     tables: {
       storage_entries: [{ id: ENTRY, number: 12 }],
-      paperwork_files: Array.from({ length: archivedFiles }, (_, index) => ({ id: `f-${index}` })),
+      paperwork_file_folders: Array.from({ length: archivedFileFolders }, (_, index) => ({ id: `f-${index}` })),
       paperwork_archives: archivedDocuments > 0 ? [{ id: "a-1" }] : [],
       paperwork: Array.from({ length: archivedDocuments }, (_, index) => ({ id: `p-${index}` })),
     },
@@ -92,16 +92,16 @@ describe("changing an entry (REQ-87)", () => {
     expect(update.eq).toHaveBeenCalledWith("id", ENTRY);
   });
 
-  it("switches a box to not a box when it holds no paperwork files", async () => {
+  it("switches a box to not a box when it holds no paperwork File Folders", async () => {
     given(0);
     expect(await updateEntry({}, form({ id: ENTRY, name: "Shoes" }))).toEqual({ saved: true });
     expect(on("storage_entries")[0].update).toHaveBeenCalledWith(expect.objectContaining({ is_box: false, contents: null }));
   });
 
-  it("asks for archived paperwork files to move before a box stops being a box (REQ-98)", async () => {
+  it("asks for archived paperwork File Folders to move before a box stops being a box (REQ-98)", async () => {
     given(2);
     const result = await updateEntry({}, form({ id: ENTRY, name: "Shoes" }));
-    expect(result.error).toContain("2 archived paperwork files");
+    expect(result.error).toContain("2 archived paperwork File Folders");
     expect(result.error).toContain("first");
     expect(fake.from).not.toHaveBeenCalledWith("storage_entries");
   });
@@ -115,9 +115,9 @@ describe("removing an entry (REQ-87)", () => {
     expect(on("storage_entries")[0].eq).toHaveBeenCalledWith("id", ENTRY);
   });
 
-  it("asks for archived paperwork files to move first (REQ-98)", async () => {
+  it("asks for archived paperwork File Folders to move first (REQ-98)", async () => {
     given(1);
-    expect((await removeEntry({}, form({ id: ENTRY }))).error).toContain("1 archived paperwork file.");
+    expect((await removeEntry({}, form({ id: ENTRY }))).error).toContain("1 archived paperwork File Folder.");
     expect(fake.from).not.toHaveBeenCalledWith("storage_entries");
   });
 
@@ -129,9 +129,9 @@ describe("removing an entry (REQ-87)", () => {
     expect(fake.from).not.toHaveBeenCalledWith("storage_entries");
   });
 
-  it("names both when it holds files and documents", async () => {
+  it("names both when it holds File Folders and documents", async () => {
     given(1, ["use_modules"], 1);
-    expect((await removeEntry({}, form({ id: ENTRY }))).error).toContain("1 archived paperwork file and 1 archived document");
+    expect((await removeEntry({}, form({ id: ENTRY }))).error).toContain("1 archived paperwork File Folder and 1 archived document");
   });
 
   it("removes a box whose archive is empty (the archive goes with it)", async () => {

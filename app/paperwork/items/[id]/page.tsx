@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { buttonClass } from "../../../../components/button";
-import { archiveName, boxName, fileId, placeOf } from "../../../../lib/paperwork/paperwork";
+import { archiveName, boxName, fileFolderId, placeOf } from "../../../../lib/paperwork/paperwork";
 import { boxes } from "../../../../lib/storage/storage";
 import { bringBackPaper, removePaper } from "../../actions";
 import { PaperForm } from "../../forms";
@@ -9,7 +9,7 @@ import styles from "../../paperwork.module.css";
 import { ArchivePaperButton, FileItButton } from "../../sheets";
 
 // One document's details (REQ-97, REQ-100): change any field, move it to
-// another file, archive it to a storage box (REQ-153) or bring it back
+// another File Folder, archive it to a storage box (REQ-153) or bring it back
 // from one, or remove it.
 export default async function PaperPage({
   params,
@@ -20,16 +20,16 @@ export default async function PaperPage({
 }) {
   const [{ id }, { q = "" } = {}] = await Promise.all([params, searchParams]);
   const viewer = await paperworkViewer();
-  const { files, storage, locations, archives, choices } = viewer;
+  const { fileFolders, storage, locations, archives, choices } = viewer;
   const paper = viewer.papers.find((row) => row.id === id);
   if (!paper) notFound();
-  const file = files.find((row) => row.id === paper.file_id);
+  const fileFolder = fileFolders.find((row) => row.id === paper.file_folder_id);
   const archive = archives.find((row) => row.id === paper.archive_id);
   const box = storage.find((entry) => entry.id === archive?.storage_entry_id);
-  const crumbs = file
+  const crumbs = fileFolder
     ? [
-        { name: placeOf(file, storage, locations).name, href: placeOf(file, storage, locations).href },
-        { name: fileId(file), href: `/paperwork/files/${file.id}` },
+        { name: placeOf(fileFolder, storage, locations).name, href: placeOf(fileFolder, storage, locations).href },
+        { name: fileFolderId(fileFolder), href: `/paperwork/file-folders/${fileFolder.id}` },
         { name: paper.name },
       ]
     : archive
@@ -47,8 +47,8 @@ export default async function PaperPage({
         title={paper.name}
         aside={`Logged ${paper.logged_on}`}
         action={
-          <div className={styles.fileButtons}>
-            {archive ? null : <FileItButton paper={paper} choices={choices} moving={file !== undefined} />}
+          <div className={styles.fileFolderButtons}>
+            {archive ? null : <FileItButton paper={paper} choices={choices} moving={fileFolder !== undefined} />}
             {archive ? (
               <form action={bringBackPaper}>
                 <input type="hidden" name="id" value={paper.id} />
@@ -66,7 +66,7 @@ export default async function PaperPage({
           <PaperForm {...choices} paper={paper} />
           <form action={removePaper}>
             <input type="hidden" name="id" value={paper.id} />
-            <input type="hidden" name="fileId" value={paper.file_id ?? ""} />
+            <input type="hidden" name="fileFolderId" value={paper.file_folder_id ?? ""} />
             <input type="hidden" name="archiveId" value={archive?.id ?? ""} />
             <button type="submit" className={buttonClass} aria-label={`Remove ${paper.name}`}>
               Remove the document

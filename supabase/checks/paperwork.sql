@@ -19,6 +19,7 @@ declare
   second_number bigint;
   third_number bigint;
   paper uuid;
+  v_unplaced uuid;
 begin
   select hm.user_id into admin_id
     from public.household_members hm join public.roles r on r.id = hm.role_id
@@ -64,48 +65,51 @@ begin
     report := report || format('2b. the same name twice is refused (wants this): %s%s', sqlerrm, E'\n');
   end;
 
-  -- 3. A member makes files; the numbers count up and can't be chosen or changed.
+  -- 3. A member makes File Folders; the numbers count up and can't be chosen or changed.
   reset role;
   perform set_config('request.jwt.claims',
     json_build_object('sub', member_id, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  insert into public.paperwork_files (category_id, location) values (taxes, 'Check: hall cupboard')
+  insert into public.paperwork_locations (name) values ('Check: hall cupboard'), ('Check: glovebox'), ('Check: garage shelf');
+  insert into public.paperwork_file_folders (category_id, location_id)
+    values (taxes, (select id from public.paperwork_locations where name = 'Check: hall cupboard'))
     returning id, number into first_file, first_number;
-  insert into public.paperwork_files (category_id, location) values (car, 'Check: glovebox')
+  insert into public.paperwork_file_folders (category_id, location_id)
+    values (car, (select id from public.paperwork_locations where name = 'Check: glovebox'))
     returning number into second_number;
   report := report || format('3a. numbers count up: %s then %s (wants the second one more)%s', first_number, second_number, E'\n');
   begin
-    insert into public.paperwork_files (number, category_id, location) values (1, taxes, 'Check: chosen number');
+    insert into public.paperwork_file_folders (number, category_id) values (1, taxes);
     report := report || E'3b. a chosen number SAVED -- WRONG\n';
   exception when others then
     report := report || format('3b. choosing a number is refused (wants this): %s%s', sqlerrm, E'\n');
   end;
   begin
-    update public.paperwork_files set number = number + 1000 where id = first_file;
+    update public.paperwork_file_folders set number = number + 1000 where id = first_file;
     report := report || E'3c. a number CHANGED -- WRONG\n';
   exception when others then
     report := report || format('3c. changing a number is refused (wants this): %s%s', sqlerrm, E'\n');
   end;
-  begin
-    insert into public.paperwork_files (category_id, location) values (taxes, '  ');
-    report := report || E'3d. a blank location SAVED -- WRONG\n';
-  exception when others then
-    report := report || format('3d. a blank location is refused (wants this): %s%s', sqlerrm, E'\n');
-  end;
+  -- REQ-206: a physical File Folder may be made with no location yet.
+  insert into public.paperwork_file_folders (category_id) values (taxes) returning id into v_unplaced;
+  select count(*) into v_count from public.paperwork_file_folders where id = v_unplaced and location_id is null;
+  report := report || format('3d. a File Folder with no location is Not placed: %s (wants 1)%s', v_count, E'\n');
+  delete from public.paperwork_file_folders where id = v_unplaced;
 
   -- 4. A removed file's number never comes back.
-  delete from public.paperwork_files where number = second_number;
-  insert into public.paperwork_files (category_id, location) values (car, 'Check: garage shelf')
+  delete from public.paperwork_file_folders where number = second_number;
+  insert into public.paperwork_file_folders (category_id, location_id)
+    values (car, (select id from public.paperwork_locations where name = 'Check: garage shelf'))
     returning number into third_number;
   report := report || format('4. after removing %s the next is %s (wants more than %s)%s',
     second_number, third_number, second_number, E'\n');
 
-  -- 5. Paperwork logged without a file is Unfiled; filing it moves it.
+  -- 5. Paperwork logged without a File Folder is Unfiled; filing it moves it.
   insert into public.paperwork (name, owner_id) values ('Check: water bill notice', null) returning id into paper;
-  select count(*) into v_count from public.paperwork where file_id is null and id = paper;
+  select count(*) into v_count from public.paperwork where file_folder_id is null and id = paper;
   report := report || format('5a. logged without a file is Unfiled: %s (wants 1)%s', v_count, E'\n');
-  update public.paperwork set file_id = first_file, keep_until = '2033-09-24' where id = paper;
-  select count(*) into v_count from public.paperwork where file_id = first_file;
+  update public.paperwork set file_folder_id = first_file, keep_until = '2033-09-24' where id = paper;
+  select count(*) into v_count from public.paperwork where file_folder_id = first_file;
   report := report || format('5b. filing puts it in the file: %s (wants 1)%s', v_count, E'\n');
   select logged_on::text into v_text from public.paperwork where id = paper;
   report := report || format('5c. logged on the household''s today: %s%s', v_text, E'\n');
@@ -121,14 +125,14 @@ begin
   exception when others then
     report := report || format('6a. removing a category in use is refused (wants this): %s%s', sqlerrm, E'\n');
   end;
-  update public.paperwork_files set category_id = car where category_id = taxes;
+  update public.paperwork_file_folders set category_id = car where category_id = taxes;
   delete from public.paperwork_categories where id = taxes;
   select count(*) into v_count from public.paperwork_categories where id = taxes;
   report := report || format('6b. once its files move, it goes: %s left (wants 0)%s', v_count, E'\n');
 
   -- 7. Removing a file puts its paperwork back to Unfiled.
-  delete from public.paperwork_files where id = first_file;
-  select count(*) into v_count from public.paperwork where id = paper and file_id is null;
+  delete from public.paperwork_file_folders where id = first_file;
+  select count(*) into v_count from public.paperwork where id = paper and file_folder_id is null;
   report := report || format('7. removing its file makes it Unfiled again: %s (wants 1)%s', v_count, E'\n');
 
   -- 8. Someone signed out sees none of it.

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ModuleStatus } from "../module-status";
 
 // Storage (REQ-87): everything in the basement, boxed or not. A box can
-// also hold archived paperwork files (REQ-98).
+// also hold archived paperwork File Folders (REQ-98).
 
 export type StorageEntry = {
   id: string;

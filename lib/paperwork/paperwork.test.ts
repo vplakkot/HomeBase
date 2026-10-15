@@ -1,15 +1,17 @@
 import { describe, expect, it, type vi } from "vitest";
 import { fakeSupabase } from "../../test/fake-supabase";
-import { paperworkTile, unfiledItem, UNFILED_HREF } from "./action-items";
+import { notPlacedItem, paperworkTile, unfiledItem, UNFILED_HREF } from "./action-items";
 import {
   categoryCards,
   countUnfiled,
-  documentsByYear,
+  categoryFileFolders,
+  isNotPlaced,
+  NOT_PLACED_HREF,
   archiveName,
-  cardFiles,
+  cardFileFolders,
   DRIVE_ARCHIVE_HREF,
   driveArchiveDocuments,
-  driveFileState,
+  driveFileFolderState,
   driveUnfiled,
   expectedFolderName,
   placeOf,
@@ -17,8 +19,8 @@ import {
   sameLocation,
   sortedLocations,
   tidyName,
-  fileId,
-  fileRows,
+  fileFolderId,
+  fileFolderRows,
   keepUntil,
   labelText,
   ownerName,
@@ -29,14 +31,14 @@ import {
   type Category,
   type Location,
   type Paper,
-  type PaperFile,
+  type PaperFileFolder,
 } from "./paperwork";
 import type { DriveDocument, DriveFolder } from "./drive-sync";
 
 // Invented household paperwork; nothing here is real.
 const TAXES: Category = { id: "c-tax", name: "Taxes", keep_years: 7 };
 const CAR: Category = { id: "c-car", name: "Car", keep_years: null };
-const file = (number: number, category: Category, label: string | null = null): PaperFile => ({
+const fileFolder = (number: number, category: Category, label: string | null = null): PaperFileFolder => ({
   id: `f-${number}`,
   number,
   category_id: category.id,
@@ -47,32 +49,32 @@ const file = (number: number, category: Category, label: string | null = null): 
   is_drive: false,
   drive_folder_id: null,
 });
-const paper = (id: string, name: string, file_id: string | null, owner_id: string | null = null): Paper => ({
+const paper = (id: string, name: string, file_folder_id: string | null, owner_id: string | null = null): Paper => ({
   id,
   name,
   owner_id,
   document_date: null,
   notes: null,
   keep_until: null,
-  file_id,
+  file_folder_id,
   archive_id: null,
   logged_on: "2026-09-24",
 });
 
-const FILES = [file(42, TAXES, "Returns 2020-2025"), file(7, CAR), file(1, TAXES)];
+const FILES = [fileFolder(42, TAXES, "Returns 2020-2025"), fileFolder(7, CAR), fileFolder(1, TAXES)];
 const PAPERS = [
   paper("p1", "2024 federal return", "f-42"),
   paper("p2", "2023 federal return", "f-42"),
   paper("p3", "Car title", "f-7"),
   paper("p4", "Water bill notice", null),
 ];
-const ROWS = fileRows(FILES, [TAXES, CAR], PAPERS);
+const ROWS = fileFolderRows(FILES, [TAXES, CAR], PAPERS);
 
-describe("a file's ID and label (REQ-88)", () => {
+describe("a File Folder's ID and label (REQ-88)", () => {
   it("pads the number to four digits after F-", () => {
-    expect(fileId({ number: 1 })).toBe("F-0001");
-    expect(fileId({ number: 42 })).toBe("F-0042");
-    expect(fileId({ number: 12345 })).toBe("F-12345");
+    expect(fileFolderId({ number: 1 })).toBe("F-0001");
+    expect(fileFolderId({ number: 42 })).toBe("F-0042");
+    expect(fileFolderId({ number: 12345 })).toBe("F-12345");
   });
 
   it("puts the ID and category together for the label printer", () => {
@@ -80,9 +82,9 @@ describe("a file's ID and label (REQ-88)", () => {
   });
 });
 
-describe("the files list (REQ-88)", () => {
-  it("lists every file by number, with how many papers each holds", () => {
-    expect(ROWS.map((row) => [fileId(row.file), row.category?.name, row.count])).toEqual([
+describe("the File Folders list (REQ-88)", () => {
+  it("lists every File Folder by number, with how many papers each holds", () => {
+    expect(ROWS.map((row) => [fileFolderId(row.fileFolder), row.category?.name, row.count])).toEqual([
       ["F-0001", "Taxes", 0],
       ["F-0007", "Car", 1],
       ["F-0042", "Taxes", 2],
@@ -92,13 +94,13 @@ describe("the files list (REQ-88)", () => {
 
 describe("search (REQ-88)", () => {
   const ids = (query: string, category: string | null = null) =>
-    search(ROWS, PAPERS, query, category).files.map((row) => fileId(row.file));
+    search(ROWS, PAPERS, query, category).fileFolders.map((row) => fileFolderId(row.fileFolder));
 
-  it("finds a file by its ID however it's typed", () => {
+  it("finds a File Folder by its ID however it's typed", () => {
     for (const typed of ["F-0042", "f-42", "F42", "42", "0042"]) expect(ids(typed), typed).toEqual(["F-0042"]);
   });
 
-  it("finds files by label name and by category", () => {
+  it("finds File Folders by label name and by category", () => {
     expect(ids("returns")).toEqual(["F-0042"]);
     expect(ids("taxes")).toEqual(["F-0001", "F-0042"]);
   });
@@ -108,14 +110,14 @@ describe("search (REQ-88)", () => {
     expect(search(ROWS, PAPERS, "water", null).papers.map((row) => row.id)).toEqual(["p4"]);
   });
 
-  it("filters by category, files and the paperwork in them", () => {
+  it("filters by category, File Folders and the paperwork in them", () => {
     expect(ids("", "c-car")).toEqual(["F-0007"]);
     expect(search(ROWS, PAPERS, "return", "c-car").papers).toEqual([]);
     expect(search(ROWS, PAPERS, "title", "c-car").papers.map((row) => row.id)).toEqual(["p3"]);
   });
 
-  it("shows every file and no paperwork with nothing asked", () => {
-    expect(search(ROWS, PAPERS, " ", null)).toEqual({ files: ROWS, papers: [] });
+  it("shows every File Folder and no paperwork with nothing asked", () => {
+    expect(search(ROWS, PAPERS, " ", null)).toEqual({ fileFolders: ROWS, papers: [] });
   });
 });
 
@@ -139,7 +141,7 @@ describe("keep-until (REQ-97)", () => {
 });
 
 describe("paperwork", () => {
-  it("is Unfiled when it has no file", () => {
+  it("is Unfiled when it has no File Folder", () => {
     expect(unfiled(PAPERS).map((row) => row.id)).toEqual(["p4"]);
   });
 
@@ -176,12 +178,12 @@ describe("Paperwork on Home (REQ-97)", () => {
 });
 
 describe("countUnfiled (REQ-97)", () => {
-  it("counts only paperwork with no file", async () => {
+  it("counts only paperwork with no File Folder", async () => {
     const fake = fakeSupabase({ tables: { paperwork: [{ id: "a" }, { id: "b" }] } });
     expect(await countUnfiled(fake as never)).toBe(2);
     const query = fake.from.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
     expect(query.select).toHaveBeenCalledWith("id", { count: "exact", head: true });
-    expect(query.is).toHaveBeenCalledWith("file_id", null);
+    expect(query.is).toHaveBeenCalledWith("file_folder_id", null);
     expect(query.is).toHaveBeenCalledWith("archive_id", null);
   });
 });
@@ -206,15 +208,15 @@ describe("locations (REQ-179)", () => {
     expect(sortedLocations([SHED, HALL, OFFICE]).map((row) => row.name)).toEqual(["Hall cupboard", "Office · Cabinet", "Shed"]);
   });
 
-  it("each get a card, an empty one too, with its files and documents", () => {
+  it("each get a card, an empty one too, with its File Folders and documents", () => {
     const { office } = places(FILES, [TAXES, CAR], PAPERS, [], [HALL, SHED]);
-    expect(office.map((card) => [card.name, card.href, card.files.length, card.items])).toEqual([
+    expect(office.map((card) => [card.name, card.href, card.fileFolders.length, card.items])).toEqual([
       ["Hall cupboard", "/paperwork/locations/l-hall", 3, 3],
       ["Shed", "/paperwork/locations/l-shed", 0, 0],
     ]);
   });
 
-  it("name where a file is by its location record", () => {
+  it("name where a File Folder is by its location record", () => {
     expect(placeOf(FILES[0], [], [OFFICE, HALL])).toEqual({ name: "Hall cupboard", href: "/paperwork/locations/l-hall" });
   });
 });
@@ -228,19 +230,19 @@ describe("archives (REQ-153)", () => {
     expect(archiveName(BOX)).toBe("Archive · S-003");
   });
 
-  it("show on their box's card beside its archived files, counted as a file", () => {
-    const stored = { ...file(9, CAR), status: "archived" as const, storage_entry_id: "s-1" };
+  it("show on their box's card beside its archived File Folders, counted as a File Folder", () => {
+    const stored = { ...fileFolder(9, CAR), status: "archived" as const, storage_entry_id: "s-1" };
     const { archived: cards } = places([stored], [CAR], [archived("p1", "Old lease"), archived("p2", "Old policy")], [BOX], [], [ARCHIVE]);
     expect(cards).toHaveLength(1);
     expect(cards[0].href).toBe("/paperwork/boxes/s-1");
     expect(cards[0].archive?.count).toBe(2);
-    expect(cardFiles(cards[0])).toBe(2);
+    expect(cardFileFolders(cards[0])).toBe(2);
     expect(cards[0].items).toBe(2);
   });
 
   it("make a card for a box that holds only an archive", () => {
     const { archived: cards } = places([], [], [archived("p1", "Old lease")], [BOX], [], [ARCHIVE]);
-    expect(cards.map((card) => [card.name, cardFiles(card), card.items])).toEqual([["Box S-003 · Basement box", 1, 1]]);
+    expect(cards.map((card) => [card.name, cardFileFolders(card), card.items])).toEqual([["Box S-003 · Basement box", 1, 1]]);
   });
 });
 
@@ -262,49 +264,104 @@ describe("Paperwork's own action item (REQ-100)", () => {
 });
 
 describe("browsing by category (REQ-105)", () => {
-  const dated = (id: string, name: string, date: string | null, fileId = "f-42") => ({
-    ...paper(id, name, fileId),
-    document_date: date,
-  });
-
-  it("counts each category's files and the documents in them, leaving unfiled ones out", () => {
+  it("counts each category's File Folders and the documents in them, leaving unfiled ones out", () => {
     expect(categoryCards([TAXES, CAR], FILES, PAPERS)).toEqual([
-      { category: TAXES, files: 2, documents: 2 },
-      { category: CAR, files: 1, documents: 1 },
+      { category: TAXES, fileFolders: 2, documents: 2 },
+      { category: CAR, fileFolders: 1, documents: 1 },
     ]);
   });
 
-  it("lists documents by year, newest first, with an empty row for a year with nothing, and undated last", () => {
-    const rows = documentsByYear([
-      dated("a", "2018 return", "2018-04-10"),
-      dated("b", "W-2", "2024-01-31", "f-1"),
-      dated("c", "Federal return", "2024-04-15"),
-      dated("d", "2020 return", "2020-04-15"),
-      dated("e", "Old receipt", null),
-    ]);
-    expect(rows.map((row) => [row.year, row.papers.map((one) => one.name)])).toEqual([
-      [2024, ["Federal return", "W-2"]],
-      [2023, []],
-      [2022, []],
-      [2021, []],
-      [2020, ["2020 return"]],
-      [2019, []],
-      [2018, ["2018 return"]],
-      [null, ["Old receipt"]],
+  const PEOPLE = [{ user_id: "u-1", name: "Alex" }];
+  const listed = (fileFolders: PaperFileFolder[], papers: Paper[], storage: never[] = [], drive = { documents: [] as DriveDocument[] }) =>
+    categoryFileFolders(fileFolderRows(fileFolders, [TAXES], papers, drive), papers, PEOPLE, storage, [HALL], drive);
+  const HALL: Location = { id: "l-hall", name: "Hall cupboard", built_in: null };
+
+  it("sorts File Folders by label name, those with no label last by ID (REQ-204)", () => {
+    const rows = listed(
+      [fileFolder(7, TAXES), fileFolder(3, TAXES, "Returns"), fileFolder(5, TAXES, "Amended"), fileFolder(2, TAXES)],
+      [],
+    );
+    expect(rows.map((one) => fileFolderId(one.row.fileFolder))).toEqual(["F-0005", "F-0003", "F-0002", "F-0007"]);
+  });
+
+  it("lists each File Folder's documents by keep-until, soonest first, none last by name", () => {
+    const keep = (id: string, name: string, until: string | null) => ({ ...paper(id, name, "f-1"), keep_until: until });
+    const [one] = listed(
+      [fileFolder(1, TAXES, "Returns")],
+      [keep("a", "Zebra", null), keep("b", "Lease", "2030-01-01"), keep("c", "Alpha", null), keep("d", "W-2", "2027-05-01")],
+    );
+    expect(one.documents.map((document) => document.name)).toEqual(["W-2", "Lease", "Alpha", "Zebra"]);
+    expect(one.documents[0]).toMatchObject({ href: "/paperwork/items/d", external: false, keepUntil: "2027-05-01" });
+  });
+
+  it("still lists a File Folder with no documents, counted as 0", () => {
+    const [one] = listed([fileFolder(1, TAXES)], []);
+    expect(one.documents).toEqual([]);
+    expect(one.row.count).toBe(0);
+  });
+
+  it("says where each File Folder is: Not placed, or its box with an Archived marker", () => {
+    const loose = { ...fileFolder(1, TAXES), location_id: null };
+    const boxed: PaperFileFolder = { ...fileFolder(2, TAXES), status: "archived", storage_entry_id: "s1" };
+    const box = { id: "s1", number: 3, name: "Shoes", is_box: true } as never;
+    const rows = categoryFileFolders(fileFolderRows([loose, boxed], [TAXES], [], undefined), [], PEOPLE, [box], [HALL], { documents: [] });
+    expect(rows.map((one) => [one.place.name, one.archived])).toEqual([
+      ["Not placed", false],
+      ["Box S-003 · Shoes", true],
     ]);
   });
 
-  it("shows no gaps before the oldest or after the newest year, and nothing when empty", () => {
-    expect(documentsByYear([dated("a", "Return", "2022-04-15")]).map((row) => row.year)).toEqual([2022]);
-    expect(documentsByYear([dated("a", "Receipt", null)]).map((row) => row.year)).toEqual([null]);
-    expect(documentsByYear([])).toEqual([]);
+  it("takes a Drive File Folder's documents from Drive, opening in Drive", () => {
+    const drive = {
+      documents: [
+        { drive_id: "d1", name: "Lease.pdf", mime_type: null, link: "https://drive.example/d1", drive_owner_email: null, parent_id: "fold", owner_id: "u-1", owner_set: true, missing: false },
+        { drive_id: "d2", name: "Scan.pdf", mime_type: null, link: null, drive_owner_email: null, parent_id: "fold", owner_id: null, owner_set: false, missing: false },
+      ],
+    };
+    const [one] = listed([{ ...fileFolder(1, TAXES, "Returns"), is_drive: true, drive_folder_id: "fold" }], [], [], drive);
+    expect(one.documents.map((document) => [document.name, document.owner, document.external])).toEqual([
+      ["Lease.pdf", "Alex", true],
+      ["Scan.pdf", "Owner not set", false],
+    ]);
   });
 });
 
-describe("Google Drive files (REQ-152, REQ-153)", () => {
+describe("File Folders not placed yet (REQ-206)", () => {
+  const loose = (number: number, over: Partial<PaperFileFolder> = {}): PaperFileFolder => ({ ...fileFolder(number, TAXES), location_id: null, ...over });
+
+  it("has no location, and reads Not placed wherever its place is shown", () => {
+    expect(placeOf(loose(1), [], [])).toEqual({ name: "Not placed", href: NOT_PLACED_HREF });
+  });
+
+  it("is only an active physical File Folder with no location", () => {
+    expect(isNotPlaced(loose(1))).toBe(true);
+    expect(isNotPlaced(fileFolder(1, TAXES))).toBe(false);
+    expect(isNotPlaced(loose(1, { status: "archived", storage_entry_id: "s1" }))).toBe(false);
+    expect(isNotPlaced(loose(1, { is_drive: true }))).toBe(false);
+  });
+
+  it("gets a card of its own with its count, apart from the locations", () => {
+    const { office, notPlaced } = places([loose(1), loose(2), fileFolder(3, TAXES)], [TAXES], [paper("p", "Bill", "f-1")], [], [{ id: "l-hall", name: "Hall cupboard", built_in: null }]);
+    expect(notPlaced).toMatchObject({ name: "Not placed", href: NOT_PLACED_HREF, items: 1 });
+    expect(notPlaced?.fileFolders).toHaveLength(2);
+    expect(office.map((card) => card.name)).toEqual(["Hall cupboard"]);
+    expect(places([fileFolder(3, TAXES)], [TAXES], [], [], []).notPlaced).toBeNull();
+  });
+
+  it("raises a second action item while any are waiting, and clears when none are", () => {
+    expect(notPlacedItem([loose(1), loose(2), fileFolder(3, TAXES)])).toMatchObject({
+      text: "2 File Folders not placed",
+      href: NOT_PLACED_HREF,
+    });
+    expect(notPlacedItem([loose(1)])?.text).toBe("1 File Folder not placed");
+    expect(notPlacedItem([fileFolder(3, TAXES), loose(4, { status: "archived", storage_entry_id: "s1" })])).toBeNull();
+  });
+});
+
+describe("Google Drive File Folders (REQ-152, REQ-153)", () => {
   const DRIVE_LOC: Location = { id: "l-drive", name: "Google Drive", built_in: "drive" };
-  const driveFile = (number: number, folder: string | null, over: Partial<PaperFile> = {}): PaperFile => ({
-    ...file(number, TAXES, "Returns"),
+  const driveFileFolder = (number: number, folder: string | null, over: Partial<PaperFileFolder> = {}): PaperFileFolder => ({
+    ...fileFolder(number, TAXES, "Returns"),
     location_id: "l-drive",
     is_drive: true,
     drive_folder_id: folder,
@@ -323,30 +380,30 @@ describe("Google Drive files (REQ-152, REQ-153)", () => {
     expect(expectedFolderName({ number: 42, label: null }, TAXES)).toBe("F-0042_Taxes");
   });
 
-  it("counts a Drive file's documents from its folder, not the papers table", () => {
-    const rows = fileRows([driveFile(5, "fold-1")], [TAXES], [], {
+  it("counts a Drive File Folder's documents from its folder, not the papers table", () => {
+    const rows = fileFolderRows([driveFileFolder(5, "fold-1")], [TAXES], [], {
       documents: [document("a", "fold-1"), document("b", "fold-1"), document("gone", "fold-1", true), document("c", "other")],
     });
     expect(rows[0].count).toBe(2);
   });
 
   it("is waiting before its folder is linked", () => {
-    expect(driveFileState(driveFile(5, null), { folders: [], documents: [] })).toEqual({ kind: "waiting" });
+    expect(driveFileFolderState(driveFileFolder(5, null), { folders: [], documents: [] })).toEqual({ kind: "waiting" });
   });
 
   it("is missing when its folder is gone from Drive or was never seen", () => {
-    expect(driveFileState(driveFile(5, "f"), { folders: [folder("f", "x", { missing: true })], documents: [] })).toEqual({ kind: "missing" });
-    expect(driveFileState(driveFile(5, "f"), { folders: [], documents: [] })).toEqual({ kind: "missing" });
+    expect(driveFileFolderState(driveFileFolder(5, "f"), { folders: [folder("f", "x", { missing: true })], documents: [] })).toEqual({ kind: "missing" });
+    expect(driveFileFolderState(driveFileFolder(5, "f"), { folders: [], documents: [] })).toEqual({ kind: "missing" });
   });
 
   it("is linked with the documents directly in its folder", () => {
-    const state = driveFileState(driveFile(5, "f"), { folders: [folder("f", "F-0005_Taxes")], documents: [document("a", "f"), document("b", "other")] });
+    const state = driveFileFolderState(driveFileFolder(5, "f"), { folders: [folder("f", "F-0005_Taxes")], documents: [document("a", "f"), document("b", "other")] });
     expect(state).toMatchObject({ kind: "linked", documents: [{ drive_id: "a" }] });
   });
 
   it("lists unlinked folders: not linked, not ignored, not gone", () => {
     const folders = [folder("f1", "F-0005_Taxes"), folder("f2", "Stray"), folder("f3", "Ignored", { ignored: true }), folder("f4", "Gone", { missing: true })];
-    expect(unlinkedFolders({ folders }, [driveFile(5, "f1")]).map((row) => row.drive_id)).toEqual(["f2"]);
+    expect(unlinkedFolders({ folders }, [driveFileFolder(5, "f1")]).map((row) => row.drive_id)).toEqual(["f2"]);
   });
 
   it("shows loose top-level documents as Unfiled · Google Drive, apart from Archived ones", () => {
@@ -356,21 +413,21 @@ describe("Google Drive files (REQ-152, REQ-153)", () => {
     expect(driveUnfiled({ connection: null, documents })).toEqual([]);
   });
 
-  it("puts an archived Drive file in Google Drive · Archived, not a storage box", () => {
-    const archived = driveFile(5, "f", { status: "archived" });
+  it("puts an archived Drive File Folder in Google Drive · Archived, not a storage box", () => {
+    const archived = driveFileFolder(5, "f", { status: "archived" });
     expect(placeOf(archived, [], [DRIVE_LOC])).toEqual({ name: "Google Drive · Archived", href: DRIVE_ARCHIVE_HREF });
-    expect(placeOf(driveFile(6, "g"), [], [DRIVE_LOC])).toEqual({ name: "Google Drive", href: "/paperwork/locations/l-drive" });
+    expect(placeOf(driveFileFolder(6, "g"), [], [DRIVE_LOC])).toEqual({ name: "Google Drive", href: "/paperwork/locations/l-drive" });
   });
 
-  it("gives the Archived folder its own card with archived files and loose documents", () => {
+  it("gives the Archived folder its own card with archived File Folders and loose documents", () => {
     const drive = { connection: CONNECTION, folders: [], documents: [document("old", "arch"), document("x", "f")] };
     const { office, archived } = places(
-      [driveFile(5, "f", { status: "archived" }), driveFile(6, "g")],
+      [driveFileFolder(5, "f", { status: "archived" }), driveFileFolder(6, "g")],
       [TAXES], [], [], [DRIVE_LOC], [], drive,
     );
-    expect(office.map((card) => [card.name, card.files.length])).toEqual([["Google Drive", 1]]);
+    expect(office.map((card) => [card.name, card.fileFolders.length])).toEqual([["Google Drive", 1]]);
     expect(archived).toHaveLength(1);
     expect(archived[0]).toMatchObject({ name: "Google Drive · Archived", items: 2 });
-    expect(cardFiles(archived[0])).toBe(2);
+    expect(cardFileFolders(archived[0])).toBe(2);
   });
 });

@@ -48,7 +48,7 @@ const UNLABELLED = {
   status: "archived",
   storage_entry_id: "s3",
 };
-const PAPER = { id: "p-1", name: "2019 return", owner_id: null, document_date: null, notes: null, keep_until: null, file_id: "f-9", logged_on: "2026-09-20" };
+const PAPER = { id: "p-1", name: "2019 return", owner_id: null, document_date: null, notes: null, keep_until: null, file_folder_id: "f-9", logged_on: "2026-09-20" };
 const ARCHIVED = {
   id: "f-9",
   number: 9,
@@ -61,7 +61,7 @@ const ARCHIVED = {
 
 // The Shoes box's archive of single documents (REQ-153), with one document.
 const SHOES_ARCHIVE = { id: "a3", storage_entry_id: "s3" };
-const ARCHIVED_PAPER = { ...PAPER, id: "p-2", name: "Old lease", file_id: null, archive_id: "a3" };
+const ARCHIVED_PAPER = { ...PAPER, id: "p-2", name: "Old lease", file_folder_id: null, archive_id: "a3" };
 
 function given(permissions = ["use_modules"], withArchive = false) {
   const fake = fakeSupabase({
@@ -69,7 +69,7 @@ function given(permissions = ["use_modules"], withArchive = false) {
     tables: {
       storage_entries: ENTRIES,
       paperwork_categories: [TAXES],
-      paperwork_files: [ARCHIVED, UNLABELLED],
+      paperwork_file_folders: [ARCHIVED, UNLABELLED],
       paperwork: withArchive ? [PAPER, ARCHIVED_PAPER] : [PAPER],
       paperwork_archives: withArchive ? [SHOES_ARCHIVE] : [],
     },
@@ -97,7 +97,7 @@ describe("every Storage screen (REQ-107)", () => {
   it("shows search results in place of the screen, and Clear goes back to it", async () => {
     given();
     render(await open("s4", "ski boots"));
-    expect(cards(section(/^Results/))).toEqual(["S-003 · Shoes2 archived paperwork filesSki boots, Hiking boots, Sandals, and 1 more"]);
+    expect(cards(section(/^Results/))).toEqual(["S-003 · Shoes2 archived paperwork File FoldersSki boots, Hiking boots, Sandals, and 1 more"]);
     expect(screen.queryByRole("heading", { level: 2, name: /Seasonal clothes/ })).toBeNull();
     expect(screen.getByRole("link", { name: "Clear" }).getAttribute("href")).toBe("/storage/entries/s4");
   });
@@ -139,7 +139,7 @@ describe("Storage home (REQ-107)", () => {
     expect(section(/^Boxes/).querySelector("h2")?.textContent).toBe("Boxes · 2");
     expect(section(/^Not in a box/).querySelector("h2")?.textContent).toBe("Not in a box · 1");
     expect(cards(section(/^Boxes/))).toEqual([
-      "S-003 · Shoes2 archived paperwork filesSki boots, Hiking boots, Sandals, and 1 more",
+      "S-003 · Shoes2 archived paperwork File FoldersSki boots, Hiking boots, Sandals, and 1 more",
       "S-004 · Seasonal clothesNote: winter clothes in summer",
     ]);
     expect(cards(section(/^Not in a box/))).toEqual(["S-001 · Suitcases"]);
@@ -187,22 +187,22 @@ describe("a Storage entry (REQ-107, REQ-98)", () => {
     expect(screen.getByRole("region", { name: "Note" }).textContent).toContain("No note");
   });
 
-  it("lists archived paperwork files by ID, label name or No label, and documents, each opening in Paperwork", async () => {
+  it("lists archived paperwork File Folders by ID, label name or No label, and documents, each opening in Paperwork", async () => {
     given();
     render(await open("s3"));
-    const files = screen.getByRole("region", { name: "2 archived paperwork files" });
-    expect(within(files).getAllByRole("link").map((link) => link.textContent)).toEqual([
+    const fileFolders = screen.getByRole("region", { name: "2 archived paperwork File Folders" });
+    expect(within(fileFolders).getAllByRole("link").map((link) => link.textContent)).toEqual([
       "F-0009Old returns1 document",
       "F-0011No label0 documents",
     ]);
-    expect(within(files).getAllByRole("link")[0].getAttribute("href")).toBe("/paperwork/files/f-9");
+    expect(within(fileFolders).getAllByRole("link")[0].getAttribute("href")).toBe("/paperwork/file-folders/f-9");
   });
 
-  it("lists the box's archive with its files, counted as a file (REQ-153)", async () => {
+  it("lists the box's archive with its File Folders, counted as a File Folder (REQ-153)", async () => {
     given(["use_modules"], true);
     render(await open("s3"));
-    const files = screen.getByRole("region", { name: "3 archived paperwork files" });
-    expect(within(files).getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")])[0]).toEqual([
+    const fileFolders = screen.getByRole("region", { name: "3 archived paperwork File Folders" });
+    expect(within(fileFolders).getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")])[0]).toEqual([
       "Archive · S-0031 document",
       "/paperwork/archives/a3",
     ]);

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Paperwork, File Folders (REQ-205, REQ-206, REQ-204). Every "file" is now a
+  **File Folder** and the Google Drive folder behind one a **Digital Folder**,
+  on every screen, in the code and in the database; IDs (F-0042), labels and
+  Drive names are unchanged, nothing is renumbered, and the old
+  /paperwork/files/... links go to the new place. A physical File Folder can
+  be made before you know where it will live: skip the location and it shows
+  as "Not placed" in its own section on the Paperwork home, with an action
+  item ("N File Folders not placed") that opens the list; give it a location
+  from Manage File Folder and it drops off. A category page now lists its File
+  Folders (ID, label name, location, document count), each closed until you
+  tap Expand to see its documents by keep-until, soonest first; the
+  documents-by-year list and its "Nothing logged for [year]" rows are gone.
+  Needs a database migration (a rename, and the location may now be empty).
+
 - Pets, a new module (REQ-186 to REQ-189). The Pets home has a card for each
   pet with its photo and the food it's on. A profile holds the pet's name,
   nickname, species and photo, and any member can edit it, archive it (kept,

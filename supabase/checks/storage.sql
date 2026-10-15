@@ -66,9 +66,11 @@ begin
   end;
 
   -- 4. A file can't be archived into something that isn't a box.
-  insert into public.paperwork_files (category_id, location) values (category, 'Check: desk') returning id into a_file;
+  insert into public.paperwork_locations (name) values ('Check: desk'), ('Check: study');
+  insert into public.paperwork_file_folders (category_id, location_id)
+    values (category, (select id from public.paperwork_locations where name = 'Check: desk')) returning id into a_file;
   begin
-    update public.paperwork_files set status = 'archived', storage_entry_id = loose where id = a_file;
+    update public.paperwork_file_folders set status = 'archived', storage_entry_id = loose where id = a_file;
     report := report || E'4. a file went into a loose item -- WRONG\n';
   exception when others then
     report := report || format('4. archiving into a loose item is refused (wants this): %s%s', sqlerrm, E'\n');
@@ -76,15 +78,15 @@ begin
 
   -- 5. Archived and "in a box" go together.
   begin
-    update public.paperwork_files set status = 'archived' where id = a_file;
+    update public.paperwork_file_folders set status = 'archived' where id = a_file;
     report := report || E'5. archived with no box -- WRONG\n';
   exception when others then
     report := report || format('5. archived with no box is refused (wants this): %s%s', sqlerrm, E'\n');
   end;
 
   -- 6. Into a box it goes.
-  update public.paperwork_files set status = 'archived', storage_entry_id = box where id = a_file;
-  select count(*) into v_count from public.paperwork_files where storage_entry_id = box and status = 'archived';
+  update public.paperwork_file_folders set status = 'archived', storage_entry_id = box where id = a_file;
+  select count(*) into v_count from public.paperwork_file_folders where storage_entry_id = box and status = 'archived';
   report := report || format('6. a member archives a file into a box: %s (wants 1)%s', v_count, E'\n');
 
   -- 7. While it holds the file, the box stays a box and can't be removed.
@@ -102,7 +104,8 @@ begin
   end;
 
   -- 8. Brought back, the box is free to change or go.
-  update public.paperwork_files set status = 'active', storage_entry_id = null, location = 'Check: study' where id = a_file;
+  update public.paperwork_file_folders set status = 'active', storage_entry_id = null,
+    location_id = (select id from public.paperwork_locations where name = 'Check: study') where id = a_file;
   update public.storage_entries set is_box = false, contents = null where id = box;
   select not is_box into v_bool from public.storage_entries where id = box;
   report := report || format('8a. once the file is back, the box can stop being one: %s (wants true)%s', v_bool, E'\n');

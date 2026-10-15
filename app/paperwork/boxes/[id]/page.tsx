@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
-import { cardFiles, filesCount, places } from "../../../../lib/paperwork/paperwork";
-import { FileCards } from "../../file-cards";
+import { cardFileFolders, fileFoldersCount, places } from "../../../../lib/paperwork/paperwork";
+import { FileFolderCards } from "../../file-folder-cards";
 import { PaperworkScreen, Section, paperworkViewer } from "../../frame";
 
-// REQ-100's second screen for a storage box: the files archived
+// REQ-100's second screen for a storage box: the File Folders archived
 // in it (REQ-98), and its archive of single documents (REQ-153). The box's own contents live in Storage.
 export default async function BoxPage({
   params,
@@ -15,7 +15,7 @@ export default async function BoxPage({
   const [{ id }, { q = "" }] = await Promise.all([params, searchParams]);
   const viewer = await paperworkViewer();
   const { archived } = places(
-    viewer.files,
+    viewer.fileFolders,
     viewer.categories,
     viewer.papers,
     viewer.storage,
@@ -27,8 +27,8 @@ export default async function BoxPage({
 
   return (
     <PaperworkScreen viewer={viewer} here={place.href} query={q} crumbs={[{ name: place.name }]}>
-      <Section id="files" title={place.name} aside={filesCount(cardFiles(place))}>
-        <FileCards rows={place.files} archive={place.archive} box={viewer.storage.find((entry) => entry.id === id)} />
+      <Section id="fileFolders" title={place.name} aside={fileFoldersCount(cardFileFolders(place))}>
+        <FileFolderCards rows={place.fileFolders} archive={place.archive} box={viewer.storage.find((entry) => entry.id === id)} />
       </Section>
     </PaperworkScreen>
   );

@@ -14,7 +14,7 @@ import paperwork from "../paperwork.module.css";
 export default async function PaperworkSettingsPage({ searchParams }: { searchParams?: Promise<{ q?: string }> }) {
   const { q = "" } = (await searchParams) ?? {};
   const viewer = await paperworkViewer();
-  const { canManagePaperwork, categories, files, drive } = viewer;
+  const { canManagePaperwork, categories, fileFolders, drive } = viewer;
   const screen = {
     viewer,
     here: "/paperwork/settings",
@@ -63,7 +63,7 @@ export default async function PaperworkSettingsPage({ searchParams }: { searchPa
             ) : (
               <ul className={styles.list}>
                 {categories.map((category) => {
-                  const inUse = files.filter((file) => file.category_id === category.id).length;
+                  const inUse = fileFolders.filter((fileFolder) => fileFolder.category_id === category.id).length;
                   return (
                     <li key={category.id} className={styles.entry}>
                       <div className={styles.entryHead}>
@@ -72,7 +72,7 @@ export default async function PaperworkSettingsPage({ searchParams }: { searchPa
                           {category.keep_years === null ? "No default" : `Keep ${category.keep_years} yr`}
                         </span>
                       </div>
-                      <p className={styles.detail}>{inUse === 1 ? "1 file" : `${inUse} files`}</p>
+                      <p className={styles.detail}>{inUse === 1 ? "1 File Folder" : `${inUse} File Folders`}</p>
                       <div className={styles.actions}>
                         <details className={styles.change}>
                           <summary>Edit</summary>
@@ -99,7 +99,7 @@ export default async function PaperworkSettingsPage({ searchParams }: { searchPa
             <h2 id="drive" className={styles.name}>
               Google Drive
             </h2>
-            <Hint text="Files kept in one Google Drive folder are tracked here like physical ones. HomeBase reads and tidies that folder as a Google service account you share it with; it never makes folders." />
+            <Hint text="File Folders kept in one Google Drive Digital Folder are tracked here like physical ones. HomeBase reads and tidies that Digital Folder as a Google service account you share it with; it never makes Digital Folders." />
           </header>
           <div className={styles.addBlock}>
             {drive.connection ? (

@@ -1166,3 +1166,33 @@ describe("meal plan: Eating out on any meal", () => {
     expect(out).toMatch(/grant execute on function public\.push_plan_back\(uuid, jsonb, uuid\[\], jsonb\) to authenticated;/);
   });
 });
+
+describe("File Folders migration (REQ-205, REQ-206)", () => {
+  const migration = readMigration("20261015200000");
+
+  it("renames the table and the paper's column, keeping every row", () => {
+    expect(migration).toMatch(/alter table public\.paperwork_files rename to paperwork_file_folders/);
+    expect(migration).toMatch(/alter table public\.paperwork rename column file_id to file_folder_id/);
+    expect(migration).not.toMatch(/\bdrop table\b|\btruncate\b/);
+  });
+
+  it("writes again the two functions whose text still named the old table", () => {
+    expect(migration).toMatch(/create or replace function public\.refuse_unboxing_with_files\(\)[\s\S]*?public\.paperwork_file_folders/);
+    expect(migration).toMatch(/create or replace function public\.refuse_file_folder_outside_a_box|rename to refuse_file_folder_outside_a_box/);
+    expect(migration).toMatch(/create or replace function public\.keep_drive_files_in_drive\(\)/);
+  });
+
+  it("lets a File Folder have no location yet", () => {
+    expect(migration).toMatch(/alter column location_id drop not null/);
+  });
+
+  it("finishes REQ-179: the old location text and its two triggers go", () => {
+    expect(migration).toMatch(/drop trigger sync_paperwork_file_location on public\.paperwork_file_folders/);
+    expect(migration).toMatch(/drop trigger sync_renamed_location on public\.paperwork_locations/);
+    expect(migration).toMatch(/alter table public\.paperwork_file_folders drop column location;/);
+  });
+
+  it("still keeps Google Drive File Folders in the Drive location", () => {
+    expect(readMigrations()).toMatch(/Google Drive File Folders are kept in Google Drive/);
+  });
+});

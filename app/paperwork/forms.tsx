@@ -4,23 +4,23 @@ import { useActionState, useEffect, useState } from "react";
 import { buttonClass } from "../../components/button";
 import styles from "../../components/cards.module.css";
 import type { Person } from "../../lib/finances/budget-year";
-import { keepUntil, labelText, type Category, type Location, type Paper, type PaperFile } from "../../lib/paperwork/paperwork";
+import { keepUntil, labelText, type Category, type Location, type Paper, type PaperFileFolder } from "../../lib/paperwork/paperwork";
 import { entryId, type StorageEntry } from "../../lib/storage/storage";
 import {
   addCategory,
   addLocation,
-  archiveFile,
+  archiveFileFolder,
   archivePaper,
-  bringBackFile,
+  bringBackFileFolder,
   deleteLocation,
   filePaper,
   logPaper,
-  makeFile,
+  makeFileFolder,
   removeCategory,
-  removeFile,
+  removeFileFolder,
   renameLocation,
   updateCategory,
-  updateFile,
+  updateFileFolder,
   updatePaper,
   type FormState,
 } from "./actions";
@@ -28,7 +28,7 @@ import {
 const initialState: FormState = {};
 
 // Tells whoever opened the form (a sheet, REQ-100) that it saved, once
-// per save, so the sheet can close and show any new file's label.
+// per save, so the sheet can close and show any new File Folder's label.
 function useOnSaved(state: FormState, onSaved?: (state: FormState) => void) {
   useEffect(() => {
     if (state.saved) onSaved?.(state);
@@ -41,7 +41,7 @@ function Outcome({ state, saved }: { state: FormState; saved: string }) {
   return null;
 }
 
-// Where a file is kept (REQ-179): pick from the locations, or "New
+// Where a File Folder is kept (REQ-179): pick from the locations, or "New
 // location…" to name one on the spot. There's no free typing into the
 // list, so one place keeps one spelling.
 function LocationField({
@@ -49,12 +49,16 @@ function LocationField({
   locations,
   defaultValue,
   driveReady = false,
+  optional = false,
 }: {
   label: string;
   locations: Location[];
   defaultValue?: string;
-  // Google Drive (built in, REQ-152) is offered only to a new file, and
-  // only once a folder is connected; a physical file never goes there.
+  // REQ-206: a physical File Folder may have no location yet, which reads
+  // "Not placed". Bringing one back from storage still asks for a place.
+  optional?: boolean;
+  // Google Drive (built in, REQ-152) is offered only to a new File Folder, and
+  // only once a folder is connected; a physical File Folder never goes there.
   driveReady?: boolean;
 }) {
   const [choice, setChoice] = useState(defaultValue ?? "");
@@ -62,10 +66,14 @@ function LocationField({
     <>
       <label className={styles.field}>
         <span>{label}</span>
-        <select name="locationId" required value={choice} onChange={(event) => setChoice(event.target.value)}>
-          <option value="" disabled>
-            Choose a location
-          </option>
+        <select name="locationId" required={!optional} value={choice} onChange={(event) => setChoice(event.target.value)}>
+          {optional ? (
+            <option value="">Not placed</option>
+          ) : (
+            <option value="" disabled>
+              Choose a location
+            </option>
+          )}
           {locations
             .filter((location) => !location.built_in || driveReady)
             .map((location) => (
@@ -86,19 +94,19 @@ function LocationField({
   );
 }
 
-// A new file's three fields (REQ-88): category and location required,
-// the label name optional.
-function NewFileFields({
+// A new File Folder's three fields (REQ-88): category required, the location
+// (REQ-206) and the label name optional.
+function NewFileFolderFields({
   categories,
   locations,
-  file,
+  fileFolder,
   location,
   driveReady = false,
   onCategory,
 }: {
   categories: Category[];
   locations: Location[];
-  file?: PaperFile;
+  fileFolder?: PaperFileFolder;
   location?: string;
   driveReady?: boolean;
   onCategory?: (id: string) => void;
@@ -110,7 +118,7 @@ function NewFileFields({
         <select
           name="categoryId"
           required
-          defaultValue={file?.category_id ?? ""}
+          defaultValue={fileFolder?.category_id ?? ""}
           onChange={(event) => onCategory?.(event.target.value)}
         >
           <option value="" disabled>
@@ -123,32 +131,38 @@ function NewFileFields({
           ))}
         </select>
       </label>
-      {file?.is_drive ? (
-        // A Drive file's location is set when it's made and never changes.
+      {fileFolder?.is_drive ? (
+        // A Drive File Folder's location is set when it's made and never changes.
         <p className={styles.check}>Location: Google Drive</p>
       ) : (
-        <LocationField label="Location" locations={locations} defaultValue={file?.location_id ?? location} driveReady={driveReady} />
+        <LocationField
+          label="Location"
+          locations={locations}
+          defaultValue={fileFolder?.location_id ?? location}
+          driveReady={driveReady}
+          optional
+        />
       )}
       <label className={styles.field}>
         <span>Label name (optional)</span>
-        <input name="label" defaultValue={file?.label ?? ""} />
+        <input name="label" defaultValue={fileFolder?.label ?? ""} />
       </label>
     </>
   );
 }
 
-// Which file: Unfiled (when allowed), an active file, or a new one made
+// Which File Folder: Unfiled (when allowed), an active File Folder, or a new one made
 // on the spot (REQ-97). Tells the form which category that means, so
 // keep-until can fill itself in.
-function FileChooser({
-  files,
+function FileFolderChooser({
+  fileFolders,
   categories,
   locations,
   allowUnfiled,
-  label = "File",
+  label = "File Folder",
   onCategory,
 }: {
-  files: PaperFile[];
+  fileFolders: PaperFileFolder[];
   categories: Category[];
   locations: Location[];
   allowUnfiled: boolean;
@@ -156,15 +170,15 @@ function FileChooser({
   onCategory: (id: string | null) => void;
 }) {
   const [choice, setChoice] = useState("");
-  const categoryOf = (fileId: string) => files.find((file) => file.id === fileId)?.category_id ?? null;
-  // Physical paperwork goes only into physical files (REQ-152).
-  const open = files.filter((file) => file.status === "active" && !file.is_drive);
+  const categoryOf = (fileFolderId: string) => fileFolders.find((fileFolder) => fileFolder.id === fileFolderId)?.category_id ?? null;
+  // Physical paperwork goes only into physical File Folders (REQ-152).
+  const open = fileFolders.filter((fileFolder) => fileFolder.status === "active" && !fileFolder.is_drive);
   return (
     <>
       <label className={styles.field}>
         <span>{label}</span>
         <select
-          name="fileId"
+          name="fileFolderId"
           required={!allowUnfiled}
           value={choice}
           onChange={(event) => {
@@ -172,25 +186,25 @@ function FileChooser({
             onCategory(event.target.value === "new" ? null : categoryOf(event.target.value));
           }}
         >
-          {allowUnfiled ? <option value="">Unfiled</option> : <option value="" disabled>Choose a file</option>}
-          {open.map((file) => (
-            <option key={file.id} value={file.id}>
-              {labelText(file, categories.find((category) => category.id === file.category_id))}
-              {file.label ? ` — ${file.label}` : ""}
+          {allowUnfiled ? <option value="">Unfiled</option> : <option value="" disabled>Choose a File Folder</option>}
+          {open.map((fileFolder) => (
+            <option key={fileFolder.id} value={fileFolder.id}>
+              {labelText(fileFolder, categories.find((category) => category.id === fileFolder.category_id))}
+              {fileFolder.label ? ` — ${fileFolder.label}` : ""}
             </option>
           ))}
-          <option value="new">New file…</option>
+          <option value="new">New File Folder…</option>
         </select>
       </label>
       {choice === "new" ? (
-        <NewFileFields categories={categories} locations={locations} onCategory={(id) => onCategory(id)} />
+        <NewFileFolderFields categories={categories} locations={locations} onCategory={(id) => onCategory(id)} />
       ) : null}
     </>
   );
 }
 
-// REQ-97: keep-until pre-fills from the file's category (document date,
-// or the day it was logged, plus the category's years) whenever the file
+// REQ-97: keep-until pre-fills from the File Folder's category (document date,
+// or the day it was logged, plus the category's years) whenever the File Folder
 // or the document date changes, until someone types in it or clears it.
 function useKeepUntil(paper: Pick<Paper, "keep_until" | "document_date" | "logged_on">, categories: Category[], initialCategory: string | null) {
   const [value, setValue] = useState(paper.keep_until ?? "");
@@ -229,26 +243,26 @@ function KeepUntilField({ value, onType }: { value: string; onType: (value: stri
 }
 
 // REQ-97: log new paperwork, or (with `paper`) change any of its fields
-// but its file, which "Move to another file" changes (REQ-100). With
-// `intoFile`, it's logged straight into that file ("Add paperwork" on a
-// file's screen).
+// but its File Folder, which "Move to another File Folder" changes (REQ-100). With
+// `intoFile`, it's logged straight into that File Folder ("Add paperwork" on a
+// File Folder's screen).
 export function PaperForm({
   people,
-  files,
+  fileFolders,
   categories,
   locations,
   today,
   paper,
-  intoFile,
+  intoFileFolder,
   onSaved,
 }: {
   people: Person[];
-  files: PaperFile[];
+  fileFolders: PaperFileFolder[];
   categories: Category[];
   locations: Location[];
   today: string;
   paper?: Paper;
-  intoFile?: PaperFile;
+  intoFileFolder?: PaperFileFolder;
   onSaved?: (state: FormState) => void;
 }) {
   const [state, formAction, pending] = useActionState(paper ? updatePaper : logPaper, initialState);
@@ -256,12 +270,12 @@ export function PaperForm({
   const keep = useKeepUntil(
     paper ?? { keep_until: null, document_date: null, logged_on: today },
     categories,
-    files.find((file) => file.id === (paper?.file_id ?? intoFile?.id))?.category_id ?? null,
+    fileFolders.find((fileFolder) => fileFolder.id === (paper?.file_folder_id ?? intoFileFolder?.id))?.category_id ?? null,
   );
   return (
     <form action={formAction} className={styles.form}>
       {paper ? <input type="hidden" name="id" value={paper.id} /> : null}
-      {intoFile ? <input type="hidden" name="fileId" value={intoFile.id} /> : null}
+      {intoFileFolder ? <input type="hidden" name="fileFolderId" value={intoFileFolder.id} /> : null}
       <label className={styles.field}>
         <span>Name</span>
         <input name="name" required defaultValue={paper?.name ?? ""} />
@@ -290,9 +304,9 @@ export function PaperForm({
         <span>Notes (optional)</span>
         <textarea name="notes" rows={2} defaultValue={paper?.notes ?? ""} />
       </label>
-      {paper || intoFile ? null : (
-        <FileChooser
-          files={files}
+      {paper || intoFileFolder ? null : (
+        <FileFolderChooser
+          fileFolders={fileFolders}
           categories={categories}
           locations={locations}
           allowUnfiled
@@ -308,18 +322,18 @@ export function PaperForm({
   );
 }
 
-// REQ-97: file an unfiled paper into an existing file or a new one; or
-// (REQ-100, `moving`) move a filed one to another file.
+// REQ-97: File Folder an unfiled paper into an existing File Folder or a new one; or
+// (REQ-100, `moving`) move a filed one to another File Folder.
 export function FileItForm({
   paper,
-  files,
+  fileFolders,
   categories,
   locations,
   moving = false,
   onSaved,
 }: {
   paper: Paper;
-  files: PaperFile[];
+  fileFolders: PaperFileFolder[];
   categories: Category[];
   locations: Location[];
   moving?: boolean;
@@ -332,12 +346,12 @@ export function FileItForm({
     <form action={formAction} className={styles.form}>
       <input type="hidden" name="id" value={paper.id} />
       {moving ? <input type="hidden" name="moving" value="yes" /> : null}
-      <FileChooser
-        files={files.filter((file) => file.id !== paper.file_id)}
+      <FileFolderChooser
+        fileFolders={fileFolders.filter((fileFolder) => fileFolder.id !== paper.file_folder_id)}
         categories={categories}
         locations={locations}
         allowUnfiled={moving}
-        label={moving ? "Move to" : "File"}
+        label={moving ? "Move to" : "File Folder"}
         onCategory={keep.onCategory}
       />
       <KeepUntilField value={keep.value} onType={keep.onType} />
@@ -349,8 +363,8 @@ export function FileItForm({
   );
 }
 
-// REQ-88: make a file on its own, before anything goes in it.
-export function NewFileForm({
+// REQ-88: make a File Folder on its own, before anything goes in it.
+export function NewFileFolderForm({
   categories,
   locations,
   location,
@@ -363,61 +377,61 @@ export function NewFileForm({
   driveReady?: boolean;
   onSaved?: (state: FormState) => void;
 }) {
-  const [state, formAction, pending] = useActionState(makeFile, initialState);
+  const [state, formAction, pending] = useActionState(makeFileFolder, initialState);
   useOnSaved(state, onSaved);
   return (
     <form action={formAction} className={styles.form}>
-      <NewFileFields categories={categories} locations={locations} location={location} driveReady={driveReady} />
+      <NewFileFolderFields categories={categories} locations={locations} location={location} driveReady={driveReady} />
       <button type="submit" className={buttonClass} disabled={pending || categories.length === 0}>
-        {pending ? "Making…" : "Make the file"}
+        {pending ? "Making…" : "Make the File Folder"}
       </button>
       <Outcome state={state} saved="Made." />
     </form>
   );
 }
 
-// REQ-88: change a file's category, location or label. Its number stays.
-export function FileEditForm({
-  file,
+// REQ-88: change a File Folder's category, location or label. Its number stays.
+export function FileFolderEditForm({
+  fileFolder,
   categories,
   locations,
   onSaved,
 }: {
-  file: PaperFile;
+  fileFolder: PaperFileFolder;
   categories: Category[];
   locations: Location[];
   onSaved?: (state: FormState) => void;
 }) {
-  const [state, formAction, pending] = useActionState(updateFile, initialState);
+  const [state, formAction, pending] = useActionState(updateFileFolder, initialState);
   useOnSaved(state, onSaved);
   return (
     <form action={formAction} className={styles.form}>
-      <input type="hidden" name="id" value={file.id} />
-      <NewFileFields categories={categories} locations={locations} file={file} />
+      <input type="hidden" name="id" value={fileFolder.id} />
+      <NewFileFolderFields categories={categories} locations={locations} fileFolder={fileFolder} />
       <button type="submit" className={buttonClass} disabled={pending}>
-        {pending ? "Saving…" : "Save the file"}
+        {pending ? "Saving…" : "Save the File Folder"}
       </button>
       <Outcome state={state} saved="Saved." />
     </form>
   );
 }
 
-// REQ-88: remove a file. Its paperwork goes back to Unfiled, and its
+// REQ-88: remove a File Folder. Its paperwork goes back to Unfiled, and its
 // number is never handed out again. The sheet it sits in is the "are you
 // sure?".
-export function RemoveFileForm({ file, label, returnTo }: { file: PaperFile; label: string; returnTo: string }) {
-  const drive = file.is_drive;
+export function RemoveFileFolderForm({ fileFolder, label, returnTo }: { fileFolder: PaperFileFolder; label: string; returnTo: string }) {
+  const drive = fileFolder.is_drive;
   return (
-    <form action={removeFile} className={styles.form}>
-      <input type="hidden" name="id" value={file.id} />
+    <form action={removeFileFolder} className={styles.form}>
+      <input type="hidden" name="id" value={fileFolder.id} />
       <input type="hidden" name="returnTo" value={returnTo} />
       <p className={styles.check}>
         {drive
-          ? `Remove ${label}? Its folder and documents stay in Google Drive; only HomeBase forgets the file.`
+          ? `Remove ${label}? Its Digital Folder and documents stay in Google Drive; only HomeBase forgets the File Folder.`
           : `Remove ${label}? Its documents go back to Unfiled.`}
       </p>
       <button type="submit" className={buttonClass}>
-        Yes, remove the file
+        Yes, remove the File Folder
       </button>
     </form>
   );
@@ -451,7 +465,7 @@ export function CategoryForm({ category }: { category?: Category }) {
   );
 }
 
-// REQ-88: remove a category. If files use it, they have to be moved to
+// REQ-88: remove a category. If File Folders use it, they have to be moved to
 // another category first, so the form asks where.
 export function RemoveCategoryForm({
   category,
@@ -468,7 +482,7 @@ export function RemoveCategoryForm({
       <input type="hidden" name="id" value={category.id} />
       {inUse > 0 ? (
         <label className={styles.field}>
-          <span>{inUse === 1 ? "Move its 1 file to" : `Move its ${inUse} files to`}</span>
+          <span>{inUse === 1 ? "Move its 1 File Folder to" : `Move its ${inUse} File Folders to`}</span>
           <select name="moveTo" required defaultValue="">
             <option value="" disabled>
               Choose a category
@@ -482,29 +496,29 @@ export function RemoveCategoryForm({
         </label>
       ) : null}
       <button type="submit" className={buttonClass} disabled={pending || (inUse > 0 && others.length === 0)}>
-        {inUse > 0 ? `Move the files and remove ${category.name}` : `Remove ${category.name}`}
+        {inUse > 0 ? `Move the File Folders and remove ${category.name}` : `Remove ${category.name}`}
       </button>
       <Outcome state={state} saved="Removed." />
     </form>
   );
 }
 
-// REQ-98: archive the whole file into a storage box. Only boxes are
+// REQ-98: archive the whole File Folder into a storage box. Only boxes are
 // offered.
-export function ArchiveFileForm({
-  file,
+export function ArchiveFileFolderForm({
+  fileFolder,
   boxes,
   onSaved,
 }: {
-  file: PaperFile;
+  fileFolder: PaperFileFolder;
   boxes: StorageEntry[];
   onSaved?: (state: FormState) => void;
 }) {
-  const [state, formAction, pending] = useActionState(archiveFile, initialState);
+  const [state, formAction, pending] = useActionState(archiveFileFolder, initialState);
   useOnSaved(state, onSaved);
   return (
     <form action={formAction} className={styles.form}>
-      <input type="hidden" name="id" value={file.id} />
+      <input type="hidden" name="id" value={fileFolder.id} />
       <label className={styles.field}>
         <span>Box</span>
         <select name="boxId" required defaultValue="">
@@ -519,28 +533,28 @@ export function ArchiveFileForm({
         </select>
       </label>
       <button type="submit" className={buttonClass} disabled={pending || boxes.length === 0}>
-        {pending ? "Archiving…" : "Archive the file"}
+        {pending ? "Archiving…" : "Archive the File Folder"}
       </button>
       <Outcome state={state} saved="Archived." />
     </form>
   );
 }
 
-// REQ-98: bring an archived file back to the office, somewhere new.
+// REQ-98: bring an archived File Folder back to the office, somewhere new.
 export function BringBackForm({
-  file,
+  fileFolder,
   locations,
   onSaved,
 }: {
-  file: PaperFile;
+  fileFolder: PaperFileFolder;
   locations: Location[];
   onSaved?: (state: FormState) => void;
 }) {
-  const [state, formAction, pending] = useActionState(bringBackFile, initialState);
+  const [state, formAction, pending] = useActionState(bringBackFileFolder, initialState);
   useOnSaved(state, onSaved);
   return (
     <form action={formAction} className={styles.form}>
-      <input type="hidden" name="id" value={file.id} />
+      <input type="hidden" name="id" value={fileFolder.id} />
       <LocationField label="New location" locations={locations} />
       <button type="submit" className={buttonClass} disabled={pending}>
         {pending ? "Saving…" : "Restore it"}

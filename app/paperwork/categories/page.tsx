@@ -1,16 +1,16 @@
 import Link from "next/link";
-import { categoryCards, documentsCount, filesCount } from "../../../lib/paperwork/paperwork";
+import { categoryCards, documentsCount, fileFoldersCount } from "../../../lib/paperwork/paperwork";
 import { PaperworkScreen, Section, paperworkViewer } from "../frame";
 import styles from "../paperwork.module.css";
 import band from "../../../components/band.module.css";
 
-// The Categories tab (REQ-105): one card per category with its files and
+// The Categories tab (REQ-105): one card per category with its File Folders and
 // documents, for everyone. Managing categories is the admin's, behind the
 // settings gear (REQ-88).
 export default async function CategoriesPage({ searchParams }: { searchParams?: Promise<{ q?: string }> }) {
   const { q = "" } = (await searchParams) ?? {};
   const viewer = await paperworkViewer();
-  const cards = categoryCards(viewer.categories, viewer.files, viewer.papers);
+  const cards = categoryCards(viewer.categories, viewer.fileFolders, viewer.papers);
 
   return (
     <PaperworkScreen viewer={viewer} here="/paperwork/categories" query={q} tab="Categories">
@@ -25,12 +25,12 @@ export default async function CategoriesPage({ searchParams }: { searchParams?: 
           </p>
         ) : (
           <ul className={styles.grid}>
-            {cards.map(({ category, files, documents }) => (
+            {cards.map(({ category, fileFolders, documents }) => (
               <li key={category.id}>
                 <Link href={`/paperwork/categories/${category.id}`} className={styles.linkCard}>
                   <span className={`${styles.cardTitle} ${band.band}`}>{category.name}</span>
                   <span className={styles.cardDetail}>
-                    {filesCount(files)} · {documentsCount(documents)}
+                    {fileFoldersCount(fileFolders)} · {documentsCount(documents)}
                   </span>
                 </Link>
               </li>

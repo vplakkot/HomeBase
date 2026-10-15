@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { hasPermission } from "../../lib/auth/permissions";
 import { folderIdFromLink, getItem, listChildren, moveItem, renameItem, serviceAccountEmail } from "../../lib/paperwork/drive";
 import { driveProblem, readConnection, syncDrive } from "../../lib/paperwork/drive-run";
-import { expectedFolderName, fileId } from "../../lib/paperwork/paperwork";
+import { expectedFolderName, fileFolderId } from "../../lib/paperwork/paperwork";
 import { createClient } from "../../lib/supabase/server";
 import { refresh, requireAdmin, requireMember, rowId, text, UUID } from "./action-helpers";
 
@@ -15,7 +15,7 @@ import { refresh, requireAdmin, requireMember, rowId, text, UUID } from "./actio
 
 export type DriveState = { error?: string; saved?: boolean };
 
-const NOT_CONNECTED = "Google Drive isn't connected yet. An admin connects a folder in Paperwork settings.";
+const NOT_CONNECTED = "Google Drive isn't connected yet. An admin connects a Digital Folder in Paperwork settings.";
 
 // REQ-152 "Connection": the admin pastes the folder's link; the app checks
 // it can read it and that it has an `Archived` sub-folder, and says which
@@ -25,20 +25,20 @@ export async function connectDrive(_previous: DriveState, formData: FormData): P
   const email = serviceAccountEmail();
   if (!email) return { error: "The Google Drive key isn't set up on the server yet." };
   const id = folderIdFromLink(text(formData, "link"));
-  if (!id) return { error: "That doesn't look like a Google Drive folder link." };
+  if (!id) return { error: "That doesn't look like a Google Drive Digital Folder link." };
   try {
     const folder = await getItem(id);
     if (!folder?.isFolder) {
-      return { error: `HomeBase can't read that folder. Share it with ${email} as an Editor, then try again.` };
+      return { error: `HomeBase can't read that Digital Folder. Share it with ${email} as an Editor, then try again.` };
     }
     const inside = await listChildren([id]);
     const archived = inside.find((item) => item.isFolder && item.name === "Archived");
-    if (!archived) return { error: "HomeBase can read the folder, but there's no sub-folder called Archived in it. Make one, then try again." };
+    if (!archived) return { error: "HomeBase can read the Digital Folder, but there's no Archived Digital Folder in it. Make one, then try again." };
 
     const current = await readConnection(supabase);
     if (current && current.folder_id !== id) {
-      const { count } = await supabase.from("paperwork_files").select("id", { count: "exact", head: true }).eq("is_drive", true);
-      if ((count ?? 0) > 0) return { error: "Google Drive files are already linked to the connected folder, so it can't be swapped." };
+      const { count } = await supabase.from("paperwork_file_folders").select("id", { count: "exact", head: true }).eq("is_drive", true);
+      if ((count ?? 0) > 0) return { error: "Google Drive File Folders are already linked to the connected Digital Folder, so it can't be swapped." };
     }
     const { error } = await supabase
       .from("paperwork_drive")
@@ -63,38 +63,38 @@ export async function refreshDrive(): Promise<DriveState> {
   return { saved: true };
 }
 
-type DriveFileRow = { id: string; number: number; label: string | null; category_id: string; status: string; drive_folder_id: string | null };
+type DriveFileFolderRow = { id: string; number: number; label: string | null; category_id: string; status: string; drive_folder_id: string | null };
 
-async function driveFile(supabase: SupabaseClient, id: string): Promise<DriveFileRow | null> {
+async function driveFileFolder(supabase: SupabaseClient, id: string): Promise<DriveFileFolderRow | null> {
   const { data } = await supabase
-    .from("paperwork_files")
+    .from("paperwork_file_folders")
     .select("id, number, label, category_id, status, drive_folder_id")
     .eq("id", id)
     .eq("is_drive", true)
     .maybeSingle();
-  return (data ?? null) as DriveFileRow | null;
+  return (data ?? null) as DriveFileFolderRow | null;
 }
 
-// REQ-152 "Creating a Drive File": after the folder is made in Drive by
-// hand, the app finds the sub-folder whose name starts with the File's ID
+// REQ-152 "Creating a Drive File Folder": after the folder is made in Drive by
+// hand, the app finds the sub-folder whose name starts with the File Folder's ID
 // and links to it by its Drive ID, for good.
 export async function linkDriveFolder(_previous: DriveState, formData: FormData): Promise<DriveState> {
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to change." };
-  const file = await driveFile(supabase, id);
-  if (!file) return { error: "That isn't a Google Drive file." };
-  if (file.drive_folder_id) return { saved: true };
+  const fileFolder = await driveFileFolder(supabase, id);
+  if (!fileFolder) return { error: "That isn't a Google Drive File Folder." };
+  if (fileFolder.drive_folder_id) return { saved: true };
   const connection = await readConnection(supabase);
   if (!connection) return { error: NOT_CONNECTED };
   try {
-    const prefix = `${fileId(file)}_`;
+    const prefix = `${fileFolderId(fileFolder)}_`;
     const found = (await listChildren([connection.folder_id])).find(
       (item) => item.isFolder && item.id !== connection.archived_folder_id && item.name.startsWith(prefix),
     );
-    if (!found) return { error: `No folder starting with ${prefix} was found yet. Make it in the connected Drive folder, then try again.` };
-    const { error } = await supabase.from("paperwork_files").update({ drive_folder_id: found.id }).eq("id", id);
-    if (error) return { error: error.code === "23505" ? "That folder is already linked to another file." : error.message };
+    if (!found) return { error: `No Digital Folder starting with ${prefix} was found yet. Make it in the connected Digital Folder, then try again.` };
+    const { error } = await supabase.from("paperwork_file_folders").update({ drive_folder_id: found.id }).eq("id", id);
+    if (error) return { error: error.code === "23505" ? "That Digital Folder is already linked to another File Folder." : error.message };
   } catch (error) {
     return { error: driveProblem(error) };
   }
@@ -103,24 +103,24 @@ export async function linkDriveFolder(_previous: DriveState, formData: FormData)
   return { saved: true };
 }
 
-// REQ-152 "Folder name checks": a sub-folder nobody has linked yet goes to
-// a File that's waiting for its folder.
+// REQ-152 "Digital Folder name checks": a sub-folder nobody has linked yet goes to
+// a File Folder that's waiting for its Digital Folder.
 export async function linkUnlinkedFolder(_previous: DriveState, formData: FormData): Promise<DriveState> {
   const supabase = await requireAdmin();
   const folder = text(formData, "folderId");
-  const file = text(formData, "fileId");
-  if (!folder || !UUID.test(file)) return { error: "Choose a file waiting for its folder." };
-  const row = await driveFile(supabase, file);
-  if (!row || row.drive_folder_id) return { error: "That file isn't waiting for a folder." };
+  const fileFolder = text(formData, "fileFolderId");
+  if (!folder || !UUID.test(fileFolder)) return { error: "Choose a File Folder waiting for its Digital Folder." };
+  const row = await driveFileFolder(supabase, fileFolder);
+  if (!row || row.drive_folder_id) return { error: "That File Folder isn't waiting for a Digital Folder." };
   // Only a folder the last sync saw, still there and not linked.
   const { data: known } = await supabase
     .from("paperwork_drive_folders")
     .select("drive_id, missing")
     .eq("drive_id", folder)
     .maybeSingle();
-  if (!known || (known as { missing: boolean }).missing) return { error: "That folder isn't in Google Drive any more. Refresh." };
-  const { error } = await supabase.from("paperwork_files").update({ drive_folder_id: folder }).eq("id", file);
-  if (error) return { error: error.code === "23505" ? "That folder is already linked to another file." : error.message };
+  if (!known || (known as { missing: boolean }).missing) return { error: "That Digital Folder isn't in Google Drive any more. Refresh." };
+  const { error } = await supabase.from("paperwork_file_folders").update({ drive_folder_id: folder }).eq("id", fileFolder);
+  if (error) return { error: error.code === "23505" ? "That Digital Folder is already linked to another File Folder." : error.message };
   await syncDrive(supabase);
   refresh();
   return { saved: true };
@@ -131,7 +131,7 @@ export async function ignoreFolder(formData: FormData): Promise<void> {
   const folder = text(formData, "folderId");
   if (!folder) return;
   const { error } = await supabase.from("paperwork_drive_folders").update({ ignored: true }).eq("drive_id", folder);
-  if (error) throw new Error(`Could not ignore the folder: ${error.message}`);
+  if (error) throw new Error(`Could not ignore the Digital Folder: ${error.message}`);
   refresh();
 }
 
@@ -141,16 +141,16 @@ export async function fixFolderName(formData: FormData): Promise<void> {
   const supabase = await requireAdmin();
   const id = rowId(formData);
   if (!id) return;
-  const file = await driveFile(supabase, id);
-  if (!file?.drive_folder_id) return;
-  const { data: category } = await supabase.from("paperwork_categories").select("name").eq("id", file.category_id).maybeSingle();
-  const name = expectedFolderName(file, category as { name: string } | undefined);
+  const fileFolder = await driveFileFolder(supabase, id);
+  if (!fileFolder?.drive_folder_id) return;
+  const { data: category } = await supabase.from("paperwork_categories").select("name").eq("id", fileFolder.category_id).maybeSingle();
+  const name = expectedFolderName(fileFolder, category as { name: string } | undefined);
   try {
-    await renameItem(file.drive_folder_id, name);
+    await renameItem(fileFolder.drive_folder_id, name);
   } catch (error) {
     throw new Error(driveProblem(error));
   }
-  const { error } = await supabase.from("paperwork_drive_folders").update({ name }).eq("drive_id", file.drive_folder_id);
+  const { error } = await supabase.from("paperwork_drive_folders").update({ name }).eq("drive_id", fileFolder.drive_folder_id);
   if (error) throw new Error(`Renamed in Drive, but HomeBase couldn't note it: ${error.message}`);
   refresh();
 }
@@ -169,39 +169,39 @@ function chosenOwner(formData: FormData): { owner_id: string | null } | { error:
   return UUID.test(owner) ? { owner_id: owner } : { error: "Say whose it is, or Joint." };
 }
 
-// REQ-152 "Documents": filing a Drive document moves it into the File's
+// REQ-152 "Documents": filing a Drive document moves it into the File Folder's
 // folder in Drive, and the owner must be confirmed (the form pre-fills it
 // from who owns the document in Drive). Drive documents go only into
-// Drive files, and the folder must be a live Active one.
+// Drive File Folders, and the folder must be a live Active one.
 export async function fileDriveDocument(_previous: DriveState, formData: FormData): Promise<DriveState> {
   const supabase = await requireMember();
   const drive = text(formData, "documentId");
-  const fileChoice = text(formData, "fileId");
+  const fileFolderChoice = text(formData, "fileFolderId");
   if (!drive) return { error: "Nothing to change." };
-  if (!UUID.test(fileChoice)) return { error: "Choose a Google Drive file." };
+  if (!UUID.test(fileFolderChoice)) return { error: "Choose a Google Drive File Folder." };
   const owner = chosenOwner(formData);
   if ("error" in owner) return owner;
-  const [document, file] = await Promise.all([driveDocument(supabase, drive), driveFile(supabase, fileChoice)]);
+  const [document, fileFolder] = await Promise.all([driveDocument(supabase, drive), driveFileFolder(supabase, fileFolderChoice)]);
   if (!document) return { error: "That document isn't in Google Drive any more. Refresh." };
-  if (!file?.drive_folder_id) return { error: "That file has no Drive folder yet." };
-  if (file.status !== "active") return { error: "That file is archived. Restore it first." };
-  if (file.drive_folder_id !== document.parent_id) {
+  if (!fileFolder?.drive_folder_id) return { error: "That File Folder has no Digital Folder yet." };
+  if (fileFolder.status !== "active") return { error: "That File Folder is archived. Restore it first." };
+  if (fileFolder.drive_folder_id !== document.parent_id) {
     try {
-      await moveItem(drive, document.parent_id, file.drive_folder_id);
+      await moveItem(drive, document.parent_id, fileFolder.drive_folder_id);
     } catch (error) {
       return { error: driveProblem(error) };
     }
   }
   const { error } = await supabase
     .from("paperwork_drive_documents")
-    .update({ parent_id: file.drive_folder_id, owner_id: owner.owner_id, owner_set: true })
+    .update({ parent_id: fileFolder.drive_folder_id, owner_id: owner.owner_id, owner_set: true })
     .eq("drive_id", drive);
   if (error) return { error: error.message };
   refresh();
   return { saved: true };
 }
 
-// REQ-152: a document that reached a File's folder without being filed
+// REQ-152: a document that reached a File Folder's folder without being filed
 // here shows "Owner not set" until someone sets it.
 export async function setDocumentOwner(_previous: DriveState, formData: FormData): Promise<DriveState> {
   const supabase = await requireMember();
@@ -275,35 +275,35 @@ export async function removeMissingDocument(formData: FormData): Promise<void> {
   refresh();
 }
 
-// REQ-152 "Archive": archiving a Drive File moves its folder into
+// REQ-152 "Archive": archiving a Drive File Folder moves its folder into
 // `Archived`; bringing it back moves it to the top level.
 async function moveFileFolder(supabase: SupabaseClient, formData: FormData, toArchive: boolean): Promise<DriveState> {
   const id = rowId(formData);
   if (!id) return { error: "Nothing to change." };
-  const file = await driveFile(supabase, id);
+  const fileFolder = await driveFileFolder(supabase, id);
   const connection = await readConnection(supabase);
-  if (!file?.drive_folder_id) return { error: "That file has no Drive folder to move yet." };
+  if (!fileFolder?.drive_folder_id) return { error: "That File Folder has no Digital Folder to move yet." };
   if (!connection) return { error: NOT_CONNECTED };
   const [from, to] = toArchive
     ? [connection.folder_id, connection.archived_folder_id]
     : [connection.archived_folder_id, connection.folder_id];
   try {
-    await moveItem(file.drive_folder_id, from, to);
+    await moveItem(fileFolder.drive_folder_id, from, to);
   } catch (error) {
     return { error: driveProblem(error) };
   }
-  const noted = await supabase.from("paperwork_drive_folders").update({ in_archived: toArchive }).eq("drive_id", file.drive_folder_id);
+  const noted = await supabase.from("paperwork_drive_folders").update({ in_archived: toArchive }).eq("drive_id", fileFolder.drive_folder_id);
   if (noted.error) return { error: `Moved in Drive, but HomeBase couldn't note it: ${noted.error.message}` };
-  const { error } = await supabase.from("paperwork_files").update({ status: toArchive ? "archived" : "active" }).eq("id", id);
+  const { error } = await supabase.from("paperwork_file_folders").update({ status: toArchive ? "archived" : "active" }).eq("id", id);
   if (error) return { error: error.message };
   refresh();
   return { saved: true };
 }
 
-export async function archiveDriveFile(_previous: DriveState, formData: FormData): Promise<DriveState> {
+export async function archiveDriveFileFolder(_previous: DriveState, formData: FormData): Promise<DriveState> {
   return moveFileFolder(await requireMember(), formData, true);
 }
 
-export async function bringBackDriveFile(_previous: DriveState, formData: FormData): Promise<DriveState> {
+export async function bringBackDriveFileFolder(_previous: DriveState, formData: FormData): Promise<DriveState> {
   return moveFileFolder(await requireMember(), formData, false);
 }
