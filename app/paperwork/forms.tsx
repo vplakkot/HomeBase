@@ -322,7 +322,7 @@ export function PaperForm({
   );
 }
 
-// REQ-97: File Folder an unfiled paper into an existing File Folder or a new one; or
+// REQ-97: file an unfiled paper into an existing File Folder or a new one; or
 // (REQ-100, `moving`) move a filed one to another File Folder.
 export function FileItForm({
   paper,

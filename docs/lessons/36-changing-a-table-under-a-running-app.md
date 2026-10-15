@@ -72,9 +72,11 @@ cheapest expand-and-contract there is, with one trap and one cost.
   those by identity, not by name. Even the F-numbers carry on, since the
   counter belongs to the table.
 - **The trap: code written as text doesn't follow.** A database function's
-  body is stored as plain text, so two functions that said
-  `paperwork_files` kept saying it and would have failed the first time
-  someone used them. The migration writes those functions again. (A
+  body is stored as plain text, so the function that said
+  `paperwork_files` (the one stopping a box with File Folders from being
+  un-boxed) kept saying it and would have failed the first time someone
+  used it. The migration writes it again, along with two others whose
+  error messages used the old word. (A
   table's own constraints and policies are not text, so they came along.)
 - **The cost: a short gap.** The migration reaches the database before the
   new code is live, and in between the old app asks for a table and a

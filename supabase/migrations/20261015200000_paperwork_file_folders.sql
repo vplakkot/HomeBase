@@ -16,7 +16,8 @@
 -- triggers would have fought.
 --
 -- Functions keep their bodies as text, so a table rename does not follow
--- them: the two that name the table are written again below.
+-- them: the one that names the table is written again below (two more are
+-- written again only to change the word in what they refuse).
 
 alter table public.paperwork_files rename to paperwork_file_folders;
 alter table public.paperwork rename column file_id to file_folder_id;
