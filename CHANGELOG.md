@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 3.3.0 - 2026-10-15
+
+A Paperwork and Pets release. Paperwork now says File Folder everywhere, lets you
+make one before you know where it will live, and shows each category's File
+Folders closed until you open them. Pets arrives as a new module.
+
 - Paperwork, File Folders (REQ-205, REQ-206, REQ-204). Every "file" is now a
   **File Folder** and the Google Drive folder behind one a **Digital Folder**,
   on every screen, in the code and in the database; IDs (F-0042), labels and
