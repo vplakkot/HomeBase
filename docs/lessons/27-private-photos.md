@@ -81,3 +81,14 @@ photo.
 - `app/drinks/actions.ts`: `addDrink`, `setPhotos`, `removeDrink`.
 - `supabase/checks/drink_photos.sql`: proves someone outside the
   household sees nothing.
+
+## The same pattern again: pet photos
+
+Pets (REQ-186) needed a photo for each pet, and nothing new was invented.
+`pet-photos` is a second private bucket with the same four policies,
+`app/pets/forms.tsx` shrinks the picture with `shrinkPhoto` from the
+drinks code, and `app/pets/actions.ts` follows the same order: make the
+pet's id, upload under it, then save the row. The thumbnail is what the
+Pets home card shows; the full photo is for the profile. The reusable
+part was `signedPhotoLinks`, which already took the bucket as an
+argument because Meal Plan's recipe photos had needed the same thing.

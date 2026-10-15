@@ -87,3 +87,20 @@ database, so a source ended at 9pm is ended today, not tomorrow.
 and the one that replaces it, both stamped the same day, hand over with
 no day counted twice and none missed. Write the convention down; every
 later query depends on reading it the same way.
+
+## Two more rows with a life: a pet's diet and its vaccines
+
+Pets (REQ-187, REQ-188) uses the same idea two ways.
+
+A vaccine is never edited into its next dose: each dose is its own row,
+and "the current one" is just the newest row for that vaccine name
+(`vaccineHistories` in `lib/pets/pets.ts`). Nothing is stored to say
+which is current, so it can't go out of date.
+
+A diet is the other shape: a row with a start and an end date, where the
+current one has no end. Changing the food or the amounts ends that row
+and starts a new one, so last spring's diet still says what it was. But
+changing only the notes edits the row in place, because a typo fix is not
+a new diet. `dietChanged` is the one place that decides which of the two
+it is, and a unique index in the database allows only one current diet
+per pet, so two people changing it at once can't leave two.

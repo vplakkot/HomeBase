@@ -15,6 +15,7 @@ import { readFinanceSnapshot } from "../lib/finances/snapshot";
 import { demoFrom, moduleStatus, mostUrgent } from "../lib/module-status";
 import { paperworkTile } from "../lib/paperwork/action-items";
 import { countUnfiled } from "../lib/paperwork/paperwork";
+import { countPets, petsTile } from "../lib/pets/pets";
 import { readRestaurantsSummary, restaurantsTile } from "../lib/restaurants/restaurants";
 import { countEntries, storageTile } from "../lib/storage/storage";
 import { countDrinks, drinksTile } from "../lib/drinks/drinks";
@@ -71,12 +72,13 @@ export default async function HomePage({
   const live =
     demo === null
       ? await (async () => {
-          const [snapshot, unfiled, stored, drinks, restaurants] = await Promise.all([
+          const [snapshot, unfiled, stored, drinks, restaurants, pets] = await Promise.all([
             readFinanceSnapshot(supabase, householdToday()),
             countUnfiled(supabase),
             countEntries(supabase),
             countDrinks(supabase),
             readRestaurantsSummary(supabase, data.claims.sub),
+            countPets(supabase),
           ]);
           return {
             finances: financeTile(snapshot, financeItems(snapshot, data.claims.sub)),
@@ -85,6 +87,7 @@ export default async function HomePage({
             drinks: drinksTile(drinks),
             "meal-plans": planTile(plans?.current ?? null),
             restaurants: restaurantsTile(restaurants),
+            pets: petsTile(pets),
           };
         })()
       : {};

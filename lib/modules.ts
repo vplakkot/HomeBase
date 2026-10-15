@@ -85,7 +85,16 @@ export const MODULES: readonly Module[] = [
     ],
   },
   { slug: "calendar", name: "Calendar", tokens: "calendar", href: null, sections: [] },
-  { slug: "pets", name: "Pets", tokens: "pets", href: null, sections: [] },
+  // v3.2 (REQ-186 to REQ-189): a profile for each pet, with its vaccines,
+  // diet and home-given medications. The module home is the active pets;
+  // archived ones have their own tab.
+  {
+    slug: "pets",
+    name: "Pets",
+    tokens: "pets",
+    href: "/pets",
+    sections: [{ name: "Archived", description: "Pets no longer on the home", href: "/pets/archived" }],
+  },
   // Opened in v2.0 (REQ-37, REQ-30, REQ-29). Called Wine until then; the
   // requirements call it Drinks, and it keeps the violet it had.
   {

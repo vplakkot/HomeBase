@@ -111,7 +111,7 @@ describe("what a module tile shows", () => {
   });
 
   it("is not a link while the module has none", () => {
-    const element = tileFor("pets", needsYou);
+    const element = tileFor("calendar", needsYou);
     expect(element.tagName).toBe("DIV");
     expect(element.querySelector("a")).toBeNull();
   });

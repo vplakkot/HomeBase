@@ -1609,6 +1609,49 @@ list / place page ──▶ Place Details per place, asking only for the
   Google Maps".
 - See [lesson 32](lessons/32-a-reference-not-a-copy.md).
 
+## Pets
+
+Opened in v3.2 (REQ-186 to REQ-189), rose on Home. A profile for each pet, with its vaccines, its diet and the
+medications and preventives given at home. Any member sees, adds,
+changes and removes everything; nothing entered by mistake is stuck.
+
+| Table | One row is | Key facts |
+|---|---|---|
+| `pets` | a pet | `name`, `nickname`, `species`, `photo_path` (in the private `pet-photos` bucket, its small copy beside it), `archived_at`: archiving hides the pet and keeps its records |
+| `pet_vaccines` | one dose of a vaccine | the latest row per vaccine name is the current one, earlier rows are the history; `next_due_on` is typed, never worked out, and can't be before `given_on` |
+| `pet_diets` | one stretch on one diet | `kind` is commercial, prescription or home-cooked (each needs its own fields); the current one has no `ended_on`, and a unique index allows one per pet |
+| `pet_medications` | a product given at home | frequency (daily, monthly or every N days), start and optional end, and the supply (doses on hand, per delivery, delivery interval, last delivery, lead time) |
+| `pet_medication_pets` | a pet taking a product | one product can be linked to several pets; holds that pet's `next_dose_on` |
+| `pet_doses` | one "Mark given" | the day, who, and the next-dose date it moved on from, so the latest can be undone |
+
+[`lib/pets/pets.ts`](../lib/pets/pets.ts) holds the rules, all as plain
+functions that take "today" as an argument: a vaccine is current, due
+soon (within 30 days) or overdue; the latest entry per vaccine name; when
+a diet change starts a new entry (type, food, protein, grams or meals) or
+updates in place (notes, purpose, batch date); and the supply sums
+(monthly use is doses per pet per month times the pets on it, run-out is
+today plus doses on hand over monthly use, order-by is run-out less the
+lead time, and a gap is running out before the next delivery). A month
+counts as 30 days in those sums.
+
+Pages live under `/pets`: the home (one card per active pet with its
+food and grams per meal), `/pets/archived`, and a pet's profile at
+`/pets/[id]` with Vaccines, Diet and Medications on one screen
+([`app/pets/profile.tsx`](../app/pets/profile.tsx)). An archived pet's
+profile is read-only with Restore. Every form opens in a sheet over the
+screen; `sheet-button.tsx` closes it once the form reports it saved. The
+server actions in `app/pets/actions.ts` are the only writers. Mark given,
+Undo and Mark delivery received change two or three rows each without a
+database transaction: every write is guarded by the value it read, so two
+people tapping together don't both count one dose.
+
+Pet photos use the same private-bucket pattern as the drinks' label
+photos ([lesson 27](lessons/27-private-photos.md)): shrunk in the
+browser, uploaded under the new pet's ID before the row is saved, and
+shown through short-lived signed links. Home's Pets tile only counts
+active pets. Notifications, extra profile details and the sick log are
+separate requirements, not built here.
+
 ## Module switches
 
 REQ-141 to REQ-143. The list of modules stays in the code

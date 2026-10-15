@@ -36,6 +36,10 @@ vi.mock("../lib/restaurants/restaurants", async (original) => ({
   ...(await original<typeof import("../lib/restaurants/restaurants")>()),
   readRestaurantsSummary: vi.fn(async () => ({ toTry: 0, unanswered: 0 })),
 }));
+vi.mock("../lib/pets/pets", async (original) => ({
+  ...(await original<typeof import("../lib/pets/pets")>()),
+  countPets: vi.fn(async () => 0),
+}));
 vi.mock("../lib/meal-plans/plan", async (original) => ({
   ...(await original<typeof import("../lib/meal-plans/plan")>()),
   readPlans: vi.fn(async () => ({ current: null, ahead: null })),
@@ -227,6 +231,7 @@ describe("HomePage", () => {
     const modules = screen.getByRole("region", { name: "Modules" });
     expect(within(modules).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/finances",
+      "/pets",
       "/drinks",
       "/meal-plans",
       "/paperwork",
@@ -237,14 +242,15 @@ describe("HomePage", () => {
 
   // REQ-82, and a decision of 2026-09-21: until modules have data, Home
   // shows no invented state unless ?demo asks for it.
-  it("keeps every tile quiet: Finances not set up, Paperwork all filed, Storage, Drinks, Meal Plans and Restaurants empty, the rest Coming soon", async () => {
+  it("keeps every tile quiet: Finances not set up, Paperwork all filed, Storage, Drinks, Meal Plans, Pets and Restaurants empty, the rest Coming soon", async () => {
     given({ email: "member@example.com" });
     render(await home());
     const [money, ...others] = tiles();
     const restaurants = others.pop();
     const storage = others.pop();
     const paperwork = others.pop();
-    const [drinks, meals] = others.splice(2, 2);
+    const [pets, drinks, meals] = others.splice(1, 3);
+    expect(pets).toMatchObject({ name: "Pets", status: "No pets yet", loud: false });
     expect(drinks).toMatchObject({ name: "Drinks", status: "Nothing recorded yet", loud: false });
     expect(meals).toMatchObject({ name: "Meal Plans", status: "No plan yet", loud: false });
     expect(money).toMatchObject({ status: "Not set up", loud: false });
