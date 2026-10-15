@@ -5,10 +5,10 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { buttonClass } from "../../components/button";
 import styles from "../../components/cards.module.css";
 import type { Person } from "../../lib/finances/budget-year";
-import { labelText, type Category, type PaperFile } from "../../lib/paperwork/paperwork";
+import { labelText, type Category, type PaperFileFolder } from "../../lib/paperwork/paperwork";
 import {
-  archiveDriveFile,
-  bringBackDriveFile,
+  archiveDriveFileFolder,
+  bringBackDriveFileFolder,
   connectDrive,
   fileDriveDocument,
   linkDriveFolder,
@@ -82,15 +82,15 @@ export function ConnectDriveForm({ email, connected }: { email: string | null; c
       <p className={styles.detail}>
         {email ? (
           <>
-            Share the Drive folder with <strong>{email}</strong> as an Editor, make a sub-folder in it called{" "}
-            <strong>Archived</strong>, then paste the folder&apos;s link.
+            Share the Digital Folder with <strong>{email}</strong> as an Editor, make a Digital Folder in it called{" "}
+            <strong>Archived</strong>, then paste the Digital Folder&apos;s link.
           </>
         ) : (
           "The Google Drive key isn't set up on the server yet."
         )}
       </p>
       <label className={styles.field}>
-        <span>{connected ? "Connect a different folder (link)" : "Folder link"}</span>
+        <span>{connected ? "Connect a different Digital Folder (link)" : "Digital Folder link"}</span>
         <input name="link" required placeholder="https://drive.google.com/drive/folders/…" />
       </label>
       <button type="submit" className={buttonClass} disabled={pending || !email}>
@@ -106,7 +106,7 @@ export function FolderName({ name }: { name: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <p className={paperwork.folderName}>
-      <code aria-label={`Folder name: ${name}`}>{name}</code>
+      <code aria-label={`Digital Folder name: ${name}`}>{name}</code>
       <button
         type="button"
         className={buttonClass}
@@ -126,11 +126,11 @@ export function FolderName({ name }: { name: string }) {
 }
 
 // REQ-152: "I've created it" finds the folder in Drive and links to it.
-export function CreatedItForm({ file }: { file: Pick<PaperFile, "id"> }) {
+export function CreatedItForm({ fileFolder }: { fileFolder: Pick<PaperFileFolder, "id"> }) {
   const [state, formAction, pending] = useActionState(linkDriveFolder, initialState);
   return (
     <form action={formAction} className={styles.form}>
-      <input type="hidden" name="id" value={file.id} />
+      <input type="hidden" name="id" value={fileFolder.id} />
       <button type="submit" className={buttonClass} disabled={pending}>
         {pending ? "Looking…" : "I've created it"}
       </button>
@@ -155,12 +155,12 @@ function OwnerField({ people, defaultValue }: { people: Person[]; defaultValue: 
   );
 }
 
-// REQ-152 "Documents": file a Drive document into a Drive File. The owner
+// REQ-152 "Documents": File a Drive document into a Drive File Folder. The owner
 // has to be confirmed; it starts as the member who owns it in Drive.
 export function FileDriveDocumentForm({
   documentId,
   name,
-  files,
+  fileFolders,
   categories,
   people,
   guess,
@@ -168,7 +168,7 @@ export function FileDriveDocumentForm({
 }: {
   documentId: string;
   name: string;
-  files: PaperFile[];
+  fileFolders: PaperFileFolder[];
   categories: Category[];
   people: Person[];
   guess: string | null;
@@ -182,24 +182,24 @@ export function FileDriveDocumentForm({
     <form action={formAction} className={styles.form}>
       <input type="hidden" name="documentId" value={documentId} />
       <label className={styles.field}>
-        <span>Google Drive file</span>
-        <select name="fileId" required defaultValue="">
+        <span>Google Drive File Folder</span>
+        <select name="fileFolderId" required defaultValue="">
           <option value="" disabled>
-            Choose a file
+            Choose a File Folder
           </option>
-          {files.map((file) => (
-            <option key={file.id} value={file.id}>
-              {labelText(file, categories.find((category) => category.id === file.category_id))}
-              {file.label ? ` — ${file.label}` : ""}
+          {fileFolders.map((fileFolder) => (
+            <option key={fileFolder.id} value={fileFolder.id}>
+              {labelText(fileFolder, categories.find((category) => category.id === fileFolder.category_id))}
+              {fileFolder.label ? ` — ${fileFolder.label}` : ""}
             </option>
           ))}
         </select>
       </label>
       <OwnerField people={people} defaultValue={guess ?? "joint"} />
-      <button type="submit" className={buttonClass} disabled={pending || files.length === 0}>
+      <button type="submit" className={buttonClass} disabled={pending || fileFolders.length === 0}>
         {pending ? "Moving…" : `File ${name}`}
       </button>
-      {files.length === 0 ? <p className={styles.check}>No Google Drive file has its folder yet.</p> : null}
+      {fileFolders.length === 0 ? <p className={styles.check}>No Google Drive File Folder has its Digital Folder yet.</p> : null}
       <Outcome state={state} saved="Filed." />
     </form>
   );
@@ -221,50 +221,50 @@ export function SetOwnerForm({ documentId, people, current }: { documentId: stri
   );
 }
 
-// REQ-152 "Unlinked folder": link it to a File waiting for its folder.
-export function LinkFolderForm({ folderId, files, categories }: { folderId: string; files: PaperFile[]; categories: Category[] }) {
+// REQ-152 "Unlinked folder": link it to a File Folder waiting for its Digital Folder.
+export function LinkFolderForm({ folderId, fileFolders, categories }: { folderId: string; fileFolders: PaperFileFolder[]; categories: Category[] }) {
   const [state, formAction, pending] = useActionState(linkUnlinkedFolder, initialState);
   return (
     <form action={formAction} className={styles.form}>
       <input type="hidden" name="folderId" value={folderId} />
       <label className={styles.field}>
         <span>Link it to</span>
-        <select name="fileId" required defaultValue="">
+        <select name="fileFolderId" required defaultValue="">
           <option value="" disabled>
-            A file waiting for its folder
+            A File Folder waiting for its Digital Folder
           </option>
-          {files.map((file) => (
-            <option key={file.id} value={file.id}>
-              {labelText(file, categories.find((category) => category.id === file.category_id))}
+          {fileFolders.map((fileFolder) => (
+            <option key={fileFolder.id} value={fileFolder.id}>
+              {labelText(fileFolder, categories.find((category) => category.id === fileFolder.category_id))}
             </option>
           ))}
         </select>
       </label>
-      <button type="submit" className={buttonClass} disabled={pending || files.length === 0}>
-        {pending ? "Linking…" : "Link the folder"}
+      <button type="submit" className={buttonClass} disabled={pending || fileFolders.length === 0}>
+        {pending ? "Linking…" : "Link the Digital Folder"}
       </button>
       <Outcome state={state} saved="Linked." />
     </form>
   );
 }
 
-// REQ-152: archive a Drive File (its folder moves into `Archived`), or
+// REQ-152: archive a Drive File Folder (its folder moves into `Archived`), or
 // bring it back (to the top level).
-export function ArchiveDriveFileForm({ file, archived, onSaved }: { file: PaperFile; archived: boolean; onSaved?: () => void }) {
-  const [state, formAction, pending] = useActionState(archived ? bringBackDriveFile : archiveDriveFile, initialState);
+export function ArchiveDriveFileFolderForm({ fileFolder, archived, onSaved }: { fileFolder: PaperFileFolder; archived: boolean; onSaved?: () => void }) {
+  const [state, formAction, pending] = useActionState(archived ? bringBackDriveFileFolder : archiveDriveFileFolder, initialState);
   useEffect(() => {
     if (state.saved) onSaved?.();
   }, [state, onSaved]);
   return (
     <form action={formAction} className={styles.form}>
-      <input type="hidden" name="id" value={file.id} />
+      <input type="hidden" name="id" value={fileFolder.id} />
       <p className={styles.check}>
         {archived
-          ? "Its folder moves back to the top of the connected Google Drive folder."
-          : "Its folder moves into the Archived folder in Google Drive."}
+          ? "Its Digital Folder moves back to the top of the connected Digital Folder."
+          : "Its Digital Folder moves into the Archived Digital Folder in Google Drive."}
       </p>
       <button type="submit" className={buttonClass} disabled={pending}>
-        {pending ? "Moving…" : archived ? "Restore it" : "Archive the file"}
+        {pending ? "Moving…" : archived ? "Restore it" : "Archive the File Folder"}
       </button>
       <Outcome state={state} saved={archived ? "Restored." : "Archived."} />
     </form>

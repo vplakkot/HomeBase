@@ -4,20 +4,20 @@ import { fakeSupabase } from "../../test/fake-supabase";
 import {
   addCategory,
   addLocation,
-  archiveFile,
+  archiveFileFolder,
   archivePaper,
-  bringBackFile,
+  bringBackFileFolder,
   bringBackPaper,
   deleteLocation,
   filePaper,
   logPaper,
-  makeFile,
+  makeFileFolder,
   removeCategory,
-  removeFile,
+  removeFileFolder,
   removePaper,
   renameLocation,
   updateCategory,
-  updateFile,
+  updateFileFolder,
   updatePaper,
 } from "./actions";
 
@@ -45,7 +45,7 @@ function given(permissions: string[] = ["use_modules"], tables: Record<string, u
   fake = fakeSupabase({
     permissions,
     tables: {
-      paperwork_files: [{ id: NEW_FILE, number: 5 }],
+      paperwork_file_folders: [{ id: NEW_FILE, number: 5 }],
       paperwork_categories: [{ name: "Taxes" }],
       paperwork_locations: [{ id: HALL }],
       ...tables,
@@ -71,74 +71,73 @@ const PAPER = { name: "2024 federal return", ownerId: "joint", documentDate: "",
 afterEach(() => vi.clearAllMocks());
 
 describe("logPaper (REQ-97)", () => {
-  it("logs paperwork with no file as Unfiled, Joint by default", async () => {
+  it("logs paperwork with no File Folder as Unfiled, Joint by default", async () => {
     given();
-    expect(await logPaper({}, form({ ...PAPER, fileId: "" }))).toEqual({ saved: true });
+    expect(await logPaper({}, form({ ...PAPER, fileFolderId: "" }))).toEqual({ saved: true });
     expect(on("paperwork")[0].insert).toHaveBeenCalledWith({
       name: "2024 federal return",
       owner_id: null,
       document_date: null,
       notes: null,
       keep_until: null,
-      file_id: null,
+      file_folder_id: null,
     });
   });
 
-  it("files it straight away into an existing file, with every field", async () => {
+  it("Files it straight away into an existing File Folder, with every field", async () => {
     given();
     const fields = { ...PAPER, ownerId: ALEX, documentDate: "2025-04-15", notes: "Filed online", keepUntil: "2032-04-15" };
-    await logPaper({}, form({ ...fields, fileId: FILE }));
+    await logPaper({}, form({ ...fields, fileFolderId: FILE }));
     expect(on("paperwork")[0].insert).toHaveBeenCalledWith({
       name: "2024 federal return",
       owner_id: ALEX,
       document_date: "2025-04-15",
       notes: "Filed online",
       keep_until: "2032-04-15",
-      file_id: FILE,
+      file_folder_id: FILE,
     });
   });
 
   // REQ-100: you stay where you were; the form shows the label to print.
-  it("makes a new file on the way, and says its label instead of opening it", async () => {
+  it("makes a new File Folder on the way, and says its label instead of opening it", async () => {
     given();
-    const fields = { ...PAPER, fileId: "new", categoryId: TAXES, locationId: HALL, label: "" };
-    expect(await logPaper({}, form(fields))).toEqual({ saved: true, newFile: "F-0005 · Taxes" });
-    expect(on("paperwork_files")[0].insert).toHaveBeenCalledWith({ category_id: TAXES, location_id: HALL, label: null });
-    expect(on("paperwork")[0].insert.mock.calls[0][0].file_id).toBe(NEW_FILE);
+    const fields = { ...PAPER, fileFolderId: "new", categoryId: TAXES, locationId: HALL, label: "" };
+    expect(await logPaper({}, form(fields))).toEqual({ saved: true, newFileFolder: "F-0005 · Taxes" });
+    expect(on("paperwork_file_folders")[0].insert).toHaveBeenCalledWith({ category_id: TAXES, location_id: HALL, label: null });
+    expect(on("paperwork")[0].insert.mock.calls[0][0].file_folder_id).toBe(NEW_FILE);
   });
 
-  it("asks for a new file's category and location", async () => {
+  it("asks for a new File Folder's category, but not its location (REQ-206)", async () => {
     given();
-    expect(await logPaper({}, form({ ...PAPER, fileId: "new", categoryId: "", locationId: HALL }))).toEqual({
-      error: "Choose the file's category.",
+    expect(await logPaper({}, form({ ...PAPER, fileFolderId: "new", categoryId: "", locationId: HALL }))).toEqual({
+      error: "Choose the File Folder's category.",
     });
-    expect(await logPaper({}, form({ ...PAPER, fileId: "new", categoryId: TAXES, locationId: "" }))).toEqual({
-      error: "Choose where the file is kept.",
-    });
-    expect(on("paperwork_files")).toEqual([]);
+    expect(on("paperwork_file_folders")).toEqual([]);
+    expect(await logPaper({}, form({ ...PAPER, fileFolderId: "new", categoryId: TAXES, locationId: "" }))).toMatchObject({ saved: true });
+    expect(on("paperwork_file_folders")[0].insert).toHaveBeenCalledWith({ category_id: TAXES, location_id: null, label: null });
   });
 
   it("needs a name, and saves nothing without one", async () => {
     given();
-    expect(await logPaper({}, form({ ...PAPER, name: "  ", fileId: "" }))).toEqual({ error: "Give the document a name." });
+    expect(await logPaper({}, form({ ...PAPER, name: "  ", fileFolderId: "" }))).toEqual({ error: "Give the document a name." });
     expect(on("paperwork")).toEqual([]);
   });
 
   it("is refused to someone who can't use modules", async () => {
     given([]);
-    await expect(logPaper({}, form({ ...PAPER, fileId: "" }))).rejects.toThrow("REDIRECT:/paperwork");
+    await expect(logPaper({}, form({ ...PAPER, fileFolderId: "" }))).rejects.toThrow("REDIRECT:/paperwork");
   });
 });
 
 describe("updatePaper (REQ-97)", () => {
   // REQ-100: moving is its own form (filePaper), so editing leaves the
-  // file alone.
-  it("changes any field but its file", async () => {
+  // File Folder alone.
+  it("changes any field but its File Folder", async () => {
     given();
-    await updatePaper({}, form({ id: P1, ...PAPER, name: "2016 return", fileId: FILE }));
+    await updatePaper({}, form({ id: P1, ...PAPER, name: "2016 return", fileFolderId: FILE }));
     const query = on("paperwork")[0];
     expect(query.update).toHaveBeenCalledWith(expect.objectContaining({ name: "2016 return" }));
-    expect(query.update.mock.calls[0][0]).not.toHaveProperty("file_id");
+    expect(query.update.mock.calls[0][0]).not.toHaveProperty("file_folder_id");
     expect(query.eq).toHaveBeenCalledWith("id", P1);
   });
 });
@@ -146,8 +145,8 @@ describe("updatePaper (REQ-97)", () => {
 describe("removePaper (REQ-97)", () => {
   it("removes it, so nothing logged by mistake is stuck", async () => {
     given();
-    await expect(removePaper(form({ id: P1, fileId: FILE }))).rejects.toThrow(
-      new RegExp(`^REDIRECT:/paperwork/files/${FILE}$`),
+    await expect(removePaper(form({ id: P1, fileFolderId: FILE }))).rejects.toThrow(
+      new RegExp(`^REDIRECT:/paperwork/file-folders/${FILE}$`),
     );
     const query = on("paperwork")[0];
     expect(query.delete).toHaveBeenCalled();
@@ -155,9 +154,9 @@ describe("removePaper (REQ-97)", () => {
   });
 
   // REQ-100: you land back where the paper was.
-  it("goes back to the unfiled list when it had no file", async () => {
+  it("goes back to the unfiled list when it had no File Folder", async () => {
     given();
-    await expect(removePaper(form({ id: P1, fileId: "" }))).rejects.toThrow(/^REDIRECT:\/paperwork\/unfiled$/);
+    await expect(removePaper(form({ id: P1, fileFolderId: "" }))).rejects.toThrow(/^REDIRECT:\/paperwork\/unfiled$/);
   });
 
   it("touches nothing without a proper id", async () => {
@@ -170,85 +169,104 @@ describe("removePaper (REQ-97)", () => {
 describe("filePaper (REQ-97)", () => {
   it("refuses a missing id rather than saying it saved", async () => {
     given();
-    expect(await filePaper({}, form({ id: "", fileId: FILE, keepUntil: "" }))).toEqual({ error: "Nothing to change." });
+    expect(await filePaper({}, form({ id: "", fileFolderId: FILE, keepUntil: "" }))).toEqual({ error: "Nothing to change." });
     expect(on("paperwork")).toEqual([]);
   });
 
-  it("files it with its keep-until, which takes it off the unfiled list", async () => {
+  it("Files it with its keep-until, which takes it off the unfiled list", async () => {
     given();
-    expect(await filePaper({}, form({ id: P1, fileId: FILE, keepUntil: "2033-09-24" }))).toEqual({ saved: true });
-    expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_id: FILE, keep_until: "2033-09-24" });
+    expect(await filePaper({}, form({ id: P1, fileFolderId: FILE, keepUntil: "2033-09-24" }))).toEqual({ saved: true });
+    expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_folder_id: FILE, keep_until: "2033-09-24" });
   });
 
-  it("needs a file: filing is the point", async () => {
+  it("needs a File Folder: filing is the point", async () => {
     given();
-    expect(await filePaper({}, form({ id: P1, fileId: "", keepUntil: "" }))).toEqual({
-      error: "Choose a file, or make a new one.",
+    expect(await filePaper({}, form({ id: P1, fileFolderId: "", keepUntil: "" }))).toEqual({
+      error: "Choose a File Folder, or make a new one.",
     });
   });
 
-  it("can make a new file for it", async () => {
+  it("can make a new File Folder for it", async () => {
     given();
-    const fields = { id: P1, fileId: "new", categoryId: CAR, locationId: HALL, label: "Hatchback", keepUntil: "" };
-    expect(await filePaper({}, form(fields))).toEqual({ saved: true, newFile: "F-0005 · Taxes" });
-    expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_id: NEW_FILE, keep_until: null });
+    const fields = { id: P1, fileFolderId: "new", categoryId: CAR, locationId: HALL, label: "Hatchback", keepUntil: "" };
+    expect(await filePaper({}, form(fields))).toEqual({ saved: true, newFileFolder: "F-0005 · Taxes" });
+    expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_folder_id: NEW_FILE, keep_until: null });
   });
 
-  // REQ-100: "Move to another file" can also put it back on the desk.
-  it("moves a filed paper to another file, or back to Unfiled", async () => {
+  // REQ-100: "Move to another File Folder" can also put it back on the desk.
+  it("moves a filed paper to another File Folder, or back to Unfiled", async () => {
     given();
-    expect(await filePaper({}, form({ id: P1, fileId: FILE, keepUntil: "", moving: "yes" }))).toEqual({ saved: true });
-    expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_id: FILE, keep_until: null });
+    expect(await filePaper({}, form({ id: P1, fileFolderId: FILE, keepUntil: "", moving: "yes" }))).toEqual({ saved: true });
+    expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_folder_id: FILE, keep_until: null });
     given();
-    expect(await filePaper({}, form({ id: P1, fileId: "", keepUntil: "", moving: "yes" }))).toEqual({ saved: true });
-    expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_id: null, keep_until: null });
+    expect(await filePaper({}, form({ id: P1, fileFolderId: "", keepUntil: "", moving: "yes" }))).toEqual({ saved: true });
+    expect(on("paperwork")[0].update).toHaveBeenCalledWith({ file_folder_id: null, keep_until: null });
   });
 });
 
-describe("files (REQ-88)", () => {
-  it("makes a file and says its label to print", async () => {
+describe("File Folders (REQ-88)", () => {
+  it("makes a File Folder and says its label to print", async () => {
     given();
-    expect(await makeFile({}, form({ categoryId: TAXES, locationId: HALL, label: "Returns" }))).toEqual({
+    expect(await makeFileFolder({}, form({ categoryId: TAXES, locationId: HALL, label: "Returns" }))).toEqual({
       saved: true,
-      newFile: "F-0005 · Taxes",
+      newFileFolder: "F-0005 · Taxes",
     });
-    expect(on("paperwork_files")[0].insert).toHaveBeenCalledWith({
+    expect(on("paperwork_file_folders")[0].insert).toHaveBeenCalledWith({
       category_id: TAXES,
       location_id: HALL,
       label: "Returns",
     });
   });
 
-  it("replaces the location when a file moves, never touching its number", async () => {
+  it("is Not placed when made with no location (REQ-206)", async () => {
     given();
-    await updateFile({}, form({ id: FILE, categoryId: TAXES, locationId: HALL, label: "" }));
-    const update = on("paperwork_files").flatMap((query) => query.update.mock.calls)[0][0];
+    expect(await makeFileFolder({}, form({ categoryId: TAXES, locationId: "", label: "" }))).toEqual({
+      saved: true,
+      newFileFolder: "F-0005 · Taxes",
+    });
+    expect(on("paperwork_file_folders")[0].insert).toHaveBeenCalledWith({ category_id: TAXES, location_id: null, label: null });
+  });
+
+  it("goes back to Not placed when no location is chosen on edit, and gets one when it is (REQ-206)", async () => {
+    given();
+    await updateFileFolder({}, form({ id: FILE, categoryId: TAXES, locationId: "", label: "" }));
+    const updates = () => on("paperwork_file_folders").flatMap((query) => query.update.mock.calls.map((call) => call[0]));
+    expect(updates()).toEqual([{ category_id: TAXES, location_id: null, label: null }]);
+    given();
+    await updateFileFolder({}, form({ id: FILE, categoryId: TAXES, locationId: HALL, label: "" }));
+    expect(updates()).toEqual([{ category_id: TAXES, location_id: HALL, label: null }]);
+  });
+
+  it("replaces the location when a File Folder moves, never touching its number", async () => {
+    given();
+    await updateFileFolder({}, form({ id: FILE, categoryId: TAXES, locationId: HALL, label: "" }));
+    const update = on("paperwork_file_folders").flatMap((query) => query.update.mock.calls)[0][0];
     expect(update).toEqual({ category_id: TAXES, location_id: HALL, label: null });
     expect(update).not.toHaveProperty("number");
   });
 
-  it("removes a file", async () => {
+  it("removes a File Folder", async () => {
     given();
-    await expect(removeFile(form({ id: FILE }))).rejects.toThrow("REDIRECT:/paperwork");
-    expect(on("paperwork_files")[0].delete).toHaveBeenCalled();
+    await expect(removeFileFolder(form({ id: FILE }))).rejects.toThrow("REDIRECT:/paperwork");
+    expect(on("paperwork_file_folders")[0].delete).toHaveBeenCalled();
   });
 
   it("leaves you in the location (or box) it was in", async () => {
     given();
-    await expect(removeFile(form({ id: FILE, returnTo: `/paperwork/locations/${HALL}` }))).rejects.toThrow(
+    await expect(removeFileFolder(form({ id: FILE, returnTo: `/paperwork/locations/${HALL}` }))).rejects.toThrow(
       `REDIRECT:/paperwork/locations/${HALL}`,
     );
     given();
-    await expect(removeFile(form({ id: FILE, returnTo: `/paperwork/boxes/${HALL}` }))).rejects.toThrow(
+    await expect(removeFileFolder(form({ id: FILE, returnTo: `/paperwork/boxes/${HALL}` }))).rejects.toThrow(
       `REDIRECT:/paperwork/boxes/${HALL}`,
     );
   });
 
   it("goes to the Overview rather than to any other address it is given", async () => {
     given();
-    await expect(removeFile(form({ id: FILE, returnTo: "https://example.com/" }))).rejects.toThrow("REDIRECT:/paperwork");
+    await expect(removeFileFolder(form({ id: FILE, returnTo: "https://example.com/" }))).rejects.toThrow("REDIRECT:/paperwork");
     given();
-    await expect(removeFile(form({ id: FILE, returnTo: "/storage" }))).rejects.toThrow("REDIRECT:/paperwork");
+    await expect(removeFileFolder(form({ id: FILE, returnTo: "/storage" }))).rejects.toThrow("REDIRECT:/paperwork");
   });
 });
 
@@ -275,51 +293,51 @@ describe("categories (REQ-88)", () => {
     });
   });
 
-  it("in use can't be removed until its files are moved", async () => {
-    given(["use_modules", "manage_paperwork"], { paperwork_files: [{ id: FILE }, { id: NEW_FILE }] });
+  it("in use can't be removed until its File Folders are moved", async () => {
+    given(["use_modules", "manage_paperwork"], { paperwork_file_folders: [{ id: FILE }, { id: NEW_FILE }] });
     expect(await removeCategory({}, form({ id: TAXES }))).toEqual({
-      error: "2 files use it. Choose a category to move them to first.",
+      error: "2 File Folders use it. Choose a category to move them to first.",
     });
     expect(on("paperwork_categories")).toEqual([]);
   });
 
-  it("in use moves its files to the chosen category, then goes", async () => {
-    given(["use_modules", "manage_paperwork"], { paperwork_files: [{ id: FILE }] });
+  it("in use moves its File Folders to the chosen category, then goes", async () => {
+    given(["use_modules", "manage_paperwork"], { paperwork_file_folders: [{ id: FILE }] });
     expect(await removeCategory({}, form({ id: TAXES, moveTo: CAR }))).toEqual({ saved: true });
-    const [, move] = on("paperwork_files");
+    const [, move] = on("paperwork_file_folders");
     expect(move.update).toHaveBeenCalledWith({ category_id: CAR });
     expect(move.eq).toHaveBeenCalledWith("category_id", TAXES);
     expect(on("paperwork_categories")[0].delete).toHaveBeenCalled();
   });
 
   it("not in use is simply removed", async () => {
-    given(["use_modules", "manage_paperwork"], { paperwork_files: [] });
+    given(["use_modules", "manage_paperwork"], { paperwork_file_folders: [] });
     expect(await removeCategory({}, form({ id: CAR }))).toEqual({ saved: true });
     expect(on("paperwork_categories")[0].delete).toHaveBeenCalled();
   });
 });
 
-describe("archiving a file to storage (REQ-98)", () => {
+describe("archiving a File Folder to storage (REQ-98)", () => {
   const BOX = "77777777-7777-4777-8777-777777777777";
 
-  it("archives the whole file into the chosen box", async () => {
+  it("archives the whole File Folder into the chosen box", async () => {
     given();
-    expect(await archiveFile({}, form({ id: FILE, boxId: BOX }))).toEqual({ saved: true });
-    const [update] = on("paperwork_files");
+    expect(await archiveFileFolder({}, form({ id: FILE, boxId: BOX }))).toEqual({ saved: true });
+    const [update] = on("paperwork_file_folders");
     expect(update.update).toHaveBeenCalledWith({ status: "archived", storage_entry_id: BOX });
     expect(update.eq).toHaveBeenCalledWith("id", FILE);
   });
 
   it("needs a box", async () => {
     given();
-    expect(await archiveFile({}, form({ id: FILE, boxId: "" }))).toEqual({ error: "Choose the box it goes in." });
-    expect(fake.from).not.toHaveBeenCalledWith("paperwork_files");
+    expect(await archiveFileFolder({}, form({ id: FILE, boxId: "" }))).toEqual({ error: "Choose the box it goes in." });
+    expect(fake.from).not.toHaveBeenCalledWith("paperwork_file_folders");
   });
 
   it("brings it back to a new office location, Active again", async () => {
     given();
-    expect(await bringBackFile({}, form({ id: FILE, locationId: HALL }))).toEqual({ saved: true });
-    expect(on("paperwork_files")[0].update).toHaveBeenCalledWith({
+    expect(await bringBackFileFolder({}, form({ id: FILE, locationId: HALL }))).toEqual({ saved: true });
+    expect(on("paperwork_file_folders")[0].update).toHaveBeenCalledWith({
       status: "active",
       storage_entry_id: null,
       location_id: HALL,
@@ -328,8 +346,8 @@ describe("archiving a file to storage (REQ-98)", () => {
 
   it("needs the new location to restore it", async () => {
     given();
-    expect(await bringBackFile({}, form({ id: FILE, locationId: "" }))).toEqual({
-      error: "Choose where the file is kept.",
+    expect(await bringBackFileFolder({}, form({ id: FILE, locationId: "" }))).toEqual({
+      error: "Choose where the File Folder is kept.",
     });
   });
 });
@@ -352,7 +370,7 @@ describe("locations (REQ-179)", () => {
     );
   }
 
-  it("adds one with its spaces tidied, even with no files in it", async () => {
+  it("adds one with its spaces tidied, even with no File Folders in it", async () => {
     given();
     expect(await addLocation({}, form({ name: "  Office   Cabinet " }))).toEqual({ saved: true });
     expect(on("paperwork_locations")[0].insert).toHaveBeenCalledWith({ name: "Office Cabinet" });
@@ -375,7 +393,7 @@ describe("locations (REQ-179)", () => {
     });
   });
 
-  it("renames one in place, so every file in it shows the new name", async () => {
+  it("renames one in place, so every File Folder in it shows the new name", async () => {
     given();
     expect(await renameLocation({}, form({ id: HALL, name: " Linen  closet" }))).toEqual({ saved: true });
     const [rename] = on("paperwork_locations");
@@ -384,53 +402,53 @@ describe("locations (REQ-179)", () => {
   });
 
   it("deletes an empty one", async () => {
-    given(["use_modules"], { paperwork_files: [] });
+    given(["use_modules"], { paperwork_file_folders: [] });
     await expect(deleteLocation({}, form({ id: HALL }))).rejects.toThrow("REDIRECT:/paperwork");
     expect(on("paperwork_locations")[0].delete).toHaveBeenCalled();
   });
 
-  it("won't delete one that has files, archived ones included", async () => {
+  it("won't delete one that has File Folders, archived ones included", async () => {
     given();
-    expect(await deleteLocation({}, form({ id: HALL }))).toEqual({ error: "It has files. Move them first." });
+    expect(await deleteLocation({}, form({ id: HALL }))).toEqual({ error: "It has File Folders. Move them first." });
     expect(on("paperwork_locations")).toEqual([]);
   });
 
-  it("makes a new one inline when a file is made, with the same tidy name", async () => {
+  it("makes a new one inline when a File Folder is made, with the same tidy name", async () => {
     given();
     const fields = { categoryId: TAXES, locationId: "new", newLocation: " Desk  drawer ", label: "" };
-    expect(await makeFile({}, form(fields))).toEqual({ saved: true, newFile: "F-0005 · Taxes" });
+    expect(await makeFileFolder({}, form(fields))).toEqual({ saved: true, newFileFolder: "F-0005 · Taxes" });
     expect(on("paperwork_locations")[0].insert).toHaveBeenCalledWith({ name: "Desk drawer" });
-    expect(on("paperwork_files")[0].insert).toHaveBeenCalledWith({ category_id: TAXES, location_id: HALL, label: null });
+    expect(on("paperwork_file_folders")[0].insert).toHaveBeenCalledWith({ category_id: TAXES, location_id: HALL, label: null });
   });
 
-  it("needs a name for an inline new location, and makes no file without one", async () => {
+  it("needs a name for an inline new location, and makes no File Folder without one", async () => {
     given();
-    expect(await makeFile({}, form({ categoryId: TAXES, locationId: "new", newLocation: " ", label: "" }))).toEqual({
+    expect(await makeFileFolder({}, form({ categoryId: TAXES, locationId: "new", newLocation: " ", label: "" }))).toEqual({
       error: "Name the new location.",
     });
-    expect(on("paperwork_files")).toEqual([]);
+    expect(on("paperwork_file_folders")).toEqual([]);
   });
 
-  it("refuses a duplicate inline new location, and makes no file", async () => {
+  it("refuses a duplicate inline new location, and makes no File Folder", async () => {
     given();
     refusingDuplicates();
-    expect(await makeFile({}, form({ categoryId: TAXES, locationId: "new", newLocation: "Hall Cupboard", label: "" }))).toEqual({
+    expect(await makeFileFolder({}, form({ categoryId: TAXES, locationId: "new", newLocation: "Hall Cupboard", label: "" }))).toEqual({
       error: "There's already a location called Hall Cupboard.",
     });
-    expect(on("paperwork_files")).toEqual([]);
+    expect(on("paperwork_file_folders")).toEqual([]);
   });
 });
 
 describe("archiving a document (REQ-153)", () => {
   const BOX = "77777777-7777-4777-8777-777777777777";
 
-  it("moves it out of its file into the box's archive", async () => {
+  it("moves it out of its File Folder into the box's archive", async () => {
     given(["use_modules"], { paperwork_archives: [{ id: ARCHIVE }] });
     expect(await archivePaper({}, form({ id: P1, boxId: BOX }))).toEqual({ saved: true });
     expect(on("paperwork_archives")[0].eq).toHaveBeenCalledWith("storage_entry_id", BOX);
     expect(on("paperwork_archives")).toHaveLength(1);
     const [update] = on("paperwork");
-    expect(update.update).toHaveBeenCalledWith({ archive_id: ARCHIVE, file_id: null });
+    expect(update.update).toHaveBeenCalledWith({ archive_id: ARCHIVE, file_folder_id: null });
     expect(update.eq).toHaveBeenCalledWith("id", P1);
   });
 
@@ -450,7 +468,7 @@ describe("archiving a document (REQ-153)", () => {
       return query;
     });
     expect(await archivePaper({}, form({ id: P1, boxId: BOX }))).toEqual({ saved: true });
-    expect(on("paperwork").at(-1)!.update).toHaveBeenCalledWith({ archive_id: ARCHIVE, file_id: null });
+    expect(on("paperwork").at(-1)!.update).toHaveBeenCalledWith({ archive_id: ARCHIVE, file_folder_id: null });
   });
 
   it("needs a box, and changes nothing without one", async () => {
@@ -472,20 +490,20 @@ describe("archiving a document (REQ-153)", () => {
 
   it("goes back to the archive when an archived document is removed", async () => {
     given();
-    await expect(removePaper(form({ id: P1, fileId: "", archiveId: ARCHIVE }))).rejects.toThrow(
+    await expect(removePaper(form({ id: P1, fileFolderId: "", archiveId: ARCHIVE }))).rejects.toThrow(
       `REDIRECT:/paperwork/archives/${ARCHIVE}`,
     );
   });
 });
 
-describe("Google Drive files (REQ-152)", () => {
+describe("Google Drive File Folders (REQ-152)", () => {
   const DRIVE_PLACE = { id: HALL, built_in: "drive" };
   const CONNECTION = { folder_id: "top", archived_folder_id: "arch", synced_at: null };
-  const inserted = () => on("paperwork_files").flatMap((query) => query.insert.mock.calls.map((call) => call[0]));
+  const inserted = () => on("paperwork_file_folders").flatMap((query) => query.insert.mock.calls.map((call) => call[0]));
 
-  it("makes a Drive file when Drive is chosen as the location, and says the folder to make", async () => {
+  it("makes a Drive File Folder when Drive is chosen as the location, and says the folder to make", async () => {
     given(["use_modules"], { paperwork_locations: [DRIVE_PLACE], paperwork_drive: [CONNECTION] });
-    expect(await makeFile({}, form({ categoryId: TAXES, locationId: HALL, label: "2025 Returns" }))).toEqual({
+    expect(await makeFileFolder({}, form({ categoryId: TAXES, locationId: HALL, label: "2025 Returns" }))).toEqual({
       saved: true,
       driveFolder: "F-0005_Taxes_2025 Returns",
     });
@@ -494,40 +512,40 @@ describe("Google Drive files (REQ-152)", () => {
 
   it("names the folder <ID>_<Category> when there's no label name", async () => {
     given(["use_modules"], { paperwork_locations: [DRIVE_PLACE], paperwork_drive: [CONNECTION] });
-    const result = await makeFile({}, form({ categoryId: TAXES, locationId: HALL, label: "" }));
+    const result = await makeFileFolder({}, form({ categoryId: TAXES, locationId: HALL, label: "" }));
     expect(result.driveFolder).toBe("F-0005_Taxes");
   });
 
-  it("can't make a Drive file before a folder is connected", async () => {
+  it("can't make a Drive File Folder before a folder is connected", async () => {
     given(["use_modules"], { paperwork_locations: [DRIVE_PLACE], paperwork_drive: [] });
-    expect((await makeFile({}, form({ categoryId: TAXES, locationId: HALL, label: "" }))).error).toMatch(/isn't connected/);
+    expect((await makeFileFolder({}, form({ categoryId: TAXES, locationId: HALL, label: "" }))).error).toMatch(/isn't connected/);
     expect(inserted()).toHaveLength(0);
   });
 
-  it("keeps physical files out of Drive, and physical paperwork out of Drive files", async () => {
+  it("keeps physical File Folders out of Drive, and physical paperwork out of Drive File Folders", async () => {
     given(["use_modules"], { paperwork_locations: [DRIVE_PLACE], paperwork_drive: [CONNECTION] });
-    expect((await updateFile({}, form({ id: FILE, categoryId: TAXES, locationId: HALL, label: "" }))).error).toMatch(/only for Google Drive/);
-    given(["use_modules"], { paperwork_files: [{ id: FILE, is_drive: true }] });
-    expect((await logPaper({}, form({ ...PAPER, fileId: FILE }))).error).toMatch(/can't go into a Google Drive file/);
+    expect((await updateFileFolder({}, form({ id: FILE, categoryId: TAXES, locationId: HALL, label: "" }))).error).toMatch(/only for Google Drive/);
+    given(["use_modules"], { paperwork_file_folders: [{ id: FILE, is_drive: true }] });
+    expect((await logPaper({}, form({ ...PAPER, fileFolderId: FILE }))).error).toMatch(/can't go into a Google Drive File Folder/);
     expect(on("paperwork")).toHaveLength(0);
   });
 
-  it("changes only a Drive file's category and label, never its location", async () => {
-    given(["use_modules"], { paperwork_files: [{ id: FILE, is_drive: true }] });
-    expect(await updateFile({}, form({ id: FILE, categoryId: CAR, label: "Loan", locationId: HALL }))).toEqual({ saved: true });
-    const update = on("paperwork_files").flatMap((query) => query.update.mock.calls)[0][0];
+  it("changes only a Drive File Folder's category and label, never its location", async () => {
+    given(["use_modules"], { paperwork_file_folders: [{ id: FILE, is_drive: true }] });
+    expect(await updateFileFolder({}, form({ id: FILE, categoryId: CAR, label: "Loan", locationId: HALL }))).toEqual({ saved: true });
+    const update = on("paperwork_file_folders").flatMap((query) => query.update.mock.calls)[0][0];
     expect(update).toEqual({ category_id: CAR, label: "Loan" });
   });
 
-  it("renames that file's Drive folder to match once its category or label changes", async () => {
+  it("renames that File Folder's Drive folder to match once its category or label changes", async () => {
     const drive = await import("../../lib/paperwork/drive");
     const rename = vi.spyOn(drive, "renameItem").mockResolvedValue(undefined);
     given(["use_modules"], {
-      paperwork_files: [{ id: FILE, is_drive: true, number: 5, label: "Loan", drive_folder_id: "fold-5" }],
+      paperwork_file_folders: [{ id: FILE, is_drive: true, number: 5, label: "Loan", drive_folder_id: "fold-5" }],
       paperwork_categories: [{ name: "Car" }],
       paperwork_drive_folders: [{ drive_id: "fold-5", name: "F-0005_Taxes_Returns", missing: false }],
     });
-    expect(await updateFile({}, form({ id: FILE, categoryId: CAR, label: "Loan" }))).toEqual({ saved: true });
+    expect(await updateFileFolder({}, form({ id: FILE, categoryId: CAR, label: "Loan" }))).toEqual({ saved: true });
     expect(rename).toHaveBeenCalledWith("fold-5", "F-0005_Car_Loan");
     rename.mockRestore();
   });
@@ -536,11 +554,11 @@ describe("Google Drive files (REQ-152)", () => {
     const drive = await import("../../lib/paperwork/drive");
     const rename = vi.spyOn(drive, "renameItem").mockRejectedValue(new drive.DriveError("nope"));
     given(["use_modules"], {
-      paperwork_files: [{ id: FILE, is_drive: true, number: 5, label: "Loan", drive_folder_id: "fold-5" }],
+      paperwork_file_folders: [{ id: FILE, is_drive: true, number: 5, label: "Loan", drive_folder_id: "fold-5" }],
       paperwork_categories: [{ name: "Car" }],
       paperwork_drive_folders: [{ drive_id: "fold-5", name: "F-0005_Taxes_Returns", missing: false }],
     });
-    expect((await updateFile({}, form({ id: FILE, categoryId: CAR, label: "Loan" }))).error).toMatch(/couldn't be renamed/);
+    expect((await updateFileFolder({}, form({ id: FILE, categoryId: CAR, label: "Loan" }))).error).toMatch(/couldn't be renamed/);
     rename.mockRestore();
   });
 

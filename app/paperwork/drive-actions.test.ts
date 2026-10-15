@@ -4,9 +4,9 @@ import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
 import {
   archiveDriveDocument,
-  archiveDriveFile,
+  archiveDriveFileFolder,
   bringBackDriveDocument,
-  bringBackDriveFile,
+  bringBackDriveFileFolder,
   connectDrive,
   fileDriveDocument,
   fixFolderName,
@@ -52,7 +52,7 @@ function given(permissions: string[] = ["use_modules"], tables: Record<string, u
     tables: {
       paperwork_drive: [CONNECTION],
       paperwork_categories: [{ name: "Taxes" }],
-      paperwork_files: [{ id: FILE, number: 5, label: "Returns", category_id: TAXES, status: "active", drive_folder_id: "fold-5" }],
+      paperwork_file_folders: [{ id: FILE, number: 5, label: "Returns", category_id: TAXES, status: "active", drive_folder_id: "fold-5" }],
       paperwork_drive_documents: [{ drive_id: "doc-1", parent_id: "top", name: "Lease.pdf" }],
       ...tables,
     },
@@ -117,7 +117,7 @@ describe("connecting a folder (REQ-152)", () => {
     given(ADMIN);
     vi.mocked(drive.listChildren).mockResolvedValue([item({ id: "x", name: "Receipts" })]);
     const result = await connectDrive({}, form({ link: LINK }));
-    expect(result.error).toMatch(/no sub-folder called Archived/);
+    expect(result.error).toMatch(/no Archived Digital Folder/);
     expect(result.error).not.toContain("Share it with");
   });
 
@@ -132,73 +132,73 @@ describe("connecting a folder (REQ-152)", () => {
     expect((await connectDrive({}, form({ link: LINK }))).error).toMatch(/key isn't set up/);
   });
 
-  it("won't swap the folder once Drive files are linked to the old one", async () => {
+  it("won't swap the folder once Drive File Folders are linked to the old one", async () => {
     given(ADMIN, { paperwork_drive: [{ ...CONNECTION, folder_id: "old-folder" }] });
     expect((await connectDrive({}, form({ link: LINK }))).error).toMatch(/already linked/);
     expect(upserts("paperwork_drive")).toHaveLength(0);
   });
 });
 
-describe("linking a waiting file to its folder (REQ-152)", () => {
+describe("linking a waiting File Folder to its folder (REQ-152)", () => {
   const waiting = { id: FILE, number: 5, label: "Returns", category_id: TAXES, status: "active", drive_folder_id: null };
 
-  it("finds the sub-folder starting with the file's ID and links it by its Drive ID", async () => {
-    given(["use_modules"], { paperwork_files: [waiting] });
+  it("finds the sub-folder starting with the File Folder's ID and links it by its Drive ID", async () => {
+    given(["use_modules"], { paperwork_file_folders: [waiting] });
     vi.mocked(drive.listChildren).mockResolvedValue([
       item({ id: "arch", name: "Archived" }),
       item({ id: "F4", name: "F-0004_Taxes" }),
       item({ id: "F5", name: "F-0005_Taxes_Returns" }),
     ]);
     expect(await linkDriveFolder({}, form({ id: FILE }))).toEqual({ saved: true });
-    expect(updates("paperwork_files")[0]).toEqual({ drive_folder_id: "F5" });
+    expect(updates("paperwork_file_folders")[0]).toEqual({ drive_folder_id: "F5" });
   });
 
-  it("says it wasn't found, and the file stays waiting", async () => {
-    given(["use_modules"], { paperwork_files: [waiting] });
+  it("says it wasn't found, and the File Folder stays waiting", async () => {
+    given(["use_modules"], { paperwork_file_folders: [waiting] });
     vi.mocked(drive.listChildren).mockResolvedValue([item({ id: "F4", name: "F-0004_Taxes" })]);
     const result = await linkDriveFolder({}, form({ id: FILE }));
     expect(result.error).toMatch(/F-0005_/);
-    expect(updates("paperwork_files")).toHaveLength(0);
+    expect(updates("paperwork_file_folders")).toHaveLength(0);
   });
 
   it("only looks in the connected folder, never matching a loose document", async () => {
-    given(["use_modules"], { paperwork_files: [waiting] });
+    given(["use_modules"], { paperwork_file_folders: [waiting] });
     vi.mocked(drive.listChildren).mockResolvedValue([item({ id: "d", name: "F-0005_notes.pdf", isFolder: false })]);
     expect((await linkDriveFolder({}, form({ id: FILE }))).error).toBeDefined();
   });
 
   it("needs a connected folder", async () => {
-    given(["use_modules"], { paperwork_files: [waiting], paperwork_drive: [] });
+    given(["use_modules"], { paperwork_file_folders: [waiting], paperwork_drive: [] });
     expect((await linkDriveFolder({}, form({ id: FILE }))).error).toMatch(/isn't connected/);
   });
 
-  it("lets the admin link an unlinked folder to a waiting file, or ignore it", async () => {
-    given(ADMIN, { paperwork_files: [waiting], paperwork_drive_folders: [{ drive_id: "stray", missing: false }] });
-    expect(await linkUnlinkedFolder({}, form({ folderId: "stray", fileId: FILE }))).toEqual({ saved: true });
-    expect(updates("paperwork_files")[0]).toEqual({ drive_folder_id: "stray" });
+  it("lets the admin link an unlinked folder to a waiting File Folder, or ignore it", async () => {
+    given(ADMIN, { paperwork_file_folders: [waiting], paperwork_drive_folders: [{ drive_id: "stray", missing: false }] });
+    expect(await linkUnlinkedFolder({}, form({ folderId: "stray", fileFolderId: FILE }))).toEqual({ saved: true });
+    expect(updates("paperwork_file_folders")[0]).toEqual({ drive_folder_id: "stray" });
     await ignoreFolder(form({ folderId: "stray" }));
     expect(updates("paperwork_drive_folders")).toContainEqual({ ignored: true });
   });
 
   it("won't link a folder the last sync didn't see, or that has gone", async () => {
-    given(ADMIN, { paperwork_files: [waiting], paperwork_drive_folders: [] });
-    expect((await linkUnlinkedFolder({}, form({ folderId: "made-up", fileId: FILE }))).error).toMatch(/isn't in Google Drive/);
-    given(ADMIN, { paperwork_files: [waiting], paperwork_drive_folders: [{ drive_id: "gone", missing: true }] });
-    expect((await linkUnlinkedFolder({}, form({ folderId: "gone", fileId: FILE }))).error).toMatch(/isn't in Google Drive/);
-    expect(updates("paperwork_files")).toHaveLength(0);
+    given(ADMIN, { paperwork_file_folders: [waiting], paperwork_drive_folders: [] });
+    expect((await linkUnlinkedFolder({}, form({ folderId: "made-up", fileFolderId: FILE }))).error).toMatch(/isn't in Google Drive/);
+    given(ADMIN, { paperwork_file_folders: [waiting], paperwork_drive_folders: [{ drive_id: "gone", missing: true }] });
+    expect((await linkUnlinkedFolder({}, form({ folderId: "gone", fileFolderId: FILE }))).error).toMatch(/isn't in Google Drive/);
+    expect(updates("paperwork_file_folders")).toHaveLength(0);
   });
 
   it("keeps both of those for the admin", async () => {
     given(["use_modules"]);
-    await expect(linkUnlinkedFolder({}, form({ folderId: "s", fileId: FILE }))).rejects.toThrow("REDIRECT");
+    await expect(linkUnlinkedFolder({}, form({ folderId: "s", fileFolderId: FILE }))).rejects.toThrow("REDIRECT");
     await expect(ignoreFolder(form({ folderId: "s" }))).rejects.toThrow("REDIRECT");
   });
 });
 
 describe("filing a Drive document (REQ-152)", () => {
-  it("moves it into the file's folder in Drive and confirms the owner", async () => {
+  it("moves it into the File Folder's folder in Drive and confirms the owner", async () => {
     given();
-    const result = await fileDriveDocument({}, form({ documentId: "doc-1", fileId: FILE, ownerId: ALEX }));
+    const result = await fileDriveDocument({}, form({ documentId: "doc-1", fileFolderId: FILE, ownerId: ALEX }));
     expect(result).toEqual({ saved: true });
     expect(drive.moveItem).toHaveBeenCalledWith("doc-1", "top", "fold-5");
     expect(updates("paperwork_drive_documents")[0]).toEqual({ parent_id: "fold-5", owner_id: ALEX, owner_set: true });
@@ -206,31 +206,31 @@ describe("filing a Drive document (REQ-152)", () => {
 
   it("takes Joint as an owner", async () => {
     given();
-    await fileDriveDocument({}, form({ documentId: "doc-1", fileId: FILE, ownerId: "joint" }));
+    await fileDriveDocument({}, form({ documentId: "doc-1", fileFolderId: FILE, ownerId: "joint" }));
     expect(updates("paperwork_drive_documents")[0]).toMatchObject({ owner_id: null, owner_set: true });
   });
 
-  it("won't file without an owner chosen", async () => {
+  it("won't File Folder without an owner chosen", async () => {
     given();
-    const result = await fileDriveDocument({}, form({ documentId: "doc-1", fileId: FILE, ownerId: "" }));
+    const result = await fileDriveDocument({}, form({ documentId: "doc-1", fileFolderId: FILE, ownerId: "" }));
     expect(result.error).toMatch(/whose it is/);
     expect(drive.moveItem).not.toHaveBeenCalled();
   });
 
-  it("only goes into a Drive file that has its folder and is active", async () => {
-    given(["use_modules"], { paperwork_files: [{ id: FILE, number: 5, status: "active", drive_folder_id: null }] });
-    expect((await fileDriveDocument({}, form({ documentId: "doc-1", fileId: FILE, ownerId: "joint" }))).error).toMatch(/no Drive folder/);
-    given(["use_modules"], { paperwork_files: [{ id: FILE, number: 5, status: "archived", drive_folder_id: "f" }] });
-    expect((await fileDriveDocument({}, form({ documentId: "doc-1", fileId: FILE, ownerId: "joint" }))).error).toMatch(/archived/);
-    given(["use_modules"], { paperwork_files: [] });
-    expect((await fileDriveDocument({}, form({ documentId: "doc-1", fileId: OTHER_FILE, ownerId: "joint" }))).error).toBeDefined();
+  it("only goes into a Drive File Folder that has its folder and is active", async () => {
+    given(["use_modules"], { paperwork_file_folders: [{ id: FILE, number: 5, status: "active", drive_folder_id: null }] });
+    expect((await fileDriveDocument({}, form({ documentId: "doc-1", fileFolderId: FILE, ownerId: "joint" }))).error).toMatch(/no Digital Folder/);
+    given(["use_modules"], { paperwork_file_folders: [{ id: FILE, number: 5, status: "archived", drive_folder_id: "f" }] });
+    expect((await fileDriveDocument({}, form({ documentId: "doc-1", fileFolderId: FILE, ownerId: "joint" }))).error).toMatch(/archived/);
+    given(["use_modules"], { paperwork_file_folders: [] });
+    expect((await fileDriveDocument({}, form({ documentId: "doc-1", fileFolderId: OTHER_FILE, ownerId: "joint" }))).error).toBeDefined();
     expect(drive.moveItem).not.toHaveBeenCalled();
   });
 
   it("changes nothing here when Drive says no", async () => {
     given();
     vi.mocked(drive.moveItem).mockRejectedValue(new drive.DriveError("Google Drive said no: nope"));
-    const result = await fileDriveDocument({}, form({ documentId: "doc-1", fileId: FILE, ownerId: "joint" }));
+    const result = await fileDriveDocument({}, form({ documentId: "doc-1", fileFolderId: FILE, ownerId: "joint" }));
     expect(result.error).toMatch(/said no/);
     expect(updates("paperwork_drive_documents")).toHaveLength(0);
   });
@@ -251,7 +251,7 @@ describe("archiving Drive documents (REQ-153)", () => {
     expect(updates("paperwork_drive_documents")[0]).toEqual({ parent_id: "arch" });
   });
 
-  it("moves a filed document out of its file's folder too", async () => {
+  it("moves a filed document out of its File Folder's folder too", async () => {
     given(["use_modules"], { paperwork_drive_documents: [{ drive_id: "doc-1", parent_id: "fold-5", name: "x" }] });
     await archiveDriveDocument(form({ documentId: "doc-1" }));
     expect(drive.moveItem).toHaveBeenCalledWith("doc-1", "fold-5", "arch");
@@ -271,32 +271,32 @@ describe("archiving Drive documents (REQ-153)", () => {
   });
 });
 
-describe("archiving a Drive file (REQ-152)", () => {
+describe("archiving a Drive File Folder (REQ-152)", () => {
   it("moves its folder into Archived and marks it archived", async () => {
     given();
-    expect(await archiveDriveFile({}, form({ id: FILE }))).toEqual({ saved: true });
+    expect(await archiveDriveFileFolder({}, form({ id: FILE }))).toEqual({ saved: true });
     expect(drive.moveItem).toHaveBeenCalledWith("fold-5", "top", "arch");
-    expect(updates("paperwork_files")).toEqual([{ status: "archived" }]);
+    expect(updates("paperwork_file_folders")).toEqual([{ status: "archived" }]);
     expect(updates("paperwork_drive_folders")).toEqual([{ in_archived: true }]);
   });
 
   it("moves it back to the top level and marks it active", async () => {
     given();
-    expect(await bringBackDriveFile({}, form({ id: FILE }))).toEqual({ saved: true });
+    expect(await bringBackDriveFileFolder({}, form({ id: FILE }))).toEqual({ saved: true });
     expect(drive.moveItem).toHaveBeenCalledWith("fold-5", "arch", "top");
-    expect(updates("paperwork_files")).toEqual([{ status: "active" }]);
+    expect(updates("paperwork_file_folders")).toEqual([{ status: "active" }]);
   });
 
   it("changes nothing when Drive refuses the move", async () => {
     given();
     vi.mocked(drive.moveItem).mockRejectedValue(new drive.DriveError("Google Drive said no: nope"));
-    expect((await archiveDriveFile({}, form({ id: FILE }))).error).toMatch(/said no/);
-    expect(updates("paperwork_files")).toHaveLength(0);
+    expect((await archiveDriveFileFolder({}, form({ id: FILE }))).error).toMatch(/said no/);
+    expect(updates("paperwork_file_folders")).toHaveLength(0);
   });
 
   it("has no folder to move while it's still waiting for one", async () => {
-    given(["use_modules"], { paperwork_files: [{ id: FILE, number: 5, status: "active", drive_folder_id: null }] });
-    expect((await archiveDriveFile({}, form({ id: FILE }))).error).toMatch(/no Drive folder/);
+    given(["use_modules"], { paperwork_file_folders: [{ id: FILE, number: 5, status: "active", drive_folder_id: null }] });
+    expect((await archiveDriveFileFolder({}, form({ id: FILE }))).error).toMatch(/no Digital Folder/);
   });
 });
 

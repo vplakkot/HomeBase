@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRightIcon } from "../../../../components/icons";
-import { archiveName, documentsCount, fileId } from "../../../../lib/paperwork/paperwork";
+import { archiveName, documentsCount, fileFolderId } from "../../../../lib/paperwork/paperwork";
 import { contentLines, entryId } from "../../../../lib/storage/storage";
-import { StorageScreen, filesArchived, storageViewer } from "../../frame";
+import { StorageScreen, fileFoldersArchived, storageViewer } from "../../frame";
 import { ManageEntry } from "../../sheets";
 import styles from "../../storage.module.css";
 import band from "../../../../components/band.module.css";
 
 // One entry (REQ-87, REQ-107): ID · name, with "Box" after a box; what's
-// in it, one item per line; its note; and the paperwork files archived
+// in it, one item per line; its note; and the paperwork File Folders archived
 // in it (REQ-98), each opening in Paperwork. Changing it is behind
 // Manage; nothing is edited here directly.
 export default async function EntryPage({
@@ -25,18 +25,18 @@ export default async function EntryPage({
   if (!entry) notFound();
   const label = entryId(entry);
   const lines = contentLines(entry);
-  const archived = viewer.files.filter((file) => file.storage_entry_id === entry.id);
+  const archived = viewer.fileFolders.filter((fileFolder) => fileFolder.storage_entry_id === entry.id);
   const archive = viewer.archives.find((row) => row.storage_entry_id === entry.id);
-  const filesAndArchive = archived.length + (archive ? 1 : 0);
+  const fileFoldersAndArchive = archived.length + (archive ? 1 : 0);
 
   return (
     <StorageScreen viewer={viewer} here={`/storage/entries/${entry.id}`} query={q} crumb={label}>
-      <div className={styles.fileHead}>
+      <div className={styles.fileFolderHead}>
         <h2 className={styles.title}>
           {label} · {entry.name}
           {entry.is_box ? <sup className={styles.mark}>Box</sup> : null}
         </h2>
-        <div className={styles.fileButtons}>
+        <div className={styles.fileFolderButtons}>
           <ManageEntry entry={entry} label={label} />
         </div>
       </div>
@@ -59,16 +59,16 @@ export default async function EntryPage({
           <h3 className={styles.cardLabel}>Note</h3>
           {entry.note ? <p>{entry.note}</p> : <p className={styles.note}>No note</p>}
         </section>
-        {filesAndArchive > 0 ? (
+        {fileFoldersAndArchive > 0 ? (
           <section className={`${styles.card} ${styles.rows}`} aria-labelledby="archived">
             <h3 id="archived" className={`${styles.cardLabel} ${styles.cardHead}`}>
-              {filesArchived(filesAndArchive)}
+              {fileFoldersArchived(fileFoldersAndArchive)}
             </h3>
             <ul className={styles.rows}>
               {archive ? (
                 <li>
-                  <Link href={`/paperwork/archives/${archive.id}`} className={styles.fileRow}>
-                    <span className={`${styles.fileName} ${band.band}`}>
+                  <Link href={`/paperwork/archives/${archive.id}`} className={styles.fileFolderRow}>
+                    <span className={`${styles.fileFolderName} ${band.band}`}>
                       {archiveName(entry)}
                     </span>
                     <span className={styles.cardDetail}>
@@ -78,15 +78,15 @@ export default async function EntryPage({
                   </Link>
                 </li>
               ) : null}
-              {archived.map((file) => (
-                <li key={file.id}>
-                  <Link href={`/paperwork/files/${file.id}`} className={styles.fileRow}>
-                    <span className={`${styles.fileName} ${band.band}`}>
-                      <span className={styles.fileId}>{fileId(file)}</span>
-                      {file.label ? file.label : <span className={styles.noLabel}>No label</span>}
+              {archived.map((fileFolder) => (
+                <li key={fileFolder.id}>
+                  <Link href={`/paperwork/file-folders/${fileFolder.id}`} className={styles.fileFolderRow}>
+                    <span className={`${styles.fileFolderName} ${band.band}`}>
+                      <span className={styles.fileFolderId}>{fileFolderId(fileFolder)}</span>
+                      {fileFolder.label ? fileFolder.label : <span className={styles.noLabel}>No label</span>}
                     </span>
                     <span className={styles.cardDetail}>
-                      {documentsCount(viewer.papers.filter((paper) => paper.file_id === file.id).length)}
+                      {documentsCount(viewer.papers.filter((paper) => paper.file_folder_id === fileFolder.id).length)}
                     </span>
                     <ChevronRightIcon />
                   </Link>

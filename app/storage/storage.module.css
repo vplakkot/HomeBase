@@ -20,9 +20,9 @@
 .cardDetail { composes: cardDetail from "../paperwork/paperwork.module.css"; }
 .noLabel { composes: noLabel from "../paperwork/paperwork.module.css"; }
 .empty { composes: empty from "../paperwork/paperwork.module.css"; }
-.fileHead { composes: fileHead from "../paperwork/paperwork.module.css"; }
+.fileFolderHead { composes: fileFolderHead from "../paperwork/paperwork.module.css"; }
 .title { composes: title from "../paperwork/paperwork.module.css"; }
-.fileButtons { composes: fileButtons from "../paperwork/paperwork.module.css"; }
+.fileFolderButtons { composes: fileFolderButtons from "../paperwork/paperwork.module.css"; }
 .menu { composes: menu from "../paperwork/paperwork.module.css"; }
 .menuItem { composes: menuItem from "../paperwork/paperwork.module.css"; }
 .divider { composes: divider from "../paperwork/paperwork.module.css"; }
@@ -51,7 +51,7 @@
 }
 
 /* A box's two cards side by side on a desktop: what's in it, and the
-   paperwork files archived in it. */
+   paperwork File Folders archived in it. */
 .pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -86,8 +86,8 @@
   border-top: 1px solid var(--color-line-soft);
 }
 
-/* An archived file: ID and label name, its documents, a chevron. */
-.fileRow {
+/* An archived File Folder: ID and label name, its documents, a chevron. */
+.fileFolderRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
@@ -98,11 +98,11 @@
   text-decoration: none;
 }
 
-.fileRow:hover .fileName {
+.fileFolderRow:hover .fileFolderName {
   text-decoration: underline;
 }
 
-.fileId {
+.fileFolderId {
   margin-right: var(--space-2);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -112,6 +112,6 @@
   padding: var(--space-4) var(--space-6) var(--space-2);
 }
 
-.fileName {
+.fileFolderName {
   min-width: 0;
 }

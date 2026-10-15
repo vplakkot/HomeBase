@@ -11,7 +11,7 @@ import { HeaderTools } from "./sheets";
 import styles from "./storage.module.css";
 import band from "../../components/band.module.css";
 
-// Who is looking at a Storage page, every entry, and Paperwork's files
+// Who is looking at a Storage page, every entry, and Paperwork's File Folders
 // and documents for the ones archived in a box (REQ-98). Signed-out
 // visitors go to sign-in.
 export async function storageViewer() {
@@ -31,21 +31,21 @@ export async function storageViewer() {
 
 export type StorageViewer = Awaited<ReturnType<typeof storageViewer>>;
 
-// How many paperwork files are archived in each box, by entry id.
+// How many paperwork File Folders are archived in each box, by entry id.
 function archivedCounts(viewer: StorageViewer): Map<string, number> {
   const counts = new Map<string, number>();
-  for (const file of viewer.files) {
-    if (file.storage_entry_id) counts.set(file.storage_entry_id, (counts.get(file.storage_entry_id) ?? 0) + 1);
+  for (const fileFolder of viewer.fileFolders) {
+    if (fileFolder.storage_entry_id) counts.set(fileFolder.storage_entry_id, (counts.get(fileFolder.storage_entry_id) ?? 0) + 1);
   }
-  // A box's archive is listed with its files (REQ-153).
+  // A box's archive is listed with its File Folders (REQ-153).
   for (const archive of viewer.archives) {
     counts.set(archive.storage_entry_id, (counts.get(archive.storage_entry_id) ?? 0) + 1);
   }
   return counts;
 }
 
-export const filesArchived = (count: number) =>
-  count === 1 ? "1 archived paperwork file" : `${count} archived paperwork files`;
+export const fileFoldersArchived = (count: number) =>
+  count === 1 ? "1 archived paperwork File Folder" : `${count} archived paperwork File Folders`;
 
 // Every Storage screen (REQ-107): the module header with the one search
 // and Add to storage, and below the top level a breadcrumb. With a
@@ -111,7 +111,7 @@ export function Section({ id, title, count, children }: { id: string; title: str
 }
 
 // Entries as cards that are their own links (REQ-107): ID · name, a short
-// preview of the contents, the note, and how many paperwork files are
+// preview of the contents, the note, and how many paperwork File Folders are
 // archived in it.
 export function EntryCards({ viewer, entries, none }: { viewer: StorageViewer; entries: StorageEntry[]; none: string }) {
   if (entries.length === 0) return <p className={styles.empty}>{none}</p>;
@@ -120,14 +120,14 @@ export function EntryCards({ viewer, entries, none }: { viewer: StorageViewer; e
     <ul className={styles.grid}>
       {entries.map((entry) => {
         const preview = contentsPreview(entry);
-        const files = archived.get(entry.id) ?? 0;
+        const fileFolders = archived.get(entry.id) ?? 0;
         return (
           <li key={entry.id}>
             <Link href={`/storage/entries/${entry.id}`} className={styles.linkCard}>
               <span className={`${styles.cardTitle} ${band.band}`}>
                 {entryId(entry)} · {entry.name}
               </span>
-              {files > 0 ? <span className={styles.strong}>{filesArchived(files)}</span> : null}
+              {fileFolders > 0 ? <span className={styles.strong}>{fileFoldersArchived(fileFolders)}</span> : null}
               {preview ? <span className={styles.cardDetail}>{preview}</span> : null}
               {entry.note ? <span className={styles.note}>Note: {entry.note}</span> : null}
             </Link>

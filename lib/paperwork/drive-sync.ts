@@ -13,7 +13,7 @@ export type DriveFolder = {
   drive_id: string;
   name: string;
   in_archived: boolean;
-  // The admin chose to ignore it while it isn't linked to a File.
+  // The admin chose to ignore it while it isn't linked to a File Folder.
   ignored: boolean;
   // Deleted or trashed in Drive since it was last seen.
   missing: boolean;
@@ -25,7 +25,7 @@ export type DriveDocument = {
   mime_type: string | null;
   link: string | null;
   drive_owner_email: string | null;
-  // The folder it's directly in: a File's, `Archived`, or the top one.
+  // The folder it's directly in: a File Folder's, `Archived`, or the top one.
   parent_id: string;
   // null is Joint; only meaningful once owner_set.
   owner_id: string | null;
@@ -42,7 +42,7 @@ export type SyncPlan = {
   goneDocuments: string[];
 };
 
-// Which folders to look inside for documents: only those linked to a File
+// Which folders to look inside for documents: only those linked to a File Folder
 // (a folder nobody has linked is not read).
 export function foldersToRead(items: readonly DriveItem[], connection: DriveConnection, linked: ReadonlySet<string>): string[] {
   return items
@@ -51,7 +51,7 @@ export function foldersToRead(items: readonly DriveItem[], connection: DriveConn
 }
 
 // `items` is everything directly inside the connected folder, inside
-// `Archived`, and inside each linked File's folder.
+// `Archived`, and inside each linked File Folder's folder.
 export function planSync(
   connection: DriveConnection,
   items: readonly DriveItem[],
@@ -72,7 +72,7 @@ export function planSync(
     folders.push({ drive_id: item.id, name: item.name, in_archived: inArchived && !inTop, ignored: known?.ignored ?? false, missing: false });
   }
 
-  // Documents sit directly in the top folder, `Archived`, or a File's
+  // Documents sit directly in the top folder, `Archived`, or a File Folder's
   // folder; anything deeper isn't looked at (REQ-152).
   const homes = new Set([top, archived, ...folders.map((folder) => folder.drive_id)]);
   const documents: DriveDocument[] = [];
@@ -82,7 +82,7 @@ export function planSync(
     if (!parent) continue;
     const known = knownDocuments.find((row) => row.drive_id === item.id);
     let { owner_id, owner_set } = known ?? { owner_id: null, owner_set: false };
-    // In a File (or Archived) with no owner decided: the household member
+    // In a File Folder (or Archived) with no owner decided: the household member
     // whose Google account owns it in Drive. Loose in the top folder it
     // waits, and the filing form pre-fills it instead.
     if (!owner_set && parent !== top && item.ownerEmail) {

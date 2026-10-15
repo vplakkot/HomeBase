@@ -36,21 +36,21 @@ describe("syncDrive (REQ-152 Sync)", () => {
     expect(drive.listChildren).not.toHaveBeenCalled();
   });
 
-  it("reads the folder, Archived and each linked file's folder, and saves what it found", async () => {
+  it("reads the folder, Archived and each linked File Folder's folder, and saves what it found", async () => {
     vi.mocked(drive.listChildren)
       .mockResolvedValueOnce([item({ id: "arch", name: "Archived" }), item({ id: "fold-5", name: "F-0005_Taxes" }), item({ id: "d-loose", name: "Loose.pdf", isFolder: false })])
       .mockResolvedValueOnce([item({ id: "d-in", name: "Lease.pdf", isFolder: false, parents: ["fold-5"], ownerEmail: "alex@example.com" })]);
     const fake = fakeSupabase({
       tables: {
         paperwork_drive: [CONNECTION],
-        paperwork_files: [{ id: "file-5", status: "active", drive_folder_id: "fold-5" }],
+        paperwork_file_folders: [{ id: "file-folder-5", status: "active", drive_folder_id: "fold-5" }],
         paperwork_drive_folders: [],
         paperwork_drive_documents: [],
         household_members: [{ user_id: "u-alex", google_email: "alex@example.com" }],
       },
     });
     expect(await syncDrive(client(fake))).toEqual({});
-    // The second read is of the linked file's folder only.
+    // The second read is of the linked File Folder's folder only.
     expect(vi.mocked(drive.listChildren).mock.calls[1][0]).toEqual(["fold-5"]);
     const saved = calls(fake, "paperwork_drive_documents", "upsert")[0][0];
     expect(saved.map((row: { drive_id: string; owner_id: string | null }) => [row.drive_id, row.owner_id])).toEqual([
@@ -66,7 +66,7 @@ describe("syncDrive (REQ-152 Sync)", () => {
     const fake = fakeSupabase({
       tables: {
         paperwork_drive: [CONNECTION],
-        paperwork_files: [],
+        paperwork_file_folders: [],
         paperwork_drive_folders: [{ drive_id: "old-folder", name: "x", in_archived: false, ignored: false, missing: false }],
         paperwork_drive_documents: [{ drive_id: "old-doc", name: "x", parent_id: "top", owner_id: null, owner_set: false, missing: false }],
         household_members: [],
@@ -78,21 +78,21 @@ describe("syncDrive (REQ-152 Sync)", () => {
     expect(calls(fake, "paperwork_drive_documents", "delete")).toHaveLength(0);
   });
 
-  it("follows a File's folder into Archived by moving the file's status, and back", async () => {
+  it("follows a File Folder's folder into Archived by moving the File Folder's status, and back", async () => {
     vi.mocked(drive.listChildren)
       .mockResolvedValueOnce([item({ id: "arch", name: "Archived" }), item({ id: "fold-5", name: "F-0005_Taxes", parents: ["arch"] })])
       .mockResolvedValueOnce([]);
     const fake = fakeSupabase({
       tables: {
         paperwork_drive: [CONNECTION],
-        paperwork_files: [{ id: "file-5", status: "active", drive_folder_id: "fold-5" }],
+        paperwork_file_folders: [{ id: "file-folder-5", status: "active", drive_folder_id: "fold-5" }],
         paperwork_drive_folders: [],
         paperwork_drive_documents: [],
         household_members: [],
       },
     });
     await syncDrive(client(fake));
-    expect(calls(fake, "paperwork_files", "update").map((call) => call[0])).toEqual([{ status: "archived" }]);
+    expect(calls(fake, "paperwork_file_folders", "update").map((call) => call[0])).toEqual([{ status: "archived" }]);
 
     vi.mocked(drive.listChildren)
       .mockResolvedValueOnce([item({ id: "arch", name: "Archived" }), item({ id: "fold-5", name: "F-0005_Taxes" })])
@@ -100,31 +100,31 @@ describe("syncDrive (REQ-152 Sync)", () => {
     const again = fakeSupabase({
       tables: {
         paperwork_drive: [CONNECTION],
-        paperwork_files: [{ id: "file-5", status: "archived", drive_folder_id: "fold-5" }],
+        paperwork_file_folders: [{ id: "file-folder-5", status: "archived", drive_folder_id: "fold-5" }],
         paperwork_drive_folders: [],
         paperwork_drive_documents: [],
         household_members: [],
       },
     });
     await syncDrive(client(again));
-    expect(calls(again, "paperwork_files", "update").map((call) => call[0])).toEqual([{ status: "active" }]);
+    expect(calls(again, "paperwork_file_folders", "update").map((call) => call[0])).toEqual([{ status: "active" }]);
   });
 
-  it("leaves a File's status alone when its folder hasn't moved", async () => {
+  it("leaves a File Folder's status alone when its folder hasn't moved", async () => {
     vi.mocked(drive.listChildren)
       .mockResolvedValueOnce([item({ id: "arch", name: "Archived" }), item({ id: "fold-5", name: "F-0005_Taxes" })])
       .mockResolvedValueOnce([]);
     const fake = fakeSupabase({
       tables: {
         paperwork_drive: [CONNECTION],
-        paperwork_files: [{ id: "file-5", status: "active", drive_folder_id: "fold-5" }],
+        paperwork_file_folders: [{ id: "file-folder-5", status: "active", drive_folder_id: "fold-5" }],
         paperwork_drive_folders: [],
         paperwork_drive_documents: [],
         household_members: [],
       },
     });
     await syncDrive(client(fake));
-    expect(calls(fake, "paperwork_files", "update")).toHaveLength(0);
+    expect(calls(fake, "paperwork_file_folders", "update")).toHaveLength(0);
   });
 
   it("says so, and marks nothing missing, when the connected folder itself can't be seen", async () => {
@@ -137,13 +137,13 @@ describe("syncDrive (REQ-152 Sync)", () => {
   it("says so, and marks nothing missing, when the Archived folder can't be seen", async () => {
     vi.mocked(drive.getItem).mockResolvedValueOnce(item({ id: "top", name: "HomeBase Paperwork", parents: [] })).mockResolvedValueOnce(null);
     const fake = fakeSupabase({ tables: { paperwork_drive: [CONNECTION] } });
-    expect((await syncDrive(client(fake))).error).toMatch(/Archived folder/);
+    expect((await syncDrive(client(fake))).error).toMatch(/Archived Digital Folder/);
     expect(drive.listChildren).not.toHaveBeenCalled();
   });
 
   it("reports a Drive failure in words", async () => {
     vi.mocked(drive.listChildren).mockRejectedValue(new drive.DriveError("Google Drive said no: nope"));
-    const fake = fakeSupabase({ tables: { paperwork_drive: [CONNECTION], paperwork_files: [], paperwork_drive_folders: [], paperwork_drive_documents: [], household_members: [] } });
+    const fake = fakeSupabase({ tables: { paperwork_drive: [CONNECTION], paperwork_file_folders: [], paperwork_drive_folders: [], paperwork_drive_documents: [], household_members: [] } });
     expect((await syncDrive(client(fake))).error).toBe("Google Drive said no: nope");
   });
 });
@@ -154,14 +154,14 @@ describe("renameFoldersInCategory (REQ-152)", () => {
     { drive_id: "fold-6", name: "F-0006_Taxes", missing: false },
     { drive_id: "fold-7", name: "F-0007_Old name", missing: true },
   ];
-  const files = [
+  const fileFolders = [
     { number: 5, label: "Returns", drive_folder_id: "fold-5" },
     { number: 6, label: null, drive_folder_id: "fold-6" },
     { number: 7, label: null, drive_folder_id: "fold-7" },
   ];
 
   it("renames each linked folder whose name no longer matches, and nothing else", async () => {
-    const fake = fakeSupabase({ tables: { paperwork_files: files, paperwork_drive_folders: folders } });
+    const fake = fakeSupabase({ tables: { paperwork_file_folders: fileFolders, paperwork_drive_folders: folders } });
     const failed = await renameFoldersInCategory(client(fake), { id: "c", name: "Taxes", keep_years: null });
     expect(failed).toBe(0);
     expect(drive.renameItem).toHaveBeenCalledTimes(1);
@@ -171,7 +171,7 @@ describe("renameFoldersInCategory (REQ-152)", () => {
 
   it("counts the folders Drive wouldn't rename", async () => {
     vi.mocked(drive.renameItem).mockRejectedValue(new drive.DriveError("nope"));
-    const fake = fakeSupabase({ tables: { paperwork_files: files, paperwork_drive_folders: folders } });
+    const fake = fakeSupabase({ tables: { paperwork_file_folders: fileFolders, paperwork_drive_folders: folders } });
     expect(await renameFoldersInCategory(client(fake), { id: "c", name: "Taxes", keep_years: null })).toBe(1);
   });
 });

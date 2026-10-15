@@ -70,7 +70,7 @@ describe("the module list", () => {
   });
 
   // REQ-141: one switch per module, except Paperwork and Storage, which
-  // share one because archived paperwork files live in Storage.
+  // share one because archived paperwork File Folders live in Storage.
   it("has one switch per module, Paperwork & Storage sharing one", () => {
     expect(SWITCHES.map((each) => each.name)).toEqual([
       "Finances",

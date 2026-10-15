@@ -64,7 +64,7 @@ type Manage = "edit" | "label" | "remove";
 
 // REQ-107: everything done to an entry lives behind one menu; nothing is
 // edited on the entry's screen itself. The rules stay the database's and
-// the actions': a box holding archived files can't be removed or stop
+// the actions': a box holding archived File Folders can't be removed or stop
 // being a box, and the sheet says why.
 export function ManageEntry({ entry, label }: { entry: StorageEntry; label: string }) {
   const [menu, setMenu] = useState(false);

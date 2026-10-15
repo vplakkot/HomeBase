@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_ENV: process.env.VERCEL_ENV ?? "",
     NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
   },
+  // REQ-205: Paperwork "files" are now File Folders, so a saved link or a
+  // printed QR to /paperwork/files/<id> still lands on the right screen.
+  async redirects() {
+    return [{ source: "/paperwork/files/:id", destination: "/paperwork/file-folders/:id", permanent: true }];
+  },
   experimental: {
     // Label photos (REQ-32) are sent with the drink's form: two photos
     // shrunk in the browser to under 450 KB each, plus their small copies,

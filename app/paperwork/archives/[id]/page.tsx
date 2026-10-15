@@ -32,7 +32,7 @@ export default async function ArchivePage({
         { name: archiveName(box) },
       ]}
     >
-      <div className={styles.fileHead}>
+      <div className={styles.fileFolderHead}>
         <div className={styles.section}>
           <h2 className={styles.title}>{archiveName(box)}</h2>
           <p className={styles.facts}>

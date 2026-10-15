@@ -9,9 +9,9 @@ import {
   archiveName,
   boxName,
   documentsCount,
-  fileId,
-  fileRows,
-  filesCount,
+  fileFolderId,
+  fileFolderRows,
+  fileFoldersCount,
   labelText,
   placeOf,
   readPaperwork,
@@ -25,7 +25,7 @@ import { HeaderTools } from "./sheets";
 import band from "../../components/band.module.css";
 
 // Who is looking at a Paperwork page, what they may do there, and
-// everything Paperwork holds, with Storage's entries for the boxes files
+// everything Paperwork holds, with Storage's entries for the boxes File Folders
 // are archived in (REQ-98). Signed-out visitors go to sign-in.
 export async function paperworkViewer() {
   const supabase = await createClient();
@@ -43,7 +43,7 @@ export async function paperworkViewer() {
   ]);
   const choices = {
     people,
-    files: paperwork.files,
+    fileFolders: paperwork.fileFolders,
     categories: paperwork.categories,
     locations: sortedLocations(paperwork.locations),
     today: householdToday(),
@@ -146,7 +146,7 @@ export function Section({
   );
 }
 
-// One number in a summary card: "Files", 16.
+// One number in a summary card: "File Folders", 16.
 export function Fact({ label, value }: { label: string; value: string | number }) {
   return (
     <div className={styles.fact}>
@@ -156,25 +156,25 @@ export function Fact({ label, value }: { label: string; value: string | number }
   );
 }
 
-// REQ-100's search: files by ID, label name or category, and documents by
-// name, grouped. Each document says which file it's in and where that is.
+// REQ-100's search: File Folders by ID, label name or category, and documents by
+// name, grouped. Each document says which File Folder it's in and where that is.
 function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: string }) {
-  const { files, categories, papers, storage, locations, archives } = viewer;
-  const found = search(fileRows(files, categories, papers, viewer.drive), papers, query, null);
-  const fileOf = (id: string | null) => files.find((file) => file.id === id);
+  const { fileFolders, categories, papers, storage, locations, archives } = viewer;
+  const found = search(fileFolderRows(fileFolders, categories, papers, viewer.drive), papers, query, null);
+  const fileFolderOf = (id: string | null) => fileFolders.find((fileFolder) => fileFolder.id === id);
   return (
     <>
-      <Section id="found-files" title="Files" aside={filesCount(found.files.length)}>
-        {found.files.length === 0 ? (
-          <p className={styles.empty}>No files match.</p>
+      <Section id="found-file-folders" title="File Folders" aside={fileFoldersCount(found.fileFolders.length)}>
+        {found.fileFolders.length === 0 ? (
+          <p className={styles.empty}>No File Folders match.</p>
         ) : (
           <ul className={styles.grid}>
-            {found.files.map(({ file, category, count }) => (
-              <li key={file.id}>
-                <Link href={`/paperwork/files/${file.id}`} className={styles.linkCard}>
-                  <span className={`${styles.cardTitle} ${band.band}`}>{labelText(file, category)}</span>
+            {found.fileFolders.map(({ fileFolder, category, count }) => (
+              <li key={fileFolder.id}>
+                <Link href={`/paperwork/file-folders/${fileFolder.id}`} className={styles.linkCard}>
+                  <span className={`${styles.cardTitle} ${band.band}`}>{labelText(fileFolder, category)}</span>
                   <span className={styles.cardDetail}>
-                    {[file.label, placeOf(file, storage, locations).name, documentsCount(count)].filter(Boolean).join(" · ")}
+                    {[fileFolder.label, placeOf(fileFolder, storage, locations).name, documentsCount(count)].filter(Boolean).join(" · ")}
                   </span>
                 </Link>
               </li>
@@ -189,11 +189,11 @@ function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: stri
           <ul className={styles.table}>
             <li className={`${styles.tableHead} ${styles.found}`} aria-hidden="true">
               <span>Document</span>
-              <span>File</span>
+              <span>FileFolder</span>
               <span>Where</span>
             </li>
             {found.papers.map((paper) => {
-              const file = fileOf(paper.file_id);
+              const fileFolder = fileFolderOf(paper.file_folder_id);
               const archive = archives.find((row) => row.id === paper.archive_id);
               const box = storage.find((entry) => entry.id === archive?.storage_entry_id);
               return (
@@ -201,10 +201,10 @@ function SearchResults({ viewer, query }: { viewer: PaperworkViewer; query: stri
                   <Link href={`/paperwork/items/${paper.id}`} className={`${styles.row} ${styles.found}`}>
                     <span className={`${styles.rowName} ${band.band}`}>{paper.name}</span>
                     <span className={styles.rowCell}>
-                      {file ? fileId(file) : archive ? archiveName(box) : "Unfiled"}
+                      {fileFolder ? fileFolderId(fileFolder) : archive ? archiveName(box) : "Unfiled"}
                     </span>
                     <span className={styles.rowCell}>
-                      {file ? placeOf(file, storage, locations).name : box ? boxName(box) : "Your desk"}
+                      {fileFolder ? placeOf(fileFolder, storage, locations).name : box ? boxName(box) : "Your desk"}
                     </span>
                   </Link>
                 </li>

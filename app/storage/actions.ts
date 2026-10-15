@@ -28,7 +28,7 @@ function rowId(formData: FormData): string | null {
 
 function refresh() {
   revalidatePath("/storage", "layout");
-  // Paperwork shows which box an archived file is in.
+  // Paperwork shows which box an archived File Folder is in.
   revalidatePath("/paperwork", "layout");
   // Home's count.
   revalidatePath("/");
@@ -52,10 +52,10 @@ function entryFields(formData: FormData) {
 }
 
 // What a box holds from Paperwork (REQ-87, REQ-98, REQ-153): archived
-// files, and documents archived on their own into its archive.
-async function holdings(supabase: SupabaseClient, id: string): Promise<{ files: number; documents: number } | { error: string }> {
-  const { count: files, error } = await supabase
-    .from("paperwork_files")
+// File Folders, and documents archived on their own into its archive.
+async function holdings(supabase: SupabaseClient, id: string): Promise<{ fileFolders: number; documents: number } | { error: string }> {
+  const { count: fileFolders, error } = await supabase
+    .from("paperwork_file_folders")
     .select("id", { count: "exact", head: true })
     .eq("storage_entry_id", id);
   if (error) return { error: error.message };
@@ -65,21 +65,21 @@ async function holdings(supabase: SupabaseClient, id: string): Promise<{ files: 
     .eq("storage_entry_id", id)
     .maybeSingle();
   if (archiveError) return { error: archiveError.message };
-  if (!archive) return { files: files ?? 0, documents: 0 };
+  if (!archive) return { fileFolders: fileFolders ?? 0, documents: 0 };
   const { count: documents, error: documentsError } = await supabase
     .from("paperwork")
     .select("id", { count: "exact", head: true })
     .eq("archive_id", (archive as { id: string }).id);
   if (documentsError) return { error: documentsError.message };
-  return { files: files ?? 0, documents: documents ?? 0 };
+  return { fileFolders: fileFolders ?? 0, documents: documents ?? 0 };
 }
 
-const moveFirst = ({ files, documents }: { files: number; documents: number }) => {
+const moveFirst = ({ fileFolders, documents }: { fileFolders: number; documents: number }) => {
   const parts = [
-    files > 0 ? (files === 1 ? "1 archived paperwork file" : `${files} archived paperwork files`) : null,
+    fileFolders > 0 ? (fileFolders === 1 ? "1 archived paperwork File Folder" : `${fileFolders} archived paperwork File Folders`) : null,
     documents > 0 ? (documents === 1 ? "1 archived document" : `${documents} archived documents`) : null,
   ].filter(Boolean);
-  const them = files + documents === 1 ? "it" : "them";
+  const them = fileFolders + documents === 1 ? "it" : "them";
   return `It holds ${parts.join(" and ")}. Bring ${them} back or archive ${them} to another box first.`;
 };
 
@@ -97,7 +97,7 @@ export async function addEntry(_previous: FormState, formData: FormData): Promis
 }
 
 // REQ-87: change any field, box or not included; the ID stays. A box
-// holding archived files stays a box until they move.
+// holding archived File Folders stays a box until they move.
 export async function updateEntry(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
   const id = rowId(formData);
@@ -107,7 +107,7 @@ export async function updateEntry(_previous: FormState, formData: FormData): Pro
   if (!fields.is_box) {
     const held = await holdings(supabase, id);
     if ("error" in held) return held;
-    if (held.files + held.documents > 0) return { error: moveFirst(held) };
+    if (held.fileFolders + held.documents > 0) return { error: moveFirst(held) };
   }
   const { error } = await supabase.from("storage_entries").update(fields).eq("id", id);
   if (error) return { error: error.message };
@@ -116,14 +116,14 @@ export async function updateEntry(_previous: FormState, formData: FormData): Pro
 }
 
 // REQ-87: removing asks first (the form does), and a box holding archived
-// files can't go until they move. Its ID is never handed out again.
+// File Folders can't go until they move. Its ID is never handed out again.
 export async function removeEntry(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to remove." };
   const held = await holdings(supabase, id);
   if ("error" in held) return held;
-  if (held.files + held.documents > 0) return { error: moveFirst(held) };
+  if (held.fileFolders + held.documents > 0) return { error: moveFirst(held) };
   const { error } = await supabase.from("storage_entries").delete().eq("id", id);
   if (error) return { error: error.message };
   refresh();

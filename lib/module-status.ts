@@ -99,7 +99,7 @@ const DEMO: Record<string, ModuleStatus> = {
     status: "All filed",
     headline: "Everything is filed",
     facts: [
-      { label: "Files", value: "42" },
+      { label: "File Folders", value: "42" },
       { label: "Newest", value: "F-0042 · Taxes" },
     ],
     actionItems: [],

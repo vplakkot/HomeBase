@@ -65,7 +65,7 @@ export function EntryForm({ entry, onSaved }: { entry?: StorageEntry; onSaved?: 
 }
 
 // REQ-87: removing asks first — choosing Remove from the Manage menu opens
-// this question, and only Yes removes. A box holding archived files is
+// this question, and only Yes removes. A box holding archived File Folders is
 // refused with what to do.
 export function RemoveEntryForm({ entry, label, onKeep }: { entry: StorageEntry; label: string; onKeep: () => void }) {
   const [state, formAction, pending] = useActionState(removeEntry, initialState);

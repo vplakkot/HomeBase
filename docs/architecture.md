@@ -1016,54 +1016,66 @@ under the trigger `finances`. See [lesson 23](lessons/23-to-dos-that-clear-thems
 ## Paperwork
 
 The second module to open (REQ-88, REQ-97), slate and last on Home. It
-records the household's physical files and the paperwork in them, so
-anything can be found without searching the cupboards.
+records the household's **File Folders** (the physical ones in the
+cupboards, and Google Drive ones) and the paperwork in them, so anything
+can be found without searching the cupboards. Since REQ-205 the words
+are fixed: a **File Folder** is the container (never "file" or a bare
+"folder"), a **Digital Folder** is the Google Drive sub-folder a Drive
+File Folder is linked to, and a **document** is the paperwork. The code
+and database use the same words (`paperwork_file_folders`,
+`file_folder_id`, `/paperwork/file-folders/[id]`).
 
 | Table | One row is | Key facts |
 |---|---|---|
 | `paperwork_categories` | a category the admin made | `name` unique ignoring case, `keep_years` optional (1–100); only `manage_paperwork` (Admin) adds, changes or removes; one in use can't be removed (`on delete restrict`) |
-| `paperwork_locations` | a place files are kept (REQ-179) | `name`, unique ignoring case and extra spaces; any member adds, renames or removes one; a location with any file (active or archived) can't be removed (`on delete restrict`) |
-| `paperwork_files` | a physical file with a printed label | `number` handed out by the database (`generated always as identity`): it counts up, can't be chosen or changed, and a removed file's number never returns; shown as `F-0042`; `category_id`, `location_id` (the last office location; the old `location` text is kept in step by a trigger until a later migration drops it), `label` optional, `status` active/archived; archived means `storage_entry_id` names the box it's in, and the database holds the two together (REQ-98) |
-| `paperwork_archives` | a storage box's archive of single documents (REQ-153) | `storage_entry_id` (unique, a box only); made the first time a document is archived into the box; no F-ID, category or label, so it never uses a file number; nobody changes or removes one, it goes with its box, and a box whose archive holds documents can't be removed |
-| `paperwork` | one paper | `name`, `owner_id` (null = Joint), `document_date`, `notes`, `keep_until`, `logged_on` (household's today); `file_id` null = Unfiled; `archive_id` set = archived on its own (never both: the database refuses); removing a file sets its papers back to Unfiled |
+| `paperwork_locations` | a place File Folders are kept (REQ-179) | `name`, unique ignoring case and extra spaces; any member adds, renames or removes one; a location with any File Folder (active or archived) can't be removed (`on delete restrict`) |
+| `paperwork_file_folders` (was `paperwork_files`, renamed in REQ-205) | a File Folder with a printed label | `number` handed out by the database (`generated always as identity`): it counts up, can't be chosen or changed, and a removed File Folder's number never returns; shown as `F-0042`; `category_id`, `location_id` (the last office location; **null is "Not placed"**, REQ-206: allowed for a physical, active File Folder, refused for a Drive one by `keep_drive_files_in_drive`; the old `location` text column and its sync triggers were dropped in the same migration), `label` optional, `status` active/archived; archived means `storage_entry_id` names the box it's in, and the database holds the two together (REQ-98) |
+| `paperwork_archives` | a storage box's archive of single documents (REQ-153) | `storage_entry_id` (unique, a box only); made the first time a document is archived into the box; no F-ID, category or label, so it never uses a File Folder number; nobody changes or removes one, it goes with its box, and a box whose archive holds documents can't be removed |
+| `paperwork` | one paper | `name`, `owner_id` (null = Joint), `document_date`, `notes`, `keep_until`, `logged_on` (household's today); `file_folder_id` null = Unfiled; `archive_id` set = archived on its own (never both: the database refuses); removing a File Folder sets its papers back to Unfiled |
 
-Every member reads everything and logs, files, moves and removes files
-and paperwork. [`lib/paperwork/paperwork.ts`](../lib/paperwork/paperwork.ts)
+Every member reads everything and logs, files, moves and removes File
+Folders and paperwork. [`lib/paperwork/paperwork.ts`](../lib/paperwork/paperwork.ts)
 reads it all in one go (the household is small) and works out the
-places, files, search and keep-until (document date, or the logged date,
+places, File Folders, search and keep-until (document date, or the logged date,
 plus the category's years).
 
 The screens work like a filing cabinet (REQ-100) and follow the module
-home rules (DESIGN.md §11): Overview → a location's files → a file's
-documents (the UI calls each paper a document). A location is a record
+home rules (DESIGN.md §11): Overview → a location's File Folders → a File
+Folder's documents (the UI calls each paper a document). A location is a record
 (`paperwork_locations`, REQ-179): the Overview lists every one, empty
 ones too, with Add location; a location's screen has a Manage location
-menu (Rename; Delete only when nothing is in it). A file picks its
-location from that list or makes a new one inline, never free text. A
-storage box holding archived files, or an archive of single documents
-(REQ-153), is a place too. An archive shows beside its box's files; a
+menu (Rename; Delete only when nothing is in it). A File Folder picks its
+location from that list, makes a new one inline, or (physical ones only)
+skips it and is **Not placed** (REQ-206): it then shows in a "Not placed"
+section on the Overview with its count, raises a second action item
+("N File Folders not placed", opening `/paperwork/not-placed`) and reads
+"Not placed" wherever its location is shown. Not placed isn't a
+location record, so it can't be renamed or deleted. A
+storage box holding archived File Folders, or an archive of single documents
+(REQ-153), is a place too. An archive shows beside its box's File Folders; a
 document is archived from its own page and brought back to Unfiled.
 Routes: `/paperwork` (action item, summary, locations, archived boxes),
 `/paperwork/locations/[id]`, `/paperwork/boxes/[id]`,
-`/paperwork/archives/[id]`,
-`/paperwork/files/[id]`, `/paperwork/items/[id]`, `/paperwork/unfiled`,
+`/paperwork/archives/[id]`, `/paperwork/not-placed`,
+`/paperwork/file-folders/[id]` (the old `/paperwork/files/[id]` redirects
+there, from `next.config.ts`), `/paperwork/items/[id]`, `/paperwork/unfiled`,
 `/paperwork/categories` and `/paperwork/categories/[id]` (every member
-browses a category's documents by year, with empty years shown as gaps,
-REQ-105), and `/paperwork/settings` (admin: manage categories, behind the
+browses a category's File Folders, each collapsed with its documents one
+tap away; REQ-105, REQ-204), and `/paperwork/settings` (admin: manage categories, behind the
 header's gear, not a tab). The tabs are Overview, Unfiled and Categories.
 [`app/paperwork/frame.tsx`](../app/paperwork/frame.tsx) draws every
 screen's header (search, settings gear, Log document), tabs and
 breadcrumb; a search is `?q=` on whatever screen it was typed on, and its
 results replace that screen. Forms open in sheets
 ([`app/paperwork/sheets.tsx`](../app/paperwork/sheets.tsx)) so you stay
-where you are; a form that makes a file returns its label, shown once to
-print, instead of opening the file.
+where you are; a form that makes a File Folder returns its label, shown once to
+print, instead of opening the File Folder.
 
-### Google Drive files (REQ-152, REQ-153)
+### Google Drive File Folders (REQ-152, REQ-153)
 
-A File can live in one Google Drive folder instead of a cupboard. The
-documents stay in Drive; HomeBase links a File to its folder by the
-folder's **Drive ID, never its name**, and keeps a copy of what it last
+A File Folder can live in one Google Drive Digital Folder instead of a
+cupboard. The documents stay in Drive; HomeBase links a File Folder to its
+Digital Folder by the folder's **Drive ID, never its name**, and keeps a copy of what it last
 saw so pages open fast.
 
 ```mermaid
@@ -1078,16 +1090,16 @@ flowchart LR
 | Table | One row is | Key facts |
 |---|---|---|
 | `paperwork_drive` | the one connected folder | `id` is always `true`, so one row; `folder_id`, `archived_folder_id` (the `Archived` sub-folder found when connected), `synced_at`; only `manage_paperwork` (Admin) connects; a member's sync stamps the time through `record_drive_sync()` |
-| `paperwork_drive_folders` | a sub-folder last seen (a File's, or one nobody linked) | `drive_id`, `name`, `in_archived`, `ignored` (the admin chose), `missing` (gone from Drive; never dropped) |
-| `paperwork_drive_documents` | a document directly in a File's folder, `Archived` or the top folder | `drive_id`, `name`, `link`, `parent_id`, `drive_owner_email`, `owner_id` (null is Joint) with `owner_set`; `missing`; only the admin removes a missing one's record |
+| `paperwork_drive_folders` | a Digital Folder last seen (a File Folder's, or one nobody linked) | `drive_id`, `name`, `in_archived`, `ignored` (the admin chose), `missing` (gone from Drive; never dropped) |
+| `paperwork_drive_documents` | a document directly in a File Folder's Digital Folder, `Archived` or the top one | `drive_id`, `name`, `link`, `parent_id`, `drive_owner_email`, `owner_id` (null is Joint) with `owner_set`; `missing`; only the admin removes a missing one's record |
 
-Other changes: `paperwork_files.is_drive` (set when made, never changes)
-and `drive_folder_id` (null while "Waiting for folder"); a Drive File is
+Other changes: `paperwork_file_folders.is_drive` (set when made, never changes)
+and `drive_folder_id` (null while "Waiting for Digital Folder"); a Drive File Folder is
 archived by moving its folder into `Archived`, so it is archived without
 a storage box (the archived-in-a-box check has a Drive branch);
 `paperwork_locations.built_in = 'drive'` is the Google Drive location,
 which a trigger stops being renamed or removed, and the database refuses
-a physical File there or a Drive File anywhere else;
+a physical File Folder there or a Drive File Folder anywhere else;
 `household_members.google_email` (admin, optional) is compared with
 Drive's document owners.
 
@@ -1104,24 +1116,24 @@ buttons. The app never makes folders.
 
 **Sync** ([`drive-sync.ts`](../lib/paperwork/drive-sync.ts) decides,
 [`drive-run.ts`](../lib/paperwork/drive-run.ts) does): opening Paperwork,
-or Refresh, reads the connected folder, `Archived` and each linked File's
-folder, then updates the copy. A folder or document Drive no longer has
-is marked Missing, never dropped; a File follows its folder into or out of
-`Archived`; a document in a File's folder with no owner decided takes the
+or Refresh, reads the connected Digital Folder, `Archived` and each linked File Folder's
+Digital Folder, then updates the copy. A Digital Folder or document Drive no longer has
+is marked Missing, never dropped; a File Folder follows its Digital Folder into or out of
+`Archived`; a document in a File Folder's Digital Folder with no owner decided takes the
 member whose Google account owns it, else "Owner not set". Anything
-deeper than one level inside a File's folder is ignored. If the connected
+deeper than one level inside a File Folder's Digital Folder is ignored. If the connected
 folder itself can't be seen, sync says so and marks nothing Missing.
 
 **Changes** go to Drive first and the database after
 ([`app/paperwork/drive-actions.ts`](../app/paperwork/drive-actions.ts)),
 so a refusal from Drive leaves HomeBase unchanged. The app is the source
 of truth for names: a linked folder named differently shows the admin
-"Folder name doesn't follow convention" with a Fix that renames it, and
-renaming a category, or changing a File's category or label, renames its
-folders. Category names can't contain
-"_". Drive documents go only into Drive Files and physical paperwork only
-into physical Files. Routes added: `/paperwork/archives/drive` (the Drive
-archive File: `Archived`'s loose documents, with archived Drive Files).
+"Digital Folder name doesn't follow convention" with a Fix that renames it, and
+renaming a category, or changing a File Folder's category or label, renames its
+Digital Folders. Category names can't contain
+"_". Drive documents go only into Drive File Folders and physical paperwork only
+into physical File Folders. Routes added: `/paperwork/archives/drive` (the Drive
+archive File Folder: `Archived`'s loose documents, with archived Drive File Folders).
 Drive documents aren't searched, don't count toward Home's unfiled tile
 (the Overview and Unfiled tab show "Unfiled · Google Drive"), and have no
 page of their own: a name opens the document in Google Drive.
@@ -1151,17 +1163,17 @@ link so a past month opened from History stays in view across tabs.
 
 The third module to open (REQ-87), teal and last on Home. It logs
 everything in the basement, boxed or not, so anyone knows which box to
-open. Paperwork files can be archived into its boxes (REQ-98).
+open. Paperwork File Folders can be archived into its boxes (REQ-98).
 
 | Table | One row is | Key facts |
 |---|---|---|
-| `storage_entries` | a box or a loose item | `number` handed out by the database like a file's, shown as `S-003`; `name`, `is_box`, `contents` (one item per line, boxes only: a check refuses contents on a loose item), `note`; every member reads, adds, changes and removes |
+| `storage_entries` | a box or a loose item | `number` handed out by the database like a File Folder's, shown as `S-003`; `name`, `is_box`, `contents` (one item per line, boxes only: a check refuses contents on a loose item), `note`; every member reads, adds, changes and removes |
 
 Two rules span both modules, each a trigger on the table whose write
-would break it: a file can only be archived into a box
-(`refuse_file_outside_a_box` on `paperwork_files`), and a box holding
-archived files stays a box (`refuse_unboxing_with_files` on
-`storage_entries`). A box holding files can't be removed either
+would break it: a File Folder can only be archived into a box
+(`refuse_file_folder_outside_a_box` on `paperwork_file_folders`), and a box holding
+archived File Folders stays a box (`refuse_unboxing_with_files` on
+`storage_entries`). A box holding File Folders can't be removed either
 (`on delete restrict`). The app checks the same things first, so people
 see "move them first" rather than a database error.
 
@@ -1169,12 +1181,12 @@ see "move them first" rather than a database error.
 and does search (ID, name, contents, note) and the contents preview.
 Pages live under `/storage` (REQ-107, laid out like Paperwork): the
 home, with entries grouped as Boxes and Not in a box, and an entry's
-page (contents, note, archived files linking to Paperwork). Every screen
+page (contents, note, archived File Folders linking to Paperwork). Every screen
 has the header search, whose results replace the view, and Add to
 storage, a sheet whose one-time notice shows the new ID to print. Edit,
 the label and Remove (after a confirm) are behind the entry's Manage
 menu. Storage's stylesheet borrows Paperwork's shapes with `composes`
-rather than copying them (see [lesson 25](lessons/25-a-screen-that-stays-put.md)). Paperwork's file page archives
+rather than copying them (see [lesson 25](lessons/25-a-screen-that-stays-put.md)). Paperwork's File Folder page archives
 a file or brings it back; its files list hides archived files until
 asked. Home's Storage tile only counts entries; it raises no action
 items.
@@ -1662,7 +1674,7 @@ is ever deleted: off and hidden only change what's drawn.
 - **`modules_off`** — one row per switch that's off, for everyone. Only
   a role holding `manage_modules` (Admin) adds or removes rows. Paperwork
   and Storage share one switch, stored as `paperwork`, because archived
-  paperwork files live in Storage.
+  paperwork File Folders live in Storage.
 - **`modules_hidden`** — one row per person and module they've hidden
   from their own navigation and Home tiles. Only its owner reads or
   changes it.

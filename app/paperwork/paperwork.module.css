@@ -238,7 +238,7 @@
   }
 }
 
-/* A place, file or category: a card that is its own link. */
+/* A place, File Folder or category: a card that is its own link. */
 .linkCard {
   composes: card;
   height: 100%;
@@ -347,78 +347,75 @@ a.row:hover .rowName {
   }
 }
 
-/* A category's documents by year (REQ-105): the year on the left, its
-   documents beside it. A year with nothing is in the module colour. */
-.yearRow {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4) var(--space-6);
-}
-
-.year {
-  font-size: var(--text-body-lg);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.yearDocs {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
+/* A category's File Folders (REQ-204): one row each, ID and label name
+   (a link), place and document count, and Expand to show its documents.
+   Every File Folder starts collapsed. */
+.folderList {
+  composes: card;
+  gap: 0;
   padding: 0;
+  margin: 0;
   list-style: none;
 }
 
-.doc {
+.folderItem + .folderItem {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.folderHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-4) var(--space-6);
+}
+
+.folderTitle {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
   color: var(--color-ink);
   text-decoration: none;
 }
 
-.doc:hover .rowName {
+.folderTitle:hover .rowName {
   text-decoration: underline;
 }
 
-.gap {
-  color: var(--module-loud);
-  font-weight: 600;
+.folderMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  color: var(--color-muted);
+  font-size: var(--text-body-sm);
 }
 
-.gap .rowCell {
-  color: inherit;
-  font-weight: 600;
+.folderDocs {
+  margin: 0;
+  padding: 0 var(--space-6) var(--space-4);
+  list-style: none;
+}
+
+.folderDocs .row {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.folderDocs > li:first-child .row {
+  border-top: none;
 }
 
 @media (min-width: 1024px) {
-  .yearRow {
-    display: grid;
-    grid-template-columns: 120px minmax(0, 1fr);
-    align-items: start;
-    gap: var(--space-6);
-  }
-
-  .yearHead {
-    display: grid;
-    grid-template-columns: 120px minmax(0, 1fr);
-    gap: var(--space-6);
-  }
-
-  .doc,
-  .yearHead > :last-child {
-    display: grid;
-    grid-template-columns: 2fr 1fr 2fr;
-    align-items: center;
-    gap: var(--space-6);
+  .folderDocs .items {
+    grid-template-columns: 2.4fr 1fr 1fr 1fr;
   }
 }
 
-/* The file's head: ID · category, then label, place and status, with
-   Add document and Manage file beside it. */
-.fileHead {
+/* The File Folder's head: ID · category, then label, place and status, with
+   Add document and Manage File Folder beside it. */
+.fileFolderHead {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -443,7 +440,7 @@ a.row:hover .rowName {
   font-weight: 600;
 }
 
-.fileButtons {
+.fileFolderButtons {
   position: relative;
   display: flex;
   flex-wrap: wrap;
@@ -451,14 +448,14 @@ a.row:hover .rowName {
 }
 
 @media (min-width: 1024px) {
-  .fileHead {
+  .fileFolderHead {
     flex-direction: row;
     align-items: flex-end;
     justify-content: space-between;
   }
 }
 
-/* Manage file's menu: a card of its own, set off by its border. */
+/* Manage File Folder's menu: a card of its own, set off by its border. */
 .menu {
   position: absolute;
   top: 100%;

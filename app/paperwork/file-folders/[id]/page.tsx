@@ -2,25 +2,25 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   documentsCount,
-  driveFileState,
+  driveFileFolderState,
   expectedFolderName,
-  fileId,
+  fileFolderId,
   labelText,
   ownerName,
   placeOf,
 } from "../../../../lib/paperwork/paperwork";
 import { boxes } from "../../../../lib/storage/storage";
 import { CreatedItForm, DriveStatus, FolderName } from "../../drive-forms";
-import { DriveFileBody } from "../../drive-views";
+import { DriveFileFolderBody } from "../../drive-views";
 import { PaperworkScreen, paperworkViewer } from "../../frame";
 import styles from "../../paperwork.module.css";
-import { AddPaperwork, ManageFile } from "../../sheets";
+import { AddPaperwork, ManageFileFolder } from "../../sheets";
 import band from "../../../../components/band.module.css";
 
-// REQ-100's third screen, one file: ID · category, its label name, where
+// REQ-100's third screen, one File Folder: ID · category, its label name, where
 // it is and whether it's archived, then every document in it. Changing the
-// file is behind Manage file; nothing is edited here directly.
-export default async function FilePage({
+// File Folder is behind Manage File Folder; nothing is edited here directly.
+export default async function FileFolderPage({
   params,
   searchParams,
 }: {
@@ -29,32 +29,32 @@ export default async function FilePage({
 }) {
   const [{ id }, { q = "" }] = await Promise.all([params, searchParams]);
   const viewer = await paperworkViewer();
-  const { people, categories, files, papers, storage, locations, choices } = viewer;
-  const file = files.find((row) => row.id === id);
-  if (!file) notFound();
+  const { people, categories, fileFolders, papers, storage, locations, choices } = viewer;
+  const fileFolder = fileFolders.find((row) => row.id === id);
+  if (!fileFolder) notFound();
   const label = labelText(
-    file,
-    categories.find((row) => row.id === file.category_id),
+    fileFolder,
+    categories.find((row) => row.id === fileFolder.category_id),
   );
-  const place = placeOf(file, storage, locations);
-  const inside = papers.filter((paper) => paper.file_id === file.id);
-  const archived = file.status === "archived";
+  const place = placeOf(fileFolder, storage, locations);
+  const inside = papers.filter((paper) => paper.file_folder_id === fileFolder.id);
+  const archived = fileFolder.status === "archived";
 
-  if (file.is_drive) {
-    const category = categories.find((row) => row.id === file.category_id);
-    const state = driveFileState(file, viewer.drive);
+  if (fileFolder.is_drive) {
+    const category = categories.find((row) => row.id === fileFolder.category_id);
+    const state = driveFileFolderState(fileFolder, viewer.drive);
     return (
       <PaperworkScreen
         viewer={viewer}
-        here={`/paperwork/files/${file.id}`}
+        here={`/paperwork/file-folders/${fileFolder.id}`}
         query={q}
-        crumbs={[{ name: place.name, href: place.href }, { name: fileId(file) }]}
+        crumbs={[{ name: place.name, href: place.href }, { name: fileFolderId(fileFolder) }]}
       >
-        <div className={styles.fileHead}>
+        <div className={styles.fileFolderHead}>
           <div className={styles.section}>
             <h2 className={styles.title}>{label}</h2>
             <p className={styles.facts}>
-              {file.label ? <strong>{file.label}</strong> : <span className={styles.noLabel}>No label</span>}
+              {fileFolder.label ? <strong>{fileFolder.label}</strong> : <span className={styles.noLabel}>No label</span>}
               <span aria-hidden="true">·</span>
               <span>Google Drive</span>
               <span aria-hidden="true">·</span>
@@ -67,15 +67,15 @@ export default async function FilePage({
               ) : null}
             </p>
           </div>
-          <div className={styles.fileButtons}>
-            <ManageFile file={file} label={label} boxes={[]} choices={choices} returnTo={place.href} />
+          <div className={styles.fileFolderButtons}>
+            <ManageFileFolder fileFolder={fileFolder} label={label} boxes={[]} choices={choices} returnTo={place.href} />
           </div>
         </div>
         {viewer.drive.connection ? <DriveStatus syncedAt={viewer.drive.connection.synced_at} /> : null}
-        <DriveFileBody viewer={viewer} file={file} state={state}>
-          <FolderName name={expectedFolderName(file, category)} />
-          <CreatedItForm file={file} />
-        </DriveFileBody>
+        <DriveFileFolderBody viewer={viewer} fileFolder={fileFolder} state={state}>
+          <FolderName name={expectedFolderName(fileFolder, category)} />
+          <CreatedItForm fileFolder={fileFolder} />
+        </DriveFileFolderBody>
       </PaperworkScreen>
     );
   }
@@ -83,32 +83,32 @@ export default async function FilePage({
   return (
     <PaperworkScreen
       viewer={viewer}
-      here={`/paperwork/files/${file.id}`}
+      here={`/paperwork/file-folders/${fileFolder.id}`}
       query={q}
-      crumbs={[{ name: place.name, href: place.href }, { name: fileId(file) }]}
+      crumbs={[{ name: place.name, href: place.href }, { name: fileFolderId(fileFolder) }]}
     >
-      <div className={styles.fileHead}>
+      <div className={styles.fileFolderHead}>
         <div className={styles.section}>
           <h2 className={styles.title}>{label}</h2>
           <p className={styles.facts}>
-            {file.label ? <strong>{file.label}</strong> : <span className={styles.noLabel}>No label</span>}
+            {fileFolder.label ? <strong>{fileFolder.label}</strong> : <span className={styles.noLabel}>No label</span>}
             <span aria-hidden="true">·</span>
             <span>{place.name}</span>
             <span aria-hidden="true">·</span>
             <span>{archived ? "Archived" : "Active"}</span>
           </p>
         </div>
-        <div className={styles.fileButtons}>
-          <AddPaperwork file={file} choices={choices} />
-          <ManageFile file={file} label={label} boxes={boxes(storage)} choices={choices} returnTo={place.href} />
+        <div className={styles.fileFolderButtons}>
+          <AddPaperwork fileFolder={fileFolder} choices={choices} />
+          <ManageFileFolder fileFolder={fileFolder} label={label} boxes={boxes(storage)} choices={choices} returnTo={place.href} />
         </div>
       </div>
       {inside.length === 0 ? (
         <p className={styles.empty}>No documents in it yet.</p>
       ) : (
-        <ul className={styles.table} aria-label="Documents in this file">
+        <ul className={styles.table} aria-label="Documents in this File Folder">
           <li className={`${styles.tableHead} ${styles.items}`} aria-hidden="true">
-            <span>{documentsCount(inside.length)} in this file</span>
+            <span>{documentsCount(inside.length)} in this File Folder</span>
             <span>Owner</span>
             <span>Dated</span>
             <span>Keep until</span>

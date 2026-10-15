@@ -108,7 +108,7 @@ Every module home follows the same rules. Mockups: `finances-desktop.html`, `pap
 **Colour**
 - The module's loud colour is used only for: card borders, buttons, progress bars, the active tab, the context in the title (e.g. the month), and urgent text such as "Overdue".
 - **Number cards** (Vin, 2026-09-29; Meal Plans' Our kitchen): like every other card — white, 1.5px border in the module's loud colour — with the label in the module's hue (`--module-quiet-ink`). Not solid module colour.
-- **Name bands** (REQ-151, Vin, 2026-09-28): on pages you read, the name of each thing listed (an action item's title, a person, a bill, a file, a document, a storage entry) sits on a band of the module's **quiet** tint (`--module-quiet`, the colour of its Home tile with nothing to do), text in `--module-quiet-title`. Every band is the same length, 18rem or the full width on a phone, whatever its text, and reaches left by its padding so its words line up with the text below. Section and card headings, photo tiles (Restaurants places, and the photos on Meal Plans' home) and forms stay plain; Meal Plans' recipe library names are banded (Vin, 2026-09-29); a card with only a small thumbnail (a drink) is banded, its band kept clear of the thumbnail. One shared style: `components/band.module.css`.
+- **Name bands** (REQ-151, Vin, 2026-09-28): on pages you read, the name of each thing listed (an action item's title, a person, a bill, a File Folder, a document, a storage entry) sits on a band of the module's **quiet** tint (`--module-quiet`, the colour of its Home tile with nothing to do), text in `--module-quiet-title`. Every band is the same length, 18rem or the full width on a phone, whatever its text, and reaches left by its padding so its words line up with the text below. Section and card headings, photo tiles (Restaurants places, and the photos on Meal Plans' home) and forms stay plain; Meal Plans' recipe library names are banded (Vin, 2026-09-29); a card with only a small thumbnail (a drink) is banded, its band kept clear of the thumbnail. One shared style: `components/band.module.css`.
 - Main text charcoal, secondary text grey. Charcoal is never a card fill.
 - Status is **plain text** (Paid, Overdue), never a pill or chip. A past month's status is a small superscript after the title: "Closed", or "Open" if it was never closed. The current month shows none while it is open, and "Closed" once it closes early, paid up (Vin, 2026-09-25).
 
@@ -167,14 +167,15 @@ Brand lockup · Module tile (loud / quiet, phone / desktop) · Action item card 
 Mockups: `paperwork-desktop-overview.html`, `paperwork-desktop-categories.html`, `paperwork-desktop-category.html`. Follows the module home layout (§6). Each paperwork item is called a **document** in the UI ("18 documents", "Log document"); the module is still Paperwork.
 - **Header:** "Paperwork", search bar, settings gear (categories: admin), **Log document**.
 - **Tabs:** Overview, Unfiled, Categories.
-- **Action items:** the only one is "N documents unfiled on your desk" with **File it**.
-- **Summary:** locations · files · documents.
-- **Locations:** one card per office location, then "Archived in storage" (one card per box).
-- **Categories tab:** one card per category (files · documents). A category page lists its documents by year, newest first; a year with nothing between the oldest and newest shows "Nothing logged for [year]" in the module colour so gaps stand out; undated documents last.
+- **Action items:** "N documents unfiled on your desk" with **File it**, and (REQ-206) "N File Folders not placed" with **Place it** / **Place them**, opening the Not placed list. Each clears itself.
+- **Summary:** locations · File Folders · documents.
+- **Locations:** one card per office location, preceded by a "Not placed" card (only while a File Folder has no location, REQ-206), then "Archived in storage" (one card per box).
+- **Categories tab:** one card per category (File Folders · documents). A category page lists its File Folders (REQ-204), sorted by label name (no label last, by ID), each showing ID, label name or "No label", location (or "Not placed"; an "Archived" marker for archived ones) and document count. Every File Folder starts collapsed; **Expand** lists its documents by keep-until (soonest first, none last by name), **Collapse** hides them. The ID or name opens the File Folder.
+- **Words** (REQ-205): the container is a **File Folder**, the Google Drive folder behind one a **Digital Folder**, the paperwork a **document**. Never "file" or a bare "folder" for the container.
 
 ## 12. Storage (reference for v1.0)
 
 Mockup: screens 6–7 of the Paperwork/Storage design canvas (REQ-107). Same shapes as Paperwork (§11), in teal:
 - **Header:** "Storage", the one search (names, IDs, contents, notes; results replace the view, Clear returns), and **Add to storage** (a sheet; a one-time notice shows the new ID to print).
-- **Home:** "Boxes · N" then "Not in a box · N", one card per entry: ID · name, archived paperwork files if any, a contents preview, the note in italics.
-- **Entry:** breadcrumb Storage › ID; title "ID · name" with a small "Box" superscript; **Manage** menu (Edit, Show label to reprint, Remove). Cards: Contents (one per line) and Note ("No note"), then the archived paperwork files (ID, label name or "No label", documents), each opening in Paperwork.
+- **Home:** "Boxes · N" then "Not in a box · N", one card per entry: ID · name, archived paperwork File Folders if any, a contents preview, the note in italics.
+- **Entry:** breadcrumb Storage › ID; title "ID · name" with a small "Box" superscript; **Manage** menu (Edit, Show label to reprint, Remove). Cards: Contents (one per line) and Note ("No note"), then the archived paperwork File Folders (ID, label name or "No label", documents), each opening in Paperwork.

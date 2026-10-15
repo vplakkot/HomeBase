@@ -48,7 +48,7 @@ begin
   report := report || format('1c. a member reads the connection: %s (wants 1)%s', v_count, E'\n');
 
   -- 2. A member syncs: makes a Drive file, records folders and documents, stamps the time.
-  insert into public.paperwork_files (category_id, location_id, is_drive) values (taxes, drive_place, true);
+  insert into public.paperwork_file_folders (category_id, location_id, is_drive) values (taxes, drive_place, true);
   insert into public.paperwork_drive_folders (drive_id, name) values ('check-folder', 'F-9999_Check');
   insert into public.paperwork_drive_documents (drive_id, name, parent_id) values ('check-doc', 'Check.pdf', 'check-folder');
   perform public.record_drive_sync();

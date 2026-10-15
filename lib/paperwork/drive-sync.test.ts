@@ -21,7 +21,7 @@ const knownFolder = (over: Partial<DriveFolder> & { drive_id: string }): DriveFo
 });
 
 describe("what a sync reads (REQ-152)", () => {
-  it("reads inside a File's folder only once it's linked", () => {
+  it("reads inside a File Folder's folder only once it's linked", () => {
     const items = [folder("f1", "F-0001_Home"), folder("f2", "Stray"), folder("arch", "Archived")];
     expect(foldersToRead(items, CONNECTION, new Set(["f1"]))).toEqual(["f1"]);
   });
@@ -41,24 +41,24 @@ describe("planSync", () => {
     expect(plan.folders[0].ignored).toBe(true);
   });
 
-  it("finds documents directly in the top folder, Archived and a File's folder, and ignores deeper ones", () => {
+  it("finds documents directly in the top folder, Archived and a File Folder's folder, and ignores deeper ones", () => {
     const items = [
       folder("f1", "F-0001_Home"),
       folder("arch", "Archived"),
       doc("d-top", "Loose.pdf", "top"),
       doc("d-arch", "Old.pdf", "arch"),
-      doc("d-file", "Lease.pdf", "f1"),
+      doc("d-file-folder", "Lease.pdf", "f1"),
       doc("d-deep", "Deep.pdf", "some-subfolder"),
     ];
     const plan = planSync(CONNECTION, items, [], [], []);
     expect(plan.documents.map((row) => [row.drive_id, row.parent_id])).toEqual([
       ["d-top", "top"],
       ["d-arch", "arch"],
-      ["d-file", "f1"],
+      ["d-file-folder", "f1"],
     ]);
   });
 
-  it("sets the owner of a document in a File to the member whose Google account owns it", () => {
+  it("sets the owner of a document in a File Folder to the member whose Google account owns it", () => {
     const plan = planSync(CONNECTION, [folder("f1", "F-0001_Home"), doc("d1", "Lease.pdf", "f1", "alex@example.com")], [], [], [ALEX, SAM]);
     expect(plan.documents[0]).toMatchObject({ owner_id: "u-alex", owner_set: true });
   });
@@ -84,7 +84,7 @@ describe("planSync", () => {
     expect(plan.documents[0]).toMatchObject({ owner_id: null, owner_set: true });
   });
 
-  it("sets the owner when a loose document is moved into a File's folder by hand", () => {
+  it("sets the owner when a loose document is moved into a File Folder's folder by hand", () => {
     const known = knownDoc({ drive_id: "d1", parent_id: "top" });
     const plan = planSync(CONNECTION, [folder("f1", "F"), doc("d1", "a.pdf", "f1", "alex@example.com")], [], [known], [ALEX]);
     expect(plan.documents[0]).toMatchObject({ parent_id: "f1", owner_id: "u-alex", owner_set: true });

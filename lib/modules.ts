@@ -38,7 +38,7 @@ export type Module = {
   href: string | null;
   sections: readonly ModuleSection[];
   // Turned on and off by another module's switch (REQ-141): Storage by
-  // Paperwork's, because archived paperwork files live in Storage.
+  // Paperwork's, because archived paperwork File Folders live in Storage.
   switchedWith?: string;
 };
 
@@ -134,7 +134,7 @@ export const MODULES: readonly Module[] = [
     // sheet from the header, and managing categories is behind the
     // settings gear (admin), not a tab.
     sections: [
-      { name: "Unfiled", description: "Documents waiting for a file", href: "/paperwork/unfiled" },
+      { name: "Unfiled", description: "Documents waiting for a File Folder", href: "/paperwork/unfiled" },
       { name: "Categories", description: "Every document by category and year", href: "/paperwork/categories" },
     ],
   },

@@ -260,7 +260,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
           </ul>
           <p className={styles.cardFoot}>
             Off hides a module for everyone and deletes nothing. Archived
-            paperwork files live in Storage, so the two share one switch.
+            paperwork File Folders live in Storage, so the two share one switch.
           </p>
         </section>
       </div>
