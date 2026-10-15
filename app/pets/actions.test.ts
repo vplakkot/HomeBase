@@ -393,6 +393,22 @@ describe("medications (REQ-189)", () => {
       expect(on("pet_doses").some((query) => query.delete.mock.calls.length > 0)).toBe(true);
     });
 
+    it("leaves the doses on hand alone when the dose never came off the supply", async () => {
+      given({ pet_doses: [{ ...dose, supply_taken: false }], pet_medications: [{ doses_on_hand: 0 }] });
+      // The fake answers every query on a table with the same rows, so no later dose is found
+      // by returning none for the "later than this" lookup (the second read of the table).
+      const real = fake.from.getMockImplementation()!;
+      let doseReads = 0;
+      fake.from.mockImplementation(((table: string) => {
+        if (table === "pet_doses" && ++doseReads === 2) return fakeSupabase({ tables: { pet_doses: [] } }).from(table);
+        return real(table);
+      }) as never);
+      expect(await undoDose({}, form({ id: ROW }))).toEqual({ saved: true });
+      expect(on("pet_medication_pets")[0].update).toHaveBeenCalledWith({ next_dose_on: "2026-10-10" });
+      expect(on("pet_medications").every((query) => query.update.mock.calls.length === 0)).toBe(true);
+      expect(on("pet_doses").some((query) => query.delete.mock.calls.length > 0)).toBe(true);
+    });
+
     it("refuses a dose that isn't the latest", async () => {
       given({ pet_doses: [dose] });
       // Every read of the table finds a dose, so one is "later".
