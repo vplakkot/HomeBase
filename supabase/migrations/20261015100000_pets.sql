@@ -102,6 +102,7 @@ create table public.pet_doses (
   given_on date not null,
   given_by uuid references auth.users (id) on delete set null default auth.uid(),
   previous_next_dose_on date,
+  supply_taken boolean not null default false,
   created_at timestamptz not null default now()
 );
 create index pet_doses_medication on public.pet_doses (medication_id, pet_id);

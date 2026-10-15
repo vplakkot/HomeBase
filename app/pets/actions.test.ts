@@ -337,8 +337,28 @@ describe("medications (REQ-189)", () => {
         pet_id: PET,
         given_on: "2026-10-08",
         previous_next_dose_on: "2026-10-10",
+        supply_taken: true,
       });
       expect(on("pet_medications").at(-1)!.update).toHaveBeenCalledWith({ doses_on_hand: 5 });
+    });
+
+    it("notes when no dose came off the supply because none were on hand", async () => {
+      given({ pet_medications: [{ ...med, doses_on_hand: 0 }], pet_medication_pets: [{ next_dose_on: "2026-10-10" }] });
+      expect(await markGiven({}, form({ medicationId: MED, petId: PET }))).toEqual({ saved: true });
+      expect(on("pet_doses")[0].insert).toHaveBeenCalledWith(expect.objectContaining({ supply_taken: false }));
+      expect(on("pet_medications").every((query) => query.update.mock.calls.length === 0)).toBe(true);
+    });
+
+    it("logs nothing when someone else marked the same dose first", async () => {
+      given({ pet_medications: [med], pet_medication_pets: [{ next_dose_on: "2026-10-10" }] });
+      const real = fake.from.getMockImplementation()!;
+      let linkCalls = 0;
+      fake.from.mockImplementation(((table: string) => {
+        if (table === "pet_medication_pets" && ++linkCalls === 2) return fakeSupabase({ tables: { pet_medication_pets: [] } }).from(table);
+        return real(table);
+      }) as never);
+      expect(await markGiven({}, form({ medicationId: MED, petId: PET }))).toEqual({ error: "Already marked given." });
+      expect(fake.from).not.toHaveBeenCalledWith("pet_doses");
     });
 
     it("does not count a dose when supply isn't tracked", async () => {
@@ -355,7 +375,7 @@ describe("medications (REQ-189)", () => {
   });
 
   describe("Undo last dose", () => {
-    const dose = { medication_id: MED, pet_id: PET, previous_next_dose_on: "2026-10-10", created_at: "2026-10-08T16:00:00Z" };
+    const dose = { medication_id: MED, pet_id: PET, previous_next_dose_on: "2026-10-10", supply_taken: true, created_at: "2026-10-08T16:00:00Z" };
 
     it("puts back the next dose and the dose on hand, and removes the dose", async () => {
       given({ pet_doses: [dose], pet_medications: [{ doses_on_hand: 5 }] });

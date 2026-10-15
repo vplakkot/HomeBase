@@ -486,18 +486,25 @@ export async function markGiven(_previous: FormState, formData: FormData): Promi
     .update({ next_dose_on: next })
     .eq("medication_id", medicationId)
     .eq("pet_id", petId)
-    .eq("next_dose_on", link.next_dose_on);
+    .eq("next_dose_on", link.next_dose_on)
+    .select("next_dose_on");
   if (moved.error) return { error: moved.error.message };
-  const logged = await supabase
-    .from("pet_doses")
-    .insert({ medication_id: medicationId, pet_id: petId, given_on: today, previous_next_dose_on: link.next_dose_on });
+  if (((moved.data ?? []) as unknown[]).length === 0) return { error: "Already marked given." };
+  const takesSupply = med.doses_on_hand !== null && med.doses_on_hand > 0;
+  const logged = await supabase.from("pet_doses").insert({
+    medication_id: medicationId,
+    pet_id: petId,
+    given_on: today,
+    previous_next_dose_on: link.next_dose_on,
+    supply_taken: takesSupply,
+  });
   if (logged.error) return { error: logged.error.message };
-  if (med.doses_on_hand !== null && med.doses_on_hand > 0) {
+  if (takesSupply) {
     const { error } = await supabase
       .from("pet_medications")
-      .update({ doses_on_hand: med.doses_on_hand - 1 })
+      .update({ doses_on_hand: (med.doses_on_hand as number) - 1 })
       .eq("id", medicationId)
-      .eq("doses_on_hand", med.doses_on_hand);
+      .eq("doses_on_hand", med.doses_on_hand as number);
     if (error) return { error: error.message };
   }
   refresh();
@@ -505,17 +512,17 @@ export async function markGiven(_previous: FormState, formData: FormData): Promi
 }
 
 // A dose marked by mistake: the latest dose for a pet can be undone, which
-// puts back its next dose date and the dose on hand.
+// puts back its next dose date and, if that dose came off the supply, the dose on hand.
 export async function undoDose(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to undo." };
   const { data } = await supabase
     .from("pet_doses")
-    .select("id, medication_id, pet_id, previous_next_dose_on, created_at")
+    .select("id, medication_id, pet_id, previous_next_dose_on, supply_taken, created_at")
     .eq("id", id)
     .maybeSingle();
-  const dose = data as { medication_id: string; pet_id: string; previous_next_dose_on: string | null; created_at: string } | null;
+  const dose = data as { medication_id: string; pet_id: string; previous_next_dose_on: string | null; supply_taken: boolean; created_at: string } | null;
   if (!dose) return { error: "That dose is already gone." };
   const { data: later } = await supabase
     .from("pet_doses")
@@ -532,7 +539,7 @@ export async function undoDose(_previous: FormState, formData: FormData): Promis
   if (error) return { error: error.message };
   const { data: medData } = await supabase.from("pet_medications").select("doses_on_hand").eq("id", dose.medication_id).maybeSingle();
   const onHand = (medData as { doses_on_hand: number | null } | null)?.doses_on_hand ?? null;
-  if (onHand !== null) {
+  if (dose.supply_taken && onHand !== null) {
     const { error: handError } = await supabase.from("pet_medications").update({ doses_on_hand: onHand + 1 }).eq("id", dose.medication_id);
     if (handError) return { error: handError.message };
   }
