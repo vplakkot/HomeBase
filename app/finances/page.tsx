@@ -1,6 +1,7 @@
 import { OVERVIEW } from "../../components/module-frame";
 import Link from "next/link";
 import { ButtonLink, buttonClass } from "../../components/button";
+import { Hint } from "../../components/hint";
 import { householdToday, listPeople, listSplits, monthLabel, splitInForce } from "../../lib/finances/budget-year";
 import { financeItems, itemsForMonth } from "../../lib/finances/action-items";
 import { listBills } from "../../lib/finances/bills";
@@ -272,6 +273,18 @@ export default async function FinancesPage({
         </section>
       ) : null}
 
+      {summary && summary.mismatches.length > 0 ? (
+        <p className={styles.mismatch} role="status">
+          <span className={styles.urgent}>
+            Payments don&apos;t match the bills:{" "}
+            {summary.mismatches
+              .map((row) => `${row.name} is ${formatMoney(Math.abs(row.over))} ${row.over > 0 ? "over" : "short"}`)
+              .join(", ")}
+          </span>
+          <Hint text="Money paid over one bill doesn't cover another. Fix a payment, or change a bill's amount in Monthly entry." />
+        </p>
+      ) : null}
+
       <section className={styles.section} aria-labelledby="bills">
         <div className={styles.sectionHead}>
           <h2 id="bills" className={styles.sectionTitle}>
@@ -312,7 +325,7 @@ export default async function FinancesPage({
                           <span className={styles.progressCell}>
                             <Bar percent={progress(row.paid, row.total)} />
                             <span className={styles.note}>
-                              {formatMoney(Math.min(row.paid, row.total))} of {formatMoney(row.total)}
+                              {formatMoney(row.paid)} of {formatMoney(row.total)}
                             </span>
                           </span>
                         ) : (
