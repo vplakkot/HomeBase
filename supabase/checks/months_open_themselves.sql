@@ -1,4 +1,5 @@
--- Live check of REQ-101 (a month opens itself) against the hosted
+-- Live check of REQ-101 (a month opens itself, and the next one on the
+-- last day of the running month) against the hosted
 -- project. Needs a split in force and at least one bill in the list.
 -- Run:
 --
@@ -44,6 +45,22 @@ begin
   select count(*) into copied from public.month_bills where month_id = first_id;
   report := report || format(E'4. second run same month, still %s bills -- %s\n',
     copied, case when second_id = first_id and copied = bill_count then 'ok' else 'WRONG' end);
+
+  -- 4b. On a month's last day the job opens the next month too; on any
+  -- other day it opens only the one running.
+  perform public.open_current_month('2999-03-30'::date);
+  report := report || format(E'4b. 30 March opened April too -- %s\n',
+    case when exists (select 1 from public.months where starts_on = '2999-04-01') then 'WRONG' else 'ok' end);
+  perform public.open_current_month('2999-03-31'::date);
+  select count(*) into copied from public.month_bills mb
+    join public.months m on m.id = mb.month_id where m.starts_on = '2999-04-01';
+  report := report || format(E'4c. 31 March opened April with %s of %s bills -- %s\n',
+    copied, bill_count, case when copied = bill_count then 'ok' else 'WRONG' end);
+  perform public.open_current_month('2999-04-01'::date);
+  select count(*) into copied from public.month_bills mb
+    join public.months m on m.id = mb.month_id where m.starts_on = '2999-04-01';
+  report := report || format(E'4d. 1 April finds it open, still %s bills -- %s\n',
+    copied, case when copied = bill_count then 'ok' else 'WRONG' end);
 
   -- 5. A person opening the month the job already opened gets that month.
   select hm.user_id into member_id from public.household_members hm order by hm.created_at limit 1;
