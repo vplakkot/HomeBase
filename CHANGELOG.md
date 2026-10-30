@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Finances home warns when payments don't match the bills. A bill paid more
+  than its amount now says so ("Rent is $100.00 over"), and once everyone has
+  paid their share it also names the bill that is still short, because each
+  person can read Paid while one bill is over and another is short. The Bills
+  table shows what was really paid on an overpaid bill instead of capping it.
+
 ## 3.3.0 - 2026-10-15
 
 A Paperwork and Pets release. Paperwork now says File Folder everywhere, lets you
