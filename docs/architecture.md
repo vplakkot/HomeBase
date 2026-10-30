@@ -782,7 +782,9 @@ A month exists once someone opens it in Monthly entry,
 A month opens itself (REQ-101): a pg_cron job, `open-current-month`, runs
 two minutes past every hour and calls `open_current_month()`, which opens
 the month now running in New York once a split is in force and the bill
-list has a bill. A person can
+list has a bill. On that month's last day it opens the next month too, so
+its bills can be entered before they fall due; the month counts as running
+only from the 1st. A person can
 still open it first from Monthly entry with `open_month()`, which checks
 membership and opens only the month now running (the day passed in from
 `householdToday()`). Both go through `create_month()`, which no one signed
