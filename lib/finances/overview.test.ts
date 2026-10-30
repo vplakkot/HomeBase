@@ -71,6 +71,49 @@ describe("monthSummary", () => {
   });
 });
 
+describe("mismatches", () => {
+  const pay = (amount: number, payer = "u-alex") => ({ id: `p-${amount}`, payer_id: payer, amount, created_at: "2026-09-05T12:00:00Z" });
+  const mismatches = (bills: MonthBill[], over: Partial<Month> = {}) => {
+    const m = month(bills, over);
+    return monthSummary(m, monthTotals(m, SHARES), "2026-09-22").mismatches;
+  };
+
+  it("names a bill paid over and one still short, even when the totals cancel out", () => {
+    const found = mismatches([
+      bill({ id: "a", name: "Chase", amount: 100, payments: [pay(120)] }),
+      bill({ id: "b", name: "Amazon", amount: 100, payments: [pay(80, "u-sam")] }),
+    ]);
+    expect(found).toEqual([
+      { id: "a", name: "Chase", over: 20 },
+      { id: "b", name: "Amazon", over: -20 },
+    ]);
+  });
+
+  it("doesn't call an unpaid bill a mismatch while people still owe", () => {
+    expect(mismatches([bill({ amount: 100, payments: [pay(20)] })])).toEqual([]);
+  });
+
+  it("names only the overpaid bill while people still owe", () => {
+    const found = mismatches([
+      bill({ id: "a", name: "Chase", amount: 100, payments: [pay(111.74)] }),
+      bill({ id: "b", name: "Amazon", amount: 500 }),
+    ]);
+    expect(found).toEqual([{ id: "a", name: "Chase", over: 11.74 }]);
+  });
+
+  it("says nothing for a bill paid exactly, or not yet entered", () => {
+    expect(
+      mismatches([bill({ amount: 100, payments: [pay(60), pay(40)] }), bill({ id: "c", amount: null })]),
+    ).toEqual([]);
+  });
+
+  it("says nothing once the month has closed or been settled", () => {
+    const over = [bill({ amount: 100, payments: [pay(150)] })];
+    expect(mismatches(over, { closed_at: "2026-10-01T00:00:00Z" })).toEqual([]);
+    expect(mismatches(over, { settled: true })).toEqual([]);
+  });
+});
+
 describe("progress", () => {
   it("is a whole percent between 0 and 100", () => {
     expect(progress(1, 3)).toBe(33);
