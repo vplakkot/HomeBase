@@ -784,7 +784,9 @@ two minutes past every hour and calls `open_current_month()`, which opens
 the month now running in New York once a split is in force and the bill
 list has a bill. On that month's last day it opens the next month too, so
 its bills can be entered before they fall due; the month counts as running
-only from the 1st. A person can
+only from the 1st. The next month's copy of the bill list is taken then, so a
+bill-list change made on the last day reaches only the month ending
+(`save_bill()` and `remove_bill()` update the month now running). A person can
 still open it first from Monthly entry with `open_month()`, which checks
 membership and opens only the month now running (the day passed in from
 `householdToday()`). Both go through `create_month()`, which no one signed
