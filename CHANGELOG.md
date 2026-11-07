@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Next month opens early. The nightly job now also opens the next month on the
+  last day of the one running (31 October opens November), with rent filled in
+  and card statements waiting, so a statement can be entered as soon as it is
+  ready and before rent is paid. Finances home and the action items keep
+  showing the month in progress until the 1st. A bill-list change made on the
+  last day reaches only the month ending, not the next one, which was already
+  copied: make it in the next month's Monthly entry. Needs a database migration.
+
 ## 3.3.0 - 2026-10-15
 
 A Paperwork and Pets release. Paperwork now says File Folder everywhere, lets you
