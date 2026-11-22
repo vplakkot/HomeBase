@@ -338,9 +338,6 @@ export async function saveDiet(_previous: FormState, formData: FormData): Promis
   if (chosenStart === "bad") return { error: "That start date isn't a date." };
   const startedOn = chosenStart ?? today;
   if (startedOn > today) return { error: "A diet can't start in the future." };
-  if (fields.food_runs_out_on !== null && fields.food_runs_out_on < startedOn) {
-    return { error: "The food can't run out before it starts." };
-  }
   const newBatch = text(formData, "newBatch") === "1";
   if (newBatch && fields.kind !== "home_cooked") return { error: "Only a home-cooked diet has batches." };
   const { data, error: readError } = await supabase
@@ -351,7 +348,17 @@ export async function saveDiet(_previous: FormState, formData: FormData): Promis
     .maybeSingle();
   if (readError) return { error: readError.message };
   const current = data as Pick<Diet, "id" | "pet_id" | "kind" | "brand" | "product" | "protein" | "batch_prep_on" | "food_runs_out_on" | "grams_per_meal" | "meals_per_day" | "started_on"> | null;
-  if (current && !newBatch && !dietChanged({ ...current, grams_per_meal: Number(current.grams_per_meal) }, { ...fields })) {
+  const inPlace = current !== null && !newBatch && !dietChanged({ ...current, grams_per_meal: Number(current.grams_per_meal) }, { ...fields });
+  // The run-out date is checked against the day the entry it lands on starts.
+  const entryStart = inPlace && current ? current.started_on : startedOn;
+  if (fields.food_runs_out_on !== null && fields.food_runs_out_on < entryStart) {
+    return { error: "The food can't run out before it starts." };
+  }
+  // The new entry can't begin before the one it replaces, or the history would overlap.
+  if (!inPlace && current && startedOn < current.started_on) {
+    return { error: `This change can't start before the current diet did (${current.started_on}).` };
+  }
+  if (inPlace && current) {
     const { error } = await supabase
       .from("pet_diets")
       .update({ purpose: fields.purpose, batch_prep_on: fields.batch_prep_on, food_runs_out_on: fields.food_runs_out_on, notes: fields.notes })

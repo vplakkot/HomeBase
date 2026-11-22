@@ -514,6 +514,18 @@ describe("queueing a diet change (REQ-190)", () => {
     expect(queueDietChange).toHaveBeenCalled();
   });
 
+  it("can't start before the diet it replaces, so the history never overlaps", async () => {
+    given({ pet_diets: [home] });
+    expect(await saveDiet({}, form({ ...base, grams: "100", startedOn: "2026-09-30" }))).toEqual({
+      error: "This change can't start before the current diet did (2026-10-01).",
+    });
+  });
+
+  it("checks a notes-only edit's run-out date against the entry's own start, not today", async () => {
+    given({ pet_diets: [home] });
+    expect(await saveDiet({}, form({ ...base, foodRunsOutOn: "2026-10-03" }))).toEqual({ saved: true });
+  });
+
   it("can start on an earlier day, and ends the old entry that day", async () => {
     given({ pet_diets: [home] });
     await saveDiet({}, form({ ...base, grams: "100", startedOn: "2026-10-05" }));
