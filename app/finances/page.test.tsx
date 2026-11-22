@@ -443,6 +443,27 @@ describe("Finances home", () => {
     );
   });
 
+  it("says so when a bill has been paid more than it comes to", async () => {
+    const over = {
+      ...SEPTEMBER,
+      bills: [
+        {
+          ...SEPTEMBER.bills[0],
+          payments: [{ id: "p-1", payer_id: "user-1", amount: "2100.00", created_at: "2026-09-02T15:00:00Z" }],
+        },
+        ...SEPTEMBER.bills.slice(1),
+      ],
+    };
+    await showMonth({ months: [over] });
+    expect(screen.getByRole("status").textContent).toBe("Payments don't match the bills: Rent is $100.00 over");
+    expect(within(region("Bills")).getAllByRole("row")[1].textContent).toContain("$2,100.00 of $2,000.00");
+  });
+
+  it("shows no mismatch while bills are simply still unpaid", async () => {
+    await showMonth();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   // Savings is paused; Close month is only an action item; Budget year is
   // behind the gear.
   it("has no verdict card and no Admin block", async () => {

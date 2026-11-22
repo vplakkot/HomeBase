@@ -27,7 +27,12 @@ export type MonthSummary = {
   percentPaid: number;
   overdue: number;
   rows: OverviewBill[];
+  // Bills paid over their amount (positive), and short ones once everyone
+  // has paid their share (negative). Empty once the month has closed or been settled.
+  mismatches: BillMismatch[];
 };
+
+export type BillMismatch = { id: string; name: string; over: number };
 
 export function monthSummary(month: Month, totals: MonthTotals, today: string): MonthSummary {
   const [year, monthNumber] = month.starts_on.split("-").map(Number);
@@ -57,7 +62,21 @@ export function monthSummary(month: Month, totals: MonthTotals, today: string): 
     percentPaid: bills > 0 ? Math.floor((paid / bills) * 100) : 0,
     overdue: rows.filter((row) => row.overdue).length,
     rows,
+    mismatches: month.closed_at || month.settled ? [] : billMismatches(rows, totals),
   };
+}
+
+// A bill paid more than its amount is always worth a word. A bill still
+// short is only a mismatch once everyone has paid their share: each person
+// can be square while one bill is over and another short, so Outstanding
+// balances reads Paid while Bills still shows money left, and the
+// overpayment doesn't carry over to the bill that is short.
+function billMismatches(rows: OverviewBill[], totals: MonthTotals): BillMismatch[] {
+  const gaps = rows
+    .filter((row) => row.entered)
+    .map((row) => ({ id: row.id, name: row.name, over: Math.round((row.paid - row.total) * 100) / 100 }));
+  const squared = totals.people.length > 0 && totals.people.every((person) => person.outstanding <= 0);
+  return gaps.filter((gap) => gap.over > 0 || (squared && gap.over < 0));
 }
 
 // How far along a progress bar is, as a whole percent from 0 to 100.
