@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Pets notifications (REQ-190, REQ-192). Everyone but the person who did it is
+  told when a pet is added or archived, a vaccine is logged, a medication is
+  started or stopped, and when someone marks a dose given. A diet change is
+  sent after five quiet minutes, so several quick edits send one message with
+  the final food ("Livy meal updated: Royal Canin GI, 150 g per meal."), and a
+  new batch says when it runs out. The whole household is reminded when a
+  vaccine is 30 days away or overdue, a dose is due or 2 days late, a
+  medication needs ordering, and when a home-cooked batch runs out tomorrow.
+  The diet form gains what REQ-188 asked for: a "Food runs out" date for a
+  home-cooked batch, "Log a new batch", and a start date that can be earlier
+  than today. Needs a database migration and `NOTIFY_SECRET` already in place
+  (no new key).
 - Next month opens early. The nightly job now also opens the next month on the
   last day of the one running (31 October opens November), with rent filled in
   and card statements waiting, so a statement can be entered as soon as it is

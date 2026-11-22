@@ -17,6 +17,16 @@ import {
   type Frequency,
   type Medication,
 } from "../../lib/pets/pets";
+import {
+  doseGiven,
+  frequencyWord,
+  medicationStarted,
+  medicationStopped,
+  petAdded,
+  petArchived,
+  vaccineLogged,
+} from "../../lib/pets/messages";
+import { queueDietChange, tellOthers, whoIsActing } from "../../lib/pets/notify";
 import { createClient } from "../../lib/supabase/server";
 
 export type FormState = { error?: string; saved?: boolean };
@@ -124,6 +134,7 @@ export async function addPet(_previous: FormState, formData: FormData): Promise<
     return { error: error.message };
   }
   refresh();
+  await tellOthers({ actor: (await whoIsActing(supabase)).id, body: petAdded(fields.name), url: `/pets/${id}` });
   return { saved: true };
 }
 
@@ -166,9 +177,12 @@ export async function archivePet(_previous: FormState, formData: FormData): Prom
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to archive." };
+  const { data: pet } = await supabase.from("pets").select("name").eq("id", id).maybeSingle();
   const { error } = await supabase.from("pets").update({ archived_at: new Date().toISOString() }).eq("id", id);
   if (error) return { error: error.message };
   refresh();
+  const name = (pet as { name: string } | null)?.name;
+  if (name) await tellOthers({ actor: (await whoIsActing(supabase)).id, body: petArchived(name) });
   redirect("/pets");
 }
 
@@ -223,6 +237,15 @@ export async function addVaccine(_previous: FormState, formData: FormData): Prom
   const { error } = await supabase.from("pet_vaccines").insert({ pet_id: petId, ...fields });
   if (error) return { error: error.message };
   refresh();
+  const { data: pet } = await supabase.from("pets").select("name").eq("id", petId).maybeSingle();
+  const name = (pet as { name: string } | null)?.name;
+  if (name) {
+    await tellOthers({
+      actor: (await whoIsActing(supabase)).id,
+      body: vaccineLogged(name, fields.name, fields.next_due_on, householdToday()),
+      url: `/pets/${petId}`,
+    });
+  }
   return { saved: true };
 }
 
@@ -265,6 +288,8 @@ function dietFields(formData: FormData) {
     if (protein === "") return { error: "Say the protein, for example chicken." };
     const batch = dateOf(formData, "batchPrepOn");
     if (batch === "bad") return { error: "That batch prep date isn't a date." };
+    const runsOut = dateOf(formData, "foodRunsOutOn");
+    if (runsOut === "bad") return { error: "That run-out date isn't a date." };
     return {
       kind,
       brand: null,
@@ -272,6 +297,7 @@ function dietFields(formData: FormData) {
       purpose: null,
       protein,
       batch_prep_on: batch,
+      food_runs_out_on: runsOut,
       grams_per_meal: grams,
       meals_per_day: meals,
       notes,
@@ -287,6 +313,7 @@ function dietFields(formData: FormData) {
     purpose: optional(formData, "purpose"),
     protein: null,
     batch_prep_on: null,
+    food_runs_out_on: null,
     grams_per_meal: grams,
     meals_per_day: meals,
     notes,
@@ -294,40 +321,58 @@ function dietFields(formData: FormData) {
 }
 
 // REQ-188: set or change a pet's diet. Changing the type, food, protein,
-// grams or meals ends the current entry (today) and starts another, so
-// the history is kept. Changing only the notes, purpose or batch date
-// updates the entry where it stands.
+// grams or meals ends the current entry and starts another, so the history
+// is kept; so does "Log a new batch" (a home-cooked batch of the same food).
+// The new entry starts today unless an earlier start date is given, and the
+// old one ends the day the new one starts. Changing only the notes, purpose,
+// batch prep date or run-out date updates the entry where it stands, and
+// nobody is told (REQ-190).
 export async function saveDiet(_previous: FormState, formData: FormData): Promise<FormState> {
   const supabase = await requireMember();
   const petId = rowId(formData, "petId");
   if (!petId) return { error: "Nothing to add to." };
   const fields = dietFields(formData);
   if ("error" in fields) return { error: fields.error };
+  const today = householdToday();
+  const chosenStart = dateOf(formData, "startedOn");
+  if (chosenStart === "bad") return { error: "That start date isn't a date." };
+  const startedOn = chosenStart ?? today;
+  if (startedOn > today) return { error: "A diet can't start in the future." };
+  if (fields.food_runs_out_on !== null && fields.food_runs_out_on < startedOn) {
+    return { error: "The food can't run out before it starts." };
+  }
+  const newBatch = text(formData, "newBatch") === "1";
+  if (newBatch && fields.kind !== "home_cooked") return { error: "Only a home-cooked diet has batches." };
   const { data, error: readError } = await supabase
     .from("pet_diets")
-    .select("id, kind, brand, product, protein, grams_per_meal, meals_per_day, started_on")
+    .select("id, pet_id, kind, brand, product, protein, batch_prep_on, food_runs_out_on, grams_per_meal, meals_per_day, started_on")
     .eq("pet_id", petId)
     .is("ended_on", null)
     .maybeSingle();
   if (readError) return { error: readError.message };
-  const current = data as (Pick<Diet, "id" | "kind" | "brand" | "product" | "protein" | "grams_per_meal" | "meals_per_day" | "started_on">) | null;
-  const today = householdToday();
-  if (current && !dietChanged({ ...current, grams_per_meal: Number(current.grams_per_meal) }, { ...fields })) {
+  const current = data as Pick<Diet, "id" | "pet_id" | "kind" | "brand" | "product" | "protein" | "batch_prep_on" | "food_runs_out_on" | "grams_per_meal" | "meals_per_day" | "started_on"> | null;
+  if (current && !newBatch && !dietChanged({ ...current, grams_per_meal: Number(current.grams_per_meal) }, { ...fields })) {
     const { error } = await supabase
       .from("pet_diets")
-      .update({ purpose: fields.purpose, batch_prep_on: fields.batch_prep_on, notes: fields.notes })
+      .update({ purpose: fields.purpose, batch_prep_on: fields.batch_prep_on, food_runs_out_on: fields.food_runs_out_on, notes: fields.notes })
       .eq("id", current.id);
     if (error) return { error: error.message };
   } else {
     if (current) {
       const { error } = await supabase
         .from("pet_diets")
-        .update({ ended_on: today < current.started_on ? current.started_on : today })
+        .update({ ended_on: startedOn < current.started_on ? current.started_on : startedOn })
         .eq("id", current.id);
       if (error) return { error: error.message };
     }
-    const { error } = await supabase.from("pet_diets").insert({ pet_id: petId, ...fields, started_on: today });
+    const { error } = await supabase.from("pet_diets").insert({ pet_id: petId, ...fields, started_on: startedOn });
     if (error) return { error: error.message };
+    // REQ-190: told after five quiet minutes, from the diet as it was before this burst of edits.
+    await queueDietChange({
+      petId,
+      actor: (await whoIsActing(supabase)).id,
+      before: current ? ({ ...current, grams_per_meal: Number(current.grams_per_meal) } as Diet) : null,
+    });
   }
   refresh();
   return { saved: true };
@@ -395,6 +440,14 @@ function petIdsOf(formData: FormData): string[] {
   return [...new Set(formData.getAll("petIds").map(String).filter((id) => UUID.test(id)))];
 }
 
+// The names of some pets, for a notification's wording.
+async function petNames(supabase: SupabaseClient, ids: readonly string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const { data } = await supabase.from("pets").select("id, name").in("id", [...ids]);
+  const rows = (data ?? []) as { id: string; name: string }[];
+  return ids.flatMap((id) => rows.find((row) => row.id === id)?.name ?? []);
+}
+
 // REQ-189: one product, linked to each pet that takes it. Each pet's
 // first dose is due on the start date.
 export async function addMedication(_previous: FormState, formData: FormData): Promise<FormState> {
@@ -414,6 +467,10 @@ export async function addMedication(_previous: FormState, formData: FormData): P
     return { error: linkError.message };
   }
   refresh();
+  await tellOthers({
+    actor: (await whoIsActing(supabase)).id,
+    body: medicationStarted(await petNames(supabase, petIds), fields.name, frequencyWord(fields)),
+  });
   return { saved: true };
 }
 
@@ -446,6 +503,11 @@ export async function updateMedication(_previous: FormState, formData: FormData)
     if (dropError) return { error: dropError.message };
   }
   refresh();
+  const actor = (await whoIsActing(supabase)).id;
+  if (added.length > 0) {
+    await tellOthers({ actor, body: medicationStarted(await petNames(supabase, added), fields.name, frequencyWord(fields)) });
+  }
+  if (dropped.length > 0) await tellOthers({ actor, body: medicationStopped(await petNames(supabase, dropped), fields.name) });
   return { saved: true };
 }
 
@@ -453,9 +515,16 @@ export async function removeMedication(_previous: FormState, formData: FormData)
   const supabase = await requireMember();
   const id = rowId(formData);
   if (!id) return { error: "Nothing to remove." };
+  const [{ data: medData }, { data: linkData }] = await Promise.all([
+    supabase.from("pet_medications").select("name").eq("id", id).maybeSingle(),
+    supabase.from("pet_medication_pets").select("pet_id").eq("medication_id", id),
+  ]);
   const { error } = await supabase.from("pet_medications").delete().eq("id", id);
   if (error) return { error: error.message };
   refresh();
+  const name = (medData as { name: string } | null)?.name;
+  const pets = await petNames(supabase, ((linkData ?? []) as { pet_id: string }[]).map((row) => row.pet_id));
+  if (name && pets.length > 0) await tellOthers({ actor: (await whoIsActing(supabase)).id, body: medicationStopped(pets, name) });
   return { saved: true };
 }
 
@@ -508,6 +577,15 @@ export async function markGiven(_previous: FormState, formData: FormData): Promi
     if (error) return { error: error.message };
   }
   refresh();
+  const [{ data: nameData }, [petName]] = await Promise.all([
+    supabase.from("pet_medications").select("name").eq("id", medicationId).maybeSingle(),
+    petNames(supabase, [petId]),
+  ]);
+  const medName = (nameData as { name: string } | null)?.name;
+  if (medName && petName) {
+    const who = await whoIsActing(supabase);
+    await tellOthers({ actor: who.id, body: doseGiven(who.name, petName, medName), url: `/pets/${petId}` });
+  }
   return { saved: true };
 }
 

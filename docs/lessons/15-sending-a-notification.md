@@ -209,3 +209,27 @@ address, so moving it early just means an hourly `404`.
 (Since 2026-09-24 the hourly test is gone and `/api/notifications/test`
 with it. The Finances reminders read only the host part of `notify_url`,
 so the path left in the vault no longer matters.)
+
+## Waiting until it goes quiet, and sending once (Pets)
+
+Two more ways to send, both from Pets (REQ-190, REQ-192).
+
+**Wait until it goes quiet.** When someone changes a pet's food three times
+in a minute, the household should get one message with the final food, not
+three. Think of a shop assistant who waits until you've stopped changing your
+order before sending it to the kitchen. So a change doesn't send; it writes
+a note ("diet changed, here's what it was before, last edit at 12:03") and the
+five-minute job sends notes that haven't been touched for five minutes. The
+message is worked out then, from the diet before the first edit and the diet
+now. If the two are the same again, nothing is sent at all.
+
+**Claim it, then send it.** The job can run while the last run is still going.
+To make sure only one of them sends, each takes the note first: the diet job
+deletes the row it read (an edit that landed meanwhile changed the row, so it
+isn't deleted and waits its own five minutes), and the reminder job inserts
+the reminder's name into `pet_pushes` and only sends if that insert was new.
+Whoever wins sends; the other moves on.
+
+**Who is told.** What a person did goes to everyone but that person; a date
+arriving goes to everyone. Either way, a send that fails after the save has
+already happened is logged, never shown as a failed save.

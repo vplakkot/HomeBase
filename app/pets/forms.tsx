@@ -258,6 +258,10 @@ export function DietForm({ petId, diet }: { petId: string; diet: Diet | null }) 
             <span>Batch prep date (optional)</span>
             <input type="date" name="batchPrepOn" defaultValue={diet?.batch_prep_on ?? ""} />
           </label>
+          <label className={cards.field}>
+            <span>Food runs out (optional)</span>
+            <input type="date" name="foodRunsOutOn" defaultValue={diet?.food_runs_out_on ?? ""} />
+          </label>
         </>
       ) : (
         <>
@@ -287,9 +291,18 @@ export function DietForm({ petId, diet }: { petId: string; diet: Diet | null }) 
         <span>{home ? "Recipe notes (optional)" : "Notes (optional)"}</span>
         <textarea name="notes" rows={3} defaultValue={diet?.notes ?? ""} />
       </label>
+      <label className={cards.field}>
+        <span>Starts on (a change or new batch; today unless you pick an earlier day)</span>
+        <input type="date" name="startedOn" max={new Date().toISOString().slice(0, 10)} />
+      </label>
       <button type="submit" className={cards.primary} disabled={pending}>
         {pending ? "Saving…" : diet ? "Save diet" : "Set diet"}
       </button>
+      {home && diet?.kind === "home_cooked" ? (
+        <button type="submit" name="newBatch" value="1" className={cards.quiet} disabled={pending}>
+          Log a new batch
+        </button>
+      ) : null}
       <Outcome state={state} />
     </form>
   );

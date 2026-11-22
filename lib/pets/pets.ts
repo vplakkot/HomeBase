@@ -45,6 +45,8 @@ export type Diet = {
   purpose: string | null;
   protein: string | null;
   batch_prep_on: string | null;
+  // Home-cooked: when this batch is expected to run out.
+  food_runs_out_on: string | null;
   grams_per_meal: number;
   meals_per_day: number;
   notes: string | null;
@@ -370,7 +372,7 @@ export async function readPets(supabase: SupabaseClient): Promise<PetsData> {
     rows<Diet>(
       supabase,
       "pet_diets",
-      "id, pet_id, kind, brand, product, purpose, protein, batch_prep_on, grams_per_meal, meals_per_day, notes, started_on, ended_on",
+      "id, pet_id, kind, brand, product, purpose, protein, batch_prep_on, food_runs_out_on, grams_per_meal, meals_per_day, notes, started_on, ended_on",
     ),
     rows<Medication>(
       supabase,

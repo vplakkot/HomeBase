@@ -19,6 +19,7 @@ const TRIGGERS: Record<LogRow["trigger"], string> = {
   manual: "By hand",
   finances: "Finances",
   "meal-plan": "Meal Plan",
+  pets: "Pets",
 };
 
 export function NotificationLog({

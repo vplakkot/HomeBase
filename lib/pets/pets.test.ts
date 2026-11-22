@@ -44,6 +44,7 @@ const diet = (id: string, extra: Partial<Diet> = {}): Diet => ({
   purpose: null,
   protein: null,
   batch_prep_on: null,
+  food_runs_out_on: null,
   grams_per_meal: 120,
   meals_per_day: 2,
   notes: null,
