@@ -1665,8 +1665,39 @@ Pet photos use the same private-bucket pattern as the drinks' label
 photos ([lesson 27](lessons/27-private-photos.md)): shrunk in the
 browser, uploaded under the new pet's ID before the row is saved, and
 shown through short-lived signed links. Home's Pets tile only counts
-active pets. Notifications, extra profile details and the sick log are
-separate requirements, not built here.
+active pets. Extra profile details and the sick log are separate
+requirements, not built here.
+
+### Notifications (REQ-190, REQ-192)
+
+Three kinds, all sent by [`lib/pets/notify.ts`](../lib/pets/notify.ts)
+through the same `sendPush` as everything else (logged as `pets`), and none
+sent while the Pets switch is off. The wording and the "what is due today"
+rules are plain functions in [`lib/pets/messages.ts`](../lib/pets/messages.ts).
+
+- **Something someone did** (a pet added or archived, a vaccine logged, a
+  medication started or stopped, a dose marked given): the server action
+  saves first, then tells everyone in the household except the person who did
+  it. A send that fails is logged and never makes the save fail.
+- **A diet change** waits for five quiet minutes, so several quick edits send
+  one message with the final values. `pet_diet_pending` holds one row per pet:
+  the diet as it stood before the first edit (`before_diet`), who edited last,
+  and when. Every edit after the first only restarts the clock.
+- **A date arrives** (a vaccine due in 30 days or overdue, a dose due today or
+  2 days late, an order-by date, a home-cooked batch running out tomorrow):
+  sent to everyone, in the household's waking hours (9:00 to 21:00), once.
+  `pet_pushes` holds the topic of each one sent.
+
+One `pg_cron` job (`pet-notifications`, every five minutes) posts to
+`/api/notifications/pets` with the shared secret of the other jobs. That
+route sends the diet changes that have gone quiet (claiming each by deleting
+its row, so two overlapping runs cannot both send it) and then the day's
+reminders (claiming each by inserting its topic first). The two tables are
+readable only with the secret key.
+
+`pet_diets.food_runs_out_on` records when a home-cooked batch is expected to
+run out. "Log a new batch" and a start date other than today (REQ-188) end the
+current entry on the new start date and begin another.
 
 ## Module switches
 

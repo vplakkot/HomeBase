@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { queueDietChange, tellOthers } from "../../lib/pets/notify";
 import { createClient } from "../../lib/supabase/server";
 import { fakeSupabase } from "../../test/fake-supabase";
 import {
@@ -7,6 +8,7 @@ import {
   addVaccine,
   archivePet,
   markDelivery,
+  removeMedication,
   markGiven,
   removePet,
   restorePet,
@@ -18,6 +20,12 @@ import {
 
 vi.mock("../../lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// Sending is tested on its own; here only what each action asks to be sent.
+vi.mock("../../lib/pets/notify", () => ({
+  tellOthers: vi.fn(),
+  queueDietChange: vi.fn(),
+  whoIsActing: vi.fn(async () => ({ id: "user-1", name: "Vin" })),
+}));
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -95,10 +103,10 @@ describe("a pet's profile (REQ-186)", () => {
   it("archives a pet, keeping its records, and restores it", async () => {
     given();
     await expect(archivePet({}, form({ id: PET }))).rejects.toThrow("REDIRECT:/pets");
-    expect(on("pets")[0].update).toHaveBeenCalledWith({ archived_at: expect.stringMatching(/^2026-10-08/) });
+    expect(on("pets")[1].update).toHaveBeenCalledWith({ archived_at: expect.stringMatching(/^2026-10-08/) });
     expect(fake.from).not.toHaveBeenCalledWith("pet_vaccines");
     await expect(restorePet({}, form({ id: PET }))).rejects.toThrow(`REDIRECT:/pets/${PET}`);
-    expect(on("pets")[1].update).toHaveBeenCalledWith({ archived_at: null });
+    expect(on("pets")[2].update).toHaveBeenCalledWith({ archived_at: null });
   });
 
   it("removes a profile for good only once it is archived", async () => {
@@ -177,6 +185,7 @@ describe("setting a diet (REQ-188)", () => {
       purpose: "GI",
       protein: null,
       batch_prep_on: null,
+      food_runs_out_on: null,
       grams_per_meal: 120,
       meals_per_day: 2,
       notes: null,
@@ -235,7 +244,13 @@ describe("setting a diet (REQ-188)", () => {
     given({ pet_diets: [current] });
     expect(await saveDiet({}, form({ ...commercial, purpose: "", notes: "Warm it up" }))).toEqual({ saved: true });
     expect(inserted()).toBe(false);
-    expect(on("pet_diets").at(-1)!.update).toHaveBeenCalledWith({ purpose: null, batch_prep_on: null, notes: "Warm it up" });
+    expect(on("pet_diets").at(-1)!.update).toHaveBeenCalledWith({
+      purpose: null,
+      batch_prep_on: null,
+      food_runs_out_on: null,
+      notes: "Warm it up",
+    });
+    expect(queueDietChange).not.toHaveBeenCalled();
   });
 
   it("needs the fields its type asks for", async () => {
@@ -339,7 +354,7 @@ describe("medications (REQ-189)", () => {
         previous_next_dose_on: "2026-10-10",
         supply_taken: true,
       });
-      expect(on("pet_medications").at(-1)!.update).toHaveBeenCalledWith({ doses_on_hand: 5 });
+      expect(on("pet_medications").find((query) => query.update.mock.calls.length > 0)!.update).toHaveBeenCalledWith({ doses_on_hand: 5 });
     });
 
     it("notes when no dose came off the supply because none were on hand", async () => {
@@ -428,5 +443,106 @@ describe("medications (REQ-189)", () => {
       given({ pet_medications: [{ doses_on_hand: 2, doses_per_delivery: null }] });
       expect(await markDelivery({}, form({ id: MED }))).toEqual({ error: "Set doses per delivery first (Edit)." });
     });
+  });
+});
+
+describe("telling the household (REQ-190, REQ-192)", () => {
+  const told = () => vi.mocked(tellOthers).mock.calls.map(([call]) => call.body);
+
+  it("says a pet was added", async () => {
+    given();
+    await addPet({}, form({ name: "Livy", species: "Dog" }));
+    expect(told()).toEqual(["Livy was added to Pets."]);
+    expect(vi.mocked(tellOthers).mock.calls[0][0].actor).toBe("user-1");
+  });
+
+  it("says a profile was sent over the rainbow bridge when it is archived", async () => {
+    given({ pets: [{ name: "Livy" }] });
+    await expect(archivePet({}, form({ id: PET }))).rejects.toThrow("REDIRECT");
+    expect(told()).toEqual(["Livy's profile was sent over the rainbow bridge."]);
+  });
+
+  it("says a vaccine was given, and when the next is due", async () => {
+    given({ pets: [{ name: "Xiao Wu" }] });
+    await addVaccine({}, form({ petId: PET, name: "Rabies", givenOn: "2026-10-08", nextDueOn: "2029-10-08" }));
+    expect(told()).toEqual(["Xiao Wu got Rabies today. Next due Oct 2029."]);
+  });
+
+  it("says a medication started, naming each pet that takes it", async () => {
+    given({ pets: [{ id: PET, name: "Livy" }, { id: PET2, name: "Xiao Wu" }], pet_medications: [{ id: MED }] });
+    await addMedication(
+      {},
+      form({ name: "Simparica Trio", frequency: "monthly", startsOn: "2026-10-08", petIds: [PET, PET2], ongoing: "yes" }),
+    );
+    expect(told()).toEqual(["Livy and Xiao Wu started Simparica Trio, monthly."]);
+  });
+
+  it("says a medication stopped when it is removed", async () => {
+    given({ pet_medications: [{ name: "Simparica Trio" }], pet_medication_pets: [{ pet_id: PET }], pets: [{ id: PET, name: "Livy" }] });
+    await removeMedication({}, form({ id: MED }));
+    expect(told()).toEqual(["Livy stopped Simparica Trio."]);
+  });
+
+  it("says who gave a dose", async () => {
+    given({ pet_medications: [{ name: "Simparica Trio", frequency: "monthly", every_n_days: null, ends_on: null, doses_on_hand: null }], pet_medication_pets: [{ next_dose_on: "2026-10-10" }], pets: [{ id: PET, name: "Livy" }] });
+    await markGiven({}, form({ medicationId: MED, petId: PET }));
+    expect(told()).toEqual(["Vin gave Livy Simparica Trio."]);
+  });
+});
+
+describe("queueing a diet change (REQ-190)", () => {
+  const home = { id: ROW, kind: "home_cooked", brand: null, product: null, protein: "chicken", grams_per_meal: 120, meals_per_day: 2, started_on: "2026-10-01", batch_prep_on: null, food_runs_out_on: null };
+  const base = { petId: PET, kind: "home_cooked", protein: "chicken", grams: "120", meals: "2" };
+
+  it("queues the first diet with nothing before it", async () => {
+    given();
+    await saveDiet({}, form(base));
+    expect(queueDietChange).toHaveBeenCalledWith({ petId: PET, actor: "user-1", before: null });
+  });
+
+  it("queues a change with the diet as it was", async () => {
+    given({ pet_diets: [home] });
+    await saveDiet({}, form({ ...base, grams: "100" }));
+    expect(vi.mocked(queueDietChange).mock.calls[0][0].before).toMatchObject({ id: ROW, grams_per_meal: 120 });
+  });
+
+  it("starts a new entry for a new batch of the same food, with its run-out date", async () => {
+    given({ pet_diets: [home] });
+    await saveDiet({}, form({ ...base, newBatch: "1", foodRunsOutOn: "2026-10-20" }));
+    const diets = on("pet_diets");
+    expect(diets.at(-1)!.insert).toHaveBeenCalledWith(expect.objectContaining({ food_runs_out_on: "2026-10-20", started_on: "2026-10-08" }));
+    expect(queueDietChange).toHaveBeenCalled();
+  });
+
+  it("can't start before the diet it replaces, so the history never overlaps", async () => {
+    given({ pet_diets: [home] });
+    expect(await saveDiet({}, form({ ...base, grams: "100", startedOn: "2026-09-30" }))).toEqual({
+      error: "This change can't start before the current diet did (2026-10-01).",
+    });
+  });
+
+  it("checks a notes-only edit's run-out date against the entry's own start, not today", async () => {
+    given({ pet_diets: [home] });
+    expect(await saveDiet({}, form({ ...base, foodRunsOutOn: "2026-10-03" }))).toEqual({ saved: true });
+  });
+
+  it("can start on an earlier day, and ends the old entry that day", async () => {
+    given({ pet_diets: [home] });
+    await saveDiet({}, form({ ...base, grams: "100", startedOn: "2026-10-05" }));
+    const diets = on("pet_diets");
+    expect(diets.some((query) => query.update.mock.calls.some(([args]) => args.ended_on === "2026-10-05"))).toBe(true);
+    expect(diets.at(-1)!.insert).toHaveBeenCalledWith(expect.objectContaining({ started_on: "2026-10-05" }));
+  });
+
+  it("refuses a start in the future and a batch that runs out before it starts", async () => {
+    given({ pet_diets: [home] });
+    expect(await saveDiet({}, form({ ...base, grams: "100", startedOn: "2026-10-09" }))).toEqual({ error: "A diet can't start in the future." });
+    expect(await saveDiet({}, form({ ...base, newBatch: "1", foodRunsOutOn: "2026-10-07" }))).toEqual({ error: "The food can't run out before it starts." });
+  });
+
+  it("does not queue when only the notes, batch date or run-out date change", async () => {
+    given({ pet_diets: [home] });
+    await saveDiet({}, form({ ...base, notes: "More rice", batchPrepOn: "2026-10-06", foodRunsOutOn: "2026-10-20" }));
+    expect(queueDietChange).not.toHaveBeenCalled();
   });
 });

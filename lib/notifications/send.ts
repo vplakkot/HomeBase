@@ -9,9 +9,9 @@ import { hashReceiptToken, newReceiptToken } from "./receipt-token";
 // only route to them, as REQ-16 and REQ-20 noted.
 
 export type TestTrigger = "hourly" | "manual";
-// Finances reminders (REQ-70) and the Meal Plan start question (REQ-163) are
-// logged beside the test notifications.
-export type Trigger = TestTrigger | "finances" | "meal-plan";
+// Finances reminders (REQ-70), the Meal Plan start question (REQ-163) and
+// Pets notifications (REQ-190, REQ-192) are logged beside the test ones.
+export type Trigger = TestTrigger | "finances" | "meal-plan" | "pets";
 
 export type Message = { title: string; body: string; url: string };
 
